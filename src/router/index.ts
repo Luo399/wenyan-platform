@@ -8,13 +8,13 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView
+      component: HomeView,
     },
     {
-      path: '/detail/:id',   // :id 是动态参数
+      path: '/detail/:id',
       name: 'detail',
-      component: () => import('../views/DetailView.vue')
-    }
+      component: DetailView,
+    },
   ],
 })
 

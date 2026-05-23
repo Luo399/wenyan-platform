@@ -1,0 +1,34 @@
+[
+  {
+    "id": "WEN_01_Q1",
+    "wenId": "WEN_01",
+    "questionSeq": 1,
+    "text": "“斯是陋室，惟吾德馨”中的“馨”意思是？",
+    "type": "radio",
+    "options": [
+      { "id": "A", "label": "散布很远的香气" },
+      { "id": "B", "label": "温馨" },
+      { "id": "C", "label": "德行" },
+      { "id": "D", "label": "名声" }
+    ],
+    "correctAnswer": "A",
+    "audioUrl": null,
+    "imageUrl": null
+  },
+  {
+    "id": "WEN_01_Q2",
+    "wenId": "WEN_01",
+    "questionSeq": 2,
+    "text": "下列哪一项不是《陋室铭》中提到的生活场景？",
+    "type": "checkbox",
+    "options": [
+      { "id": "A", "label": "调素琴" },
+      { "id": "B", "label": "阅金经" },
+      { "id": "C", "label": "饮酒赋诗" },
+      { "id": "D", "label": "谈笑有鸿儒" }
+    ],
+    "correctAnswer": ["A", "C"],
+    "audioUrl": null,
+    "imageUrl": null
+  }
+]
