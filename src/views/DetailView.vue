@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import Question, { type QuestionData } from './Question.vue'
+import Question, { type QuestionData } from '../components/Question.vue'
 
 const route = useRoute()
 const articleId = route.params.id ?? ''

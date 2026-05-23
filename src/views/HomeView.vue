@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import PoetryMenu from '@/views/PoetryMenu.vue'
+import PoetryMenu from '@/components/PoetryMenu.vue'
 </script>
 
 <style scoped>
