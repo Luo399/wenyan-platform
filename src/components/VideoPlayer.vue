@@ -155,7 +155,11 @@ function togglePlay() {
     videoRef.value.pause()
   } else {
     // 开始播放视频
-    videoRef.value.play()
+    // play() 返回 Promise，需要处理可能的错误（如浏览器自动播放策略阻止）
+    videoRef.value.play().catch((err) => {
+      console.warn('播放失败:', err)
+      isPlaying.value = false
+    })
   }
 }
 
