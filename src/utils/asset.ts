@@ -12,7 +12,7 @@
  */
 
 /** OSS 基础路径，从环境变量读取 */
-export const ossBase = import.meta.env.VITE_OSS_BASE_URL
+export const ossBase = import.meta.env.VITE_OSS_BASE_URL as string
 
 /**
  * 获取资源完整 URL
