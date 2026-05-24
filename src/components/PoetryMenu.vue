@@ -12,7 +12,7 @@
       @mouseenter="onMouseEnter"
       @mouseleave="onMouseLeave"
     >
-      <li v-for="poem in poemList" :key="poem.id" @click="goToRules(poem.id)">
+      <li v-for="poem in poemList" :key="poem.wenId" @click="goToRules(poem.wenId)">
         {{ poem.title }}
       </li>
     </ul>
@@ -35,22 +35,22 @@ function clearTimer() {
   }
 }
 
-// 诗题列表数据（以后可以从 OSS 或 API 获取）
+// 诗题列表数据（按 wenId 升序排列）
 const poemList = ref([
-  { id: 1, title: '马说' },
-  { id: 2, title: '陈涉世家' },
-  { id: 3, title: '岳阳楼记' },
-  { id: 4, title: '庄子与惠子' },
+  { wenId: 'WEN_01', title: '陈涉世家' },
+  { wenId: 'WEN_02', title: '马说' },
+  { wenId: 'WEN_03', title: '岳阳楼记' },
+  { wenId: 'WEN_04', title: '庄子与惠子' },
 ])
 
 const router = useRouter()
 
 /**
  * 跳转到规则介绍页
- * @param id - 篇目ID，用于加载对应的视频
+ * @param wenId - 课文ID，用于加载对应的视频
  */
-function goToRules(id: number) {
-  router.push({ name: 'rules', params: { id } })
+function goToRules(wenId: string) {
+  router.push({ name: 'rules', params: { id: wenId } })
 }
 
 function onMouseEnter() {
