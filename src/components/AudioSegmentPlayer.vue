@@ -318,7 +318,8 @@ function fillMissingEmoji(segments: Segment[]): Segment[] {
  */
 function setupAudio() {
   if (!wenData.value || !audioRef.value) return
-  audioRef.value.src = wenData.value.audioUrl
+  // 根据命名规范，audioUrl 只存储文件名，前端统一拼接路径
+  audioRef.value.src = `/audio/${wenData.value.audioUrl}`
   audioRef.value.load()
 }
 /**
@@ -406,7 +407,11 @@ function toggleSpeed() {
 /**
  * 监听当前段落变化
  */
-watch(currentSegmentIndex, (newIndex) => {})
+watch(currentSegmentIndex, (newIndex) => {
+  if (newIndex >= 0) {
+    emit('segment-change', newIndex)
+  }
+})
 // 生命周期
 onMounted(() => {
   if (props.autoLoad) {
