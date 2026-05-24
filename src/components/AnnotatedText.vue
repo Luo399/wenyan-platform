@@ -50,11 +50,7 @@
 
     <!-- 注释弹窗 -->
     <Teleport to="body">
-      <div
-        v-if="showTooltip"
-        class="annotation-tooltip"
-        :style="tooltipStyle"
-      >
+      <div v-if="showTooltip" class="annotation-tooltip" :style="tooltipStyle">
         {{ currentAnnotation }}
       </div>
     </Teleport>
@@ -103,6 +99,7 @@ let abortController: AbortController | null = null
  */
 const ALLOWED_TAGS = ['p', 'span']
 const ALLOWED_ATTRS: Record<string, string[]> = {
+  p: [],
   span: ['class', 'data-def'],
 }
 
