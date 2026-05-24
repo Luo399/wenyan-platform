@@ -25,24 +25,28 @@
     <div class="action-area">
       <button
         class="submit-btn"
-        :class="{ disabled: isSubmitted }"
+        :class="{ disabled: isSubmitted || isSubmitting }"
         @click="submitAnswer"
-        :disabled="isSubmitted"
+        :disabled="isSubmitted || isSubmitting"
       >
-        {{ isSubmitted ? '已提交' : '提交答案' }}
+        <span v-if="isSubmitting" class="spinner"></span>
+        {{ isSubmitting ? '提交中...' : isSubmitted ? '已提交' : '提交答案' }}
       </button>
-      <button v-if="isSubmitted" class="reset-btn" @click="resetAnswer">重新答题</button>
     </div>
     <div v-if="isSubmitted && !isCorrect" class="correct-answer">
       <span class="label">正确答案：</span>
       <span class="value">{{ formatCorrectAnswer() }}</span>
     </div>
+    <p v-if="submitError" class="submit-error">{{ submitError }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import Options, { type Option, type OptionsType } from './Options.vue'
+import { submitAnswers, ApiError } from '@/utils/api'
+import { useStudentStore } from '@/stores/student'
+import { storeToRefs } from 'pinia'
 
 export interface QuestionData {
   id: string
@@ -64,14 +68,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string | number | (string | number)[]): void
   (e: 'answer-change', questionId: string, answer: string | number | (string | number)[]): void
-  (
-    e: 'answer-submit',
-    questionId: string,
-    isCorrect: boolean,
-    selectedAnswer: string | number | (string | number)[],
-    correctAnswer: string | number | (string | number)[],
-  ): void
 }>()
+
+const studentStore = useStudentStore()
+const { studentId, isLoggedIn } = storeToRefs(studentStore)
 
 const getInitialValue = (): string | number | (string | number)[] => {
   if (props.question.type === 'radio') {
@@ -80,9 +80,12 @@ const getInitialValue = (): string | number | (string | number)[] => {
     return Array.isArray(props.modelValue) ? [...props.modelValue] : []
   }
 }
+
 const selectedAnswer = ref<string | number | (string | number)[]>(getInitialValue())
 const isSubmitted = ref(false)
 const isCorrect = ref(false)
+const isSubmitting = ref(false)
+const submitError = ref('')
 
 watch(
   () => props.modelValue,
@@ -133,27 +136,44 @@ function compareAnswers(): boolean {
   }
 }
 
-function submitAnswer() {
-  isCorrect.value = compareAnswers()
-  isSubmitted.value = true
-  emit(
-    'answer-submit',
-    props.question.id,
-    isCorrect.value,
-    selectedAnswer.value,
-    props.question.correctAnswer,
-  )
-}
-
-function resetAnswer() {
-  isSubmitted.value = false
-  isCorrect.value = false
-  if (props.question.type === 'radio') {
-    selectedAnswer.value = ''
-  } else {
-    selectedAnswer.value = []
+async function submitAnswer() {
+  // 检查登录状态
+  if (!isLoggedIn.value) {
+    submitError.value = '请先登录'
+    return
   }
-  emit('update:modelValue', selectedAnswer.value)
+
+  // 检查是否已选择答案
+  if (isAnswerEmpty()) {
+    submitError.value = '请先选择答案'
+    return
+  }
+
+  submitError.value = ''
+  isSubmitting.value = true
+
+  try {
+    const submitData = {
+      studentId: studentId.value,
+      wenId: props.question.wenId,
+      submittedAt: new Date().toISOString(),
+      answers: { [props.question.id]: selectedAnswer.value },
+      questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }],
+    }
+
+    await submitAnswers(submitData, 30000)
+
+    isCorrect.value = compareAnswers()
+    isSubmitted.value = true
+  } catch (error) {
+    if (error instanceof ApiError) {
+      submitError.value = error.message
+    } else {
+      submitError.value = '提交失败'
+    }
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function formatCorrectAnswer(): string {
@@ -232,6 +252,9 @@ function formatCorrectAnswer(): string {
   margin-top: 1rem;
 }
 .submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 0.375rem;
@@ -249,19 +272,6 @@ function formatCorrectAnswer(): string {
   background-color: #9ca3af;
   cursor: not-allowed;
 }
-.reset-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  background-color: white;
-  color: #374151;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-}
-.reset-btn:hover {
-  background-color: #f3f4f6;
-}
 .correct-answer {
   margin-top: 1rem;
   padding: 0.5rem;
@@ -274,5 +284,23 @@ function formatCorrectAnswer(): string {
 }
 .correct-answer .value {
   color: #b45309;
+}
+.submit-error {
+  margin-top: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

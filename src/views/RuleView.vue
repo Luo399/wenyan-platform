@@ -2,7 +2,7 @@
   RuleView.vue - 规则介绍页面
 
   功能说明：
-  - 根据篇目ID加载对应的视频
+  - 展示视频播放器
   - 显示规则介绍标题
   - 左下角返回按钮，右下角继续按钮
 -->
@@ -17,16 +17,12 @@
     </div>
 
     <!-- 底部导航按钮 -->
-    <div class="bottom-bar">
-      <button class="nav-btn back-btn" @click="handleBack">
-        <i class="fas fa-arrow-left"></i>
-        返回
-      </button>
-      <button class="nav-btn continue-btn" @click="handleContinue">
-        继续
-        <i class="fas fa-arrow-right"></i>
-      </button>
-    </div>
+    <BackContinue
+      back-text="返回"
+      continue-text="继续"
+      @back="handleBack"
+      @continue="handleContinue"
+    />
   </div>
 </template>
 
@@ -34,6 +30,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
+import BackContinue from '@/components/BackContinue.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -90,46 +87,5 @@ function handleContinue() {
 .video-section {
   flex: 1;
   max-width: 100%;
-}
-
-.bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  padding: 1rem 2rem;
-  background: linear-gradient(to top, rgba(255, 255, 255, 1) 60%, rgba(255, 255, 255, 0));
-}
-
-.nav-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.back-btn {
-  background-color: #e5e7eb;
-  color: #374151;
-}
-
-.back-btn:hover {
-  background-color: #d1d5db;
-}
-
-.continue-btn {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.continue-btn:hover {
-  background-color: #2563eb;
 }
 </style>
