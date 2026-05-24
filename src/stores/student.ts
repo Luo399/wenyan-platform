@@ -55,7 +55,8 @@ export const useStudentStore = defineStore('student', () => {
    */
   function restoreFromStorage() {
     const saved = localStorage.getItem('studentId')
-    if (saved && saved.length === 4) {
+    // 验证格式：必须为4位数字
+    if (saved && /^\d{4}$/.test(saved)) {
       studentId.value = saved
     }
   }
