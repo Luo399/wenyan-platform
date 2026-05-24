@@ -79,7 +79,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   autoLoad: true,
-  dataBaseUrl: '/data/annotated/',
+  dataBaseUrl: '/data/AnnotatedText/',
 })
 
 // 状态管理
