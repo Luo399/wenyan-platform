@@ -1,7 +1,7 @@
 {
   "wenId": "WEN_01",
   "title": "陈涉世家",
-  "audioUrl": "/audio/WEN_01.mp3",
+  "audioUrl": "WEN_01_multi_role.mp3",
   "segments": [
     {
       "id": "S001",
