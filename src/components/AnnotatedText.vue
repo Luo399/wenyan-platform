@@ -98,11 +98,78 @@ const tooltipPosition = ref({ x: 0, y: 0 })
 let abortController: AbortController | null = null
 
 /**
+ * HTML 白名单过滤配置
+ * 只允许安全的标签和属性，防止 XSS 攻击
+ */
+const ALLOWED_TAGS = ['p', 'span']
+const ALLOWED_ATTRS: Record<string, string[]> = {
+  span: ['class', 'data-def'],
+}
+
+/**
+ * 过滤 HTML 内容，移除危险标签和属性
+ * @param html - 原始 HTML 字符串
+ * @returns 安全的 HTML 字符串
+ */
+function sanitizeHtml(html: string): string {
+  if (!html) return ''
+
+  // 创建临时 DOM 元素
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html
+
+  // 递归过滤所有子节点
+  function filterNode(node: Node) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement
+      const tagName = element.tagName.toLowerCase()
+
+      // 如果标签不在白名单中，移除该元素但保留其子节点
+      if (!ALLOWED_TAGS.includes(tagName)) {
+        while (element.firstChild) {
+          element.parentNode?.insertBefore(element.firstChild, element)
+        }
+        element.parentNode?.removeChild(element)
+        return
+      }
+
+      // 过滤属性：只保留允许的属性
+      const attributes = Array.from(element.attributes)
+      for (const attr of attributes) {
+        const allowedAttrs = ALLOWED_ATTRS[tagName] || []
+        if (!allowedAttrs.includes(attr.name.toLowerCase())) {
+          element.removeAttribute(attr.name)
+        }
+      }
+
+      // 特殊处理：span 标签只允许 annotated-word 类
+      if (tagName === 'span') {
+        const className = element.className
+        if (className && !className.includes('annotated-word')) {
+          element.removeAttribute('class')
+        }
+      }
+    }
+
+    // 递归处理子节点
+    let child = node.firstChild
+    while (child) {
+      const next = child.nextSibling
+      filterNode(child)
+      child = next
+    }
+  }
+
+  filterNode(tempDiv)
+  return tempDiv.innerHTML
+}
+
+/**
  * 计算属性：安全处理后的 HTML 内容
- * 这里可以添加 XSS 过滤逻辑
+ * 使用白名单机制过滤危险标签和属性，防止 XSS 攻击
  */
 const sanitizedContent = computed(() => {
-  return articleData.value?.content || ''
+  return sanitizeHtml(articleData.value?.content || '')
 })
 
 /**
