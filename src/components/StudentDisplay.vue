@@ -8,15 +8,15 @@
 -->
 <template>
   <div class="student-display">
-    <span class="student-id">{{ displayId }}</span>
-    <button class="edit-btn" @click="showEditModal = true" title="修改学号">
-      <i class="fas fa-edit"></i>
-    </button>
+    <!-- 未登录显示"请登录"，已登录显示"学号：xxx 修改" -->
+    <span class="student-id" @click="showEditModal = true">
+      {{ isLoggedIn ? `学号：${studentId} 修改` : '请登录' }}
+    </span>
 
     <!-- 修改学号弹窗 -->
-    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+    <div v-if="showEditModal" class="modal-overlay" @click.self="handleClose">
       <div class="modal-content">
-        <h3>修改学号</h3>
+        <h3>{{ isLoggedIn ? '修改学号' : '登录' }}</h3>
 
         <div class="input-group">
           <input
@@ -25,16 +25,18 @@
             maxlength="4"
             placeholder="请输入4位学号"
             @keyup.enter="handleSave"
-            :class="{ 'error': hasError }"
+            :class="{ error: hasError }"
           />
         </div>
 
         <p v-if="hasError" class="error-message">学号必须为4位数字</p>
 
         <div class="modal-buttons">
-          <button class="cancel-btn" @click="handleCancel">取消</button>
-          <button class="save-btn" @click="handleSave" :disabled="!isValid">保存</button>
-          <button class="logout-btn" @click="handleLogout">退出登录</button>
+          <button class="cancel-btn" @click="handleClose">取消</button>
+          <button class="save-btn" @click="handleSave" :disabled="!isValid">
+            {{ isLoggedIn ? '保存' : '登录' }}
+          </button>
+          <button v-if="isLoggedIn" class="logout-btn" @click="handleLogout">退出登录</button>
         </div>
       </div>
     </div>
@@ -44,8 +46,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useStudentStore } from '@/stores/student'
+import { storeToRefs } from 'pinia'
 
 const studentStore = useStudentStore()
+const { studentId, isLoggedIn } = storeToRefs(studentStore)
 
 // 是否显示编辑弹窗
 const showEditModal = ref(false)
@@ -53,11 +57,6 @@ const showEditModal = ref(false)
 const inputId = ref('')
 // 是否有错误
 const hasError = ref(false)
-
-/**
- * 显示的学号
- */
-const displayId = computed(() => studentStore.displayId)
 
 /**
  * 验证输入是否为4位数字
@@ -82,9 +81,9 @@ function handleSave() {
 }
 
 /**
- * 取消修改
+ * 关闭弹窗
  */
-function handleCancel() {
+function handleClose() {
   showEditModal.value = false
   inputId.value = ''
   hasError.value = false
@@ -105,28 +104,20 @@ function handleLogout() {
 .student-display {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
 }
 
 .student-id {
   color: #6b7280;
   font-size: 0.875rem;
-}
-
-.edit-btn {
-  padding: 0.25rem 0.5rem;
-  background: none;
-  border: 1px solid #d1d5db;
-  border-radius: 0.25rem;
   cursor: pointer;
-  color: #6b7280;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
   transition: all 0.2s;
 }
 
-.edit-btn:hover {
+.student-id:hover {
   background-color: #f3f4f6;
   color: #3b82f6;
-  border-color: #3b82f6;
 }
 
 /* 弹窗样式 */

@@ -6,8 +6,10 @@
       <h1>文言文预习平台</h1>
       <p>请从左侧菜单选择篇目开始学习</p>
 
-      <!-- 未登录时显示学号输入 -->
-      <StudentLogin v-if="!isLoggedIn" />
+      <!-- 未登录时显示学号输入卡片 -->
+      <div v-if="!isLoggedIn" class="login-card">
+        <StudentLogin />
+      </div>
     </div>
   </div>
 </template>
@@ -40,5 +42,14 @@ const { isLoggedIn } = storeToRefs(studentStore)
 .main-content p {
   color: #6b7280;
   margin-bottom: 2rem;
+}
+
+/* 学号输入卡片样式 */
+.login-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-width: 400px;
 }
 </style>
