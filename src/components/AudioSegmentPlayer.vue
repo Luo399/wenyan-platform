@@ -94,6 +94,7 @@ export interface Segment {
   text: string
   role: string
   avatar: string
+  emoji: string
   startTime: number
   endTime: number
 }
@@ -117,7 +118,7 @@ const props = withDefaults(defineProps<Props>(), {
   autoLoad: true,
   cacheEnabled: true,
   requestTimeout: 10000,
-  audioBaseUrl: '/audio/',
+  audioBaseUrl: '/data/segment/',
 })
 // Events
 const emit = defineEmits<{
@@ -166,6 +167,8 @@ function formatTime(seconds: number): string {
  * 加载课文数据
  */
 async function loadData() {
+  console.log(`开始加载音频分段数据: wenId=${props.wenId}, audioBaseUrl=${props.audioBaseUrl}`)
+
   if (!props.wenId) {
     error.value = '请提供课文ID'
     emit('load-error', error.value)
@@ -173,6 +176,7 @@ async function loadData() {
   }
   // 检查缓存
   if (props.cacheEnabled && dataCache.has(props.wenId)) {
+    console.log(`使用缓存数据: ${props.wenId}`)
     wenData.value = dataCache.get(props.wenId)!
     emit('load-success', wenData.value)
     setupAudio()
@@ -190,24 +194,35 @@ async function loadData() {
     // 构建请求URL（注意：实际项目中需要替换为真实的API路径）
     // TODO: 将此处的JSON文件路径替换为实际的API接口
     const url = `${props.audioBaseUrl}${props.wenId}.json`
+    console.log(`请求URL: ${url}`)
+
     const timeout = setTimeout(() => {
+      console.log(`请求超时: ${url}`)
       abortController.value?.abort()
     }, props.requestTimeout)
+
     const response = await fetch(url, {
       signal: abortController.value.signal,
       headers: {
         'Content-Type': 'application/json',
       },
     })
+
     clearTimeout(timeout)
+
     if (!response.ok) {
+      console.error(`HTTP错误: ${response.status} - ${response.statusText}`)
       throw new Error(`HTTP错误: ${response.status}`)
     }
+
     const data = await response.json()
+    console.log(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
+
     // 数据格式验证
     if (!validateWenData(data)) {
       throw new Error('数据格式错误')
     }
+
     wenData.value = data
     // 存入缓存
     if (props.cacheEnabled) {
@@ -217,12 +232,21 @@ async function loadData() {
     setupAudio()
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      // 请求被取消，不触发错误
+      // 请求被取消（超时）
+      console.log('请求被取消（超时）')
+      error.value = '加载超时'
+      emit('load-error', error.value)
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    error.value = errorMsg
-    emit('load-error', errorMsg)
+    console.error(`加载失败: ${errorMsg}`)
+    // 如果是 404 错误，显示友好提示
+    if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
+      error.value = '【404正在加班加点中】'
+    } else {
+      error.value = errorMsg
+    }
+    emit('load-error', error.value)
   } finally {
     loading.value = false
   }
@@ -366,8 +390,9 @@ onUnmounted(() => {
 // 监听wenId变化
 watch(
   () => props.wenId,
-  () => {
-    if (props.autoLoad) {
+  (newWenId, oldWenId) => {
+    console.log(`wenId 变化: ${oldWenId} -> ${newWenId}`)
+    if (props.autoLoad && newWenId) {
       loadData()
     }
   },

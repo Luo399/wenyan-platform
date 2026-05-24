@@ -221,10 +221,17 @@ async function loadData() {
     articleData.value = data
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
+      // 超时错误
+      error.value = '加载超时'
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    error.value = errorMsg
+    // 如果是 404 错误，显示友好提示
+    if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
+      error.value = '【404正在加班加点中】'
+    } else {
+      error.value = errorMsg
+    }
   } finally {
     loading.value = false
   }

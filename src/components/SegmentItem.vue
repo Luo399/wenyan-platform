@@ -8,7 +8,7 @@
 -->
 <template>
   <div class="segment-item" :class="{ active: isActive }" @click="handleClick">
-    <div class="avatar">{{ segment.avatar }}</div>
+    <div class="avatar">{{ segment.emoji }}</div>
     <div class="content">
       <div class="role-name">{{ segment.role }}</div>
       <div class="text">{{ segment.text }}</div>
