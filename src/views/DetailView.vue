@@ -1,32 +1,35 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import Question, { type QuestionData } from '../components/Question.vue'
 import BackContinue from '@/components/BackContinue.vue'
+import { useNavigation } from '@/composables/useNavigation'
 
 const route = useRoute()
-const router = useRouter()
-const articleId = route.params.id ?? ''
+const articleId = route.params.id as string
+
+// 使用导航composable
+const { goNext, goPrev } = useNavigation('detail', articleId)
 
 // 收集答案（用于可能的批量操作）
 const answers = ref<Record<string, string | number | (string | number)[]>>({})
 
-function getArticleById(id: number) {
-  const articlesMap: Record<number, { title: string; content: string }> = {
-    1: { title: '论语·学而篇', content: '学而时习之，不亦说乎？...' },
-    2: {
+function getArticleById(id: string) {
+  const articlesMap: Record<string, { title: string; content: string }> = {
+    '1': { title: '论语·学而篇', content: '学而时习之，不亦说乎？...' },
+    '2': {
       title: '孟子·梁惠王上',
       content: "孟子见梁惠王。王曰：'叟！不远千里而来，亦将有以利吾国乎？'...",
     },
-    3: {
+    '3': {
       title: '劝学',
       content: '君子曰：学不可以已。青，取之于蓝，而青于蓝；冰，水为之，而寒于水。',
     },
   }
-  return articlesMap[Number(id)] || { title: '未知篇目', content: '暂无内容' }
+  return articlesMap[id] || { title: '未知篇目', content: '暂无内容' }
 }
 
-const article = getArticleById(Number(articleId))
+const article = getArticleById(articleId)
 
 // 示例题目数据
 const questions: QuestionData[] = [
@@ -70,20 +73,6 @@ const questions: QuestionData[] = [
 function handleAnswerChange(questionId: string, answer: string | number | (string | number)[]) {
   answers.value[questionId] = answer
 }
-
-/**
- * 返回规则页
- */
-function handleBack() {
-  router.push({ name: 'rules', params: { id: articleId } })
-}
-
-/**
- * 继续到首页
- */
-function handleContinue() {
-  router.push({ name: 'home' })
-}
 </script>
 
 <template>
@@ -99,12 +88,7 @@ function handleContinue() {
     </div>
 
     <!-- 底部导航按钮 -->
-    <BackContinue
-      back-text="返回"
-      continue-text="继续"
-      @back="handleBack"
-      @continue="handleContinue"
-    />
+    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
   </div>
 </template>
 

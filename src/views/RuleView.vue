@@ -17,33 +17,31 @@
     </div>
 
     <!-- 底部导航按钮 -->
-    <BackContinue
-      back-text="返回"
-      continue-text="继续"
-      @back="handleBack"
-      @continue="handleContinue"
-    />
+    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import BackContinue from '@/components/BackContinue.vue'
+import { useNavigation } from '@/composables/useNavigation'
 
 const route = useRoute()
-const router = useRouter()
 
 // 篇目ID
-const poemId = Number(route.params.id) || 1
+const poemId = route.params.id as string
+
+// 使用导航composable
+const { goNext, goPrev } = useNavigation('rules', poemId)
 
 // 篇目数据映射（预留视频URL）
-const poemMap: Record<number, { title: string; videoUrl: string }> = {
-  1: { title: '马说', videoUrl: '/videos/mashuo.mp4' },
-  2: { title: '陈涉世家', videoUrl: '/videos/chenlie_shijia.mp4' },
-  3: { title: '岳阳楼记', videoUrl: '/videos/yueyanglouji.mp4' },
-  4: { title: '庄子与惠子', videoUrl: '/videos/zhuangzi_huizi.mp4' },
+const poemMap: Record<string, { title: string; videoUrl: string }> = {
+  '1': { title: '马说', videoUrl: '/videos/mashuo.mp4' },
+  '2': { title: '陈涉世家', videoUrl: '/videos/chenlie_shijia.mp4' },
+  '3': { title: '岳阳楼记', videoUrl: '/videos/yueyanglouji.mp4' },
+  '4': { title: '庄子与惠子', videoUrl: '/videos/zhuangzi_huizi.mp4' },
 }
 
 /**
@@ -52,20 +50,6 @@ const poemMap: Record<number, { title: string; videoUrl: string }> = {
 const currentPoem = computed(() => {
   return poemMap[poemId] || { title: '未知篇目', videoUrl: '/videos/default.mp4' }
 })
-
-/**
- * 返回上一页
- */
-function handleBack() {
-  router.back()
-}
-
-/**
- * 继续到详情页
- */
-function handleContinue() {
-  router.push({ name: 'detail', params: { id: poemId } })
-}
 </script>
 
 <style scoped>
