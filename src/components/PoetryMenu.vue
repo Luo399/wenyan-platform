@@ -1,11 +1,7 @@
 <template>
   <div class="poetry-menu">
     <!-- 菜单触发区：鼠标悬浮时显示下拉框 -->
-    <div
-      class="menu-trigger"
-      @mouseenter="onMouseEnter"
-      @mouseleave="onMouseLeave"
-    >
+    <div class="menu-trigger" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
       📖 诗题选集
     </div>
 
@@ -16,11 +12,7 @@
       @mouseenter="onMouseEnter"
       @mouseleave="onMouseLeave"
     >
-      <li
-        v-for="poem in poemList"
-        :key="poem.id"
-        @click="goToDetail(poem.id)"
-      >
+      <li v-for="poem in poemList" :key="poem.id" @click="goToRules(poem.id)">
         {{ poem.title }}
       </li>
     </ul>
@@ -43,33 +35,34 @@ function clearTimer() {
   }
 }
 
-
 // 诗题列表数据（以后可以从 OSS 或 API 获取）
 const poemList = ref([
   { id: 1, title: '马说' },
   { id: 2, title: '陈涉世家' },
   { id: 3, title: '岳阳楼记' },
-  { id: 4, title: '庄子与惠子' }
+  { id: 4, title: '庄子与惠子' },
 ])
 
 const router = useRouter()
 
-function goToDetail(id: number) {
-  // 跳转到详情页，并传递篇目id
-  router.push({ name: 'detail', params: { id } })
+/**
+ * 跳转到规则介绍页
+ * @param id - 篇目ID，用于加载对应的视频
+ */
+function goToRules(id: number) {
+  router.push({ name: 'rules', params: { id } })
 }
 
-
 function onMouseEnter() {
-  clearTimer()          // 取消即将发生的隐藏
+  clearTimer() // 取消即将发生的隐藏
   showDropdown.value = true
 }
 
 function onMouseLeave() {
-  clearTimer()          // 避免重复定时器
+  clearTimer() // 避免重复定时器
   hideTimer = setTimeout(() => {
     showDropdown.value = false
-  }, 200)               // 0.2秒后隐藏
+  }, 200) // 0.2秒后隐藏
 }
 </script>
 
@@ -79,7 +72,7 @@ function onMouseLeave() {
   position: fixed;
   left: 0;
   top: 0;
-  width: 16.666%;  /* 六分之一 */
+  width: 16.666%; /* 六分之一 */
   height: 100vh;
   background-color: #f5f5f5;
   border-right: 1px solid #ddd;
@@ -106,7 +99,7 @@ function onMouseLeave() {
   background-color: white;
   border: 1px solid #ccc;
   border-radius: 4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   margin-top: 4px;
 }
 
