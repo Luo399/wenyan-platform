@@ -118,7 +118,7 @@ const props = withDefaults(defineProps<Props>(), {
   autoLoad: true,
   cacheEnabled: true,
   requestTimeout: 10000,
-  audioBaseUrl: '/data/segment/',
+  audioBaseUrl: '/data/AudioSegmentPlayer/',
 })
 // Events
 const emit = defineEmits<{
