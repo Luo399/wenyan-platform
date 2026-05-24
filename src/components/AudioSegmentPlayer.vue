@@ -223,6 +223,9 @@ async function loadData() {
       throw new Error('数据格式错误')
     }
 
+    // 处理缺少 emoji 的段落
+    data.segments = fillMissingEmoji(data.segments)
+
     wenData.value = data
     // 存入缓存
     if (props.cacheEnabled) {
@@ -272,6 +275,43 @@ function validateWenData(data: unknown): data is WenData {
     }
   }
   return true
+}
+
+/**
+ * 处理缺少 emoji 的段落，从 role 属性生成 emoji
+ * 如果 role 包含多个角色（如"三老、豪杰"），取最后一个
+ */
+function fillMissingEmoji(segments: Segment[]): Segment[] {
+  return segments.map((seg) => {
+    if (seg.emoji) {
+      return seg
+    }
+    // 从 role 提取最后一个角色
+    const roleParts = seg.role.split('、')
+    const lastRole = roleParts[roleParts.length - 1]
+
+    // 根据角色名称生成 emoji
+    const emojiMap: Record<string, string> = {
+      旁白: '📖',
+      陈胜: '👨🏻',
+      吴广: '🧑🏻',
+      佣者: '🧑',
+      卜者: '🧔🏻',
+      狐狸: '🦊',
+      众士卒: '🙋🏻‍♂️',
+      三老: '🧔🏻‍♂️',
+      豪杰: '🧔🏻‍♂️',
+      将尉: '👮',
+      守丞: '👮',
+    }
+
+    const emoji = emojiMap[lastRole] || '👤'
+
+    return {
+      ...seg,
+      emoji,
+    }
+  })
 }
 /**
  * 设置音频元素
@@ -366,11 +406,7 @@ function toggleSpeed() {
 /**
  * 监听当前段落变化
  */
-watch(currentSegmentIndex, (newIndex) => {
-  if (newIndex >= 0) {
-    emit('segment-change', newIndex)
-  }
-})
+watch(currentSegmentIndex, (newIndex) => {})
 // 生命周期
 onMounted(() => {
   if (props.autoLoad) {
