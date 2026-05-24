@@ -35,10 +35,10 @@ function clearTimer() {
   }
 }
 
-// 诗题列表数据（按 wenId 升序排列）
+// 诗题列表数据（按 wenId 升序排列，顺序与 poemMap 一致）
 const poemList = ref([
-  { wenId: 'WEN_01', title: '陈涉世家' },
-  { wenId: 'WEN_02', title: '马说' },
+  { wenId: 'WEN_01', title: '马说' },
+  { wenId: 'WEN_02', title: '陈涉世家' },
   { wenId: 'WEN_03', title: '岳阳楼记' },
   { wenId: 'WEN_04', title: '庄子与惠子' },
 ])
@@ -50,7 +50,9 @@ const router = useRouter()
  * @param wenId - 课文ID，用于加载对应的视频
  */
 function goToRules(wenId: string) {
-  router.push({ name: 'rules', params: { id: wenId } })
+  // 从 wenId 提取数字部分（如 WEN_01 -> 1）
+  const poemId = wenId.replace(/\D/g, '')
+  router.push({ name: 'rules', params: { id: poemId } })
 }
 
 function onMouseEnter() {
