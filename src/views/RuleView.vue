@@ -6,6 +6,7 @@
   - 显示规则介绍标题
   - 左下角返回按钮，右下角继续按钮
   - 根据课文ID动态拼接视频路径（/video/{wenId}_rule_bg.mp4）
+  - 自动播放视频并检测播放完成
 -->
 <template>
   <div class="rule-view">
@@ -14,7 +15,12 @@
 
     <!-- 视频播放器 - 平铺整个宽度 -->
     <div class="video-section">
-      <VideoPlayer :src="currentPoem.videoUrl" />
+      <VideoPlayer
+        :src="currentPoem.videoUrl"
+        :auto-play="true"
+        :require-complete="true"
+        @complete="onVideoComplete"
+      />
     </div>
 
     <!-- 底部导航按钮 -->
@@ -37,6 +43,13 @@ const poemId = route.params.id as string
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('rules', poemId)
+
+/**
+ * 处理视频播放完成
+ */
+function onVideoComplete() {
+  console.log('视频播放完成:', currentPoem.value.videoUrl)
+}
 
 /**
  * 当前篇目信息
