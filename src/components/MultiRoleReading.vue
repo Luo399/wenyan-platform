@@ -177,7 +177,6 @@ const segments = computed(() => multiRoleData.value?.segments || [])
 const currentSegmentIndex = computed(() => {
   const time = currentTime.value
   const segs = segments.value
-  if (segs.length === 0) return -1
 
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i]
@@ -189,29 +188,23 @@ const currentSegmentIndex = computed(() => {
     }
   }
 
-  // 当前时间超出最后一个片段：返回最后一个片段索引
-  const lastSeg = segs[segs.length - 1]
-  if (lastSeg) {
-    const { start } = parseTimeRange(lastSeg.time_range)
-    if (time >= start) {
-      return segs.length - 1
-    }
-  }
-
   return -1
 })
 
 /**
  * 解析单个时间字符串为秒数
- * @param timeStr - 时间字符串，如 "00:00" 或 "01:23.45"
+ * @param timeStr - 时间字符串，如 "00:00" 或 "01:23.45" 或 "123.45"
  * @returns 秒数
  */
 function parseTime(timeStr: string): number {
   const parts = timeStr.trim().split(':')
   if (parts.length === 2) {
-    const mins = parseInt(parts[0], 10) || 0
-    const secs = parseFloat(parts[1]) || 0
+    const mins = parseInt(parts[0] ?? '0', 10) || 0
+    const secs = parseFloat(parts[1] ?? '0') || 0
     return mins * 60 + secs
+  } else if (parts.length === 1) {
+    // 只有秒数的格式
+    return parseFloat(parts[0] ?? '0') || 0
   }
   return 0
 }
@@ -231,8 +224,8 @@ function formatTime(seconds: number): string {
 function parseTimeRange(timeRange: string): { start: number; end: number } {
   const [startStr, endStr] = timeRange.split('-')
   return {
-    start: parseTime(startStr),
-    end: parseTime(endStr),
+    start: parseTime(startStr ?? '0'),
+    end: parseTime(endStr ?? '0'),
   }
 }
 
@@ -440,9 +433,10 @@ function handleSeek(event: Event) {
  */
 function toggleSpeed() {
   const speeds: number[] = [0.5, 0.75, 1, 1.25, 1.5, 2]
-  const currentIndex = speeds.indexOf(playbackSpeed.value)
-  const nextIndex = (currentIndex >= 0 ? currentIndex : 2) + 1
-  const nextSpeed = speeds[nextIndex % speeds.length]
+  const currentValue = playbackSpeed.value ?? 1
+  const currentIndex = speeds.indexOf(currentValue)
+  const nextIndex = (currentIndex >= 0 ? currentIndex : speeds.indexOf(1)) + 1
+  const nextSpeed = speeds[nextIndex % speeds.length] ?? 1
   playbackSpeed.value = nextSpeed
   if (audioRef.value) {
     audioRef.value.playbackRate = playbackSpeed.value
