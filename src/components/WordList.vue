@@ -256,6 +256,7 @@ const tooltipStyle = computed(() => ({
  */
 async function loadData() {
   if (!props.wenId) {
+    loading.value = false
     error.value = '请提供课文ID'
     return
   }

@@ -63,7 +63,7 @@ const isAudioLoaded = ref(false)
 const currentSegment = ref<number | null>(null)
 
 // 使用导航composable
-const { goNext, goPrev } = useNavigation('annotated-segment', wenId.value)
+const { goNext, goPrev } = useNavigation('annotated-segment', wenId)
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
   console.log('音频数据加载成功:', data)
