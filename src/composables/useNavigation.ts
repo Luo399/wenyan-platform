@@ -42,12 +42,8 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
   function getDefaultId(routeName: RouteName): string {
     const pageIndex = pageSequence.findIndex((p) => p.name === routeName)
     // 根据页面类型返回合理的默认值
-    switch (routeName) {
-      case 'audio':
-        return 'WEN_01'
-      default:
-        return '1'
-    }
+    // 所有页面现在都使用 poemId（数字格式）
+    return '1'
   }
 
   /**

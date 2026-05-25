@@ -5,7 +5,7 @@ import RuleView from '@/views/RuleView.vue'
 import RuleView1 from '@/views/RuleView1.vue'
 import RuleView2 from '@/views/RuleView2.vue'
 import RuleView3 from '@/views/RuleView3.vue'
-import AnnotatedSegmentView from '@/views/AnnotatedSegmentView.vue'
+import StepOneView from '@/views/StepOneView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,6 +21,11 @@ const router = createRouter({
       component: RuleView,
     },
     {
+      path: '/stepone/:id',
+      name: 'stepone',
+      component: StepOneView,
+    },
+    {
       path: '/rule1/:id',
       name: 'rule1',
       component: RuleView1,
@@ -34,16 +39,6 @@ const router = createRouter({
       path: '/rule3/:id',
       name: 'rule3',
       component: RuleView3,
-    },
-    {
-      path: '/audio/:id',
-      name: 'audio',
-      component: AnnotatedSegmentView,
-    },
-    {
-      path: '/annotated-segment/:id',
-      name: 'annotated-segment',
-      component: AnnotatedSegmentView,
     },
     {
       path: '/detail/:id',
