@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ErrorDisplay from './ErrorDisplay.vue'
 
 // ============================================================
@@ -83,6 +83,23 @@ const props = defineProps<{
    * 可选属性：视频未播放时显示的图片
    */
   poster?: string
+
+  /**
+   * 是否自动播放
+   */
+  autoPlay?: boolean
+
+  /**
+   * 是否需要检测播放完成
+   */
+  requireComplete?: boolean
+}>()
+
+// ============================================================
+// 事件定义
+// ============================================================
+const emit = defineEmits<{
+  (e: 'complete'): void
 }>()
 
 // ============================================================
@@ -113,6 +130,11 @@ const duration = ref(0)
  * 错误信息
  */
 const error = ref<string | null>(null)
+
+/**
+ * 是否播放完成
+ */
+const isCompleted = ref(false)
 
 /**
  * 组件名称（用于错误显示）
@@ -203,9 +225,27 @@ function handleLoadedMetadata() {
  */
 function handleEnded() {
   isPlaying.value = false
-  currentTime.value = 0
-  if (videoRef.value) {
-    videoRef.value.currentTime = 0
+  isCompleted.value = true
+
+  // 如果需要检测播放完成，触发 complete 事件
+  if (props.requireComplete) {
+    emit('complete')
+  }
+
+  // 如果需要自动循环播放
+  if (props.autoPlay) {
+    // 重置播放位置到开头并重新播放
+    if (videoRef.value) {
+      videoRef.value.currentTime = 0
+      videoRef.value.play().catch((err) => {
+        console.warn('循环播放失败:', err)
+      })
+    }
+  } else {
+    // 重置播放位置到开头
+    if (videoRef.value) {
+      videoRef.value.currentTime = 0
+    }
   }
 }
 
@@ -255,12 +295,25 @@ function handleAbort() {
 function retryLoad() {
   // 清除错误状态
   error.value = null
+  isCompleted.value = false
 
   // 重置视频元素
   if (videoRef.value) {
     videoRef.value.load()
   }
 }
+
+/**
+ * 组件挂载时执行
+ */
+onMounted(() => {
+  // 如果设置了自动播放
+  if (props.autoPlay && videoRef.value) {
+    videoRef.value.play().catch((err) => {
+      console.warn('自动播放失败（可能被浏览器策略阻止）:', err)
+    })
+  }
+})
 
 /**
  * 处理进度条点击跳转
