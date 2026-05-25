@@ -268,9 +268,16 @@ const tooltipStyle = computed(() => ({
 async function loadData() {
   const endPerf = perfMonitor.start('WordList.loadData')
 
-  console.log(`[StepOne] ▶️ 开始加载WordList数据: wenId=${props.wenId}`)
+  console.log('\n' + '='.repeat(60))
+  console.log('[WordList] 🚀 开始执行 loadData 函数')
+  console.log('[WordList] 📋 参数信息:')
+  console.log('  - wenId:', props.wenId)
+  console.log('  - wordListBaseUrl:', props.wordListBaseUrl)
+  console.log('  - basicInfoBaseUrl:', props.basicInfoBaseUrl)
+  console.log('='.repeat(60))
 
   if (!props.wenId) {
+    console.log('[WordList] ❌ wenId 为空，无法加载数据')
     loading.value = false
     error.value = '请提供课文ID'
     endPerf()
@@ -279,6 +286,7 @@ async function loadData() {
 
   // 取消之前的请求
   if (abortController) {
+    console.log('[WordList] 🔄 取消之前的请求')
     abortController.abort()
   }
   abortController = new AbortController()
@@ -287,61 +295,100 @@ async function loadData() {
   error.value = null
 
   try {
-    console.log(`[StepOne] 🌐 开始并行加载 word_list 和 text_basic_info...`)
+    // 构建请求 URL
+    const wordListUrl = `${props.wordListBaseUrl}${props.wenId}.json`
+    const basicInfoUrl = `${props.basicInfoBaseUrl}${props.wenId}.json`
+
+    console.log(`\n[WordList] 🌐 准备发起请求:`)
+    console.log(`  - word_list URL: ${wordListUrl}`)
+    console.log(`  - text_basic_info URL: ${basicInfoUrl}`)
+
+    console.log('[WordList] ⏱️ 开始并行加载...')
     const fetchStart = performance.now()
 
     // 并行加载 word_list 和 text_basic_info
     const [wordListResponse, basicInfoResponse] = await Promise.all([
-      fetch(`${props.wordListBaseUrl}${props.wenId}.json`, {
+      fetch(wordListUrl, {
         signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
       }),
-      fetch(`${props.basicInfoBaseUrl}${props.wenId}.json`, {
+      fetch(basicInfoUrl, {
         signal: abortController.signal,
         headers: { 'Content-Type': 'application/json' },
       }),
     ])
 
     const fetchDuration = performance.now() - fetchStart
-    console.log(`[StepOne] ✅ fetch完成，耗时: ${fetchDuration.toFixed(2)}ms`)
+    console.log(`[WordList] ✅ 请求完成，耗时: ${fetchDuration.toFixed(2)}ms`)
+
+    console.log('[WordList] 📊 响应状态:')
+    console.log(`  - word_list: ${wordListResponse.status} ${wordListResponse.statusText}`)
+    console.log(`  - text_basic_info: ${basicInfoResponse.status} ${basicInfoResponse.statusText}`)
 
     if (!wordListResponse.ok) {
+      console.error(`[WordList] ❌ word_list 请求失败: HTTP ${wordListResponse.status}`)
       throw new Error(`word_list 加载失败: HTTP ${wordListResponse.status}`)
     }
 
     if (!basicInfoResponse.ok) {
+      console.error(`[WordList] ❌ text_basic_info 请求失败: HTTP ${basicInfoResponse.status}`)
       throw new Error(`text_basic_info 加载失败: HTTP ${basicInfoResponse.status}`)
     }
 
-    console.log(`[StepOne] 📝 开始解析JSON...`)
+    console.log('\n[WordList] 📝 开始解析JSON...')
     const jsonStart = performance.now()
 
     const wordListData: WordItem[] = await wordListResponse.json()
     const basicInfoData: TextBasicInfo = await basicInfoResponse.json()
 
     const jsonDuration = performance.now() - jsonStart
-    console.log(`[StepOne] ✅ JSON解析完成，耗时: ${jsonDuration.toFixed(2)}ms`)
+    console.log(`[WordList] ✅ JSON解析完成，耗时: ${jsonDuration.toFixed(2)}ms`)
 
     // 数据格式验证
+    console.log('\n[WordList] 🧪 开始验证数据格式...')
+
     if (!Array.isArray(wordListData)) {
+      console.error('[WordList] ❌ word_list 数据格式错误：应为数组')
       throw new Error('word_list 数据格式错误：应为数组')
     }
+    console.log(`[WordList] ✅ word_list 格式正确，共 ${wordListData.length} 条数据`)
 
     if (!basicInfoData.text_id || !basicInfoData.title) {
+      console.error('[WordList] ❌ text_basic_info 数据格式错误：缺少必要字段')
+      console.log('[WordList] 📋 basicInfoData:', basicInfoData)
       throw new Error('text_basic_info 数据格式错误：缺少必要字段')
     }
+    console.log(`[WordList] ✅ text_basic_info 格式正确，标题: ${basicInfoData.title}`)
 
+    // 检查原文内容
+    if (!basicInfoData.original_text) {
+      console.warn('[WordList] ⚠️ original_text 为空')
+    } else {
+      console.log(`[WordList] 📄 原文长度: ${basicInfoData.original_text.length} 字符`)
+    }
+
+    // 赋值数据
     wordList.value = wordListData
     basicInfo.value = basicInfoData
-    console.log(`[StepOne] ✅ WordList加载成功，字词数: ${wordListData.length}`)
+
+    console.log('\n' + '='.repeat(60))
+    console.log('[WordList] 🎉 数据加载成功!')
+    console.log('  - 字词数量:', wordListData.length)
+    console.log('  - 课文标题:', basicInfoData.title)
+    console.log('='.repeat(60))
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
+      console.log('[WordList] ⏰ 请求被中止（超时或取消）')
       error.value = '加载超时'
       endPerf()
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    console.error(`[StepOne] ❌ WordList加载失败:`, errorMsg)
+    console.error('\n' + '='.repeat(60))
+    console.error('[WordList] ❌ 数据加载失败!')
+    console.error('[WordList] 📝 错误信息:', errorMsg)
+    console.error('='.repeat(60))
+
     if (errorMsg.includes('404')) {
       error.value = '【404正在加班加点中】'
     } else {
@@ -350,6 +397,7 @@ async function loadData() {
   } finally {
     loading.value = false
     endPerf()
+    console.log('[WordList] 🔚 loadData 函数执行结束')
   }
 }
 

@@ -34,9 +34,9 @@ export function createPerfMonitor(timeout: number = DEFAULT_TIMEOUT) {
   function start(name: string): () => void {
     const startTime = performance.now()
     runningFunctions.set(name, startTime)
-    
+
     console.debug(`[Perf] ▶️ 开始: ${name}`)
-    
+
     // 设置超时检测
     const timeoutId = setTimeout(() => {
       if (runningFunctions.has(name)) {
@@ -48,12 +48,12 @@ export function createPerfMonitor(timeout: number = DEFAULT_TIMEOUT) {
         console.error(`  4. 第三方库阻塞`)
       }
     }, timeout)
-    
+
     return () => {
       clearTimeout(timeoutId)
       const duration = performance.now() - startTime
       runningFunctions.delete(name)
-      
+
       if (duration > timeout) {
         console.warn(`[Perf] ⚠️ 慢函数: ${name} 执行耗时 ${duration.toFixed(2)}ms`)
       } else {
@@ -61,7 +61,7 @@ export function createPerfMonitor(timeout: number = DEFAULT_TIMEOUT) {
       }
     }
   }
-  
+
   /**
    * 异步包装器 - 自动计时和错误处理
    */
@@ -77,7 +77,7 @@ export function createPerfMonitor(timeout: number = DEFAULT_TIMEOUT) {
       end()
     }
   }
-  
+
   return { start, track }
 }
 
