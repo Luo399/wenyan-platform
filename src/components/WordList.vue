@@ -338,8 +338,13 @@ async function loadData() {
     console.log('\n[WordList] 📝 开始解析JSON...')
     const jsonStart = performance.now()
 
-    const wordListData: WordItem[] = await wordListResponse.json()
-    const basicInfoData: TextBasicInfo = await basicInfoResponse.json()
+    const wordListBuffer = await wordListResponse.arrayBuffer()
+    const wordListText = new TextDecoder('utf-8').decode(wordListBuffer)
+    const wordListData: WordItem[] = JSON.parse(wordListText)
+
+    const basicInfoBuffer = await basicInfoResponse.arrayBuffer()
+    const basicInfoText = new TextDecoder('utf-8').decode(basicInfoBuffer)
+    const basicInfoData: TextBasicInfo = JSON.parse(basicInfoText)
 
     const jsonDuration = performance.now() - jsonStart
     console.log(`[WordList] ✅ JSON解析完成，耗时: ${jsonDuration.toFixed(2)}ms`)
