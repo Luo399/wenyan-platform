@@ -177,22 +177,33 @@ const segments = computed(() => multiRoleData.value?.segments || [])
 const currentSegmentIndex = computed(() => {
   const time = currentTime.value
   const segs = segments.value
-  for (let i = segs.length - 1; i >= 0; i--) {
+  if (segs.length === 0) return -1
+
+  for (let i = 0; i < segs.length; i++) {
     const seg = segs[i]
     if (seg) {
-      // 从 time_range 解析开始时间
-      const startTime = parseTime(seg.time_range.split('-')[0])
-      if (time >= startTime) {
+      const { start, end } = parseTimeRange(seg.time_range)
+      if (time >= start && time < end) {
         return i
       }
     }
   }
+
+  // 当前时间超出最后一个片段：返回最后一个片段索引
+  const lastSeg = segs[segs.length - 1]
+  if (lastSeg) {
+    const { start } = parseTimeRange(lastSeg.time_range)
+    if (time >= start) {
+      return segs.length - 1
+    }
+  }
+
   return -1
 })
 
 /**
- * 解析时间字符串为秒数
- * @param timeStr - 时间字符串，如 "00:00" 或 "00:00-00:16"
+ * 解析单个时间字符串为秒数
+ * @param timeStr - 时间字符串，如 "00:00" 或 "01:23.45"
  * @returns 秒数
  */
 function parseTime(timeStr: string): number {
@@ -232,6 +243,7 @@ async function loadData() {
   console.log(`开始加载多角色朗读数据: wenId=${props.wenId}`)
 
   if (!props.wenId) {
+    loading.value = false
     error.value = '请提供课文ID'
     emit('load-error', error.value)
     return
@@ -239,6 +251,7 @@ async function loadData() {
 
   // 检查缓存
   if (props.cacheEnabled && dataCache.has(props.wenId)) {
+    loading.value = false
     console.log(`使用缓存数据: ${props.wenId}`)
     multiRoleData.value = dataCache.get(props.wenId)!
     emit('load-success', multiRoleData.value)
@@ -408,7 +421,6 @@ function playFromSegment(index: number) {
     })
     isPlaying.value = true
   }
-  emit('segment-change', index)
 }
 
 /**

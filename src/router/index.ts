@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/HomeView.vue'
 import DetailView from '@/views/DetailView.vue'
 import RuleView from '@/views/RuleView.vue'
+import RuleView1 from '@/views/RuleView1.vue'
+import RuleView2 from '@/views/RuleView2.vue'
+import RuleView3 from '@/views/RuleView3.vue'
 import AnnotatedSegmentView from '@/views/AnnotatedSegmentView.vue'
 
 const router = createRouter({
@@ -16,6 +19,21 @@ const router = createRouter({
       path: '/rules/:id',
       name: 'rules',
       component: RuleView,
+    },
+    {
+      path: '/rule1/:id',
+      name: 'rule1',
+      component: RuleView1,
+    },
+    {
+      path: '/rule2/:id',
+      name: 'rule2',
+      component: RuleView2,
+    },
+    {
+      path: '/rule3/:id',
+      name: 'rule3',
+      component: RuleView3,
     },
     {
       path: '/audio/:id',

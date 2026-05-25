@@ -42,7 +42,15 @@
  */
 
 // 页面路由名称定义
-export type RouteName = 'home' | 'rules' | 'audio' | 'annotated-segment' | 'detail'
+export type RouteName =
+  | 'home'
+  | 'rules'
+  | 'rule1'
+  | 'rule2'
+  | 'rule3'
+  | 'audio'
+  | 'annotated-segment'
+  | 'detail'
 
 // 页面配置接口
 export interface PageConfig {
@@ -62,6 +70,18 @@ export const pageSequence: PageConfig[] = [
   {
     name: 'rules',
     getPath: (id) => `/rules/${id || '1'}`,
+  },
+  {
+    name: 'rule1',
+    getPath: (id) => `/rule1/${id || '1'}`,
+  },
+  {
+    name: 'rule2',
+    getPath: (id) => `/rule2/${id || '1'}`,
+  },
+  {
+    name: 'rule3',
+    getPath: (id) => `/rule3/${id || '1'}`,
   },
   {
     name: 'audio',
@@ -123,8 +143,20 @@ export const idTransformMap: Record<RouteName, (id: string) => string | null> = 
     const num = id.replace(/\D/g, '')
     return num || null
   },
+  rule1: (id) => {
+    // poemId 不变
+    return id || null
+  },
+  rule2: (id) => {
+    // poemId 不变
+    return id || null
+  },
+  rule3: (id) => {
+    // poemId 不变
+    return id || null
+  },
   audio: (id) => {
-    // rules -> audio: poemId -> wenId (如 1 -> WEN_01)
+    // rules/rule1/rule2/rule3 -> audio: poemId -> wenId (如 1 -> WEN_01)
     const num = id.replace(/\D/g, '')
     if (num) {
       return `WEN_${num.padStart(2, '0')}`
