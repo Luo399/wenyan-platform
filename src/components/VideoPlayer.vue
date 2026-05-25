@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import ErrorDisplay from './ErrorDisplay.vue'
 
 // ============================================================
@@ -286,7 +286,8 @@ function handleError(event: Event) {
  * 处理视频加载中止事件
  */
 function handleAbort() {
-  console.warn(`[VideoPlayer] 视频加载被中止: ${props.src}`)
+  // 页面导航时的中止是正常行为，不需要警告
+  console.debug(`[VideoPlayer] 视频加载被中止: ${props.src}`)
 }
 
 /**
@@ -312,6 +313,31 @@ onMounted(() => {
     videoRef.value.play().catch((err) => {
       console.warn('自动播放失败（可能被浏览器策略阻止）:', err)
     })
+  }
+})
+
+/**
+ * 组件卸载时执行 - 清理视频资源
+ */
+onUnmounted(() => {
+  if (videoRef.value) {
+    // 暂停视频
+    videoRef.value.pause()
+    // 移除事件监听器
+    videoRef.value.removeEventListener('timeupdate', handleTimeUpdate)
+    videoRef.value.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    videoRef.value.removeEventListener('play', () => {
+      isPlaying.value = true
+    })
+    videoRef.value.removeEventListener('pause', () => {
+      isPlaying.value = false
+    })
+    videoRef.value.removeEventListener('ended', handleEnded)
+    videoRef.value.removeEventListener('error', handleError)
+    videoRef.value.removeEventListener('abort', handleAbort)
+    // 清空视频源，释放资源
+    videoRef.value.src = ''
+    videoRef.value.load()
   }
 })
 
