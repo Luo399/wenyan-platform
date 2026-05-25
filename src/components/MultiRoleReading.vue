@@ -135,6 +135,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
 import ErrorDisplay from './ErrorDisplay.vue'
+import { perfMonitor } from '@/utils/perfMonitor'
 
 // 段落数据类型定义
 export interface MultiRoleSegment {
@@ -280,22 +281,26 @@ function parseTimeRange(timeRange: string): { start: number; end: number } {
  * 加载课文数据
  */
 async function loadData() {
-  console.log(`开始加载多角色朗读数据: wenId=${props.wenId}`)
+  const endPerf = perfMonitor.start('MultiRoleReading.loadData')
+
+  console.log(`[StepOne] ▶️ 开始加载多角色朗读数据: wenId=${props.wenId}`)
 
   if (!props.wenId) {
     loading.value = false
     error.value = '请提供课文ID'
     emit('load-error', error.value)
+    endPerf()
     return
   }
 
   // 检查缓存
   if (props.cacheEnabled && dataCache.has(props.wenId)) {
     loading.value = false
-    console.log(`使用缓存数据: ${props.wenId}`)
+    console.log(`[StepOne] ⚡ 使用缓存数据: ${props.wenId}`)
     multiRoleData.value = dataCache.get(props.wenId)!
     emit('load-success', multiRoleData.value)
     setupAudio()
+    endPerf()
     return
   }
 
@@ -311,10 +316,13 @@ async function loadData() {
 
   try {
     const url = `${props.dataBaseUrl}${props.wenId}.json`
-    console.log(`请求URL: ${url}`)
+    console.log(`[StepOne] 🌐 请求URL: ${url}`)
+    console.log(`[StepOne] ⏱️ 开始fetch请求...`)
+
+    const fetchStart = performance.now()
 
     const timeout = setTimeout(() => {
-      console.log(`请求超时: ${url}`)
+      console.log(`[StepOne] ⏰ 请求超时: ${url}`)
       abortController.value?.abort()
     }, props.requestTimeout)
 
@@ -327,12 +335,22 @@ async function loadData() {
 
     clearTimeout(timeout)
 
+    const fetchDuration = performance.now() - fetchStart
+    console.log(`[StepOne] ✅ fetch完成，耗时: ${fetchDuration.toFixed(2)}ms`)
+    console.log(`[StepOne] 📊 HTTP状态: ${response.status} ${response.statusText}`)
+
     if (!response.ok) {
       throw new Error(`HTTP错误: ${response.status}`)
     }
 
+    console.log(`[StepOne] 📝 开始解析JSON...`)
+    const jsonStart = performance.now()
+
     const data: MultiRoleData = await response.json()
-    console.log(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
+
+    const jsonDuration = performance.now() - jsonStart
+    console.log(`[StepOne] ✅ JSON解析完成，耗时: ${jsonDuration.toFixed(2)}ms`)
+    console.log(`[StepOne] 📊 数据段落数量: ${data.segments?.length || 0}`)
 
     // 数据格式验证
     if (!validateMultiRoleData(data)) {
@@ -344,6 +362,7 @@ async function loadData() {
     // 存入缓存
     if (props.cacheEnabled) {
       dataCache.set(props.wenId, data)
+      console.log(`[StepOne] 💾 数据已缓存`)
     }
 
     emit('load-success', data)
@@ -352,10 +371,11 @@ async function loadData() {
     if (err instanceof DOMException && err.name === 'AbortError') {
       error.value = '加载超时'
       emit('load-error', error.value)
+      endPerf()
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    console.error(`加载失败: ${errorMsg}`)
+    console.error(`[StepOne] ❌ 加载失败: ${errorMsg}`)
     if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
       error.value = '【404正在加班加点中】'
     } else {
@@ -364,6 +384,7 @@ async function loadData() {
     emit('load-error', error.value)
   } finally {
     loading.value = false
+    endPerf()
   }
 }
 
