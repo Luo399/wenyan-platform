@@ -294,6 +294,15 @@ async function loadData() {
   loading.value = true
   error.value = null
 
+  const timeoutMs = 10000
+  console.log(`[WordList] ⏱️ 设置超时时间: ${timeoutMs}ms`)
+
+  // 设置超时检测
+  const timeoutStart = Date.now()
+  const timeoutTimer = setTimeout(() => {
+    console.log(`[WordList] ⏰ 警告：请求耗时已超过 ${timeoutMs}ms，可能正在超时`)
+  }, timeoutMs)
+
   try {
     // 构建请求 URL
     const wordListUrl = `${props.wordListBaseUrl}${props.wenId}.json`
@@ -307,6 +316,7 @@ async function loadData() {
     const fetchStart = performance.now()
 
     // 并行加载 word_list 和 text_basic_info
+    console.log('[WordList] 📡 正在发起网络请求...')
     const [wordListResponse, basicInfoResponse] = await Promise.all([
       fetch(wordListUrl, {
         signal: abortController.signal,
@@ -317,6 +327,13 @@ async function loadData() {
         headers: { 'Content-Type': 'application/json' },
       }),
     ])
+
+    clearTimeout(timeoutTimer)
+    const actualDuration = Date.now() - timeoutStart
+    console.log(`[WordList] ⏱️ 请求完成，实际耗时: ${actualDuration}ms`)
+    if (actualDuration > timeoutMs) {
+      console.warn(`[WordList] ⚠️ 请求耗时较长（${actualDuration}ms），建议检查网络或优化数据`)
+    }
 
     const fetchDuration = performance.now() - fetchStart
     console.log(`[WordList] ✅ 请求完成，耗时: ${fetchDuration.toFixed(2)}ms`)
@@ -382,24 +399,46 @@ async function loadData() {
     console.log('  - 课文标题:', basicInfoData.title)
     console.log('='.repeat(60))
   } catch (err) {
+    clearTimeout(timeoutTimer)
+    const actualDuration = Date.now() - timeoutStart
+
     if (err instanceof DOMException && err.name === 'AbortError') {
+      console.log('\n' + '='.repeat(60))
       console.log('[WordList] ⏰ 请求被中止（超时或取消）')
+      console.log(`[WordList] ⏱️ 中止时已耗时: ${actualDuration}ms`)
+      console.log('[WordList] ❌ 原因: 请求超时或被用户取消')
+      console.log('='.repeat(60))
       error.value = '加载超时'
       endPerf()
       return
     }
+
     const errorMsg = err instanceof Error ? err.message : '加载失败'
     console.error('\n' + '='.repeat(60))
     console.error('[WordList] ❌ 数据加载失败!')
+    console.error('[WordList] ⏱️ 失败时已耗时: ${actualDuration}ms')
+    console.error('[WordList] 📝 错误类型:', err instanceof Error ? err.name : 'Unknown')
     console.error('[WordList] 📝 错误信息:', errorMsg)
+
+    if (err instanceof SyntaxError) {
+      console.error('[WordList] 🚨 可能原因: JSON 格式错误或编码问题')
+    } else if (errorMsg.includes('404')) {
+      console.error('[WordList] 🚨 可能原因: 文件不存在')
+    } else if (errorMsg.includes('NetworkError')) {
+      console.error('[WordList] 🚨 可能原因: 网络连接失败')
+    }
+
     console.error('='.repeat(60))
 
     if (errorMsg.includes('404')) {
       error.value = '【404正在加班加点中】'
+    } else if (err instanceof SyntaxError) {
+      error.value = '数据解析失败，请检查数据格式'
     } else {
       error.value = errorMsg
     }
   } finally {
+    clearTimeout(timeoutTimer)
     loading.value = false
     endPerf()
     console.log('[WordList] 🔚 loadData 函数执行结束')
