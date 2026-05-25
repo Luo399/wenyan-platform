@@ -3,6 +3,7 @@
 
   功能说明：
   - 从 word_list JSON 加载字词注释数据
+  - 从 text_basic_info JSON 加载课文标题和原文
   - 渲染带有注释标记的 HTML 内容
   - 鼠标悬浮时显示注释弹窗
   - 弹窗宽度自适应内容长度
@@ -13,8 +14,8 @@
   Props:
   - wenId: 课文ID，用于加载对应的注释数据
 
-  JSON 数据格式（word_list）：
-  [
+  JSON 数据格式：
+  word_list: [
     {
       "text_id": "WEN_01",
       "word": "阳城",
@@ -23,6 +24,12 @@
       "follow_up_questions": []
     }
   ]
+
+  text_basic_info: {
+    "text_id": "WEN_01",
+    "title": "陈涉世家",
+    "original_text": "陈胜者，阳城人也..."
+  }
 -->
 
 <template>
@@ -75,72 +82,124 @@ interface WordItem {
 }
 
 /**
+ * 课文基础信息类型定义
+ */
+interface TextBasicInfo {
+  text_id: string
+  title: string
+  author: string
+  dynasty: string
+  original_text: string
+  illustration: string
+  bgm: string
+}
+
+/**
  * Props 类型定义
  */
 interface Props {
   wenId: string
   autoLoad?: boolean
-  dataBaseUrl?: string
+  wordListBaseUrl?: string
+  basicInfoBaseUrl?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   autoLoad: true,
-  dataBaseUrl: '/data/word_list/',
+  wordListBaseUrl: '/data/word_list/',
+  basicInfoBaseUrl: '/data/text_basic_info/',
 })
 
 // 状态管理
 const loading = ref(false)
 const error = ref<string | null>(null)
 const wordList = ref<WordItem[]>([])
+const basicInfo = ref<TextBasicInfo | null>(null)
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
-const articleTitle = ref('')
 
 // AbortController 用于取消请求
 let abortController: AbortController | null = null
+
+/**
+ * 获取文章标题
+ */
+const articleTitle = computed(() => {
+  return basicInfo.value?.title || '未知标题'
+})
 
 /**
  * 生成带注释的 HTML 内容
  * 将原文中的字词替换为带有 data-def 属性的 span 标签
  */
 const contentHtml = computed(() => {
-  if (!wordList.value.length) return ''
-  
-  // 这里假设原文来自 text_basic_info，需要额外加载
-  // 或者由父组件传入
-  return ''
+  if (!basicInfo.value?.original_text || !wordList.value.length) {
+    return '<p>暂无内容</p>'
+  }
+
+  let content = basicInfo.value.original_text
+
+  // 创建字词映射表，按字词长度降序排列，优先匹配长词
+  const sortedWords = [...wordList.value].sort((a, b) => b.word.length - a.word.length)
+
+  // 替换所有字词为带注释的 span 标签
+  for (const item of sortedWords) {
+    if (!item.word || !item.basic_meaning) continue
+
+    // 使用正则表达式全局替换
+    // 转义特殊字符
+    const escapedWord = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(escapedWord, 'g')
+
+    // 创建带注释的 span 标签
+    const replacement = `<span class="annotated-word" data-def="${escapeHtml(item.basic_meaning)}">${item.word}</span>`
+
+    content = content.replace(regex, replacement)
+  }
+
+  // 将换行符转换为段落标签
+  content = content.replace(/\n\n/g, '</p><p>')
+  content = content.replace(/\n/g, '<br>')
+  content = `<p>${content}</p>`
+
+  return content
 })
+
+/**
+ * HTML 转义函数
+ */
+function escapeHtml(text: string): string {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
+}
 
 /**
  * HTML 白名单过滤配置
  * 只允许安全的标签和属性，防止 XSS 攻击
  */
-const ALLOWED_TAGS = ['p', 'span']
+const ALLOWED_TAGS = ['p', 'span', 'br']
 const ALLOWED_ATTRS: Record<string, string[]> = {
   p: [],
   span: ['class', 'data-def'],
+  br: [],
 }
 
 /**
  * 过滤 HTML 内容，移除危险标签和属性
- * @param html - 原始 HTML 字符串
- * @returns 安全的 HTML 字符串
  */
 function sanitizeHtml(html: string): string {
   if (!html) return ''
 
-  // 创建临时 DOM 元素
   const tempDiv = document.createElement('div')
   tempDiv.innerHTML = html
 
-  // 递归过滤所有子节点
   function filterNode(node: Node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as HTMLElement
       const tagName = element.tagName.toLowerCase()
 
-      // 如果标签不在白名单中，移除该元素但保留其子节点
       if (!ALLOWED_TAGS.includes(tagName)) {
         while (element.firstChild) {
           element.parentNode?.insertBefore(element.firstChild, element)
@@ -149,7 +208,6 @@ function sanitizeHtml(html: string): string {
         return
       }
 
-      // 过滤属性：只保留允许的属性
       const attributes = Array.from(element.attributes)
       for (const attr of attributes) {
         const allowedAttrs = ALLOWED_ATTRS[tagName] || []
@@ -158,7 +216,6 @@ function sanitizeHtml(html: string): string {
         }
       }
 
-      // 特殊处理：span 标签只允许 annotated-word 类
       if (tagName === 'span') {
         const className = element.className
         if (className && !className.includes('annotated-word')) {
@@ -167,7 +224,6 @@ function sanitizeHtml(html: string): string {
       }
     }
 
-    // 递归处理子节点
     let child = node.firstChild
     while (child) {
       const next = child.nextSibling
@@ -184,7 +240,7 @@ function sanitizeHtml(html: string): string {
  * 计算属性：安全处理后的 HTML 内容
  */
 const sanitizedContent = computed(() => {
-  return contentHtml.value
+  return sanitizeHtml(contentHtml.value)
 })
 
 /**
@@ -196,7 +252,7 @@ const tooltipStyle = computed(() => ({
 }))
 
 /**
- * 加载字词列表数据
+ * 加载字词列表和基础信息数据
  */
 async function loadData() {
   if (!props.wenId) {
@@ -214,34 +270,47 @@ async function loadData() {
   error.value = null
 
   try {
-    const url = `${props.dataBaseUrl}${props.wenId}.json`
+    // 并行加载 word_list 和 text_basic_info
+    const [wordListResponse, basicInfoResponse] = await Promise.all([
+      fetch(`${props.wordListBaseUrl}${props.wenId}.json`, {
+        signal: abortController.signal,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      fetch(`${props.basicInfoBaseUrl}${props.wenId}.json`, {
+        signal: abortController.signal,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ])
 
-    const response = await fetch(url, {
-      signal: abortController.signal,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP错误: ${response.status}`)
+    if (!wordListResponse.ok) {
+      throw new Error(`word_list 加载失败: HTTP ${wordListResponse.status}`)
     }
 
-    const data: WordItem[] = await response.json()
+    if (!basicInfoResponse.ok) {
+      throw new Error(`text_basic_info 加载失败: HTTP ${basicInfoResponse.status}`)
+    }
+
+    const wordListData: WordItem[] = await wordListResponse.json()
+    const basicInfoData: TextBasicInfo = await basicInfoResponse.json()
 
     // 数据格式验证
-    if (!Array.isArray(data)) {
-      throw new Error('数据格式错误：应为数组')
+    if (!Array.isArray(wordListData)) {
+      throw new Error('word_list 数据格式错误：应为数组')
     }
 
-    wordList.value = data
+    if (!basicInfoData.text_id || !basicInfoData.title) {
+      throw new Error('text_basic_info 数据格式错误：缺少必要字段')
+    }
+
+    wordList.value = wordListData
+    basicInfo.value = basicInfoData
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       error.value = '加载超时'
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
+    if (errorMsg.includes('404')) {
       error.value = '【404正在加班加点中】'
     } else {
       error.value = errorMsg
