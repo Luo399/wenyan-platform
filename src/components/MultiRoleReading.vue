@@ -91,6 +91,12 @@
         </button>
       </div>
 
+      <!-- 音频错误提示 -->
+      <div v-if="audioError" class="audio-error">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>{{ audioError }}</span>
+      </div>
+
       <!-- 段落列表 -->
       <div class="segments-list">
         <div v-for="(segment, index) in segments" :key="index">
@@ -604,6 +610,22 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* 音频错误提示 */
+.audio-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #fef3c7;
+  border-radius: 0.375rem;
+  color: #d97706;
+  font-size: 0.875rem;
+}
+
+.audio-error i {
+  font-size: 1rem;
 }
 
 /* 音频控制栏 */
