@@ -68,7 +68,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onBeforeMount } from 'vue'
+import { perfMonitor } from '@/utils/perfMonitor'
+
+console.log('[WordList] 🔄 WordList 组件初始化开始')
 
 /**
  * 字词数据类型定义
@@ -111,7 +114,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 // 状态管理
-const loading = ref(false)
+const loading = ref(true) // 默认显示加载状态
 const error = ref<string | null>(null)
 const wordList = ref<WordItem[]>([])
 const basicInfo = ref<TextBasicInfo | null>(null)
@@ -121,6 +124,9 @@ const tooltipPosition = ref({ x: 0, y: 0 })
 
 // AbortController 用于取消请求
 let abortController: AbortController | null = null
+
+// 打印 props 值
+console.log('[WordList] 📋 props.wenId:', props.wenId)
 
 /**
  * 获取文章标题
@@ -134,10 +140,14 @@ const articleTitle = computed(() => {
  * 将原文中的字词替换为带有 data-def 属性的 span 标签
  */
 const contentHtml = computed(() => {
+  console.log('[WordList] 🧮 contentHtml computed 开始计算')
+
   if (!basicInfo.value?.original_text || !wordList.value.length) {
+    console.log('[WordList] ⚠️ contentHtml 返回空内容')
     return '<p>暂无内容</p>'
   }
 
+  console.log('[WordList] 📝 开始处理原文，字数:', basicInfo.value.original_text.length)
   let content = basicInfo.value.original_text
 
   // 创建字词映射表，按字词长度降序排列，优先匹配长词
@@ -163,6 +173,7 @@ const contentHtml = computed(() => {
   content = content.replace(/\n/g, '<br>')
   content = `<p>${content}</p>`
 
+  console.log('[WordList] ✅ contentHtml 计算完成')
   return content
 })
 
@@ -255,9 +266,14 @@ const tooltipStyle = computed(() => ({
  * 加载字词列表和基础信息数据
  */
 async function loadData() {
+  const endPerf = perfMonitor.start('WordList.loadData')
+
+  console.log(`[StepOne] ▶️ 开始加载WordList数据: wenId=${props.wenId}`)
+
   if (!props.wenId) {
     loading.value = false
     error.value = '请提供课文ID'
+    endPerf()
     return
   }
 
@@ -271,6 +287,9 @@ async function loadData() {
   error.value = null
 
   try {
+    console.log(`[StepOne] 🌐 开始并行加载 word_list 和 text_basic_info...`)
+    const fetchStart = performance.now()
+
     // 并行加载 word_list 和 text_basic_info
     const [wordListResponse, basicInfoResponse] = await Promise.all([
       fetch(`${props.wordListBaseUrl}${props.wenId}.json`, {
@@ -283,6 +302,9 @@ async function loadData() {
       }),
     ])
 
+    const fetchDuration = performance.now() - fetchStart
+    console.log(`[StepOne] ✅ fetch完成，耗时: ${fetchDuration.toFixed(2)}ms`)
+
     if (!wordListResponse.ok) {
       throw new Error(`word_list 加载失败: HTTP ${wordListResponse.status}`)
     }
@@ -291,8 +313,14 @@ async function loadData() {
       throw new Error(`text_basic_info 加载失败: HTTP ${basicInfoResponse.status}`)
     }
 
+    console.log(`[StepOne] 📝 开始解析JSON...`)
+    const jsonStart = performance.now()
+
     const wordListData: WordItem[] = await wordListResponse.json()
     const basicInfoData: TextBasicInfo = await basicInfoResponse.json()
+
+    const jsonDuration = performance.now() - jsonStart
+    console.log(`[StepOne] ✅ JSON解析完成，耗时: ${jsonDuration.toFixed(2)}ms`)
 
     // 数据格式验证
     if (!Array.isArray(wordListData)) {
@@ -305,12 +333,15 @@ async function loadData() {
 
     wordList.value = wordListData
     basicInfo.value = basicInfoData
+    console.log(`[StepOne] ✅ WordList加载成功，字词数: ${wordListData.length}`)
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       error.value = '加载超时'
+      endPerf()
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
+    console.error(`[StepOne] ❌ WordList加载失败:`, errorMsg)
     if (errorMsg.includes('404')) {
       error.value = '【404正在加班加点中】'
     } else {
@@ -318,6 +349,7 @@ async function loadData() {
     }
   } finally {
     loading.value = false
+    endPerf()
   }
 }
 
@@ -382,7 +414,11 @@ function handleMouseMove(event: MouseEvent) {
 
 // 生命周期
 onMounted(() => {
+  console.log('[WordList] 🚀 onMounted 钩子执行')
+  console.log('[WordList] 🔧 autoLoad:', props.autoLoad)
+
   if (props.autoLoad) {
+    console.log('[WordList] ▶️ 开始调用 loadData')
     loadData()
   }
   document.addEventListener('mousemove', handleMouseMove)

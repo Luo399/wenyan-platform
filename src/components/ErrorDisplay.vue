@@ -9,8 +9,8 @@
   - 支持重试功能
 
   使用示例：
-  <ErrorDisplay 
-    :error="error" 
+  <ErrorDisplay
+    :error="error"
     source="VideoPlayer"
     resource-type="video"
     resource-path="/video/WEN_01_rule_bg.mp4"

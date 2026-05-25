@@ -12,8 +12,8 @@
   <div class="rule-view">
     <h1 class="page-title">规则介绍（三） - {{ currentPoem.title }}</h1>
     <div class="video-section">
-      <VideoPlayer 
-        :src="currentPoem.videoUrl" 
+      <VideoPlayer
+        :src="currentPoem.videoUrl"
         :auto-play="true"
         :require-complete="true"
         @complete="onVideoComplete"

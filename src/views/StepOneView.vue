@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeMount } from 'vue'
 import { useRoute } from 'vue-router'
 import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
@@ -45,40 +45,68 @@ import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 
+console.log('[StepOne] 🔄 StepOneView 组件开始初始化')
+
 const route = useRoute()
+
+onBeforeMount(() => {
+  console.log('[StepOne] 🚀 onBeforeMount 钩子执行')
+})
 
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
 
+console.log(`[StepOne] 📍 路由参数 id: ${poemId}`)
+
 // 将路由参数 id（数字）转换为 wenId 格式
 const wenId = computed(() => {
-  if (!poemId) return 'WEN_01'
+  console.log(`[StepOne] 🧮 wenId computed 开始计算`)
+
+  if (!poemId) {
+    console.log(`[StepOne] ⚠️ poemId为空，使用默认值 WEN_01`)
+    return 'WEN_01'
+  }
   // 如果已经是 WEN_xx 格式，直接返回
-  if (poemId.startsWith('WEN_')) return poemId
+  if (poemId.startsWith('WEN_')) {
+    console.log(`[StepOne] ✅ poemId已是WEN格式: ${poemId}`)
+    return poemId
+  }
   // 将数字转换为 WEN_xx 格式（如 1 -> WEN_01）
   const num = parseInt(poemId, 10)
-  if (isNaN(num)) return 'WEN_01'
-  return `WEN_${num.toString().padStart(2, '0')}`
+  if (isNaN(num)) {
+    console.log(`[StepOne] ⚠️ poemId解析失败: ${poemId}，使用默认值 WEN_01`)
+    return 'WEN_01'
+  }
+  const result = `WEN_${num.toString().padStart(2, '0')}`
+  console.log(`[StepOne] ✅ poemId转换完成: ${poemId} -> ${result}`)
+  return result
 })
 
 const isAudioLoaded = ref(false)
 const currentSegment = ref<number | null>(null)
 
 // 使用导航composable
+console.log('[StepOne] 🔧 初始化导航composable...')
 const { goNext, goPrev } = useNavigation('stepone', poemId)
+console.log('[StepOne] ✅ 导航初始化完成')
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
-  console.log('音频数据加载成功:', data)
+  console.log(`[StepOne] ✅ 音频数据加载成功`)
+  console.log(`[StepOne] 📊 段落数: ${data.segments?.length || 0}`)
   isAudioLoaded.value = true
 }
 
 function handleAudioLoadError(error: string) {
-  console.error('音频数据加载失败:', error)
+  console.error(`[StepOne] ❌ 音频数据加载失败:`, error)
 }
 
 function handleSegmentChange(index: number) {
   currentSegment.value = index
 }
+
+onMounted(() => {
+  console.log(`[StepOne] 🎯 StepOneView 挂载完成，wenId: ${wenId.value}`)
+})
 </script>
 
 <style scoped>
