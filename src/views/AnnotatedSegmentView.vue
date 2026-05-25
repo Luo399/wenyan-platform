@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AnnotatedText from '@/components/AnnotatedText.vue'
 import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue'
@@ -47,8 +47,18 @@ import type { WenData } from '@/components/AudioSegmentPlayer.vue'
 
 const route = useRoute()
 
-// 从路由获取课文ID
-const wenId = ref((route.params.id as string) || 'WEN_01')
+// 将路由参数 id（数字）转换为 wenId 格式
+const wenId = computed(() => {
+  const id = route.params.id as string
+  if (!id) return 'WEN_01'
+  // 如果已经是 WEN_xx 格式，直接返回
+  if (id.startsWith('WEN_')) return id
+  // 将数字转换为 WEN_xx 格式（如 1 -> WEN_01）
+  const num = parseInt(id, 10)
+  if (isNaN(num)) return 'WEN_01'
+  return `WEN_${num.toString().padStart(2, '0')}`
+})
+
 const isAudioLoaded = ref(false)
 const currentSegment = ref<number | null>(null)
 
