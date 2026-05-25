@@ -188,6 +188,17 @@ const currentSegmentIndex = computed(() => {
     }
   }
 
+  // 当前时间超出最后一个片段：返回最后一个片段索引
+  if (segs.length > 0) {
+    const lastSeg = segs[segs.length - 1]
+    if (lastSeg) {
+      const { start } = parseTimeRange(lastSeg.time_range)
+      if (time >= start) {
+        return segs.length - 1
+      }
+    }
+  }
+
   return -1
 })
 
