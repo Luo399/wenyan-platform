@@ -42,15 +42,7 @@
  */
 
 // 页面路由名称定义
-export type RouteName =
-  | 'home'
-  | 'rules'
-  | 'rule1'
-  | 'rule2'
-  | 'rule3'
-  | 'audio'
-  | 'annotated-segment'
-  | 'detail'
+export type RouteName = 'home' | 'rules' | 'stepone' | 'rule1' | 'rule2' | 'rule3' | 'detail'
 
 // 页面配置接口
 export interface PageConfig {
@@ -72,6 +64,10 @@ export const pageSequence: PageConfig[] = [
     getPath: (id) => `/rules/${id || '1'}`,
   },
   {
+    name: 'stepone',
+    getPath: (id) => `/stepone/${id || '1'}`,
+  },
+  {
     name: 'rule1',
     getPath: (id) => `/rule1/${id || '1'}`,
   },
@@ -82,14 +78,6 @@ export const pageSequence: PageConfig[] = [
   {
     name: 'rule3',
     getPath: (id) => `/rule3/${id || '1'}`,
-  },
-  {
-    name: 'audio',
-    getPath: (id) => `/audio/${id || 'WEN_01'}`,
-  },
-  {
-    name: 'annotated-segment',
-    getPath: (id) => `/annotated-segment/${id || 'WEN_01'}`,
   },
   {
     name: 'detail',
@@ -131,7 +119,7 @@ export function getPrevPage(currentName: RouteName): PageConfig | null {
  *
  * 例如：
  * - rules 页面用 poemId (1, 2, 3)
- * - audio 页面用 wenId (WEN_01, WEN_02)
+ * - stepone 页面用 poemId (1, 2, 3)
  * - detail 页面用 poemId (1, 2, 3)
  *
  * 如果某页面不需要转换，可以返回 null 表示使用原 ID
@@ -139,9 +127,12 @@ export function getPrevPage(currentName: RouteName): PageConfig | null {
 export const idTransformMap: Record<RouteName, (id: string) => string | null> = {
   home: () => null,
   rules: (id) => {
-    // audio/annotated-segment/detail -> rules: WEN_01 -> 1
-    const num = id.replace(/\D/g, '')
-    return num || null
+    // stepone/rule1/rule2/rule3/detail -> rules: poemId 不变
+    return id || null
+  },
+  stepone: (id) => {
+    // poemId 不变
+    return id || null
   },
   rule1: (id) => {
     // poemId 不变
@@ -155,26 +146,9 @@ export const idTransformMap: Record<RouteName, (id: string) => string | null> = 
     // poemId 不变
     return id || null
   },
-  audio: (id) => {
-    // rules/rule1/rule2/rule3 -> audio: poemId -> wenId (如 1 -> WEN_01)
-    const num = id.replace(/\D/g, '')
-    if (num) {
-      return `WEN_${num.padStart(2, '0')}`
-    }
-    return null
-  },
-  'annotated-segment': (id) => {
-    // rules -> annotated-segment: poemId -> wenId (如 1 -> WEN_01)
-    const num = id.replace(/\D/g, '')
-    if (num) {
-      return `WEN_${num.padStart(2, '0')}`
-    }
-    return null
-  },
   detail: (id) => {
-    // audio/annotated-segment -> detail: WEN_01 -> 1
-    const num = id.replace(/\D/g, '')
-    return num || null
+    // 所有页面 -> detail: poemId 不变
+    return id || null
   },
 }
 

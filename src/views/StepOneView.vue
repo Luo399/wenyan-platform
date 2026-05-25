@@ -1,12 +1,12 @@
 <!--
-  AnnotatedSegmentView.vue - 字词学习 + 多角色朗读组合页面
+  StepOneView.vue - 字词学习 + 多角色朗读组合页面
 
   布局说明：
   - 上方：WordList 组件（字词注释）
   - 下方：MultiRoleReading 组件（多角色朗读）
   - 底部：BackContinue 导航按钮
 
-  页面顺序：rules -> audio -> annotated-segment -> detail
+  页面顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> detail
 -->
 <template>
   <div class="annotated-segment-view">
@@ -47,14 +47,16 @@ import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 
 const route = useRoute()
 
+// 篇目ID（路由参数）
+const poemId = route.params.id as string
+
 // 将路由参数 id（数字）转换为 wenId 格式
 const wenId = computed(() => {
-  const id = route.params.id as string
-  if (!id) return 'WEN_01'
+  if (!poemId) return 'WEN_01'
   // 如果已经是 WEN_xx 格式，直接返回
-  if (id.startsWith('WEN_')) return id
+  if (poemId.startsWith('WEN_')) return poemId
   // 将数字转换为 WEN_xx 格式（如 1 -> WEN_01）
-  const num = parseInt(id, 10)
+  const num = parseInt(poemId, 10)
   if (isNaN(num)) return 'WEN_01'
   return `WEN_${num.toString().padStart(2, '0')}`
 })
@@ -63,7 +65,7 @@ const isAudioLoaded = ref(false)
 const currentSegment = ref<number | null>(null)
 
 // 使用导航composable
-const { goNext, goPrev } = useNavigation('annotated-segment', wenId.value)
+const { goNext, goPrev } = useNavigation('stepone', poemId)
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
   console.log('音频数据加载成功:', data)

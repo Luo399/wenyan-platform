@@ -66,8 +66,11 @@
     <div v-else class="player-content">
       <!-- 音频控制栏 -->
       <div class="audio-controls">
-        <button class="main-play-btn" @click="togglePlay">
-          <i class="fas" :class="isPlaying ? 'fa-pause' : 'fa-play'"></i>
+        <button class="main-play-btn" @click="togglePlay" :disabled="audioLoading">
+          <i
+            class="fas"
+            :class="isPlaying ? 'fa-pause' : audioLoading ? 'fa-spinner fa-spin' : 'fa-play'"
+          ></i>
         </button>
 
         <div class="progress-section">
@@ -78,11 +81,14 @@
             :value="currentTime"
             :max="duration"
             @input="handleSeek"
+            :disabled="!duration"
           />
-          <span class="time">{{ formatTime(duration) }}</span>
+          <span class="time">{{ duration ? formatTime(duration) : '--:--' }}</span>
         </div>
 
-        <button class="speed-btn" @click="toggleSpeed">{{ playbackSpeed }}x</button>
+        <button class="speed-btn" @click="toggleSpeed" :disabled="audioLoading">
+          {{ playbackSpeed }}x
+        </button>
       </div>
 
       <!-- 段落列表 -->
@@ -105,6 +111,9 @@
     @timeupdate="handleTimeUpdate"
     @ended="handleEnded"
     @loadedmetadata="handleLoadedMetadata"
+    @loadeddata="handleLoadedData"
+    @error="handleAudioError"
+    preload="metadata"
   />
 </template>
 
@@ -158,7 +167,9 @@ const emit = defineEmits<{
 
 // 状态管理
 const loading = ref(false)
+const audioLoading = ref(false)
 const error = ref<string | null>(null)
+const audioError = ref<string | null>(null)
 const multiRoleData = ref<MultiRoleData | null>(null)
 const audioRef = ref<HTMLAudioElement | null>(null)
 const isPlaying = ref(false)
@@ -354,13 +365,29 @@ function validateMultiRoleData(data: unknown): data is MultiRoleData {
 }
 
 /**
- * 设置音频元素
+ * 设置音频源（不立即加载，等待播放时再加载）
  */
 function setupAudio() {
   if (!multiRoleData.value || !audioRef.value) return
   // 音频文件路径：基础URL + 文件名
   audioRef.value.src = `${props.audioBaseUrl}${multiRoleData.value.audio_file}`
-  audioRef.value.load()
+  // 不调用 load()，让浏览器按需加载
+}
+
+/**
+ * 音频数据加载完成处理
+ */
+function handleLoadedData() {
+  audioLoading.value = false
+}
+
+/**
+ * 音频加载错误处理
+ */
+function handleAudioError(event: Event) {
+  audioLoading.value = false
+  audioError.value = '音频加载失败，请检查网络或重试'
+  console.error('音频加载错误:', event)
 }
 
 /**
@@ -400,7 +427,12 @@ function togglePlay() {
     isPlaying.value = false
     emit('pause')
   } else {
+    // 开始播放前显示加载状态
+    if (duration.value === 0) {
+      audioLoading.value = true
+    }
     audioRef.value.play().catch((err) => {
+      audioLoading.value = false
       console.error('播放失败:', err)
     })
     isPlaying.value = true
