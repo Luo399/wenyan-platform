@@ -1,18 +1,18 @@
 <!--
-  AnnotatedSegmentView.vue - 注释文本 + 音频分段组合页面
+  AnnotatedSegmentView.vue - 字词学习 + 多角色朗读组合页面
 
   布局说明：
-  - 上方：AnnotatedText 组件（课文注释）
-  - 下方：AudioSegmentPlayer 组件（音频分段）
+  - 上方：WordList 组件（字词注释）
+  - 下方：MultiRoleReading 组件（多角色朗读）
   - 底部：BackContinue 导航按钮
 
   页面顺序：rules -> audio -> annotated-segment -> detail
 -->
 <template>
   <div class="annotated-segment-view">
-    <!-- 上方：课文注释区域 -->
+    <!-- 上方：字词注释区域 -->
     <section class="annotated-section">
-      <AnnotatedText :wen-id="wenId" />
+      <WordList :wen-id="wenId" />
     </section>
 
     <!-- 分割线 -->
@@ -20,9 +20,9 @@
       <span class="divider-text">音频学习</span>
     </div>
 
-    <!-- 下方：音频分段播放器 -->
+    <!-- 下方：多角色朗读播放器 -->
     <section class="audio-section">
-      <AudioSegmentPlayer
+      <MultiRoleReading
         :wen-id="wenId"
         :auto-load="true"
         @load-success="handleAudioLoadSuccess"
@@ -39,11 +39,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import AnnotatedText from '@/components/AnnotatedText.vue'
-import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue'
+import WordList from '@/components/WordList.vue'
+import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
-import type { WenData } from '@/components/AudioSegmentPlayer.vue'
+import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 
 const route = useRoute()
 
@@ -65,7 +65,7 @@ const currentSegment = ref<number | null>(null)
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('annotated-segment', wenId.value)
 
-function handleAudioLoadSuccess(data: WenData) {
+function handleAudioLoadSuccess(data: MultiRoleData) {
   console.log('音频数据加载成功:', data)
   isAudioLoaded.value = true
 }

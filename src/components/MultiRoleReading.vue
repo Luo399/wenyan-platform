@@ -1,5 +1,5 @@
 <!--
-  AudioSegmentPlayer.vue - 音频分段播放器主组件
+  MultiRoleReading.vue - 多角色朗读播放器组件
 
   功能说明：
   - 负责加载音频、控制播放/暂停、更新时间进度、高亮当前段落
@@ -8,7 +8,7 @@
   - 支持缓存机制、错误处理、请求取消
 
   使用方式：
-  <AudioSegmentPlayer
+  <MultiRoleReading
     :wenId="wenId"
     :autoLoad="true"
     @load-success="handleLoadSuccess"
@@ -21,6 +21,7 @@
   - cacheEnabled: 是否启用缓存（默认true）
   - requestTimeout: 请求超时时间（默认10000ms）
   - audioBaseUrl: 音频基础URL（默认'/audio/'）
+  - dataBaseUrl: 数据JSON基础URL（默认'/data/multi_role_reading/'）
 
   Events:
   - load-start: 开始加载数据
@@ -30,10 +31,24 @@
   - pause: 暂停播放
   - ended: 播放结束
   - segment-change: 当前段落变化
+
+  JSON 数据格式（multi_role_reading）：
+  {
+    "text_id": "WEN_01",
+    "audio_file": "WEN_01_multi_role.mp3",
+    "segments": [
+      {
+        "sentence_index": 1,
+        "time_range": "00:00-00:16",
+        "role_name": "旁白📖",
+        "dialogue": "陈胜者，阳城人也..."
+      }
+    ]
+  }
 -->
 
 <template>
-  <div class="audio-segment-player">
+  <div class="multi-role-reading">
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
@@ -73,7 +88,7 @@
       <!-- 段落列表 -->
       <div class="segments-list">
         <div v-for="(segment, index) in segments" :key="index">
-          <SegmentItem
+          <MultiRoleReadingItem
             :segment="segment"
             :is-active="currentSegmentIndex === index"
             @play="() => playFromSegment(index)"
@@ -83,28 +98,35 @@
       </div>
     </div>
   </div>
+
+  <!-- 隐藏的音频元素 -->
+  <audio
+    ref="audioRef"
+    @timeupdate="handleTimeUpdate"
+    @ended="handleEnded"
+    @loadedmetadata="handleLoadedMetadata"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import SegmentItem from './SegmentItem.vue'
+import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
+
 // 段落数据类型定义
-export interface Segment {
-  id: string
-  text: string
-  role: string
-  avatar: string
-  emoji: string
-  startTime: number
-  endTime: number
+export interface MultiRoleSegment {
+  sentence_index: number
+  time_range: string
+  role_name: string
+  dialogue: string
 }
+
 // 课文数据类型
-export interface WenData {
-  wenId: string
-  title: string
-  audioUrl: string
-  segments: Segment[]
+export interface MultiRoleData {
+  text_id: string
+  audio_file: string
+  segments: MultiRoleSegment[]
 }
+
 // Props 类型定义
 interface Props {
   wenId: string
@@ -112,49 +134,77 @@ interface Props {
   cacheEnabled?: boolean
   requestTimeout?: number
   audioBaseUrl?: string
+  dataBaseUrl?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   autoLoad: true,
   cacheEnabled: true,
   requestTimeout: 10000,
-  audioBaseUrl: '/data/AudioSegmentPlayer/',
+  audioBaseUrl: '/audio/',
+  dataBaseUrl: '/data/multi_role_reading/',
 })
+
 // Events
 const emit = defineEmits<{
   (e: 'load-start'): void
-  (e: 'load-success', data: WenData): void
+  (e: 'load-success', data: MultiRoleData): void
   (e: 'load-error', error: string): void
   (e: 'play'): void
   (e: 'pause'): void
   (e: 'ended'): void
   (e: 'segment-change', index: number): void
 }>()
+
 // 状态管理
 const loading = ref(false)
 const error = ref<string | null>(null)
-const wenData = ref<WenData | null>(null)
+const multiRoleData = ref<MultiRoleData | null>(null)
 const audioRef = ref<HTMLAudioElement | null>(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const playbackSpeed = ref(1)
 const abortController = ref<AbortController | null>(null)
+
 // 缓存对象
-const dataCache = new Map<string, WenData>()
+const dataCache = new Map<string, MultiRoleData>()
+
 // 计算属性
-const segments = computed(() => wenData.value?.segments || [])
+const segments = computed(() => multiRoleData.value?.segments || [])
+
+// 当前段落索引
 const currentSegmentIndex = computed(() => {
   const time = currentTime.value
   const segs = segments.value
   for (let i = segs.length - 1; i >= 0; i--) {
     const seg = segs[i]
-    if (seg && time >= seg.startTime) {
-      return i
+    if (seg) {
+      // 从 time_range 解析开始时间
+      const startTime = parseTime(seg.time_range.split('-')[0])
+      if (time >= startTime) {
+        return i
+      }
     }
   }
   return -1
 })
+
+/**
+ * 解析时间字符串为秒数
+ * @param timeStr - 时间字符串，如 "00:00" 或 "00:00-00:16"
+ * @returns 秒数
+ */
+function parseTime(timeStr: string): number {
+  const parts = timeStr.trim().split(':')
+  if (parts.length === 2) {
+    const mins = parseInt(parts[0], 10) || 0
+    const secs = parseFloat(parts[1]) || 0
+    return mins * 60 + secs
+  }
+  return 0
+}
+
 /**
  * 格式化时间显示
  */
@@ -163,37 +213,51 @@ function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60)
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
+
+/**
+ * 从 time_range 解析开始和结束时间
+ */
+function parseTimeRange(timeRange: string): { start: number; end: number } {
+  const [startStr, endStr] = timeRange.split('-')
+  return {
+    start: parseTime(startStr),
+    end: parseTime(endStr),
+  }
+}
+
 /**
  * 加载课文数据
  */
 async function loadData() {
-  console.log(`开始加载音频分段数据: wenId=${props.wenId}, audioBaseUrl=${props.audioBaseUrl}`)
+  console.log(`开始加载多角色朗读数据: wenId=${props.wenId}`)
 
   if (!props.wenId) {
     error.value = '请提供课文ID'
     emit('load-error', error.value)
     return
   }
+
   // 检查缓存
   if (props.cacheEnabled && dataCache.has(props.wenId)) {
     console.log(`使用缓存数据: ${props.wenId}`)
-    wenData.value = dataCache.get(props.wenId)!
-    emit('load-success', wenData.value)
+    multiRoleData.value = dataCache.get(props.wenId)!
+    emit('load-success', multiRoleData.value)
     setupAudio()
     return
   }
+
   // 取消之前的请求
   if (abortController.value) {
     abortController.value.abort()
   }
   abortController.value = new AbortController()
+
   loading.value = true
   error.value = null
   emit('load-start')
+
   try {
-    // 构建请求URL（注意：实际项目中需要替换为真实的API路径）
-    // TODO: 将此处的JSON文件路径替换为实际的API接口
-    const url = `${props.audioBaseUrl}${props.wenId}.json`
+    const url = `${props.dataBaseUrl}${props.wenId}.json`
     console.log(`请求URL: ${url}`)
 
     const timeout = setTimeout(() => {
@@ -211,39 +275,34 @@ async function loadData() {
     clearTimeout(timeout)
 
     if (!response.ok) {
-      console.error(`HTTP错误: ${response.status} - ${response.statusText}`)
       throw new Error(`HTTP错误: ${response.status}`)
     }
 
-    const data = await response.json()
+    const data: MultiRoleData = await response.json()
     console.log(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
 
     // 数据格式验证
-    if (!validateWenData(data)) {
+    if (!validateMultiRoleData(data)) {
       throw new Error('数据格式错误')
     }
 
-    // 处理缺少 emoji 的段落
-    data.segments = fillMissingEmoji(data.segments)
+    multiRoleData.value = data
 
-    wenData.value = data
     // 存入缓存
     if (props.cacheEnabled) {
       dataCache.set(props.wenId, data)
     }
+
     emit('load-success', data)
     setupAudio()
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      // 请求被取消（超时）
-      console.log('请求被取消（超时）')
       error.value = '加载超时'
       emit('load-error', error.value)
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
     console.error(`加载失败: ${errorMsg}`)
-    // 如果是 404 错误，显示友好提示
     if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
       error.value = '【404正在加班加点中】'
     } else {
@@ -254,22 +313,22 @@ async function loadData() {
     loading.value = false
   }
 }
+
 /**
- * 验证课文数据格式
+ * 验证多角色朗读数据格式
  */
-function validateWenData(data: unknown): data is WenData {
+function validateMultiRoleData(data: unknown): data is MultiRoleData {
   if (!data || typeof data !== 'object') return false
-  const d = data as WenData
-  if (!d.wenId || !d.title || !d.audioUrl || !Array.isArray(d.segments)) {
+  const d = data as MultiRoleData
+  if (!d.text_id || !d.audio_file || !Array.isArray(d.segments)) {
     return false
   }
   for (const seg of d.segments) {
     if (
-      !seg.id ||
-      !seg.text ||
-      !seg.role ||
-      typeof seg.startTime !== 'number' ||
-      typeof seg.endTime !== 'number'
+      typeof seg.sentence_index !== 'number' ||
+      !seg.time_range ||
+      !seg.role_name ||
+      !seg.dialogue
     ) {
       return false
     }
@@ -278,50 +337,15 @@ function validateWenData(data: unknown): data is WenData {
 }
 
 /**
- * 处理缺少 emoji 的段落，从 role 属性生成 emoji
- * 如果 role 包含多个角色（如"三老、豪杰"），取最后一个
- */
-function fillMissingEmoji(segments: Segment[]): Segment[] {
-  return segments.map((seg) => {
-    if (seg.emoji) {
-      return seg
-    }
-    // 从 role 提取最后一个角色
-    const roleParts = seg.role.split('、')
-    const lastRole = roleParts[roleParts.length - 1]
-
-    // 根据角色名称生成 emoji
-    const emojiMap: Record<string, string> = {
-      旁白: '📖',
-      陈胜: '👨🏻',
-      吴广: '🧑🏻',
-      佣者: '🧑',
-      卜者: '🧔🏻',
-      狐狸: '🦊',
-      众士卒: '🙋🏻‍♂️',
-      三老: '🧔🏻‍♂️',
-      豪杰: '🧔🏻‍♂️',
-      将尉: '👮',
-      守丞: '👮',
-    }
-
-    const emoji = emojiMap[lastRole] || '👤'
-
-    return {
-      ...seg,
-      emoji,
-    }
-  })
-}
-/**
  * 设置音频元素
  */
 function setupAudio() {
-  if (!wenData.value || !audioRef.value) return
-  // 根据命名规范，audioUrl 只存储文件名，前端统一拼接路径
-  audioRef.value.src = `/audio/${wenData.value.audioUrl}`
+  if (!multiRoleData.value || !audioRef.value) return
+  // 音频文件路径：基础URL + 文件名
+  audioRef.value.src = `${props.audioBaseUrl}${multiRoleData.value.audio_file}`
   audioRef.value.load()
 }
+
 /**
  * 音频时间更新处理
  */
@@ -331,6 +355,7 @@ function handleTimeUpdate() {
     duration.value = audioRef.value.duration || 0
   }
 }
+
 /**
  * 音频播放结束处理
  */
@@ -338,6 +363,7 @@ function handleEnded() {
   isPlaying.value = false
   emit('ended')
 }
+
 /**
  * 音频加载完成处理
  */
@@ -346,6 +372,7 @@ function handleLoadedMetadata() {
     duration.value = audioRef.value.duration || 0
   }
 }
+
 /**
  * 播放/暂停切换
  */
@@ -363,6 +390,7 @@ function togglePlay() {
     emit('play')
   }
 }
+
 /**
  * 从指定段落开始播放
  */
@@ -370,7 +398,10 @@ function playFromSegment(index: number) {
   if (!audioRef.value || index < 0 || index >= segments.value.length) return
   const segment = segments.value[index]
   if (!segment) return
-  audioRef.value.currentTime = segment.startTime
+
+  const { start } = parseTimeRange(segment.time_range)
+  audioRef.value.currentTime = start
+
   if (!isPlaying.value) {
     audioRef.value.play().catch((err) => {
       console.error('播放失败:', err)
@@ -379,6 +410,7 @@ function playFromSegment(index: number) {
   }
   emit('segment-change', index)
 }
+
 /**
  * 进度条拖动处理
  */
@@ -390,20 +422,21 @@ function handleSeek(event: Event) {
     currentTime.value = time
   }
 }
+
 /**
  * 切换播放速度
  */
 function toggleSpeed() {
   const speeds: number[] = [0.5, 0.75, 1, 1.25, 1.5, 2]
-  const currentValue = playbackSpeed.value ?? 1
-  const currentIndex = speeds.indexOf(currentValue)
+  const currentIndex = speeds.indexOf(playbackSpeed.value)
   const nextIndex = (currentIndex >= 0 ? currentIndex : 2) + 1
   const nextSpeed = speeds[nextIndex % speeds.length]
-  playbackSpeed.value = nextSpeed as number
+  playbackSpeed.value = nextSpeed
   if (audioRef.value) {
     audioRef.value.playbackRate = playbackSpeed.value
   }
 }
+
 /**
  * 监听当前段落变化
  */
@@ -412,14 +445,15 @@ watch(currentSegmentIndex, (newIndex) => {
     emit('segment-change', newIndex)
   }
 })
+
 // 生命周期
 onMounted(() => {
   if (props.autoLoad) {
     loadData()
   }
 })
+
 onUnmounted(() => {
-  // 清理资源
   if (abortController.value) {
     abortController.value.abort()
   }
@@ -428,6 +462,7 @@ onUnmounted(() => {
     audioRef.value.src = ''
   }
 })
+
 // 监听wenId变化
 watch(
   () => props.wenId,
@@ -438,6 +473,7 @@ watch(
     }
   },
 )
+
 // 暴露方法给父组件
 defineExpose({
   loadData,
@@ -456,7 +492,7 @@ defineExpose({
 </script>
 
 <style scoped>
-.audio-segment-player {
+.multi-role-reading {
   max-width: 800px;
   margin: 0 auto;
   padding: 1rem;
@@ -589,11 +625,3 @@ defineExpose({
   overflow-y: auto;
 }
 </style>
-
-<!-- 隐藏的音频元素 -->
-<audio
-  ref="audioRef"
-  @timeupdate="handleTimeUpdate"
-  @ended="handleEnded"
-  @loadedmetadata="handleLoadedMetadata"
-/>

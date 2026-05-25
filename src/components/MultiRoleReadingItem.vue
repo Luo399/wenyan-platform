@@ -1,17 +1,30 @@
 <!--
-  SegmentItem.vue - 音频分段项组件
+  MultiRoleReadingItem.vue - 多角色朗读分段项组件
 
   功能说明：
   - 渲染单个段落：角色头像、角色名、文本内容
   - 根据 isActive prop 改变背景高亮样式
   - 包含独立播放按钮，点击后从该段落的 startTime 开始播放
+
+  使用方式：
+  <MultiRoleReadingItem
+    :segment="segment"
+    :is-active="isActive"
+    @play="handlePlay"
+    @click="handleClick"
+  />
+
+  Props:
+  - segment: 段落数据
+  - isActive: 是否为当前播放段落
 -->
+
 <template>
   <div class="segment-item" :class="{ active: isActive }" @click="handleClick">
-    <div class="avatar">{{ segment.emoji }}</div>
+    <div class="avatar">{{ emoji }}</div>
     <div class="content">
-      <div class="role-name">{{ segment.role }}</div>
-      <div class="text">{{ segment.text }}</div>
+      <div class="role-name">{{ roleName }}</div>
+      <div class="text">{{ segment.dialogue }}</div>
     </div>
     <button class="play-btn" @click.stop="handlePlay">
       <i class="fas fa-play"></i>
@@ -20,26 +33,46 @@
 </template>
 
 <script setup lang="ts">
-import type { Segment } from './AudioSegmentPlayer.vue'
+import { computed } from 'vue'
+import type { MultiRoleSegment } from './MultiRoleReading.vue'
 
 interface Props {
-  segment: Segment
+  segment: MultiRoleSegment
   isActive: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'play', startTime: number): void
+  (e: 'play'): void
   (e: 'click'): void
 }>()
+
+/**
+ * 从 role_name 中提取角色名称（去掉emoji）
+ */
+const roleName = computed(() => {
+  const name = props.segment.role_name
+  // 移除 emoji 字符
+  return name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
+})
+
+/**
+ * 从 role_name 中提取 emoji
+ */
+const emoji = computed(() => {
+  const name = props.segment.role_name
+  // 匹配 emoji 字符
+  const match = name.match(/[\u{1F300}-\u{1F9FF}]/gu)
+  return match ? match[match.length - 1] : '📖' // 默认使用书本emoji
+})
 
 function handleClick() {
   emit('click')
 }
 
 function handlePlay() {
-  emit('play', props.segment.startTime)
+  emit('play')
 }
 </script>
 

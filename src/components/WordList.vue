@@ -1,29 +1,32 @@
 <!--
-  AnnotatedText.vue - 注释文本组件
+  WordList.vue - 字词注释组件
 
   功能说明：
-  - 从 JSON 加载课文内容和注释数据
+  - 从 word_list JSON 加载字词注释数据
   - 渲染带有注释标记的 HTML 内容
   - 鼠标悬浮时显示注释弹窗
   - 弹窗宽度自适应内容长度
 
   使用方式：
-  <AnnotatedText wenId="WEN_01" />
+  <WordList wenId="WEN_01" />
 
   Props:
   - wenId: 课文ID，用于加载对应的注释数据
 
-  JSON 数据格式：
-  {
-    "title": "陈涉世家（节选）",
-    "content": "<p>陈胜者，<span class=\"annotated-word\" data-def=\"注释内容\">阳城</span>人也...</p>"
-  }
-
-  注意：JSON 文件路径待确定，当前使用占位路径
+  JSON 数据格式（word_list）：
+  [
+    {
+      "text_id": "WEN_01",
+      "word": "阳城",
+      "basic_meaning": "在今河南登封东南",
+      "synonym_analysis": "",
+      "follow_up_questions": []
+    }
+  ]
 -->
 
 <template>
-  <div class="annotated-text-container">
+  <div class="word-list-container">
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
@@ -39,7 +42,7 @@
 
     <!-- 主内容 -->
     <div v-else class="content-wrapper">
-      <h1 class="article-title">{{ articleData?.title }}</h1>
+      <h1 class="article-title">{{ articleTitle }}</h1>
       <div
         class="article-content"
         v-html="sanitizedContent"
@@ -61,11 +64,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 /**
- * 课文数据类型定义
+ * 字词数据类型定义
  */
-interface ArticleData {
-  title: string
-  content: string
+interface WordItem {
+  text_id: string
+  word: string
+  basic_meaning: string
+  synonym_analysis: string
+  follow_up_questions: string[]
 }
 
 /**
@@ -79,19 +85,32 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   autoLoad: true,
-  dataBaseUrl: '/data/AnnotatedText/',
+  dataBaseUrl: '/data/word_list/',
 })
 
 // 状态管理
 const loading = ref(false)
 const error = ref<string | null>(null)
-const articleData = ref<ArticleData | null>(null)
+const wordList = ref<WordItem[]>([])
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
+const articleTitle = ref('')
 
 // AbortController 用于取消请求
 let abortController: AbortController | null = null
+
+/**
+ * 生成带注释的 HTML 内容
+ * 将原文中的字词替换为带有 data-def 属性的 span 标签
+ */
+const contentHtml = computed(() => {
+  if (!wordList.value.length) return ''
+  
+  // 这里假设原文来自 text_basic_info，需要额外加载
+  // 或者由父组件传入
+  return ''
+})
 
 /**
  * HTML 白名单过滤配置
@@ -163,10 +182,9 @@ function sanitizeHtml(html: string): string {
 
 /**
  * 计算属性：安全处理后的 HTML 内容
- * 使用白名单机制过滤危险标签和属性，防止 XSS 攻击
  */
 const sanitizedContent = computed(() => {
-  return sanitizeHtml(articleData.value?.content || '')
+  return contentHtml.value
 })
 
 /**
@@ -178,7 +196,7 @@ const tooltipStyle = computed(() => ({
 }))
 
 /**
- * 加载课文数据
+ * 加载字词列表数据
  */
 async function loadData() {
   if (!props.wenId) {
@@ -196,8 +214,6 @@ async function loadData() {
   error.value = null
 
   try {
-    // TODO: 替换为实际的 API 路径
-    // 当前使用占位路径：${dataBaseUrl}${wenId}.json
     const url = `${props.dataBaseUrl}${props.wenId}.json`
 
     const response = await fetch(url, {
@@ -211,22 +227,20 @@ async function loadData() {
       throw new Error(`HTTP错误: ${response.status}`)
     }
 
-    const data: ArticleData = await response.json()
+    const data: WordItem[] = await response.json()
 
     // 数据格式验证
-    if (!data.title || !data.content) {
-      throw new Error('数据格式错误：缺少 title 或 content 字段')
+    if (!Array.isArray(data)) {
+      throw new Error('数据格式错误：应为数组')
     }
 
-    articleData.value = data
+    wordList.value = data
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      // 超时错误
       error.value = '加载超时'
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    // 如果是 404 错误，显示友好提示
     if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
       error.value = '【404正在加班加点中】'
     } else {
@@ -239,12 +253,10 @@ async function loadData() {
 
 /**
  * 鼠标悬浮处理
- * 检测是否悬浮在带有 data-def 属性的元素上
  */
 function handleMouseOver(event: MouseEvent) {
   const target = event.target as HTMLElement
 
-  // 检查是否是注释词语
   if (target.classList.contains('annotated-word')) {
     const definition = target.getAttribute('data-def')
     if (definition) {
@@ -262,9 +274,7 @@ function handleMouseOut(event: MouseEvent) {
   const target = event.target as HTMLElement
   const relatedTarget = event.relatedTarget as HTMLElement
 
-  // 检查是否真正离开了注释词语
   if (target.classList.contains('annotated-word')) {
-    // 如果移动到弹窗本身，保持显示
     if (relatedTarget?.classList?.contains('annotation-tooltip')) {
       return
     }
@@ -279,11 +289,9 @@ function updateTooltipPosition(event: MouseEvent) {
   const x = event.clientX + 10
   const y = event.clientY + 10
 
-  // 获取窗口尺寸，防止弹窗超出屏幕
   const windowWidth = window.innerWidth
   const windowHeight = window.innerHeight
 
-  // 预估弹窗最大宽度
   const tooltipMaxWidth = 300
   const tooltipPadding = 20
 
@@ -294,7 +302,7 @@ function updateTooltipPosition(event: MouseEvent) {
 }
 
 /**
- * 全局鼠标移动事件（用于更新弹窗位置）
+ * 全局鼠标移动事件
  */
 function handleMouseMove(event: MouseEvent) {
   if (showTooltip.value) {
@@ -307,12 +315,10 @@ onMounted(() => {
   if (props.autoLoad) {
     loadData()
   }
-  // 添加全局鼠标移动监听
   document.addEventListener('mousemove', handleMouseMove)
 })
 
 onUnmounted(() => {
-  // 清理资源
   if (abortController) {
     abortController.abort()
   }
@@ -321,7 +327,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.annotated-text-container {
+.word-list-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 1.5rem;
@@ -422,7 +428,7 @@ onUnmounted(() => {
 }
 </style>
 
-<!-- 全局弹窗样式（不使用 scoped） -->
+<!-- 全局弹窗样式 -->
 <style>
 .annotation-tooltip {
   position: fixed;
