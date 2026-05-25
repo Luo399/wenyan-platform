@@ -55,12 +55,15 @@
       <span>加载中...</span>
     </div>
 
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="error-state">
-      <i class="fas fa-exclamation-circle"></i>
-      <p>{{ error }}</p>
-      <button @click="loadData" class="retry-btn">重试</button>
-    </div>
+    <!-- JSON数据错误 -->
+    <ErrorDisplay
+      v-else-if="error"
+      :error="error"
+      :source="sourceName"
+      resource-type="json"
+      :resource-path="dataUrl"
+      @retry="loadData"
+    />
 
     <!-- 主内容 -->
     <div v-else class="player-content">
@@ -92,10 +95,15 @@
       </div>
 
       <!-- 音频错误提示 -->
-      <div v-if="audioError" class="audio-error">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>{{ audioError }}</span>
-      </div>
+      <ErrorDisplay
+        v-if="audioError"
+        :error="audioError"
+        :source="sourceName"
+        resource-type="mp3"
+        :resource-path="audioUrl"
+        :show-retry="true"
+        @retry="retryAudio"
+      />
 
       <!-- 段落列表 -->
       <div class="segments-list">
@@ -126,6 +134,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
+import ErrorDisplay from './ErrorDisplay.vue'
 
 // 段落数据类型定义
 export interface MultiRoleSegment {
@@ -183,6 +192,16 @@ const currentTime = ref(0)
 const duration = ref(0)
 const playbackSpeed = ref(1)
 const abortController = ref<AbortController | null>(null)
+
+// 组件名称（用于错误显示）
+const sourceName = 'MultiRoleReading'
+
+// 资源路径（用于错误显示）
+const dataUrl = computed(() => `${props.dataBaseUrl}${props.wenId}.json`)
+const audioUrl = computed(() => {
+  if (!multiRoleData.value) return ''
+  return `${props.audioBaseUrl}${multiRoleData.value.audio_file}`
+})
 
 // 缓存对象
 const dataCache = new Map<string, MultiRoleData>()
@@ -394,6 +413,18 @@ function handleAudioError(event: Event) {
   audioLoading.value = false
   audioError.value = '音频加载失败，请检查网络或重试'
   console.error('音频加载错误:', event)
+}
+
+/**
+ * 重试加载音频
+ */
+function retryAudio() {
+  audioError.value = null
+  audioLoading.value = true
+  if (audioRef.value && multiRoleData.value) {
+    audioRef.value.src = `${props.audioBaseUrl}${multiRoleData.value.audio_file}`
+    audioRef.value.load()
+  }
 }
 
 /**
@@ -610,22 +641,6 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-/* 音频错误提示 */
-.audio-error {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #fef3c7;
-  border-radius: 0.375rem;
-  color: #d97706;
-  font-size: 0.875rem;
-}
-
-.audio-error i {
-  font-size: 1rem;
 }
 
 /* 音频控制栏 */

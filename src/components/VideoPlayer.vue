@@ -6,7 +6,8 @@
   2. 显示播放进度条（可点击跳转）
   3. 显示当前时间和总时长
   4. 支持视频封面图
-  5. 不包含倍速播放功能
+  5. 统一错误处理和展示
+  6. 不包含倍速播放功能
 
   使用示例：
   <VideoPlayer src="/path/to/video.mp4" poster="/path/to/poster.jpg" />
@@ -14,65 +15,62 @@
 <template>
   <!-- 播放器最外层容器 -->
   <div class="video-player-container">
+    <!-- 错误状态显示 -->
+    <ErrorDisplay
+      v-if="error"
+      :error="error"
+      :source="sourceName"
+      resource-type="video"
+      :resource-path="src"
+      @retry="retryLoad"
+    />
+
     <!-- 视频播放区域 -->
-    <div class="video-wrapper">
-      <!--
-        video 元素：
-        - ref: 用于获取 DOM 引用，以便 JavaScript 操作
-        - src: 视频文件地址
-        - poster: 封面图片（视频未播放时显示）
-        - 事件监听：
-          * timeupdate: 播放过程中定期触发，更新当前播放时间
-          * loadedmetadata: 视频元数据加载完成，获取总时长
-          * play: 开始播放时触发
-          * pause: 暂停播放时触发
-          * ended: 播放结束时触发
-      -->
-      <video
-        ref="videoRef"
-        :src="src"
-        :poster="poster"
-        @timeupdate="handleTimeUpdate"
-        @loadedmetadata="handleLoadedMetadata"
-        @play="isPlaying = true"
-        @pause="isPlaying = false"
-        @ended="handleEnded"
-      ></video>
-    </div>
-
-    <!-- 自定义控制栏区域 -->
-    <div class="controls-bar">
-      <!-- 播放/暂停切换按钮 -->
-      <!-- 根据 isPlaying 状态显示不同文字 -->
-      <button class="control-btn play-btn" @click="togglePlay">
-        {{ isPlaying ? '暂停' : '播放' }}
-      </button>
-
-      <!-- 进度条区域 -->
-      <!-- 点击整个进度条可以跳转到对应位置 -->
-      <div class="progress-wrapper" @click="seek">
-        <!-- 进度条背景轨道 -->
-        <div class="progress-bar">
-          <!-- 进度条填充部分，宽度根据播放进度动态计算 -->
-          <div class="progress-filled" :style="{ width: progressPercent + '%' }"></div>
-        </div>
+    <template v-else>
+      <div class="video-wrapper">
+        <video
+          ref="videoRef"
+          :src="src"
+          :poster="poster"
+          preload="metadata"
+          @timeupdate="handleTimeUpdate"
+          @loadedmetadata="handleLoadedMetadata"
+          @play="isPlaying = true"
+          @pause="isPlaying = false"
+          @ended="handleEnded"
+          @error="handleError"
+          @abort="handleAbort"
+        ></video>
       </div>
 
-      <!-- 时间显示区域 -->
-      <!-- 格式：当前时间 / 总时长 -->
-      <span class="time-display"> {{ formatTime(currentTime) }} / {{ formatTime(duration) }} </span>
-    </div>
+      <!-- 自定义控制栏区域 -->
+      <div class="controls-bar">
+        <button class="control-btn play-btn" @click="togglePlay">
+          {{ isPlaying ? '暂停' : '播放' }}
+        </button>
+
+        <div class="progress-wrapper" @click="seek">
+          <div class="progress-bar">
+            <div class="progress-filled" :style="{ width: progressPercent + '%' }"></div>
+          </div>
+        </div>
+
+        <span class="time-display">
+          {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+        </span>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
 import { ref, computed } from 'vue'
+import ErrorDisplay from './ErrorDisplay.vue'
 
 // ============================================================
 // 组件 Props 定义
 // ============================================================
-// defineProps 是 Vue 3 Composition API 提供的宏，用于定义组件属性
 const props = defineProps<{
   /**
    * 视频文件的 URL 地址
@@ -90,32 +88,36 @@ const props = defineProps<{
 // ============================================================
 // 响应式状态定义
 // ============================================================
-// ref() 创建响应式引用，用于追踪状态变化
 
 /**
  * 视频 DOM 元素的引用
- * 类型为 HTMLVideoElement 或 null（初始值为 null）
- * 用于调用 video 元素的原生方法如 play()、pause()
  */
 const videoRef = ref<HTMLVideoElement | null>(null)
 
 /**
  * 播放状态标记
- * true = 正在播放，false = 已暂停
  */
 const isPlaying = ref(false)
 
 /**
  * 当前播放位置（单位：秒）
- * 随着视频播放实时更新
  */
 const currentTime = ref(0)
 
 /**
  * 视频总时长（单位：秒）
- * 在 loadedmetadata 事件触发后从元数据中获取
  */
 const duration = ref(0)
+
+/**
+ * 错误信息
+ */
+const error = ref<string | null>(null)
+
+/**
+ * 组件名称（用于错误显示）
+ */
+const sourceName = 'VideoPlayer'
 
 // ============================================================
 // 计算属性
@@ -198,23 +200,65 @@ function handleLoadedMetadata() {
 
 /**
  * 处理视频播放结束事件
- *
- * 触发时机：
- * - 视频播放到最后一帧时触发
- *
- * 功能：
- * 1. 重置播放状态为暂停
- * 2. 重置当前播放时间为 0
- * 3. 将视频播放位置重置到开头
  */
 function handleEnded() {
-  // 重置播放状态
   isPlaying.value = false
-  // 重置当前时间
   currentTime.value = 0
-  // 将视频播放位置重置到开头
   if (videoRef.value) {
     videoRef.value.currentTime = 0
+  }
+}
+
+/**
+ * 处理视频错误事件
+ */
+function handleError(event: Event) {
+  const target = event.target as HTMLVideoElement
+  const errorObj = target.error
+
+  let errorMsg = '视频加载失败'
+  if (errorObj) {
+    switch (errorObj.code) {
+      case MediaError.MEDIA_ERR_ABORTED:
+        errorMsg = `视频加载被中止: ${props.src}`
+        break
+      case MediaError.MEDIA_ERR_NETWORK:
+        errorMsg = `网络错误，无法加载视频: ${props.src}`
+        break
+      case MediaError.MEDIA_ERR_DECODE:
+        errorMsg = `视频解码失败，文件可能损坏: ${props.src}`
+        break
+      case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+        errorMsg = `视频格式不支持或文件不存在: ${props.src}`
+        break
+      default:
+        errorMsg = `视频加载错误 [${errorObj.code}]: ${props.src}`
+    }
+  } else {
+    errorMsg = `未知错误: ${props.src}`
+  }
+
+  console.error(`[VideoPlayer] ${errorMsg}`)
+  error.value = errorMsg
+}
+
+/**
+ * 处理视频加载中止事件
+ */
+function handleAbort() {
+  console.warn(`[VideoPlayer] 视频加载被中止: ${props.src}`)
+}
+
+/**
+ * 重试加载视频
+ */
+function retryLoad() {
+  // 清除错误状态
+  error.value = null
+
+  // 重置视频元素
+  if (videoRef.value) {
+    videoRef.value.load()
   }
 }
 
