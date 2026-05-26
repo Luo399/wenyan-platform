@@ -1,22 +1,26 @@
 /**
- * useNavigation - 统一导航Composable
+ * useNavigation - 统一导航Composable（纯净版）
  *
  * 功能：
- * - 提供统一的跳转函数
+ * - 提供统一的页面导航路径计算
  * - 自动处理 ID 转换
  * - 支持自定义 ID（用于跨页面跳转）
+ * - 纯函数设计，无副作用，易于测试
  *
  * 使用方式：
  * ```ts
- * const { goNext, goPrev, currentPage } = useNavigation('rules', '1')
+ * const { nextPath, prevPath, goNext, goPrev } = useNavigation('rules', '1')
  *
- * // 在模板中
- * <BackContinue @back="goPrev()" @continue="goNext()" />
+ * // 获取路径（纯计算）
+ * console.log(nextPath.value) // '/rule1/1'
+ *
+ * // 使用内置导航（需要传入router）
+ * <BackContinue @back="goPrev(router)" @continue="goNext(router)" />
  * ```
  */
 
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, type ComputedRef } from 'vue'
+import type { Router } from 'vue-router'
 import {
   type RouteName,
   getNextPage,
@@ -24,10 +28,20 @@ import {
   transformId,
   pageSequence,
 } from '@/config/navigation'
+import { debugWarn, debugError } from '@/utils/debug'
 
-export function useNavigation(currentRouteName: RouteName, currentId?: string) {
-  const router = useRouter()
+export interface NavigationResult {
+  nextPath: ComputedRef<string | null>
+  prevPath: ComputedRef<string | null>
+  goNext: (router: Router) => void
+  goPrev: (router: Router) => void
+  goTo: (router: Router, routeName: RouteName, id?: string) => void
+  currentIndex: ComputedRef<number>
+  hasNext: ComputedRef<boolean>
+  hasPrev: ComputedRef<boolean>
+}
 
+export function useNavigation(currentRouteName: RouteName, currentId?: string): NavigationResult {
   /**
    * 获取转换后的 ID
    */
@@ -40,48 +54,85 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
    * 获取页面的默认 ID
    */
   function getDefaultId(routeName: RouteName): string {
-    const pageIndex = pageSequence.findIndex((p) => p.name === routeName)
-    // 根据页面类型返回合理的默认值
-    // 所有页面现在都使用 poemId（数字格式）
     return '1'
   }
 
   /**
-   * 跳转到下一页
+   * 当前页面的顺序索引
    */
-  function goNext(targetId?: string) {
+  const currentIndex = computed(() => {
+    return pageSequence.findIndex((p) => p.name === currentRouteName)
+  })
+
+  /**
+   * 是否有下一页
+   */
+  const hasNext = computed(() => {
+    return currentIndex.value < pageSequence.length - 1
+  })
+
+  /**
+   * 是否有上一页
+   */
+  const hasPrev = computed(() => {
+    return currentIndex.value > 0
+  })
+
+  /**
+   * 下一页路径（纯计算，无副作用）
+   */
+  const nextPath = computed<string | null>(() => {
     const nextPage = getNextPage(currentRouteName)
     if (!nextPage) {
-      console.warn('已是最后一页')
-      return
+      return null
     }
-    const id = targetId ?? getTargetId(nextPage.name)
-    const path = nextPage.getPath(id)
-    router.push(path)
-  }
+    const id = getTargetId(nextPage.name)
+    return nextPage.getPath(id)
+  })
 
   /**
-   * 跳转到上一页
+   * 上一页路径（纯计算，无副作用）
    */
-  function goPrev(targetId?: string) {
+  const prevPath = computed<string | null>(() => {
     const prevPage = getPrevPage(currentRouteName)
     if (!prevPage) {
-      // 没有上一页时，返回首页
-      router.push('/')
+      return '/'
+    }
+    const id = getTargetId(prevPage.name)
+    return prevPage.getPath(id)
+  })
+
+  /**
+   * 跳转到下一页（需要传入router）
+   */
+  function goNext(router: Router) {
+    const path = nextPath.value
+    if (!path) {
+      debugWarn('已是最后一页')
       return
     }
-    const id = targetId ?? getTargetId(prevPage.name)
-    const path = prevPage.getPath(id)
     router.push(path)
   }
 
   /**
-   * 跳转到指定页面
+   * 跳转到上一页（需要传入router）
    */
-  function goTo(routeName: RouteName, id?: string) {
+  function goPrev(router: Router) {
+    const path = prevPath.value
+    if (!path) {
+      debugWarn('已是第一页')
+      return
+    }
+    router.push(path)
+  }
+
+  /**
+   * 跳转到指定页面（需要传入router）
+   */
+  function goTo(router: Router, routeName: RouteName, id?: string) {
     const page = pageSequence.find((p) => p.name === routeName)
     if (!page) {
-      console.error(`页面 ${routeName} 不存在`)
+      debugError(`页面 ${routeName} 不存在`)
       return
     }
     const targetId = id ?? getTargetId(routeName)
@@ -89,28 +140,9 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
     router.push(path)
   }
 
-  /**
-   * 获取当前页面的顺序索引
-   */
-  const currentIndex = computed(() => {
-    return pageSequence.findIndex((p) => p.name === currentRouteName)
-  })
-
-  /**
-   * 判断是否有下一页
-   */
-  const hasNext = computed(() => {
-    return currentIndex.value < pageSequence.length - 1
-  })
-
-  /**
-   * 判断是否有上一页
-   */
-  const hasPrev = computed(() => {
-    return currentIndex.value > 0
-  })
-
   return {
+    nextPath,
+    prevPath,
     goNext,
     goPrev,
     goTo,

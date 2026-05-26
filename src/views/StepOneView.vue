@@ -20,7 +20,24 @@
 
     <!-- 下方：多角色朗读播放器 -->
     <section class="audio-section">
+      <!-- 加载状态提示 -->
+      <div v-if="!isAudioLoaded && !audioLoadingError" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">正在加载音频资源...</span>
+      </div>
+
+      <!-- 错误状态提示 -->
+      <div v-else-if="audioLoadingError" class="error-overlay">
+        <div class="error-icon">⚠️</div>
+        <p class="error-message">音频加载失败</p>
+        <p class="error-detail">{{ audioLoadingError }}</p>
+        <button class="retry-btn" @click="audioPlayer?.loadData()">重试加载</button>
+      </div>
+
+      <!-- 正常内容 -->
       <MultiRoleReading
+        v-show="isAudioLoaded || !audioLoadingError"
+        ref="audioPlayer"
         :wen-id="wenId"
         :auto-load="true"
         @load-success="handleAudioLoadSuccess"
@@ -30,13 +47,18 @@
     </section>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue
+      back-text="返回"
+      continue-text="继续"
+      @back="handleGoPrev"
+      @continue="handleGoNext"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeMount } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, type Ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
@@ -44,68 +66,74 @@ import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 
-console.log('[StepOne] 🔄 StepOneView 组件开始初始化')
+// MultiRoleReading 组件暴露的方法
+interface AudioPlayerRef {
+  loadData: () => void
+  play: () => Promise<void>
+  pause: () => void
+  seek: (time: number) => void
+}
 
 const route = useRoute()
-
-onBeforeMount(() => {
-  console.log('[StepOne] 🚀 onBeforeMount 钩子执行')
-})
+const router = useRouter()
+const audioPlayer: Ref<AudioPlayerRef | undefined> = ref()
 
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
 
-console.log(`[StepOne] 📍 路由参数 id: ${poemId}`)
-
 // 将路由参数 id（数字）转换为 wenId 格式
 const wenId = computed(() => {
-  console.log(`[StepOne] 🧮 wenId computed 开始计算`)
-
   if (!poemId) {
-    console.log(`[StepOne] ⚠️ poemId为空，使用默认值 WEN_01`)
     return 'WEN_01'
   }
-  // 如果已经是 WEN_xx 格式，直接返回
   if (poemId.startsWith('WEN_')) {
-    console.log(`[StepOne] ✅ poemId已是WEN格式: ${poemId}`)
     return poemId
   }
-  // 将数字转换为 WEN_xx 格式（如 1 -> WEN_01）
   const num = parseInt(poemId, 10)
   if (isNaN(num)) {
-    console.log(`[StepOne] ⚠️ poemId解析失败: ${poemId}，使用默认值 WEN_01`)
     return 'WEN_01'
   }
-  const result = `WEN_${num.toString().padStart(2, '0')}`
-  console.log(`[StepOne] ✅ poemId转换完成: ${poemId} -> ${result}`)
-  return result
+  return `WEN_${num.toString().padStart(2, '0')}`
 })
 
 const isAudioLoaded = ref(false)
+const audioLoadingError = ref<string | null>(null)
 const currentSegment = ref<number | null>(null)
 
-// 使用导航composable
-console.log('[StepOne] 🔧 初始化导航composable...')
+// 使用导航composable（新版，需要传入router）
 const { goNext, goPrev } = useNavigation('stepone', poemId)
-console.log('[StepOne] ✅ 导航初始化完成')
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
-  console.log(`[StepOne] ✅ 音频数据加载成功`)
-  console.log(`[StepOne] 📊 段落数: ${data.segments?.length || 0}`)
   isAudioLoaded.value = true
+  audioLoadingError.value = null
 }
 
 function handleAudioLoadError(error: string) {
-  console.error(`[StepOne] ❌ 音频数据加载失败:`, error)
+  isAudioLoaded.value = false
+  audioLoadingError.value = error
+  window.dispatchEvent(
+    new CustomEvent('app-error', {
+      detail: {
+        message: `音频加载失败: ${error}`,
+        type: 'error',
+        duration: 5000,
+      },
+    }),
+  )
 }
 
 function handleSegmentChange(index: number) {
   currentSegment.value = index
 }
 
-onMounted(() => {
-  console.log(`[StepOne] 🎯 StepOneView 挂载完成，wenId: ${wenId.value}`)
-})
+// 导航函数包装
+function handleGoNext() {
+  goNext(router)
+}
+
+function handleGoPrev() {
+  goPrev(router)
+}
 </script>
 
 <style scoped>
@@ -126,5 +154,92 @@ onMounted(() => {
   background-color: #f9fafb;
   border-radius: 0.5rem;
   padding: 1rem;
+  position: relative;
+  min-height: 200px;
+}
+
+/* 加载覆盖层 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(249, 250, 251, 0.95);
+  z-index: 10;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+/* 错误覆盖层 */
+.error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(249, 250, 251, 0.95);
+  z-index: 10;
+  padding: 1rem;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  color: #dc2626;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.error-detail {
+  color: #6b7280;
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.retry-btn {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-btn:hover {
+  background-color: #2563eb;
 }
 </style>

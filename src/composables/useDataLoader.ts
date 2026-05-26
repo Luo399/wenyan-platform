@@ -1,4 +1,5 @@
 import { ref, onUnmounted, watch } from 'vue'
+import { debugLog, debugError } from '@/utils/debug'
 
 interface UseDataLoaderOptions<T> {
   autoLoad?: boolean
@@ -63,7 +64,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
         abortController?.abort()
       }, timeout)
 
-      console.log(`[useDataLoader] 🌐 发起请求: ${url}`)
+      debugLog(`[useDataLoader] 🌐 发起请求: ${url}`)
 
       const response = await fetch(url, {
         signal: abortController.signal,
@@ -87,7 +88,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
       }
 
       const duration = Date.now() - startTime
-      console.log(`[useDataLoader] ✅ 请求完成，耗时: ${duration}ms`)
+      debugLog(`[useDataLoader] ✅ 请求完成，耗时: ${duration}ms`)
 
       loading.value = false
       onLoadSuccess?.(data.value)
@@ -101,16 +102,16 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
       if (err instanceof DOMException && err.name === 'AbortError') {
         isTimeout.value = true
         error.value = '请求超时'
-        console.log(`[useDataLoader] ⏰ 请求超时，耗时: ${duration}ms`)
+        debugLog(`[useDataLoader] ⏰ 请求超时，耗时: ${duration}ms`)
       } else {
         error.value = err instanceof Error ? err.message : '加载失败'
-        console.error(`[useDataLoader] ❌ 请求失败: ${error.value}`)
+        debugError(`[useDataLoader] ❌ 请求失败: ${error.value}`)
       }
 
       // 自动重试
       if (!isTimeout.value && retryAttempts < retryCount) {
         retryAttempts++
-        console.log(`[useDataLoader] 🔄 第 ${retryAttempts} 次重试...`)
+        debugLog(`[useDataLoader] 🔄 第 ${retryAttempts} 次重试...`)
         setTimeout(() => load(), 1000)
         return
       }

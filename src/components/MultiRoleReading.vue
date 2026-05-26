@@ -73,6 +73,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { debugError } from '@/utils/debug'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
 import BaseLoader from './common/BaseLoader.vue'
 import BaseError from './common/BaseError.vue'
@@ -209,7 +210,7 @@ function handleLoadedData() {
 function handleAudioError(event: Event) {
   audioLoading.value = false
   audioError.value = '音频加载失败，请检查网络或重试'
-  console.error('音频加载错误:', event)
+  debugError('音频加载错误:', event)
 }
 
 function retryAudio() {
@@ -251,7 +252,7 @@ function togglePlay() {
     }
     audioRef.value.play().catch((err) => {
       audioLoading.value = false
-      console.error('播放失败:', err)
+      debugError('播放失败:', err)
     })
     isPlaying.value = true
     emit('play')
@@ -268,7 +269,7 @@ function playFromSegment(index: number) {
 
   if (!isPlaying.value) {
     audioRef.value.play().catch((err) => {
-      console.error('播放失败:', err)
+      debugError('播放失败:', err)
     })
     isPlaying.value = true
   }

@@ -66,6 +66,7 @@
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { debugWarn, debugError } from '@/utils/debug'
 import ErrorDisplay from './ErrorDisplay.vue'
 
 // ============================================================
@@ -181,7 +182,7 @@ function togglePlay() {
     // 开始播放视频
     // play() 返回 Promise，需要处理可能的错误（如浏览器自动播放策略阻止）
     videoRef.value.play().catch((err) => {
-      console.warn('播放失败:', err)
+      debugWarn('播放失败:', err)
       isPlaying.value = false
     })
   }
@@ -238,7 +239,7 @@ function handleEnded() {
     if (videoRef.value) {
       videoRef.value.currentTime = 0
       videoRef.value.play().catch((err) => {
-        console.warn('循环播放失败:', err)
+        debugWarn('循环播放失败:', err)
       })
     }
   } else {
@@ -278,7 +279,7 @@ function handleError(event: Event) {
     errorMsg = `未知错误: ${props.src}`
   }
 
-  console.error(`[VideoPlayer] ${errorMsg}`)
+  debugError(`[VideoPlayer] ${errorMsg}`)
   error.value = errorMsg
 }
 
@@ -287,7 +288,7 @@ function handleError(event: Event) {
  */
 function handleAbort() {
   // 页面导航时的中止是正常行为，不需要警告
-  console.debug(`[VideoPlayer] 视频加载被中止: ${props.src}`)
+  // console.debug 已移除，生产环境不需要调试信息
 }
 
 /**
