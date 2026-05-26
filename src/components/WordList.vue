@@ -29,14 +29,29 @@
       </div>
 
       <!-- 文章内容 -->
-      <div class="article-content" v-html="contentHtml"></div>
+      <div ref="contentRef" class="article-content" v-html="contentHtml"></div>
+
+      <!-- Tooltip -->
+      <div
+        v-if="showTooltip"
+        class="tooltip"
+        :style="{ left: tooltipPosition.x + 'px', top: tooltipPosition.y + 'px' }"
+      >
+        {{ currentAnnotation }}
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+
+// Tooltip 状态
+const showTooltip = ref(false)
+const currentAnnotation = ref('')
+const tooltipPosition = ref({ x: 0, y: 0 })
+const contentRef = ref<HTMLElement | null>(null)
 
 interface WordItem {
   text_id: string
@@ -95,81 +110,57 @@ function retry() {
   retryBasicInfo()
 }
 
-// 【测试重点】contentHtml 计算属性 - 逐步恢复词汇替换
-const contentHtml = computed(() => {
-  console.log('[WordList] contentHtml 开始计算')
+// Tooltip 事件处理
+function handleMouseMove(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.classList.contains('annotated-word')) {
+    const def = target.getAttribute('data-def')
+    if (def) {
+      currentAnnotation.value = def
+      tooltipPosition.value = { x: e.clientX + 10, y: e.clientY + 10 }
+      showTooltip.value = true
+      return
+    }
+  }
+  showTooltip.value = false
+}
 
+// 生命周期钩子
+onMounted(() => {
+  document.addEventListener('mousemove', handleMouseMove)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', handleMouseMove)
+})
+
+// 【修复】contentHtml 计算属性
+const contentHtml = computed(() => {
   if (!basicInfoData.value?.original_text || !wordListData.value?.length) {
-    console.log('[WordList] contentHtml 数据不足:', {
-      hasOriginalText: !!basicInfoData.value?.original_text,
-      wordListLength: wordListData.value?.length || 0,
-    })
     return '<p>暂无内容</p>'
   }
 
   const originalText = basicInfoData.value.original_text
   const wordList = wordListData.value || []
 
-  console.log(`[WordList] 原始文本长度: ${originalText.length}`)
-  console.log(`[WordList] 词汇数量: ${wordList.length}`)
-
   // 按长度降序排列词汇（避免短词优先匹配）
   const sortedWords = [...wordList].sort((a, b) => b.word.length - a.word.length)
   const validWords = sortedWords.filter((item) => item.word && item.basic_meaning)
 
-  console.log(`[WordList] 排序后词汇数量: ${sortedWords.length}`)
-  console.log(`[WordList] 有效词汇数量: ${validWords.length}`)
-
-  // 输出前5个词汇用于调试
-  if (validWords.length > 0) {
-    console.log(
-      '[WordList] 前5个有效词汇:',
-      validWords.slice(0, 5).map((w) => w.word),
-    )
-  }
-
-  let content = originalText
-  let processedCount = 0
-  let replacedCount = 0
-
-  // 【关键修改】处理所有词汇（83个）
-  const maxProcessCount = validWords.length
-
-  console.log(`[WordList] 开始处理，最大处理数量: ${maxProcessCount}`)
+  // 移除原文中的斜杠符号，确保词汇匹配
+  let content = originalText.replace(/\//g, '')
 
   for (const item of validWords) {
-    if (processedCount >= maxProcessCount) {
-      console.log(`[WordList] 已达到最大处理数量 ${maxProcessCount}，停止处理`)
-      break
-    }
-
-    try {
-      const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const regex = new RegExp(escaped, 'g')
-      const replacement = `<span class="annotated-word" data-def="${item.basic_meaning}">${item.word}</span>`
-      const originalLength = content.length
-      content = content.replace(regex, replacement)
-      // 检查是否发生了替换
-      if (content.length !== originalLength) {
-        replacedCount++
-      }
-      processedCount++
-      // 每处理10个词汇输出一次日志
-      if (processedCount % 10 === 0) {
-        console.log(`[WordList] 已处理 ${processedCount} 个词汇，成功替换 ${replacedCount} 个`)
-      }
-    } catch (err) {
-      console.error(`[WordList] 处理词汇 "${item.word}" 失败:`, err)
-    }
+    const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(escaped, 'g')
+    const replacement = `<span class="annotated-word" data-def="${item.basic_meaning}">${item.word}</span>`
+    content = content.replace(regex, replacement)
   }
-
-  console.log(`[WordList] 实际处理词汇数量: ${processedCount}，成功替换: ${replacedCount}`)
 
   content = content.replace(/\n\n/g, '</p><p>')
   content = content.replace(/\n/g, '<br>')
   content = `<p>${content}</p>`
 
-  console.log('[WordList] contentHtml 计算完成')
   return content
 })
 </script>
@@ -235,9 +226,26 @@ const contentHtml = computed(() => {
   line-height: 1.8;
 }
 
-.annotated-word {
-  color: #3498db;
-  text-decoration: underline;
-  cursor: help;
+.article-content :deep(.annotated-word) {
+  color: #3498db !important;
+  text-decoration: underline !important;
+  text-decoration-color: #3498db !important;
+  cursor: help !important;
+  font-weight: normal !important;
+  background-color: rgba(52, 152, 219, 0.1) !important;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.tooltip {
+  position: fixed;
+  background: #333;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 </style>
