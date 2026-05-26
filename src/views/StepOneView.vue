@@ -16,9 +16,7 @@
     </section>
 
     <!-- 分割线 -->
-    <div class="divider">
-      <span class="divider-text">音频学习</span>
-    </div>
+    <SectionDivider text="音频学习" />
 
     <!-- 下方：多角色朗读播放器 -->
     <section class="audio-section">
@@ -42,6 +40,7 @@ import { useRoute } from 'vue-router'
 import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
+import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 
@@ -120,28 +119,6 @@ onMounted(() => {
 /* 课文注释区域 */
 .annotated-section {
   margin-bottom: 1rem;
-}
-
-/* 分割线 */
-.divider {
-  display: flex;
-  align-items: center;
-  margin: 1.5rem 0;
-  gap: 1rem;
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background-color: #e5e7eb;
-}
-
-.divider-text {
-  color: #6b7280;
-  font-size: 0.875rem;
-  white-space: nowrap;
 }
 
 /* 音频区域 */

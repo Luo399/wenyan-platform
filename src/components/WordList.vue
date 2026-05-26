@@ -7,20 +7,68 @@
     <BaseTimeout v-else-if="wordListTimeout || basicInfoTimeout" @retry="retry" />
 
     <!-- 错误状态 -->
-    <BaseError v-else-if="wordListError || basicInfoError" :error="wordListError || basicInfoError || '加载失败'" @retry="retry" />
+    <BaseError
+      v-else-if="wordListError || basicInfoError"
+      :error="wordListError || basicInfoError || '加载失败'"
+      @retry="retry"
+    />
 
     <!-- 空数据状态 -->
     <BaseEmpty v-else-if="!wordListData?.length || !basicInfoData" />
 
     <!-- 主内容 -->
     <div v-else class="content-wrapper">
-      <h1 class="article-title">{{ articleTitle }}</h1>
+      <!-- 文章标题区域 -->
+      <div class="article-header">
+        <h1 class="article-title">{{ articleTitle }}</h1>
+        <p class="article-meta">
+          <span class="author">{{ basicInfoData?.dynasty }} · {{ basicInfoData?.author }}</span>
+        </p>
+      </div>
+
+      <!-- 插图区域 -->
+      <div v-if="basicInfoData?.illustration" class="illustration-wrapper">
+        <img :src="`/img/${basicInfoData.illustration}`" :alt="articleTitle" class="illustration" />
+      </div>
+
+      <!-- 文章内容 -->
       <div
         class="article-content"
         v-html="sanitizedContent"
         @mouseover="handleMouseOver"
         @mouseout="handleMouseOut"
       ></div>
+
+      <!-- 字词注释列表 -->
+      <div v-if="wordListData && wordListData.length > 0" class="word-annotations">
+        <h2 class="annotations-title">字词注释</h2>
+        <div class="annotations-list">
+          <div v-for="(item, index) in wordListData" :key="index" class="annotation-item">
+            <div class="word-text">{{ item.word }}</div>
+            <div class="word-details">
+              <div class="basic-meaning">
+                <span class="label">基本释义：</span>
+                <span class="value">{{ item.basic_meaning }}</span>
+              </div>
+              <div v-if="item.synonym_analysis" class="synonym-analysis">
+                <span class="label">近义辨析：</span>
+                <span class="value">{{ item.synonym_analysis }}</span>
+              </div>
+              <div
+                v-if="item.follow_up_questions && item.follow_up_questions.length > 0"
+                class="follow-up"
+              >
+                <span class="label">追问问题：</span>
+                <ul class="questions-list">
+                  <li v-for="(question, qIndex) in item.follow_up_questions" :key="qIndex">
+                    {{ question }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 注释弹窗 -->
@@ -33,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import BaseLoader from './common/BaseLoader.vue'
 import BaseError from './common/BaseError.vue'
@@ -81,10 +129,10 @@ const {
   error: wordListError,
   isTimeout: wordListTimeout,
   data: wordListData,
-  retry: retryWordList
-} = useDataLoader<WordItem[]>(wordListUrl, {
+  retry: retryWordList,
+} = useDataLoader<WordItem[]>(() => wordListUrl.value, {
   timeout: 10000,
-  retryCount: 1
+  retryCount: 1,
 })
 
 const {
@@ -92,10 +140,10 @@ const {
   error: basicInfoError,
   isTimeout: basicInfoTimeout,
   data: basicInfoData,
-  retry: retryBasicInfo
-} = useDataLoader<TextBasicInfo>(basicInfoUrl, {
+  retry: retryBasicInfo,
+} = useDataLoader<TextBasicInfo>(() => basicInfoUrl.value, {
   timeout: 10000,
-  retryCount: 1
+  retryCount: 1,
 })
 
 function retry() {
@@ -249,6 +297,12 @@ function handleMouseMove(event: MouseEvent) {
 if (typeof window !== 'undefined') {
   document.addEventListener('mousemove', handleMouseMove)
 }
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    document.removeEventListener('mousemove', handleMouseMove)
+  }
+})
 </script>
 
 <style scoped>
@@ -264,14 +318,40 @@ if (typeof window !== 'undefined') {
   padding: 2rem;
 }
 
+.article-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
 .article-title {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.article-meta {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.author {
+  font-style: italic;
+}
+
+.illustration-wrapper {
   text-align: center;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 1rem;
+  margin: 2rem 0;
+}
+
+.illustration {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .article-content {
@@ -296,6 +376,86 @@ if (typeof window !== 'undefined') {
 .article-content :deep(.annotated-word:hover) {
   background-color: #dbeafe;
   border-radius: 2px;
+}
+
+.word-annotations {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e5e7eb;
+}
+
+.annotations-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.annotations-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.annotation-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.annotation-item:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.word-text {
+  flex-shrink: 0;
+  width: 120px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2563eb;
+  padding: 0.5rem;
+  background-color: #dbeafe;
+  border-radius: 0.375rem;
+  text-align: center;
+}
+
+.word-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.basic-meaning,
+.synonym-analysis,
+.follow-up {
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.label {
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.value {
+  color: #374151;
+}
+
+.questions-list {
+  margin-top: 0.25rem;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.questions-list li {
+  color: #374151;
+  margin-bottom: 0.25rem;
 }
 </style>
 
