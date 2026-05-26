@@ -9,8 +9,15 @@
   页面顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> detail
 -->
 <template>
+  <!-- 测试：确认页面组件是否被渲染（正式上线后请删除） -->
+  <div
+    style="color: red; border: 2px solid red; padding: 10px; text-align: center; font-weight: bold"
+  >
+    StepOneView 已渲染
+  </div>
+
   <div class="annotated-segment-view">
-    <!-- 上方：字词注释区域 -->
+    <!-- 【二分测试】恢复 WordList 组件 -->
     <section class="annotated-section">
       <WordList :wen-id="wenId" />
     </section>
@@ -18,23 +25,18 @@
     <!-- 分割线 -->
     <SectionDivider text="音频学习" />
 
-    <!-- 下方：多角色朗读播放器 -->
-    <section class="audio-section">
-      <!-- 加载状态提示 -->
+    <!-- 【二分测试】继续注释 MultiRoleReading 组件 -->
+    <!-- <section class="audio-section">
       <div v-if="!isAudioLoaded && !audioLoadingError" class="loading-overlay">
         <div class="loading-spinner"></div>
         <span class="loading-text">正在加载音频资源...</span>
       </div>
-
-      <!-- 错误状态提示 -->
       <div v-else-if="audioLoadingError" class="error-overlay">
         <div class="error-icon">⚠️</div>
         <p class="error-message">音频加载失败</p>
         <p class="error-detail">{{ audioLoadingError }}</p>
         <button class="retry-btn" @click="audioPlayer?.loadData()">重试加载</button>
       </div>
-
-      <!-- 正常内容 -->
       <MultiRoleReading
         v-show="isAudioLoaded || !audioLoadingError"
         ref="audioPlayer"
@@ -44,7 +46,7 @@
         @load-error="handleAudioLoadError"
         @segment-change="handleSegmentChange"
       />
-    </section>
+    </section> -->
 
     <!-- 底部导航按钮 -->
     <BackContinue
@@ -57,26 +59,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, type Ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import WordList from '@/components/WordList.vue'
-import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
-import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
-
-// MultiRoleReading 组件暴露的方法
-interface AudioPlayerRef {
-  loadData: () => void
-  play: () => Promise<void>
-  pause: () => void
-  seek: (time: number) => void
-}
 
 const route = useRoute()
 const router = useRouter()
-const audioPlayer: Ref<AudioPlayerRef | undefined> = ref()
 
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
@@ -96,35 +87,8 @@ const wenId = computed(() => {
   return `WEN_${num.toString().padStart(2, '0')}`
 })
 
-const isAudioLoaded = ref(false)
-const audioLoadingError = ref<string | null>(null)
-const currentSegment = ref<number | null>(null)
-
 // 使用导航composable（新版，需要传入router）
 const { goNext, goPrev } = useNavigation('stepone', poemId)
-
-function handleAudioLoadSuccess(data: MultiRoleData) {
-  isAudioLoaded.value = true
-  audioLoadingError.value = null
-}
-
-function handleAudioLoadError(error: string) {
-  isAudioLoaded.value = false
-  audioLoadingError.value = error
-  window.dispatchEvent(
-    new CustomEvent('app-error', {
-      detail: {
-        message: `音频加载失败: ${error}`,
-        type: 'error',
-        duration: 5000,
-      },
-    }),
-  )
-}
-
-function handleSegmentChange(index: number) {
-  currentSegment.value = index
-}
 
 // 导航函数包装
 function handleGoNext() {
