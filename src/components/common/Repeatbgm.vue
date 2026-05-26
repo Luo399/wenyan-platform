@@ -63,6 +63,7 @@ import BaseLoader from './BaseLoader.vue'
 import BaseError from './BaseError.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { getAssetUrl } from '@/utils/asset'
+import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 interface TextBasicInfo {
   text_id: string
@@ -107,7 +108,7 @@ function togglePlay() {
     isPlaying.value = false
   } else {
     audioRef.value.play().catch((err) => {
-      console.error('[Repeatbgm] 播放失败:', err)
+      debugError('[Repeatbgm] 播放失败:', err)
     })
     isPlaying.value = true
   }
@@ -128,21 +129,21 @@ function handleVolumeChange(event: Event) {
 }
 
 function handleLoadedMetadata() {
-  console.log('[Repeatbgm] ✅ 背景音乐加载完成:', basicInfo.value?.bgm)
+  debugLog('[Repeatbgm] ✅ 背景音乐加载完成:', basicInfo.value?.bgm)
 
   if (audioRef.value) {
     audioRef.value.volume = volume.value / 100
 
     if (props.autoPlay) {
       audioRef.value.play().catch((err) => {
-        console.warn('[Repeatbgm] 自动播放失败（可能需要用户交互）:', err)
+        debugWarn('[Repeatbgm] 自动播放失败（可能需要用户交互）:', err)
       })
     }
   }
 }
 
 function handleAudioError() {
-  console.error('[Repeatbgm] ❌ 音频加载失败:', bgmUrl.value)
+  debugError('[Repeatbgm] ❌ 音频加载失败:', bgmUrl.value)
 }
 
 watch(bgmUrl, (newUrl) => {

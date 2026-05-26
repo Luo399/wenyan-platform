@@ -24,31 +24,48 @@
     </div>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue
+      back-text="返回"
+      continue-text="继续"
+      @back="handleGoPrev"
+      @continue="handleGoNext"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
 
 const route = useRoute()
+const router = useRouter()
 
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
 
-// 使用导航composable
+// 使用导航composable（新版，需要传入router）
 const { goNext, goPrev } = useNavigation('rules', poemId)
 
 /**
  * 处理视频播放完成
  */
 function onVideoComplete() {
-  console.log('视频播放完成:', currentPoem.value.videoUrl)
+  // 视频播放完成，可添加后续逻辑
+}
+
+/**
+ * 导航函数包装
+ */
+function handleGoNext() {
+  goNext(router)
+}
+
+function handleGoPrev() {
+  goPrev(router)
 }
 
 /**
