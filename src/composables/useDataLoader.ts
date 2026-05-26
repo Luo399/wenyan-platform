@@ -162,19 +162,11 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
       // 使用 Worker 线程解析 JSON
       try {
         const parsed = (await parseJsonWithWorker(text)) as T
-        // 调试：使用 alert 确认执行到此处
-        alert('[useDataLoader] 即将设置 data')
         data.value = parsed
-        alert('[useDataLoader] data 设置完成')
         diagLog(
           '✅ JSON解析成功，数据类型:',
           typeof data.value,
           Array.isArray(data.value) ? `数组(${data.value.length}条)` : '',
-        )
-        // 测试：确认 data 设置后状态（正式上线后请删除）
-        console.log(
-          '[useDataLoader] 已设置 data.value, 长度：',
-          Array.isArray(data.value) ? data.value.length : typeof data.value,
         )
       } catch (parseErr) {
         throw new Error(
