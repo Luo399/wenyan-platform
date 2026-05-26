@@ -42,11 +42,7 @@
       </div>
 
       <!-- 音频错误提示 -->
-      <BaseError
-        v-if="audioError"
-        :error="audioError"
-        @retry="retryAudio"
-      />
+      <BaseError v-if="audioError" :error="audioError" @retry="retryAudio" />
 
       <!-- 段落列表 -->
       <div class="segments-list">
@@ -124,13 +120,13 @@ const {
   error,
   isTimeout,
   data: multiRoleData,
-  retry
-} = useDataLoader<MultiRoleData>(dataUrl, {
+  retry,
+} = useDataLoader<MultiRoleData>(() => dataUrl.value, {
   timeout: 10000,
   retryCount: 1,
   cacheEnabled: true,
   onLoadSuccess: (data) => emit('load-success', data),
-  onLoadError: (err) => emit('load-error', err)
+  onLoadError: (err) => emit('load-error', err),
 })
 
 const audioRef = ref<HTMLAudioElement | null>(null)
@@ -203,7 +199,7 @@ function parseTimeRange(timeRange: string): { start: number; end: number } {
 
 function setupAudio() {
   if (!multiRoleData.value || !audioRef.value) return
-  audioRef.value.src = `${props.audioBaseUrl}${multiRoleData.value.audio_file}`
+  audioRef.value.src = audioUrl.value
 }
 
 function handleLoadedData() {
@@ -220,7 +216,7 @@ function retryAudio() {
   audioError.value = null
   audioLoading.value = true
   if (audioRef.value && multiRoleData.value) {
-    audioRef.value.src = `${props.audioBaseUrl}${multiRoleData.value.audio_file}`
+    audioRef.value.src = audioUrl.value
     audioRef.value.load()
   }
 }

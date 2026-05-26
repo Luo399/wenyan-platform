@@ -9,24 +9,21 @@ interface UseDataLoaderOptions<T> {
   onLoadError?: (error: string) => void
 }
 
-export function useDataLoader<T>(
-  urlGetter: () => string,
-  options: UseDataLoaderOptions<T> = {}
-) {
+export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoaderOptions<T> = {}) {
   const {
     autoLoad = true,
     timeout = 10000,
     retryCount = 1,
     cacheEnabled = false,
     onLoadSuccess,
-    onLoadError
+    onLoadError,
   } = options
 
   const loading = ref(false)
   const error = ref<string | null>(null)
   const isTimeout = ref(false)
   const data = ref<T | null>(null)
-  
+
   let abortController: AbortController | null = null
   let retryAttempts = 0
   const cache = new Map<string, T>()
@@ -59,17 +56,18 @@ export function useDataLoader<T>(
     isTimeout.value = false
 
     const startTime = Date.now()
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     try {
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         abortController?.abort()
       }, timeout)
 
       console.log(`[useDataLoader] 🌐 发起请求: ${url}`)
-      
+
       const response = await fetch(url, {
         signal: abortController.signal,
-        headers: { 'Accept': 'application/json' }
+        headers: { Accept: 'application/json' },
       })
 
       clearTimeout(timeoutId)
@@ -93,10 +91,11 @@ export function useDataLoader<T>(
 
       loading.value = false
       onLoadSuccess?.(data.value)
-
     } catch (err) {
-      clearTimeout(abortController?.signal)
-      
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
       const duration = Date.now() - startTime
 
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -153,6 +152,6 @@ export function useDataLoader<T>(
     isTimeout,
     data,
     load,
-    retry
+    retry,
   }
 }
