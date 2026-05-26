@@ -1,99 +1,49 @@
 <template>
   <div class="word-list-container">
     <!-- 加载状态 -->
-    <BaseLoader v-if="wordListLoading || basicInfoLoading" />
-
-    <!-- 超时状态 -->
-    <BaseTimeout v-else-if="wordListTimeout || basicInfoTimeout" @retry="retry" />
+    <div v-if="wordListLoading || basicInfoLoading" class="loading-state">
+      <div class="spinner"></div>
+      <span>加载中...</span>
+    </div>
 
     <!-- 错误状态 -->
-    <BaseError
-      v-else-if="wordListError || basicInfoError"
-      :error="wordListError || basicInfoError || '加载失败'"
-      @retry="retry"
-    />
+    <div v-else-if="wordListError || basicInfoError" class="error-state">
+      <i class="fas fa-exclamation-circle"></i>
+      <p>{{ wordListError || basicInfoError || '加载失败' }}</p>
+      <button @click="retry" class="retry-btn">重试</button>
+    </div>
 
     <!-- 空数据状态 -->
-    <BaseEmpty v-else-if="!wordListData?.length || !basicInfoData" />
+    <div v-else-if="!wordListData?.length || !basicInfoData" class="empty-state">
+      <p>暂无数据</p>
+    </div>
 
     <!-- 主内容 -->
     <div v-else class="content-wrapper">
       <!-- 文章标题区域 -->
       <div class="article-header">
-        <h1 class="article-title">{{ articleTitle }}</h1>
+        <h1 class="article-title">{{ basicInfoData?.title || '未知标题' }}</h1>
         <p class="article-meta">
           <span class="author">{{ basicInfoData?.dynasty }} · {{ basicInfoData?.author }}</span>
         </p>
       </div>
 
-      <!-- 插图区域 -->
-      <div v-if="basicInfoData?.illustration" class="illustration-wrapper">
-        <img :src="`/img/${basicInfoData.illustration}`" :alt="articleTitle" class="illustration" />
-      </div>
-
       <!-- 文章内容 -->
-      <div
-        class="article-content"
-        v-html="sanitizedContent"
-        @mouseover="handleMouseOver"
-        @mouseout="handleMouseOut"
-      ></div>
-
-      <!-- 字词注释列表 -->
-      <div v-if="wordListData && wordListData.length > 0" class="word-annotations">
-        <h2 class="annotations-title">字词注释</h2>
-        <div class="annotations-list">
-          <div v-for="(item, index) in wordListData" :key="index" class="annotation-item">
-            <div class="word-text">{{ item.word }}</div>
-            <div class="word-details">
-              <div class="basic-meaning">
-                <span class="label">基本释义：</span>
-                <span class="value">{{ item.basic_meaning }}</span>
-              </div>
-              <div v-if="item.synonym_analysis" class="synonym-analysis">
-                <span class="label">近义辨析：</span>
-                <span class="value">{{ item.synonym_analysis }}</span>
-              </div>
-              <div
-                v-if="item.follow_up_questions && item.follow_up_questions.length > 0"
-                class="follow-up"
-              >
-                <span class="label">追问问题：</span>
-                <ul class="questions-list">
-                  <li v-for="(question, qIndex) in item.follow_up_questions" :key="qIndex">
-                    {{ question }}
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div class="article-content" v-html="contentHtml"></div>
     </div>
-
-    <!-- 注释弹窗 -->
-    <Teleport to="body">
-      <div v-if="showTooltip" class="annotation-tooltip" :style="tooltipStyle">
-        {{ currentAnnotation }}
-      </div>
-    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import BaseLoader from './common/BaseLoader.vue'
-import BaseError from './common/BaseError.vue'
-import BaseEmpty from './common/BaseEmpty.vue'
-import BaseTimeout from './common/BaseTimeout.vue'
 
 interface WordItem {
   text_id: string
   word: string
   basic_meaning: string
-  synonym_analysis: string
-  follow_up_questions: string[]
+  synonym_analysis?: string
+  follow_up_questions?: string[]
 }
 
 interface TextBasicInfo {
@@ -102,8 +52,8 @@ interface TextBasicInfo {
   author: string
   dynasty: string
   original_text: string
-  illustration: string
-  bgm: string
+  illustration?: string
+  bgm?: string
 }
 
 interface Props {
@@ -117,20 +67,15 @@ const props = withDefaults(defineProps<Props>(), {
   basicInfoBaseUrl: '/data/text_basic_info/',
 })
 
-const showTooltip = ref(false)
-const currentAnnotation = ref('')
-const tooltipPosition = ref({ x: 0, y: 0 })
-
-const wordListUrl = computed(() => `${props.wordListBaseUrl}${props.wenId}.json`)
-const basicInfoUrl = computed(() => `${props.basicInfoBaseUrl}${props.wenId}.json`)
+const wordListUrl = `${props.wordListBaseUrl}${props.wenId}.json`
+const basicInfoUrl = `${props.basicInfoBaseUrl}${props.wenId}.json`
 
 const {
   loading: wordListLoading,
   error: wordListError,
-  isTimeout: wordListTimeout,
   data: wordListData,
   retry: retryWordList,
-} = useDataLoader<WordItem[]>(() => wordListUrl.value, {
+} = useDataLoader<WordItem[]>(() => wordListUrl, {
   timeout: 10000,
   retryCount: 1,
 })
@@ -138,10 +83,9 @@ const {
 const {
   loading: basicInfoLoading,
   error: basicInfoError,
-  isTimeout: basicInfoTimeout,
   data: basicInfoData,
   retry: retryBasicInfo,
-} = useDataLoader<TextBasicInfo>(() => basicInfoUrl.value, {
+} = useDataLoader<TextBasicInfo>(() => basicInfoUrl, {
   timeout: 10000,
   retryCount: 1,
 })
@@ -151,340 +95,149 @@ function retry() {
   retryBasicInfo()
 }
 
-const articleTitle = computed(() => {
-  return basicInfoData.value?.title || '未知标题'
-})
-
+// 【测试重点】contentHtml 计算属性 - 逐步恢复词汇替换
 const contentHtml = computed(() => {
+  console.log('[WordList] contentHtml 开始计算')
+
   if (!basicInfoData.value?.original_text || !wordListData.value?.length) {
+    console.log('[WordList] contentHtml 数据不足:', {
+      hasOriginalText: !!basicInfoData.value?.original_text,
+      wordListLength: wordListData.value?.length || 0,
+    })
     return '<p>暂无内容</p>'
   }
 
-  let content = basicInfoData.value.original_text
-  const sortedWords = [...(wordListData.value || [])].sort((a, b) => b.word.length - a.word.length)
+  const originalText = basicInfoData.value.original_text
+  const wordList = wordListData.value || []
 
-  for (const item of sortedWords) {
-    if (!item.word || !item.basic_meaning) continue
-    const escapedWord = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(escapedWord, 'g')
-    const replacement = `<span class="annotated-word" data-def="${escapeHtml(item.basic_meaning)}">${item.word}</span>`
-    content = content.replace(regex, replacement)
+  console.log(`[WordList] 原始文本长度: ${originalText.length}`)
+  console.log(`[WordList] 词汇数量: ${wordList.length}`)
+
+  // 按长度降序排列词汇（避免短词优先匹配）
+  const sortedWords = [...wordList].sort((a, b) => b.word.length - a.word.length)
+  const validWords = sortedWords.filter((item) => item.word && item.basic_meaning)
+
+  console.log(`[WordList] 排序后词汇数量: ${sortedWords.length}`)
+  console.log(`[WordList] 有效词汇数量: ${validWords.length}`)
+
+  // 输出前5个词汇用于调试
+  if (validWords.length > 0) {
+    console.log(
+      '[WordList] 前5个有效词汇:',
+      validWords.slice(0, 5).map((w) => w.word),
+    )
   }
+
+  let content = originalText
+  let processedCount = 0
+  let replacedCount = 0
+
+  // 【关键修改】处理所有词汇（83个）
+  const maxProcessCount = validWords.length
+
+  console.log(`[WordList] 开始处理，最大处理数量: ${maxProcessCount}`)
+
+  for (const item of validWords) {
+    if (processedCount >= maxProcessCount) {
+      console.log(`[WordList] 已达到最大处理数量 ${maxProcessCount}，停止处理`)
+      break
+    }
+
+    try {
+      const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = new RegExp(escaped, 'g')
+      const replacement = `<span class="annotated-word" data-def="${item.basic_meaning}">${item.word}</span>`
+      const originalLength = content.length
+      content = content.replace(regex, replacement)
+      // 检查是否发生了替换
+      if (content.length !== originalLength) {
+        replacedCount++
+      }
+      processedCount++
+      // 每处理10个词汇输出一次日志
+      if (processedCount % 10 === 0) {
+        console.log(`[WordList] 已处理 ${processedCount} 个词汇，成功替换 ${replacedCount} 个`)
+      }
+    } catch (err) {
+      console.error(`[WordList] 处理词汇 "${item.word}" 失败:`, err)
+    }
+  }
+
+  console.log(`[WordList] 实际处理词汇数量: ${processedCount}，成功替换: ${replacedCount}`)
 
   content = content.replace(/\n\n/g, '</p><p>')
   content = content.replace(/\n/g, '<br>')
   content = `<p>${content}</p>`
 
+  console.log('[WordList] contentHtml 计算完成')
   return content
-})
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
-}
-
-const ALLOWED_TAGS = ['p', 'span', 'br']
-const ALLOWED_ATTRS: Record<string, string[]> = {
-  p: [],
-  span: ['class', 'data-def'],
-  br: [],
-}
-
-function sanitizeHtml(html: string): string {
-  if (!html) return ''
-
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
-
-  function filterNode(node: Node) {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement
-      const tagName = element.tagName.toLowerCase()
-
-      if (!ALLOWED_TAGS.includes(tagName)) {
-        while (element.firstChild) {
-          element.parentNode?.insertBefore(element.firstChild, element)
-        }
-        element.parentNode?.removeChild(element)
-        return
-      }
-
-      const attributes = Array.from(element.attributes)
-      for (const attr of attributes) {
-        const allowedAttrs = ALLOWED_ATTRS[tagName] || []
-        if (!allowedAttrs.includes(attr.name.toLowerCase())) {
-          element.removeAttribute(attr.name)
-        }
-      }
-
-      if (tagName === 'span') {
-        const className = element.className
-        if (className && !className.includes('annotated-word')) {
-          element.removeAttribute('class')
-        }
-      }
-    }
-
-    let child = node.firstChild
-    while (child) {
-      const next = child.nextSibling
-      filterNode(child)
-      child = next
-    }
-  }
-
-  filterNode(tempDiv)
-  return tempDiv.innerHTML
-}
-
-const sanitizedContent = computed(() => {
-  return sanitizeHtml(contentHtml.value)
-})
-
-const tooltipStyle = computed(() => ({
-  left: `${tooltipPosition.value.x}px`,
-  top: `${tooltipPosition.value.y}px`,
-}))
-
-function handleMouseOver(event: MouseEvent) {
-  const target = event.target as HTMLElement
-
-  if (target.classList.contains('annotated-word')) {
-    const definition = target.getAttribute('data-def')
-    if (definition) {
-      currentAnnotation.value = definition
-      showTooltip.value = true
-      updateTooltipPosition(event)
-    }
-  }
-}
-
-function handleMouseOut(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  const relatedTarget = event.relatedTarget as HTMLElement
-
-  if (target.classList.contains('annotated-word')) {
-    if (relatedTarget?.classList?.contains('annotation-tooltip')) {
-      return
-    }
-    showTooltip.value = false
-  }
-}
-
-function updateTooltipPosition(event: MouseEvent) {
-  const x = event.clientX + 10
-  const y = event.clientY + 10
-
-  const windowWidth = window.innerWidth
-  const windowHeight = window.innerHeight
-
-  const tooltipMaxWidth = 300
-  const tooltipPadding = 20
-
-  tooltipPosition.value = {
-    x: Math.min(x, windowWidth - tooltipMaxWidth - tooltipPadding),
-    y: Math.min(y, windowHeight - tooltipPadding),
-  }
-}
-
-function handleMouseMove(event: MouseEvent) {
-  if (showTooltip.value) {
-    updateTooltipPosition(event)
-  }
-}
-
-if (typeof window !== 'undefined') {
-  document.addEventListener('mousemove', handleMouseMove)
-}
-
-onUnmounted(() => {
-  if (typeof window !== 'undefined') {
-    document.removeEventListener('mousemove', handleMouseMove)
-  }
 })
 </script>
 
 <style scoped>
 .word-list-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
-.content-wrapper {
-  background-color: #fff;
-  border-radius: 0.5rem;
+.loading-state,
+.error-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 2rem;
 }
 
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
 .article-header {
-  text-align: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 1rem;
 }
 
 .article-title {
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  margin: 0;
 }
 
 .article-meta {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-top: 0.5rem;
-}
-
-.author {
-  font-style: italic;
-}
-
-.illustration-wrapper {
-  text-align: center;
-  margin: 2rem 0;
-}
-
-.illustration {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: #666;
+  margin: 0.5rem 0 0;
 }
 
 .article-content {
-  font-size: 1rem;
-  line-height: 2;
-  color: #374151;
+  line-height: 1.8;
 }
 
-.article-content :deep(p) {
-  margin-bottom: 1rem;
-  text-indent: 2em;
-}
-
-.article-content :deep(.annotated-word) {
-  color: #2563eb;
+.annotated-word {
+  color: #3498db;
+  text-decoration: underline;
   cursor: help;
-  border-bottom: 1px dashed #2563eb;
-  padding-bottom: 1px;
-  transition: all 0.2s;
-}
-
-.article-content :deep(.annotated-word:hover) {
-  background-color: #dbeafe;
-  border-radius: 2px;
-}
-
-.word-annotations {
-  margin-top: 3rem;
-  padding-top: 2rem;
-  border-top: 2px solid #e5e7eb;
-}
-
-.annotations-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.annotations-list {
-  display: grid;
-  gap: 1rem;
-}
-
-.annotation-item {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f9fafb;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s;
-}
-
-.annotation-item:hover {
-  background-color: #f3f4f6;
-  border-color: #d1d5db;
-}
-
-.word-text {
-  flex-shrink: 0;
-  width: 120px;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #2563eb;
-  padding: 0.5rem;
-  background-color: #dbeafe;
-  border-radius: 0.375rem;
-  text-align: center;
-}
-
-.word-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.basic-meaning,
-.synonym-analysis,
-.follow-up {
-  font-size: 0.875rem;
-  line-height: 1.6;
-}
-
-.label {
-  font-weight: 500;
-  color: #6b7280;
-}
-
-.value {
-  color: #374151;
-}
-
-.questions-list {
-  margin-top: 0.25rem;
-  padding-left: 1.5rem;
-  list-style-type: disc;
-}
-
-.questions-list li {
-  color: #374151;
-  margin-bottom: 0.25rem;
-}
-</style>
-
-<style>
-.annotation-tooltip {
-  position: fixed;
-  z-index: 9999;
-  max-width: 300px;
-  padding: 0.75rem 1rem;
-  background-color: #1f2937;
-  color: #fff;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  pointer-events: none;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  animation: fadeIn 0.15s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 </style>

@@ -1,6 +1,74 @@
 import { ref, onUnmounted, watch } from 'vue'
 import { debugLog, debugError } from '@/utils/debug'
 
+// 诊断日志函数 - 始终输出用于调试
+function diagLog(...args: unknown[]) {
+  console.log('[useDataLoader 诊断]', ...args)
+}
+
+// Worker 超时时间（毫秒）
+const WORKER_TIMEOUT = 5000
+
+// Worker 实例缓存
+let jsonParserWorker: Worker | null = null
+
+/**
+ * 获取共享的 JSON 解析 Worker
+ */
+function getJsonParserWorker(): Worker {
+  if (!jsonParserWorker) {
+    jsonParserWorker = new Worker(new URL('../workers/jsonParser.worker.js', import.meta.url))
+    debugLog('[useDataLoader] 创建新的 JSON Parser Worker')
+  }
+  return jsonParserWorker
+}
+
+/**
+ * 使用 Worker 异步解析 JSON
+ */
+function parseJsonWithWorker(text: string, timeout = WORKER_TIMEOUT): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const worker = getJsonParserWorker()
+    const taskId = Date.now() + Math.random()
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data.id === taskId) {
+        clearTimeout(timeoutId)
+        worker.removeEventListener('message', handleMessage)
+        worker.removeEventListener('error', handleError)
+        if (e.data.success) {
+          resolve(e.data.data)
+        } else {
+          reject(new Error(e.data.error || 'JSON 解析失败'))
+        }
+      }
+    }
+
+    const handleError = (err: ErrorEvent) => {
+      clearTimeout(timeoutId)
+      worker.removeEventListener('message', handleMessage)
+      worker.removeEventListener('error', handleError)
+      reject(new Error(err.message || 'Worker 执行错误'))
+    }
+
+    // 设置超时
+    timeoutId = setTimeout(() => {
+      worker.removeEventListener('message', handleMessage)
+      worker.removeEventListener('error', handleError)
+      reject(new Error(`JSON 解析超时 (${timeout}ms)`))
+    }, timeout)
+
+    worker.addEventListener('message', handleMessage)
+    worker.addEventListener('error', handleError)
+
+    // 发送解析任务
+    worker.postMessage({ text, id: taskId })
+    diagLog('[useDataLoader] Worker 解析任务已发送')
+  })
+}
+
 interface UseDataLoaderOptions<T> {
   autoLoad?: boolean
   timeout?: number
@@ -31,9 +99,12 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
   async function load() {
     const url = urlGetter()
+    diagLog('🔍 开始加载:', url)
+
     if (!url) {
       error.value = '请提供有效的URL'
       loading.value = false
+      diagLog('❌ URL为空')
       onLoadError?.(error.value)
       return
     }
@@ -42,6 +113,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     if (cacheEnabled && cache.has(url)) {
       data.value = cache.get(url)!
       loading.value = false
+      diagLog('📦 从缓存获取数据')
       onLoadSuccess?.(data.value)
       return
     }
@@ -61,10 +133,11 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
     try {
       timeoutId = setTimeout(() => {
+        diagLog('⏰ 请求超时触发')
         abortController?.abort()
       }, timeout)
 
-      debugLog(`[useDataLoader] 🌐 发起请求: ${url}`)
+      diagLog('🌐 发起请求:', url)
 
       const response = await fetch(url, {
         signal: abortController.signal,
@@ -73,14 +146,41 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
       clearTimeout(timeoutId)
 
+      diagLog('📡 响应状态:', response.status, response.headers.get('content-type'))
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
       }
 
       // 使用 arrayBuffer + TextDecoder 防乱码
       const buffer = await response.arrayBuffer()
+      diagLog('📊 下载字节数:', buffer.byteLength)
+
       const text = new TextDecoder('utf-8').decode(buffer)
-      data.value = JSON.parse(text)
+      diagLog('📝 解码后文本长度:', text.length, '前100字:', text.slice(0, 100))
+
+      // 使用 Worker 线程解析 JSON
+      try {
+        const parsed = (await parseJsonWithWorker(text)) as T
+        // 调试：使用 alert 确认执行到此处
+        alert('[useDataLoader] 即将设置 data')
+        data.value = parsed
+        alert('[useDataLoader] data 设置完成')
+        diagLog(
+          '✅ JSON解析成功，数据类型:',
+          typeof data.value,
+          Array.isArray(data.value) ? `数组(${data.value.length}条)` : '',
+        )
+        // 测试：确认 data 设置后状态（正式上线后请删除）
+        console.log(
+          '[useDataLoader] 已设置 data.value, 长度：',
+          Array.isArray(data.value) ? data.value.length : typeof data.value,
+        )
+      } catch (parseErr) {
+        throw new Error(
+          `JSON解析失败: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
+        )
+      }
 
       // 存入缓存
       if (cacheEnabled) {
@@ -102,10 +202,10 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
       if (err instanceof DOMException && err.name === 'AbortError') {
         isTimeout.value = true
         error.value = '请求超时'
-        debugLog(`[useDataLoader] ⏰ 请求超时，耗时: ${duration}ms`)
+        diagLog('⏰ 请求超时，耗时:', duration + 'ms')
       } else {
         error.value = err instanceof Error ? err.message : '加载失败'
-        debugError(`[useDataLoader] ❌ 请求失败: ${error.value}`)
+        diagLog('❌ 请求失败:', error.value, err)
       }
 
       // 自动重试
@@ -154,5 +254,16 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     data,
     load,
     retry,
+  }
+}
+
+/**
+ * 清理 Worker 实例（可在应用退出时调用）
+ */
+export function terminateJsonParserWorker() {
+  if (jsonParserWorker) {
+    jsonParserWorker.terminate()
+    jsonParserWorker = null
+    debugLog('[useDataLoader] JSON Parser Worker 已终止')
   }
 }
