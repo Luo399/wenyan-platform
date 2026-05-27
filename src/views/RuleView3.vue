@@ -10,41 +10,49 @@
 -->
 <template>
   <div class="rule-view">
-    <h1 class="page-title">规则介绍（三） - {{ currentPoem.title }}</h1>
+    <h1 class="page-title">规则介绍（三） - {{ currentTitle }}</h1>
     <div class="video-section">
       <VideoPlayer
-        :src="currentPoem.videoUrl"
+        :src="videoUrl"
         :auto-play="true"
         :require-complete="true"
         @complete="onVideoComplete"
       />
     </div>
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="handleGoNext" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
 
 const route = useRoute()
+const router = useRouter()
 const poemId = route.params.id as string
 const { goNext, goPrev } = useNavigation('rule3', poemId)
 
 function onVideoComplete() {
-  console.log('视频播放完成:', currentPoem.value.videoUrl)
+  // 视频播放完成
 }
 
-const currentPoem = computed(() => {
-  const wenId = getWenId(poemId)
-  const title = getPoemTitle(poemId)
-  const videoUrl = `/video/${wenId}_rule_3.mp4`
+function handleGoNext() {
+  goNext(router)
+}
 
-  return { title, videoUrl }
+function handleGoPrev() {
+  goPrev(router)
+}
+
+const currentTitle = computed(() => getPoemTitle(poemId))
+
+const videoUrl = computed(() => {
+  const wenId = getWenId(poemId)
+  return `/video/${wenId}_rule_3.mp4`
 })
 </script>
 

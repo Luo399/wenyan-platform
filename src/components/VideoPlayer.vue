@@ -66,6 +66,7 @@
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { debugWarn, debugError } from '@/utils/debug'
 import ErrorDisplay from './ErrorDisplay.vue'
 
 // ============================================================
@@ -181,7 +182,7 @@ function togglePlay() {
     // 开始播放视频
     // play() 返回 Promise，需要处理可能的错误（如浏览器自动播放策略阻止）
     videoRef.value.play().catch((err) => {
-      console.warn('播放失败:', err)
+      debugWarn('播放失败:', err)
       isPlaying.value = false
     })
   }
@@ -238,7 +239,7 @@ function handleEnded() {
     if (videoRef.value) {
       videoRef.value.currentTime = 0
       videoRef.value.play().catch((err) => {
-        console.warn('循环播放失败:', err)
+        debugWarn('循环播放失败:', err)
       })
     }
   } else {
@@ -278,7 +279,7 @@ function handleError(event: Event) {
     errorMsg = `未知错误: ${props.src}`
   }
 
-  console.error(`[VideoPlayer] ${errorMsg}`)
+  debugError(`[VideoPlayer] ${errorMsg}`)
   error.value = errorMsg
 }
 
@@ -287,7 +288,7 @@ function handleError(event: Event) {
  */
 function handleAbort() {
   // 页面导航时的中止是正常行为，不需要警告
-  console.debug(`[VideoPlayer] 视频加载被中止: ${props.src}`)
+  // console.debug 已移除，生产环境不需要调试信息
 }
 
 /**
@@ -321,23 +322,9 @@ onMounted(() => {
  */
 onUnmounted(() => {
   if (videoRef.value) {
-    // 暂停视频
+    // 暂停视频即可，不需要清空 src 或调用 load()
+    // 页面导航时清空 src 会导致浏览器中止加载，产生 ERR_ABORTED 错误
     videoRef.value.pause()
-    // 移除事件监听器
-    videoRef.value.removeEventListener('timeupdate', handleTimeUpdate)
-    videoRef.value.removeEventListener('loadedmetadata', handleLoadedMetadata)
-    videoRef.value.removeEventListener('play', () => {
-      isPlaying.value = true
-    })
-    videoRef.value.removeEventListener('pause', () => {
-      isPlaying.value = false
-    })
-    videoRef.value.removeEventListener('ended', handleEnded)
-    videoRef.value.removeEventListener('error', handleError)
-    videoRef.value.removeEventListener('abort', handleAbort)
-    // 清空视频源，释放资源
-    videoRef.value.src = ''
-    videoRef.value.load()
   }
 })
 
