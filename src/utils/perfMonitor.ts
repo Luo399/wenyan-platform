@@ -1,99 +1,124 @@
 /**
- * 性能监控工具 - 用于检测函数执行超时
-
- * 使用方法：
- * ```ts
- * const perfMonitor = createPerfMonitor(5000) // 5秒超时
- *
- * async function mySlowFunction() {
- *   const end = perfMonitor.start('mySlowFunction')
- *   try {
- *     // ... 执行逻辑
- *   } finally {
- *     end()
- *   }
- * }
- * ```
+ * 性能监控工具
+ * 
+ * 功能说明：
+ * - 监控组件渲染性能
+ * - 记录数据加载时间
+ * - 检测内存泄漏风险
+ * 
+ * 使用示例：
+ * const monitor = createPerfMonitor('WordList')
+ * monitor.start('dataLoad')
+ * await loadData()
+ * monitor.end('dataLoad')
  */
 
-// 超时阈值配置（毫秒）
-const DEFAULT_TIMEOUT = 5000 // 5秒
+interface PerfRecord {
+  name: string
+  startTime: number
+  endTime?: number
+  duration?: number
+}
 
-// 存储正在执行的函数
-const runningFunctions = new Map<string, number>()
+export function createPerfMonitor(componentName: string) {
+  const records = new Map<string, PerfRecord>()
+
+  function start(name: string) {
+    const key = `${componentName}:${name}`
+    records.set(key, {
+      name,
+      startTime: performance.now()
+    })
+    console.log(`[${componentName}] ⏱️ 开始 ${name}`)
+  }
+
+  function end(name: string) {
+    const key = `${componentName}:${name}`
+    const record = records.get(key)
+    if (!record) {
+      console.warn(`[${componentName}] ⚠️ 未找到性能记录: ${name}`)
+      return
+    }
+
+    record.endTime = performance.now()
+    record.duration = record.endTime - record.startTime
+
+    console.log(`[${componentName}] ✅ 完成 ${name}, 耗时: ${record.duration.toFixed(2)}ms`)
+
+    // 性能警告
+    if (record.duration > 1000) {
+      console.warn(`[${componentName}] ⚠️ 性能警告: ${name} 耗时超过1秒`)
+    }
+  }
+
+  function getRecords() {
+    return Array.from(records.values())
+  }
+
+  function getAverageTime(name: string) {
+    const filtered = Array.from(records.values()).filter(r => r.name === name)
+    if (filtered.length === 0) return 0
+
+    const total = filtered.reduce((sum, r) => sum + (r.duration || 0), 0)
+    return total / filtered.length
+  }
+
+  function clear() {
+    records.clear()
+  }
+
+  return {
+    start,
+    end,
+    getRecords,
+    getAverageTime,
+    clear
+  }
+}
 
 /**
- * 创建性能监控器
+ * 内存监控工具
  */
-export function createPerfMonitor(timeout: number = DEFAULT_TIMEOUT) {
-  /**
-   * 开始计时
-   * @param name 函数名称
-   * @returns 结束函数，调用后停止计时
-   */
-  function start(name: string): () => void {
+export function checkMemoryUsage() {
+  if ('memory' in performance) {
+    const memory = (performance as any).memory
+    const usedMB = (memory.usedJSHeapSize / 1024 / 1024).toFixed(2)
+    const totalMB = (memory.totalJSHeapSize / 1024 / 1024).toFixed(2)
+    const limitMB = (memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)
+
+    console.log(`📊 内存使用情况:
+      已用: ${usedMB}MB
+      总计: ${totalMB}MB
+      限制: ${limitMB}MB
+      使用率: ${((memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100).toFixed(2)}%
+    `)
+
+    // 内存警告
+    if (memory.usedJSHeapSize / memory.jsHeapSizeLimit > 0.8) {
+      console.warn('⚠️ 内存使用率超过80%，可能存在内存泄漏')
+    }
+  }
+}
+
+/**
+ * 组件渲染性能监控装饰器
+ */
+export function withPerfMonitor<T extends (...args: any[]) => any>(
+  componentName: string,
+  fn: T
+): T {
+  return ((...args: any[]) => {
     const startTime = performance.now()
-    runningFunctions.set(name, startTime)
-    
-    console.debug(`[Perf] ▶️ 开始: ${name}`)
-    
-    // 设置超时检测
-    const timeoutId = setTimeout(() => {
-      if (runningFunctions.has(name)) {
-        console.error(`[Perf] ⏰ 超时警告: ${name} 执行超过 ${timeout}ms`)
-        console.error(`[Perf] 💡 可能原因:`)
-        console.error(`  1. 网络请求卡住或超时`)
-        console.error(`  2. 大量数据处理阻塞主线程`)
-        console.error(`  3. 无限循环或死循环`)
-        console.error(`  4. 第三方库阻塞`)
-      }
-    }, timeout)
-    
-    return () => {
-      clearTimeout(timeoutId)
-      const duration = performance.now() - startTime
-      runningFunctions.delete(name)
-      
-      if (duration > timeout) {
-        console.warn(`[Perf] ⚠️ 慢函数: ${name} 执行耗时 ${duration.toFixed(2)}ms`)
-      } else {
-        console.debug(`[Perf] ⏹️ 结束: ${name} (${duration.toFixed(2)}ms)`)
-      }
+    const result = fn(...args)
+    const endTime = performance.now()
+    const duration = endTime - startTime
+
+    console.log(`[${componentName}] ⏱️ 执行耗时: ${duration.toFixed(2)}ms`)
+
+    if (duration > 16) {
+      console.warn(`[${componentName}] ⚠️ 执行时间超过一帧(16ms)，可能影响性能`)
     }
-  }
-  
-  /**
-   * 异步包装器 - 自动计时和错误处理
-   */
-  async function track<T>(name: string, fn: () => Promise<T>): Promise<T> {
-    const end = start(name)
-    try {
-      const result = await fn()
-      return result
-    } catch (error) {
-      console.error(`[Perf] ❌ 错误: ${name}`, error)
-      throw error
-    } finally {
-      end()
-    }
-  }
-  
-  return { start, track }
-}
 
-// 默认性能监控器
-export const perfMonitor = createPerfMonitor()
-
-/**
- * 检测当前正在执行的函数
- */
-export function getRunningFunctions(): string[] {
-  return Array.from(runningFunctions.keys())
-}
-
-/**
- * 检查是否有函数正在执行
- */
-export function hasRunningFunctions(): boolean {
-  return runningFunctions.size > 0
+    return result
+  }) as T
 }
