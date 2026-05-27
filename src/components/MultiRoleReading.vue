@@ -195,7 +195,11 @@ const currentSegmentIndex = computed(() => {
 
 function setupAudio() {
   if (!multiRoleData.value || !audioRef.value) return
-  audioRef.value.src = audioUrl.value
+  // 只有当 audioUrl 真正改变时才重新设置 src，避免不必要的加载中止
+  const newSrc = audioUrl.value
+  if (audioRef.value.src !== newSrc && newSrc) {
+    audioRef.value.src = newSrc
+  }
 }
 
 function handleLoadedData() {
@@ -212,8 +216,11 @@ function retryAudio() {
   audioError.value = null
   audioLoading.value = true
   if (audioRef.value && multiRoleData.value) {
-    audioRef.value.src = audioUrl.value
-    audioRef.value.load()
+    const newSrc = audioUrl.value
+    if (newSrc) {
+      audioRef.value.src = newSrc
+      audioRef.value.load()
+    }
   }
 }
 

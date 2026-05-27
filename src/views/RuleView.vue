@@ -11,12 +11,12 @@
 <template>
   <div class="rule-view">
     <!-- 顶部标题 -->
-    <h1 class="page-title">规则介绍 - {{ currentPoem.title }}</h1>
+    <h1 class="page-title">规则介绍 - {{ currentTitle }}</h1>
 
     <!-- 视频播放器 - 平铺整个宽度 -->
     <div class="video-section">
       <VideoPlayer
-        :src="currentPoem.videoUrl"
+        :src="videoUrl"
         :auto-play="true"
         :require-complete="true"
         @complete="onVideoComplete"
@@ -69,21 +69,18 @@ function handleGoPrev() {
 }
 
 /**
- * 当前篇目信息
- * 视频路径：/video/{wenId}_rule_bg.mp4
+ * 当前篇目标题
  */
-const currentPoem = computed(() => {
+const currentTitle = computed(() => getPoemTitle(poemId))
+
+/**
+ * 视频路径
+ * 使用独立 computed 避免对象创建导致的响应式问题
+ */
+const videoUrl = computed(() => {
   const wenId = getWenId(poemId)
-  const title = getPoemTitle(poemId)
-
-  // 动态拼接视频路径
   // 视频文件位于 public/video/ 目录下，命名格式：WEN_xx_rule_bg.mp4
-  const videoUrl = `/video/${wenId}_rule_bg.mp4`
-
-  return {
-    title,
-    videoUrl,
-  }
+  return `/video/${wenId}_rule_bg.mp4`
 })
 </script>
 
