@@ -52,7 +52,7 @@
             :is-active="currentSegmentIndex === index"
             :is-currently-playing="isPlaying"
             @toggle="handleSegmentToggle"
-            @click="playFromTime"
+            @click="() => playFromTime(segment.startTime)"
           />
         </div>
       </div>
@@ -178,14 +178,14 @@ const currentSegmentIndex = computed(() => {
 
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i]
-    if (time >= seg.startTime && time < seg.endTime) {
+    if (seg && time >= seg.startTime && time < seg.endTime) {
       return i
     }
   }
 
   if (segs.length > 0) {
     const lastSeg = segs[segs.length - 1]
-    if (time >= lastSeg.startTime) {
+    if (lastSeg && time >= lastSeg.startTime) {
       return segs.length - 1
     }
   }

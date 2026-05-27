@@ -61,9 +61,7 @@ export interface ProcessedMultiRoleData {
  * @param rawData - 原始 JSON 数据（允许 null）
  * @returns 处理后的数据对象（所有字段均有默认值，不含 null）
  */
-export function adaptMultiRoleReading(
-  rawData: RawMultiRoleData | null,
-): ProcessedMultiRoleData {
+export function adaptMultiRoleReading(rawData: RawMultiRoleData | null): ProcessedMultiRoleData {
   // null 值保护
   if (!rawData) {
     return {
@@ -155,11 +153,11 @@ export function timeToSeconds(timeStr: string | null): number {
 
   const parts = timeStr.split(':')
   if (parts.length === 2) {
-    const minutes = parseInt(parts[0], 10) || 0
-    const seconds = parseFloat(parts[1]) || 0
+    const minutes = parseInt(parts[0] ?? '0', 10) || 0
+    const seconds = parseFloat(parts[1] ?? '0') || 0
     return minutes * 60 + seconds
   } else if (parts.length === 1) {
-    return parseFloat(parts[0]) || 0
+    return parseFloat(parts[0] ?? '0') || 0
   }
   return 0
 }
@@ -205,13 +203,14 @@ export function getCurrentSegmentIndex(
   }
 
   // 处理 currentTime 早于第一个段落开始时间的情况
-  if (currentTime < segments[0].startTime) {
+  const firstSeg = segments[0]
+  if (firstSeg && currentTime < firstSeg.startTime) {
     return -1
   }
 
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i]
-    if (currentTime >= seg.startTime && currentTime < seg.endTime) {
+    if (seg && currentTime >= seg.startTime && currentTime < seg.endTime) {
       return i
     }
   }

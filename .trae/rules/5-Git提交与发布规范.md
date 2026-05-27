@@ -325,8 +325,32 @@ git push origin develop
 - 测试文件命名：`[组件名].spec.ts`
 - 提交前确保所有测试通过
 
+### 7.4 测试报告规范
+
+- **报告存放位置**: `docs/testing/` 目录
+- **报告命名格式**: `{测试类型}-{日期}.md`（如 `browser-compat-20260527.md`）
+- **报告内容要求**:
+  - 顶部注明项目版本/Commit ID
+  - 包含测试概述、环境、用例表格、缺陷统计、结论
+  - 关键缺陷附截图（截图放在 `docs/testing/screenshots/` 目录）
+
+### 7.5 PR合并前要求
+
+**每次合并到 main 分支前，必须满足以下条件：**
+1. 将对应的测试报告放入 `docs/testing/` 目录
+2. 在 Pull Request 描述中附上报告链接
+3. 所有单元测试通过
+4. 代码审查完成
+
+## 8. 测试与发布流程
+
+- 任何功能开发分支在发起合并至 `main` 分支的 Pull Request 前，必须完整执行 `docs/testing/compatibility-checklist.md` 中定义的所有核心检查项
+- 兼容性测试结果需整理为标准化测试报告，保存至 `docs/testing/compatibility/` 目录，文件命名严格遵循格式：`compat-YYYYMMDD.md`（其中YYYYMMDD为测试执行日期）
+- 若兼容性测试未通过（存在任何标记为[ ]的未完成项），相关 Pull Request 不得合并；测试过程中发现的阻塞性缺陷需详细记录在测试报告的"缺陷跟踪"栏目中
+- 合并 Pull Request 时，必须在提交描述中清晰附上对应兼容性测试报告的相对路径链接，格式示例：`测试报告: docs/testing/compatibility/compat-20231015.md`
+
 ---
 
-**文档版本**: 1.1  
-**更新日期**: 2026-05-26  
+**文档版本**: 1.2  
+**更新日期**: 2026-05-27  
 **适用项目**: wenyan-platform
