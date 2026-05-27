@@ -9,7 +9,8 @@ import {
   getCurrentSegmentIndex,
   type RawMultiRoleData,
   type ProcessedMultiRoleData,
-} from '@/adapters/readingAdapter'
+  type ProcessedMultiRoleSegment,
+} from '@/adapters/multiPoleAdapter'
 
 // Mock fetch
 beforeEach(() => {
@@ -160,6 +161,18 @@ describe('readingAdapter', () => {
 
       expect(result.segments).toEqual([])
       expect(result.totalDuration).toBe(0)
+    })
+
+    it('应该正确处理 rawData 为 null 的情况', () => {
+      const result = adaptMultiRoleReading(null)
+
+      expect(result.text_id).toBe('')
+      expect(result.audio_file).toBe('')
+      expect(result.segments).toEqual([])
+      expect(result.totalDuration).toBe(0)
+      expect(result.title).toBe('')
+      expect(result.author).toBe('')
+      expect(result.bgm_file).toBe('')
     })
 
     it('应该正确处理预留字段有值的情况', () => {

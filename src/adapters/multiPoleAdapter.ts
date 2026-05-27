@@ -58,10 +58,25 @@ export interface ProcessedMultiRoleData {
 
 /**
  * 主适配器函数：将原始数据转换为组件可用的格式
- * @param rawData - 原始 JSON 数据
+ * @param rawData - 原始 JSON 数据（允许 null）
  * @returns 处理后的数据对象（所有字段均有默认值，不含 null）
  */
-export function adaptMultiRoleReading(rawData: RawMultiRoleData): ProcessedMultiRoleData {
+export function adaptMultiRoleReading(
+  rawData: RawMultiRoleData | null,
+): ProcessedMultiRoleData {
+  // null 值保护
+  if (!rawData) {
+    return {
+      text_id: '',
+      audio_file: '',
+      segments: [],
+      totalDuration: 0,
+      title: '',
+      author: '',
+      bgm_file: '',
+    }
+  }
+
   // 处理片段数据（空数组保护）
   const segments = processSegments(rawData.segments ?? [])
 

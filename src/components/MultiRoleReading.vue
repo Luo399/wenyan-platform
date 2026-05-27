@@ -50,8 +50,9 @@
           <MultiRoleReadingItem
             :segment="segment"
             :is-active="currentSegmentIndex === index"
-            @play="() => playFromSegment(index)"
-            @click="() => playFromSegment(index)"
+            :is-currently-playing="isPlaying"
+            @toggle="handleSegmentToggle"
+            @click="playFromTime"
           />
         </div>
       </div>
@@ -73,13 +74,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { usePlaybackControl } from '@/composables/usePlaybackControl'
 import {
   adaptMultiRoleReading,
   formatTime,
-  parseTimeRange,
   type ProcessedMultiRoleData,
   type ProcessedMultiRoleSegment,
-} from '@/adapters/readingAdapter'
+  type RawMultiRoleData,
+} from '@/adapters/multiPoleAdapter'
 import { debugError } from '@/utils/debug'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
 import BaseLoader from './common/BaseLoader.vue'
@@ -119,7 +121,7 @@ const {
   isTimeout,
   data: rawData,
   retry,
-} = useDataLoader<ProcessedMultiRoleData>(() => dataUrl.value, {
+} = useDataLoader<RawMultiRoleData>(() => dataUrl.value, {
   timeout: 10000,
   retryCount: 1,
   cacheEnabled: true,
@@ -151,12 +153,17 @@ watch(error, (err) => {
 })
 
 const audioRef = ref<HTMLAudioElement | null>(null)
-const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const playbackSpeed = ref(1)
 const audioLoading = ref(false)
 const audioError = ref<string | null>(null)
+
+// 使用播放控制 composable（单一真相来源）
+const { isPlaying, togglePlay, play, pause, seekTo } = usePlaybackControl(audioRef, {
+  onPlay: () => emit('play'),
+  onPause: () => emit('pause'),
+})
 
 const segments = computed(() => multiRoleData.value?.segments || [])
 
@@ -218,7 +225,7 @@ function handleTimeUpdate() {
 }
 
 function handleEnded() {
-  isPlaying.value = false
+  pause()
   emit('ended')
 }
 
@@ -228,39 +235,31 @@ function handleLoadedMetadata() {
   }
 }
 
-function togglePlay() {
-  if (!audioRef.value) return
-  if (isPlaying.value) {
-    audioRef.value.pause()
-    isPlaying.value = false
-    emit('pause')
-  } else {
-    if (duration.value === 0) {
-      audioLoading.value = true
+/**
+ * 处理段落按钮的切换事件
+ * 如果点击的是当前正在播放的段落，则暂停
+ * 如果点击的是其他段落，则跳转到该段落并播放
+ * @param startTime - 段落开始时间（秒）
+ */
+function handleSegmentToggle(startTime: number) {
+  // 如果点击的是当前正在播放的段落，则暂停
+  if (currentSegmentIndex.value >= 0 && isPlaying.value) {
+    const currentSegment = segments.value[currentSegmentIndex.value]
+    if (currentSegment && currentSegment.startTime === startTime) {
+      pause()
+      return
     }
-    audioRef.value.play().catch((err) => {
-      audioLoading.value = false
-      debugError('播放失败:', err)
-    })
-    isPlaying.value = true
-    emit('play')
   }
+  // 否则跳转到该段落并播放
+  seekTo(startTime)
 }
 
-function playFromSegment(index: number) {
-  if (!audioRef.value || index < 0 || index >= segments.value.length) return
-  const segment = segments.value[index]
-  if (!segment) return
-
-  const { start } = parseTimeRange(segment.time_range)
-  audioRef.value.currentTime = start
-
-  if (!isPlaying.value) {
-    audioRef.value.play().catch((err) => {
-      debugError('播放失败:', err)
-    })
-    isPlaying.value = true
-  }
+/**
+ * 从指定时间开始播放
+ * @param startTime - 段落开始时间（秒）
+ */
+function playFromTime(startTime: number) {
+  seekTo(startTime)
 }
 
 function handleSeek(event: Event) {
