@@ -1,0 +1,208 @@
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/webfonts/fa-solid-900.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/webfonts/fa-regular-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/webfonts/fa-brands-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+}
+
+.fas,
+.far,
+.fab {
+  font-family: 'FontAwesome';
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.fas {
+  font-weight: 900;
+}
+
+.far {
+  font-weight: 400;
+}
+
+.fab {
+  font-weight: 400;
+}
+
+/* 常用图标 */
+.fa-play:before {
+  content: '\f01d';
+}
+
+.fa-pause:before {
+  content: '\f28b';
+}
+
+.fa-stop:before {
+  content: '\f04d';
+}
+
+.fa-arrow-right:before {
+  content: '\f061';
+}
+
+.fa-arrow-left:before {
+  content: '\f060';
+}
+
+.fa-home:before {
+  content: '\f015';
+}
+
+.fa-book-open:before {
+  content: '\f518';
+}
+
+.fa-users:before {
+  content: '\f0c0';
+}
+
+.fa-user-circle:before {
+  content: '\f2bd';
+}
+
+.fa-lock:before {
+  content: '\f023';
+}
+
+.fa-unlock:before {
+  content: '\f09c';
+}
+
+.fa-refresh:before {
+  content: '\f021';
+}
+
+.fa-spinner:before {
+  content: '\f110';
+}
+
+.fa-exclamation-circle:before {
+  content: '\f06a';
+}
+
+.fa-info-circle:before {
+  content: '\f05a';
+}
+
+.fa-check-circle:before {
+  content: '\f058';
+}
+
+.fa-times-circle:before {
+  content: '\f057';
+}
+
+.fa-volume-up:before {
+  content: '\f028';
+}
+
+.fa-volume-down:before {
+  content: '\f027';
+}
+
+.fa-volume-off:before {
+  content: '\f026';
+}
+
+.fa-search:before {
+  content: '\f002';
+}
+
+.fa-list:before {
+  content: '\f03a';
+}
+
+.fa-list-ul:before {
+  content: '\f0ca';
+}
+
+.fa-question-circle:before {
+  content: '\f059';
+}
+
+.fa-chevron-right:before {
+  content: '\f054';
+}
+
+.fa-chevron-left:before {
+  content: '\f053';
+}
+
+.fa-chevron-up:before {
+  content: '\f077';
+}
+
+.fa-chevron-down:before {
+  content: '\f078';
+}
+
+.fa-bars:before {
+  content: '\f0c9';
+}
+
+.fa-x:before {
+  content: '\f00d';
+}
+
+.fa-video:before {
+  content: '\f03d';
+}
+
+.fa-music:before {
+  content: '\f001';
+}
+
+.fa-file-audio:before {
+  content: '\f1c7';
+}
+
+.fa-file-video:before {
+  content: '\f1c8';
+}
+
+/* 动画 */
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(359deg);
+  }
+}
+
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.fa-pulse {
+  animation: fa-pulse 1s infinite ease-in-out;
+}

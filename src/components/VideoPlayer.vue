@@ -27,7 +27,7 @@
 
     <!-- 视频播放区域 -->
     <template v-else>
-      <div class="video-wrapper">
+      <div class="video-wrapper" :class="{ 'show-poster': !isPlaying && currentTime === 0 }">
         <video
           ref="videoRef"
           :src="src"
@@ -35,12 +35,21 @@
           preload="metadata"
           @timeupdate="handleTimeUpdate"
           @loadedmetadata="handleLoadedMetadata"
-          @play="isPlaying = true"
+          @play="handlePlay"
           @pause="isPlaying = false"
           @ended="handleEnded"
           @error="handleError"
           @abort="handleAbort"
         ></video>
+
+        <!-- 自动播放降级提示 -->
+        <AutoPlayPrompt
+          :show="showAutoPlayPrompt"
+          title="需要您的操作"
+          description="由于浏览器安全策略限制，需要点击下方按钮开始播放视频"
+          button-text="点击播放"
+          @play="handleAutoPlayClick"
+        />
       </div>
 
       <!-- 自定义控制栏区域 -->
@@ -68,6 +77,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { debugWarn, debugError } from '@/utils/debug'
 import ErrorDisplay from './ErrorDisplay.vue'
+import AutoPlayPrompt from './common/AutoPlayPrompt.vue'
 
 // ============================================================
 // 组件 Props 定义
@@ -138,6 +148,11 @@ const error = ref<string | null>(null)
 const isCompleted = ref(false)
 
 /**
+ * 是否显示自动播放降级提示
+ */
+const showAutoPlayPrompt = ref(false)
+
+/**
  * 组件名称（用于错误显示）
  */
 const sourceName = 'VideoPlayer'
@@ -164,6 +179,14 @@ const progressPercent = computed(() => {
 // ============================================================
 
 /**
+ * 处理播放事件
+ */
+function handlePlay() {
+  isPlaying.value = true
+  showAutoPlayPrompt.value = false
+}
+
+/**
  * 切换播放/暂停状态
  * 点击按钮时调用
  *
@@ -185,6 +208,22 @@ function togglePlay() {
       debugWarn('播放失败:', err)
       isPlaying.value = false
     })
+  }
+}
+
+/**
+ * 处理自动播放降级提示的点击
+ */
+function handleAutoPlayClick() {
+  if (videoRef.value) {
+    videoRef.value
+      .play()
+      .then(() => {
+        showAutoPlayPrompt.value = false
+      })
+      .catch((err) => {
+        debugWarn('自动播放降级点击后播放失败:', err)
+      })
   }
 }
 
@@ -313,6 +352,8 @@ onMounted(() => {
   if (props.autoPlay && videoRef.value) {
     videoRef.value.play().catch((err) => {
       console.warn('自动播放失败（可能被浏览器策略阻止）:', err)
+      // 显示自动播放降级提示
+      showAutoPlayPrompt.value = true
     })
   }
 })
@@ -410,10 +451,16 @@ function formatTime(seconds: number): string {
 
 /* 视频播放区域容器 */
 .video-wrapper {
+  position: relative;
   width: 100%;
   /* aspect-ratio 设置宽高比为 16:9，保持视频比例 */
   aspect-ratio: 16 / 9;
   background-color: #000; /* 黑色背景填充空白区域 */
+}
+
+/* 显示封面时的样式 */
+.video-wrapper.show-poster video {
+  object-fit: cover;
 }
 
 /* 视频元素样式 */

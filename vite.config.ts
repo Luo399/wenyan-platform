@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import legacy from '@vitejs/plugin-legacy'
 
 // JSON 响应头插件
 function jsonCharsetPlugin(): Plugin {
@@ -20,7 +21,16 @@ function jsonCharsetPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [vue(), vueDevTools(), jsonCharsetPlugin()],
+  plugins: [
+    vue(),
+    vueDevTools(),
+    jsonCharsetPlugin(),
+    // Legacy 插件：支持 IE 11 及其他旧浏览器
+    legacy({
+      targets: ['ie >= 11'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+    }),
+  ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
