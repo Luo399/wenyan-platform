@@ -73,6 +73,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import {
+  adaptMultiRoleReading,
+  formatTime,
+  parseTimeRange,
+  type ProcessedMultiRoleData,
+  type ProcessedMultiRoleSegment,
+} from '@/adapters/readingAdapter'
 import { debugError } from '@/utils/debug'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
 import BaseLoader from './common/BaseLoader.vue'
@@ -80,18 +87,7 @@ import BaseError from './common/BaseError.vue'
 import BaseEmpty from './common/BaseEmpty.vue'
 import BaseTimeout from './common/BaseTimeout.vue'
 
-export interface MultiRoleSegment {
-  sentence_index: number
-  time_range: string
-  role_name: string
-  dialogue: string
-}
-
-export interface MultiRoleData {
-  text_id: string
-  audio_file: string
-  segments: MultiRoleSegment[]
-}
+export type { ProcessedMultiRoleSegment, ProcessedMultiRoleData }
 
 interface Props {
   wenId: string
@@ -106,7 +102,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   (e: 'load-start'): void
-  (e: 'load-success', data: MultiRoleData): void
+  (e: 'load-success', data: ProcessedMultiRoleData): void
   (e: 'load-error', error: string): void
   (e: 'play'): void
   (e: 'pause'): void
@@ -116,18 +112,42 @@ const emit = defineEmits<{
 
 const dataUrl = computed(() => `${props.dataBaseUrl}${props.wenId}.json`)
 
+// 获取原始数据
 const {
   loading,
   error,
   isTimeout,
-  data: multiRoleData,
+  data: rawData,
   retry,
-} = useDataLoader<MultiRoleData>(() => dataUrl.value, {
+} = useDataLoader<ProcessedMultiRoleData>(() => dataUrl.value, {
   timeout: 10000,
   retryCount: 1,
   cacheEnabled: true,
-  onLoadSuccess: (data) => emit('load-success', data),
-  onLoadError: (err) => emit('load-error', err),
+})
+
+// 在组件内部进行数据适配，符合"组件隔离铁律"
+const multiRoleData = computed<ProcessedMultiRoleData | null>(() => {
+  if (!rawData.value) return null
+  try {
+    return adaptMultiRoleReading(rawData.value)
+  } catch (e) {
+    console.error('数据适配失败:', e)
+    return null
+  }
+})
+
+// 监听适配成功事件
+watch(multiRoleData, (data) => {
+  if (data) {
+    emit('load-success', data)
+  }
+})
+
+// 监听错误事件
+watch(error, (err) => {
+  if (err) {
+    emit('load-error', err)
+  }
 })
 
 const audioRef = ref<HTMLAudioElement | null>(null)
@@ -151,52 +171,20 @@ const currentSegmentIndex = computed(() => {
 
   for (let i = 0; i < segs.length; i++) {
     const seg = segs[i]
-    if (seg) {
-      const { start, end } = parseTimeRange(seg.time_range)
-      if (time >= start && time < end) {
-        return i
-      }
+    if (time >= seg.startTime && time < seg.endTime) {
+      return i
     }
   }
 
   if (segs.length > 0) {
     const lastSeg = segs[segs.length - 1]
-    if (lastSeg) {
-      const { start } = parseTimeRange(lastSeg.time_range)
-      if (time >= start) {
-        return segs.length - 1
-      }
+    if (time >= lastSeg.startTime) {
+      return segs.length - 1
     }
   }
 
   return -1
 })
-
-function parseTime(timeStr: string): number {
-  const parts = timeStr.trim().split(':')
-  if (parts.length === 2) {
-    const mins = parseInt(parts[0] ?? '0', 10) || 0
-    const secs = parseFloat(parts[1] ?? '0') || 0
-    return mins * 60 + secs
-  } else if (parts.length === 1) {
-    return parseFloat(parts[0] ?? '0') || 0
-  }
-  return 0
-}
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-}
-
-function parseTimeRange(timeRange: string): { start: number; end: number } {
-  const [startStr, endStr] = timeRange.split('-')
-  return {
-    start: parseTime(startStr ?? '0'),
-    end: parseTime(endStr ?? '0'),
-  }
-}
 
 function setupAudio() {
   if (!multiRoleData.value || !audioRef.value) return

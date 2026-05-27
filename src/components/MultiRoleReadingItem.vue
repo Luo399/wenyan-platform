@@ -1,24 +1,3 @@
-<!--
-  MultiRoleReadingItem.vue - 多角色朗读分段项组件
-
-  功能说明：
-  - 渲染单个段落：角色头像、角色名、文本内容
-  - 根据 isActive prop 改变背景高亮样式
-  - 包含独立播放按钮，点击后从该段落的 startTime 开始播放
-
-  使用方式：
-  <MultiRoleReadingItem
-    :segment="segment"
-    :is-active="isActive"
-    @play="handlePlay"
-    @click="handleClick"
-  />
-
-  Props:
-  - segment: 段落数据
-  - isActive: 是否为当前播放段落
--->
-
 <template>
   <div class="segment-item" :class="{ active: isActive }" @click="handleClick">
     <div class="avatar">{{ emoji }}</div>
@@ -34,10 +13,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MultiRoleSegment } from './MultiRoleReading.vue'
+import type { ProcessedMultiRoleSegment } from './MultiRoleReading.vue'
 
 interface Props {
-  segment: MultiRoleSegment
+  segment: ProcessedMultiRoleSegment
   isActive: boolean
 }
 
@@ -48,23 +27,13 @@ const emit = defineEmits<{
   (e: 'click'): void
 }>()
 
-/**
- * 从 role_name 中提取角色名称（去掉emoji）
- */
 const roleName = computed(() => {
-  const name = props.segment.role_name
-  // 移除 emoji 字符
-  return name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
+  return props.segment.role_name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
 })
 
-/**
- * 从 role_name 中提取 emoji
- */
 const emoji = computed(() => {
-  const name = props.segment.role_name
-  // 匹配 emoji 字符
-  const match = name.match(/[\u{1F300}-\u{1F9FF}]/gu)
-  return match ? match[match.length - 1] : '📖' // 默认使用书本emoji
+  const match = props.segment.role_name.match(/[\u{1F300}-\u{1F9FF}]/gu)
+  return match ? match[match.length - 1] : '📖'
 })
 
 function handleClick() {
