@@ -76,6 +76,7 @@ interface UseDataLoaderOptions<T> {
   cacheEnabled?: boolean
   onLoadSuccess?: (data: T) => void
   onLoadError?: (error: string) => void
+  transform?: (raw: unknown) => T // 数据转换函数
 }
 
 export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoaderOptions<T> = {}) {
@@ -86,6 +87,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     cacheEnabled = false,
     onLoadSuccess,
     onLoadError,
+    transform, // 数据转换函数
   } = options
 
   const loading = ref(false)
@@ -161,8 +163,9 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
       // 使用 Worker 线程解析 JSON
       try {
-        const parsed = (await parseJsonWithWorker(text)) as T
-        data.value = parsed
+        const parsed = (await parseJsonWithWorker(text)) as unknown
+        // 如果有转换函数，先进行数据转换
+        data.value = transform ? transform(parsed) : (parsed as T)
         diagLog(
           '✅ JSON解析成功，数据类型:',
           typeof data.value,

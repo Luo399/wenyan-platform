@@ -1,20 +1,20 @@
 <template>
   <div class="word-list-container">
     <!-- 加载状态 -->
-    <div v-if="wordListLoading || basicInfoLoading" class="loading-state">
+    <div v-if="loading" class="loading-state">
       <div class="spinner"></div>
       <span>加载中...</span>
     </div>
 
     <!-- 错误状态 -->
-    <div v-else-if="wordListError || basicInfoError" class="error-state">
+    <div v-else-if="error" class="error-state">
       <i class="fas fa-exclamation-circle"></i>
-      <p>{{ wordListError || basicInfoError || '加载失败' }}</p>
+      <p>{{ error || '加载失败' }}</p>
       <button @click="retry" class="retry-btn">重试</button>
     </div>
 
     <!-- 空数据状态 -->
-    <div v-else-if="!wordListData?.length || !basicInfoData" class="empty-state">
+    <div v-else-if="!adaptedData" class="empty-state">
       <p>暂无数据</p>
     </div>
 
@@ -22,14 +22,14 @@
     <div v-else class="content-wrapper">
       <!-- 文章标题区域 -->
       <div class="article-header">
-        <h1 class="article-title">{{ basicInfoData?.title || '未知标题' }}</h1>
+        <h1 class="article-title">{{ adaptedData.basicInfo.title || '未知标题' }}</h1>
         <p class="article-meta">
-          <span class="author">{{ basicInfoData?.dynasty }} · {{ basicInfoData?.author }}</span>
+          <span class="author">{{ adaptedData.basicInfo.dynasty }} · {{ adaptedData.basicInfo.author }}</span>
         </p>
       </div>
 
-      <!-- 文章内容 -->
-      <div ref="contentRef" class="article-content" v-html="contentHtml"></div>
+      <!-- 文章内容（直接使用适配器预生成的 HTML） -->
+      <div ref="contentRef" class="article-content" v-html="adaptedData.basicInfo.contentHtml"></div>
 
       <!-- Tooltip -->
       <div
@@ -44,32 +44,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { 
+  adaptWordList, 
+  type RawWordItem, 
+  type RawTextBasicInfo, 
+  type WordListAdapterResult 
+} from '@/adapters/wordListAdapter'
 
 // Tooltip 状态
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
 const contentRef = ref<HTMLElement | null>(null)
-
-interface WordItem {
-  text_id: string
-  word: string
-  basic_meaning: string
-  synonym_analysis?: string
-  follow_up_questions?: string[]
-}
-
-interface TextBasicInfo {
-  text_id: string
-  title: string
-  author: string
-  dynasty: string
-  original_text: string
-  illustration?: string
-  bgm?: string
-}
 
 interface Props {
   wenId: string
@@ -85,24 +73,40 @@ const props = withDefaults(defineProps<Props>(), {
 const wordListUrl = `${props.wordListBaseUrl}${props.wenId}.json`
 const basicInfoUrl = `${props.basicInfoBaseUrl}${props.wenId}.json`
 
+// 加载词汇列表
 const {
   loading: wordListLoading,
   error: wordListError,
   data: wordListData,
   retry: retryWordList,
-} = useDataLoader<WordItem[]>(() => wordListUrl, {
+} = useDataLoader<RawWordItem[]>(() => wordListUrl, {
   timeout: 10000,
   retryCount: 1,
 })
 
+// 加载基础信息
 const {
   loading: basicInfoLoading,
   error: basicInfoError,
   data: basicInfoData,
   retry: retryBasicInfo,
-} = useDataLoader<TextBasicInfo>(() => basicInfoUrl, {
+} = useDataLoader<RawTextBasicInfo>(() => basicInfoUrl, {
   timeout: 10000,
   retryCount: 1,
+})
+
+// 组合状态
+const loading = computed(() => wordListLoading.value || basicInfoLoading.value)
+const error = computed(() => wordListError.value || basicInfoError.value)
+
+// 使用适配器处理数据（纯函数，无响应式副作用）
+const adaptedData = computed<WordListAdapterResult | null>(() => {
+  if (!wordListData.value || !basicInfoData.value) {
+    return null
+  }
+  
+  // 调用适配器进行数据转换
+  return adaptWordList(basicInfoData.value, wordListData.value)
 })
 
 function retry() {
@@ -132,36 +136,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleMouseMove)
-})
-
-// 【修复】contentHtml 计算属性
-const contentHtml = computed(() => {
-  if (!basicInfoData.value?.original_text || !wordListData.value?.length) {
-    return '<p>暂无内容</p>'
-  }
-
-  const originalText = basicInfoData.value.original_text
-  const wordList = wordListData.value || []
-
-  // 按长度降序排列词汇（避免短词优先匹配）
-  const sortedWords = [...wordList].sort((a, b) => b.word.length - a.word.length)
-  const validWords = sortedWords.filter((item) => item.word && item.basic_meaning)
-
-  // 移除原文中的斜杠符号，确保词汇匹配
-  let content = originalText.replace(/\//g, '')
-
-  for (const item of validWords) {
-    const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(escaped, 'g')
-    const replacement = `<span class="annotated-word" data-def="${item.basic_meaning}">${item.word}</span>`
-    content = content.replace(regex, replacement)
-  }
-
-  content = content.replace(/\n\n/g, '</p><p>')
-  content = content.replace(/\n/g, '<br>')
-  content = `<p>${content}</p>`
-
-  return content
 })
 </script>
 
