@@ -10,10 +10,10 @@
 -->
 <template>
   <div class="rule-view">
-    <h1 class="page-title">规则介绍（二） - {{ currentPoem.title }}</h1>
+    <h1 class="page-title">规则介绍（二） - {{ currentTitle }}</h1>
     <div class="video-section">
       <VideoPlayer
-        :src="currentPoem.videoUrl"
+        :src="videoUrl"
         :auto-play="true"
         :require-complete="true"
         @complete="onVideoComplete"
@@ -48,12 +48,11 @@ function handleGoPrev() {
   goPrev(router)
 }
 
-const currentPoem = computed(() => {
-  const wenId = getWenId(poemId)
-  const title = getPoemTitle(poemId)
-  const videoUrl = `/video/${wenId}_rule_2.mp4`
+const currentTitle = computed(() => getPoemTitle(poemId))
 
-  return { title, videoUrl }
+const videoUrl = computed(() => {
+  const wenId = getWenId(poemId)
+  return `/video/${wenId}_rule_2.mp4`
 })
 </script>
 

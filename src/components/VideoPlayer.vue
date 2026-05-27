@@ -322,23 +322,9 @@ onMounted(() => {
  */
 onUnmounted(() => {
   if (videoRef.value) {
-    // 暂停视频
+    // 暂停视频即可，不需要清空 src 或调用 load()
+    // 页面导航时清空 src 会导致浏览器中止加载，产生 ERR_ABORTED 错误
     videoRef.value.pause()
-    // 移除事件监听器
-    videoRef.value.removeEventListener('timeupdate', handleTimeUpdate)
-    videoRef.value.removeEventListener('loadedmetadata', handleLoadedMetadata)
-    videoRef.value.removeEventListener('play', () => {
-      isPlaying.value = true
-    })
-    videoRef.value.removeEventListener('pause', () => {
-      isPlaying.value = false
-    })
-    videoRef.value.removeEventListener('ended', handleEnded)
-    videoRef.value.removeEventListener('error', handleError)
-    videoRef.value.removeEventListener('abort', handleAbort)
-    // 清空视频源，释放资源
-    videoRef.value.src = ''
-    videoRef.value.load()
   }
 })
 
