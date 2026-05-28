@@ -182,9 +182,9 @@ const allQuizzesSubmitted = computed(() => {
 
 // 处理 quiz 提交事件（适配原事件名）
 function handleQuizSubmitted() {
-  // 调用 useQuizProgress 的 handleSubmit
-  handleQuizSubmit(completedCount.value)
-  console.log(`[StepTwoView] Quiz 已提交，当前完成数: ${completedCount.value}`)
+  // 调用 useQuizProgress 的 handleSubmit，传递当前题目索引
+  handleQuizSubmit(currentIndex.value)
+  console.log(`[StepTwoView] Quiz 已提交，当前题目索引: ${currentIndex.value}`)
 }
 
 // 使用导航composable
