@@ -112,7 +112,7 @@ const router = useRouter()
 const selectedPage = ref('WEN_01')
 
 // 页面配置URL
-const pageUrl = computed(() => `/data/pages/${selectedPage.value}.json`)
+const pageUrl = computed(() => `/data/pages_level2_dialog_quiz/${selectedPage.value}.json`)
 
 // 加载页面配置
 const { data: pageConfig, loading, error, retry } = useDataLoader<PageConfig>(() => pageUrl.value)

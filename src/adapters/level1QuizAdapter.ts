@@ -32,7 +32,7 @@ export function adaptLevel1Quiz(rawData: RawLevel1QuizItem[] | null): ProcessedL
   }
 
   return rawData
-    .filter(item => item && item.text_id === 'WEN_01')
+    .filter(item => item && item.text_id)
     .map(item => ({
       textId: item.text_id || '',
       questionNumber: item.question_number || 0,

@@ -25,6 +25,7 @@ export const routes = [
     path: '/stepone/:id',
     name: 'stepone',
     component: StepOneView,
+    meta: { requiresAuth: true },
   },
   {
     path: '/rule1/:id',
@@ -45,11 +46,13 @@ export const routes = [
     path: '/stepthree/:id',
     name: 'stepthree',
     component: StepThreeView,
+    meta: { requiresAuth: true },
   },
   {
     path: '/steptwo/:id',
     name: 'steptwo',
     component: StepTwoView,
+    meta: { requiresAuth: true },
   },
   {
     path: '/block-demo',
@@ -67,5 +70,9 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: routes,
 })
+
+// 注册路由守卫
+import { setupAuthGuard } from './guards'
+setupAuthGuard(router)
 
 export default router

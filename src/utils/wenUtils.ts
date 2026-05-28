@@ -7,10 +7,11 @@
 /**
  * 篇目数据映射
  * 用于根据 poemId 获取篇目标题
+ * 注意：此映射必须与 PoetryMenu.vue 中的 poemList 保持一致
  */
 export const poemMap: Record<string, { title: string }> = {
-  '1': { title: '马说' },
-  '2': { title: '陈涉世家' },
+  '1': { title: '陈涉世家' },
+  '2': { title: '马说' },
   '3': { title: '岳阳楼记' },
   '4': { title: '庄子与惠子' },
 }
@@ -30,9 +31,17 @@ export function getWenId(id: string): string {
 
 /**
  * 根据 poemId 获取篇目标题
- * @param poemId - 篇目 ID
+ * @param poemId - 篇目 ID（支持数字格式 '1' 或 WEN_xx 格式 'WEN_01'）
  * @returns 篇目标题，如果不存在则返回 '未知篇目'
  */
 export function getPoemTitle(poemId: string): string {
-  return poemMap[poemId]?.title || '未知篇目'
+  // 如果是 WEN_xx 格式，提取数字部分
+  const id = poemId.startsWith('WEN_') 
+    ? poemId.replace('WEN_', '') 
+    : poemId
+  
+  // 如果提取后是 '01' 格式，去掉前导零
+  const normalizedId = parseInt(id, 10).toString()
+  
+  return poemMap[normalizedId]?.title || '未知篇目'
 }

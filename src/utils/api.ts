@@ -1,112 +1,220 @@
 /**
- * API 工具函数
+ * API 请求封装
  * 
- * 功能说明：
- * - 封装 API 请求方法
- * - 统一处理请求配置和错误
- * - 支持超时处理
+ * 功能：
+ * - 自动在请求头中携带 JWT token
+ * - 处理 token 过期和刷新
+ * - 统一错误处理
+ * - 请求取消支持
  */
 
-/** API 基础地址，从环境变量读取 */
-export const apiBase = import.meta.env.VITE_API_BASE_URL as string
+import { useAuthStore } from '@/stores/auth'
+
+// 定义 auth store 返回类型
+type UseAuthStoreReturn = ReturnType<typeof useAuthStore>
+
+// 存储 auth store 引用
+let authStoreRef: UseAuthStoreReturn | null = null
 
 /**
- * 提交答案 API
- * 
- * @param data - 提交的数据
- * @param timeout - 超时时间（毫秒），默认 30000ms
- * @returns Promise 响应结果
+ * 设置 auth store 引用
  */
-export async function submitAnswers(
-  data: SubmitAnswersRequest,
-  timeout: number = 30000
-): Promise<SubmitAnswersResponse> {
+export function setAuthStore(store: UseAuthStoreReturn): void {
+  authStoreRef = store
+}
+
+/**
+ * 请求配置接口
+ */
+export interface RequestConfig {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
+  headers?: Record<string, string>
+  body?: any
+  timeout?: number
+}
+
+/**
+ * 响应接口
+ */
+export interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  message?: string
+  code?: number
+}
+
+/**
+ * 基础请求函数
+ */
+export async function request<T = any>(
+  url: string,
+  config: RequestConfig = {}
+): Promise<ApiResponse<T>> {
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    timeout = 30000
+  } = config
+
+  // 构建请求头
+  const requestHeaders = new Headers({
+    'Content-Type': 'application/json',
+    ...headers
+  })
+
+  // 添加 Authorization token
+  if (authStoreRef?.token) {
+    requestHeaders.set('Authorization', `Bearer ${authStoreRef.token}`)
+  }
+
+  // 创建取消控制器
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeout)
+  const timeoutId = setTimeout(() => {
+    controller.abort()
+  }, timeout)
 
   try {
-    const response = await fetch(`${apiBase}/api/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(data),
+    const response = await fetch(url, {
+      method,
+      headers: requestHeaders,
+      body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal
     })
 
     clearTimeout(timeoutId)
 
+    // 处理 token 过期
+    if (response.status === 401) {
+      handleUnauthorized()
+      throw new Error('登录已过期，请重新登录')
+    }
+
+    // 处理服务器错误
     if (!response.ok) {
       const errorData = await response.json().catch(() => null)
-      throw new ApiError(
-        response.status,
-        errorData?.error || 'UNKNOWN_ERROR',
-        errorData?.message || '请求失败'
-      )
+      throw new Error(errorData?.message || `请求失败: ${response.status}`)
     }
 
     return await response.json()
-  } catch (error) {
-    clearTimeout(timeoutId)
-    
-    if (error instanceof ApiError) {
-      throw error
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('请求超时')
     }
-
-    // 处理网络错误或超时
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError(0, 'TIMEOUT', '请求超时')
-    }
-
-    throw new ApiError(0, 'NETWORK_ERROR', '网络连接失败')
+    throw err
   }
+}
+
+/**
+ * 处理未授权错误
+ */
+function handleUnauthorized(): void {
+  if (authStoreRef) {
+    authStoreRef.logout()
+    // 可以在这里触发登录弹窗或跳转到登录页
+  }
+}
+
+/**
+ * GET 请求
+ */
+export async function get<T = any>(
+  url: string,
+  params?: Record<string, string>,
+  config: Omit<RequestConfig, 'method' | 'body'> = {}
+): Promise<ApiResponse<T>> {
+  const queryString = params
+    ? '?' + new URLSearchParams(params).toString()
+    : ''
+  return request<T>(url + queryString, config)
+}
+
+/**
+ * POST 请求
+ */
+export async function post<T = any>(
+  url: string,
+  body?: any,
+  config: Omit<RequestConfig, 'method'> = {}
+): Promise<ApiResponse<T>> {
+  return request<T>(url, { ...config, method: 'POST', body })
+}
+
+/**
+ * PUT 请求
+ */
+export async function put<T = any>(
+  url: string,
+  body?: any,
+  config: Omit<RequestConfig, 'method'> = {}
+): Promise<ApiResponse<T>> {
+  return request<T>(url, { ...config, method: 'PUT', body })
+}
+
+/**
+ * DELETE 请求
+ */
+export async function del<T = any>(
+  url: string,
+  config: Omit<RequestConfig, 'method'> = {}
+): Promise<ApiResponse<T>> {
+  return request<T>(url, { ...config, method: 'DELETE' })
+}
+
+/**
+ * 登录请求
+ */
+export async function login(studentId: string): Promise<ApiResponse<{
+  token: string
+  user: {
+    id: string
+    username: string
+    student_id: string
+    role: 'student' | 'teacher' | 'admin'
+  }
+}>> {
+  return post('/api/auth/login', { student_id: studentId })
 }
 
 /**
  * API 错误类
  */
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public errorCode: string,
-    message: string
-  ) {
+  constructor(message: string, public code?: number) {
     super(message)
     this.name = 'ApiError'
   }
 }
 
-// ============================================================
-// 类型定义
-// ============================================================
+/**
+ * 提交答案
+ */
+export async function submitAnswers(
+  data: {
+    answers: Record<string, string | number | (string | number)[]>
+    questions: Array<{ id: string; correctAnswer: string | number | (string | number)[] }>
+  },
+  timeout?: number
+): Promise<void> {
+  try {
+    const response = await fetch('/api/answers/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authStoreRef?.token ? { Authorization: `Bearer ${authStoreRef.token}` } : {})
+      },
+      body: JSON.stringify(data),
+      signal: timeout ? AbortSignal.timeout(timeout) : undefined
+    })
 
-/** 提交答案请求类型 */
-export interface SubmitAnswersRequest {
-  studentId: string
-  wenId: string
-  submittedAt: string
-  answers: Record<string, string | number | (string | number)[]>
-  questions: Array<{
-    id: string
-    correctAnswer: string | number | (string | number)[]
-  }>
-}
-
-/** 提交答案响应类型 */
-export interface SubmitAnswersResponse {
-  success: boolean
-  message: string
-  data?: {
-    studentId: string
-    wenId: string
-    submittedAt: string
-    questionCount: number
-    totalScore: number
-    avgScore: number
-    details: Array<{
-      questionId: string
-      score: number
-    }>
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null)
+      throw new ApiError(errorData?.message || '提交失败', response.status)
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new ApiError('请求超时')
+    }
+    throw err
   }
-  error?: string
 }

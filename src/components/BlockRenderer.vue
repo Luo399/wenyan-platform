@@ -5,24 +5,19 @@
   使用 v-bind="block.data" 直接将数据传递给子组件
 -->
 <template>
-  <div class="block-renderer" :class="`block-type-${block.type}`">
+  <div class="block-renderer" :class="`block-type-${block.type}`" v-if="show">
     <!-- 针对 quiz 类型，透传事件 -->
-    <AdaptQuiz 
-      v-if="block.type === 'quiz'" 
-      v-bind="block.data" 
-      @quiz-submitted="$emit('quiz-submitted')" 
+    <AdaptQuiz
+      v-if="block.type === 'quiz'"
+      v-bind="block.data"
+      @quiz-submitted="$emit('quiz-submitted')"
     />
     <!-- 其他类型直接渲染 -->
-    <component 
-      v-else
-      :is="componentMap[block.type]" 
-      v-bind="block.data"
-    />
+    <component v-else :is="componentMap[block.type]" v-bind="block.data" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
 import type { PageBlock } from '@/types/pageConfig'
 
 // 业务组件导入
@@ -37,25 +32,25 @@ import VideoPlayer from './VideoPlayer.vue'
 const componentMap: Record<string, any> = {
   // 对话文本块（Block模式）- 使用DialogueCard组件
   dialogue: DialogueCard,
-  
+
   // 对话文本块（旧版）- 使用DialogText组件
   dialog: DialogText,
-  
+
   // 测验块 - 使用AdaptQuiz组件
   quiz: AdaptQuiz,
-  
+
   // 字词注释块 - 使用WordList组件
   wordlist: WordList,
-  
+
   // 多角色朗读块 - 使用MultiRoleReading组件
   'multi-role-reading': MultiRoleReading,
-  
+
   // 视频块 - 使用VideoPlayer组件
   video: VideoPlayer,
-  
+
   // 音频图片文本块 - 暂用DialogText作为占位，可创建专门的AudioImageText组件
   'audio-image-text': DialogText,
-  
+
   // 纯文本块 - 暂用DialogText作为占位，可创建专门的PlainText组件
   'plain-text': DialogText,
 }
@@ -63,9 +58,12 @@ const componentMap: Record<string, any> = {
 // Props定义
 interface Props {
   block: PageBlock
+  show?: boolean
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  show: true,
+})
 
 // 事件定义
 const emit = defineEmits<{

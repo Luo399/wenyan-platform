@@ -9,12 +9,12 @@ const route = useRoute()
 const router = useRouter()
 const articleId = route.params.id as string
 
-// 使用导航composable
-const { goNext, goPrev } = useNavigation('detail', articleId)
+// 使用导航composable（stepthree 是最后一页，detail 已移除）
+const { goPrev } = useNavigation('stepthree', articleId)
 
-// 导航函数包装
+// 导航函数包装 - 点击继续返回首页
 function handleGoNext() {
-  goNext(router)
+  router.push('/')
 }
 
 function handleGoPrev() {
