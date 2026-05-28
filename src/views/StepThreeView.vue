@@ -1,82 +1,101 @@
 <!--
-  StepThreeView.vue - 情景测验组合页面
+  StepThreeView.vue - 情景测验组合页面（逐题显示模式）
 
   布局说明：
-  - 批量展示多个ScenQuiz组件
-  - 支持响应式布局，适配不同屏幕尺寸
+  - 使用 visibleIndex 控制逐题显示
+  - 提交后显示答案和解析，并在下方显示下一题
   - 底部：BackContinue 导航按钮
 
+  数据来源：pages_level3_adaptive_quiz（与Block模式隔离）
   页面顺序：stepone -> stepthree -> detail
 -->
 <template>
   <div class="stepthree-view">
     <!-- 页面标题 -->
     <header class="page-header">
-      <h1 class="page-title">{{ pageTitle }}</h1>
+      <h1 class="page-title">情景测验</h1>
       <p class="page-subtitle">完成以下测验，检验你的学习成果</p>
     </header>
 
     <!-- 进度统计 -->
     <div class="progress-bar-container">
       <div class="progress-bar">
-        <div 
-          class="progress-fill" 
-          :style="{ width: progressPercent + '%' }"
-        ></div>
+        <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
       </div>
       <span class="progress-text">{{ completedCount }} / {{ totalQuestions }}</span>
     </div>
 
-    <!-- 批量ScenQuiz区域 -->
-    <div class="quiz-grid">
-      <div 
-        v-for="(config, index) in quizConfigs" 
-        :key="config.questionNumber"
-        class="quiz-card"
-        :class="{ 'completed': completedQuizzes.includes(config.questionNumber) }"
-        :style="{ animationDelay: `${index * 100}ms` }"
-      >
-        <div class="quiz-card-header">
-          <span class="quiz-number">第 {{ config.questionNumber }} 题</span>
-          <span 
-            class="quiz-status" 
-            :class="{ 
-              'completed': completedQuizzes.includes(config.questionNumber),
-              'current': currentQuizIndex === index
-            }"
-          >
-            <i v-if="completedQuizzes.includes(config.questionNumber)" class="fas fa-check"></i>
-            <i v-else-if="currentQuizIndex === index" class="fas fa-circle"></i>
-            <i v-else class="fas fa-circle-notch"></i>
-          </span>
-        </div>
-        
-        <div class="quiz-card-content">
-          <ScenQuiz
-            :text-id="textId"
-            :quiz-level="quizLevel"
-            :key="config.questionNumber"
-            @answer="(qn, ans, correct) => handleAnswer(qn, ans, correct)"
-            @complete="handleComplete"
-            @error="handleQuizError"
+    <!-- 加载状态 -->
+    <div class="loading-state" v-if="loading">
+      <div class="loading-spinner">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>加载测验数据...</span>
+      </div>
+    </div>
+
+    <!-- 错误状态 -->
+    <div class="error-state" v-else-if="error">
+      <div class="error-icon">
+        <i class="fas fa-exclamation-circle"></i>
+      </div>
+      <p class="error-message">{{ error }}</p>
+      <button class="error-retry" @click="retry">
+        <i class="fas fa-refresh"></i>
+        重新加载
+      </button>
+    </div>
+
+    <!-- 测验内容区域 -->
+    <template v-else-if="pageData">
+      <!-- 题目列表 -->
+      <div class="quiz-list">
+        <div
+          v-for="(item, index) in pageData.items"
+          :key="index"
+          class="quiz-item"
+          :class="{ hidden: index > currentIndex }"
+        >
+          <!-- 情景文本（仅显示第一个题目的情景） -->
+          <div class="scenario-text" v-if="index === 0 && item.text">
+            <p>{{ item.text }}</p>
+          </div>
+
+          <!-- 题目头部 -->
+          <div class="quiz-header">
+            <span class="quiz-number">第 {{ index + 1 }} 题</span>
+          </div>
+
+          <!-- QuizCard 组件 -->
+          <QuizCard
+            :data="item.quiz as any"
+            :submitted="isSubmitted(index)"
+            @submit="(option) => option !== null && handleSubmit(index, option)"
           />
         </div>
       </div>
-    </div>
 
-    <!-- 空状态提示 -->
-    <div class="empty-state" v-if="quizConfigs.length === 0">
+      <!-- 完成状态 -->
+      <div class="complete-state" v-if="isCompleted">
+        <div class="complete-icon">
+          <i class="fas fa-trophy"></i>
+        </div>
+        <h2 class="complete-title">测验完成！</h2>
+        <p class="complete-stats">答对 {{ correctCount }} / {{ completedCount }} 题</p>
+      </div>
+    </template>
+
+    <!-- 空状态 -->
+    <div class="empty-state" v-else>
       <div class="empty-icon">
         <i class="fas fa-search"></i>
       </div>
-      <p class="empty-message">暂无匹配的测验数据</p>
+      <p class="empty-message">暂无测验数据</p>
     </div>
 
-    <!-- 底部导航按钮 -->
+    <!-- 底部导航按钮（全程显示返回，完成后显示继续） -->
     <BackContinue
+      :show-continue="isCompleted"
       back-text="返回"
-      continue-text="完成"
-      :disabled="completedCount < totalQuestions"
       @back="handleGoPrev"
       @continue="handleGoNext"
     />
@@ -84,23 +103,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ScenQuiz from '@/components/ScenQuiz.vue'
 import BackContinue from '@/components/BackContinue.vue'
+import QuizCard from '@/components/QuizCard.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { adaptScenarioText } from '@/adapters/scenarioAdapter'
-import { adaptLevel1Quiz } from '@/adapters/level1QuizAdapter'
-import { adaptLevel2Quiz } from '@/adapters/level2QuizAdapter'
-import { adaptLevel3Quiz } from '@/adapters/level3QuizAdapter'
-import type { RawScenarioText } from '@/adapters/scenarioAdapter'
-import type { RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
-import type { RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
-import type { RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
+import { useQuizProgress } from '@/composables/useQuizProgress'
 
-interface QuizConfig {
-  questionNumber: number
+// 数据类型定义
+interface QuizItem {
+  question_id: string
+  question_type: 'radio' | 'checkbox' | string
+  question_text: string
+  options: string[]
+  correct_answer: number
+  explanation: string
+  difficulty: string
+}
+
+interface PageItem {
+  text: string
+  quiz: QuizItem
+}
+
+interface PageData {
+  pageId: string
+  items: PageItem[]
 }
 
 const route = useRoute()
@@ -124,135 +153,79 @@ const textId = computed(() => {
   return `WEN_${num.toString().padStart(2, '0')}`
 })
 
-// 测验级别配置
-const quizLevel = ref<'level1' | 'level2' | 'level3'>('level1')
+// 页面配置URL（从pages_level3_adaptive_quiz目录加载）
+const pageUrl = computed(() => `/data/pages_level3_adaptive_quiz/${textId.value}.json`)
 
-// 页面标题
-const pageTitle = computed(() => {
-  const titles: Record<string, string> = {
-    level1: '基础测验',
-    level2: '进阶测验',
-    level3: '高级测验'
-  }
-  return titles[quizLevel.value] || '情景测验'
-})
+// 使用数据加载器获取页面配置
+const { data: pageData, loading, error, retry } = useDataLoader<PageData>(() => pageUrl.value)
 
-// 测验配置列表
-const quizConfigs = ref<QuizConfig[]>([])
+// 题目总数（Ref类型，支持响应式更新）
+const totalQuizCount = ref(0)
 
-// 已完成的测验
-const completedQuizzes = ref<number[]>([])
+// 监听 pageData 变化，更新题目数量
+watch(
+  () => pageData.value,
+  (data) => {
+    const count = data?.items.length || 0
+    totalQuizCount.value = count
+    console.log(`[StepThreeView] 题目数量更新: ${count}`)
+  },
+  { immediate: true, deep: true },
+)
 
-// 当前激活的测验索引
-const currentQuizIndex = ref(0)
+// 使用 useQuizProgress Composable 管理测验进度
+// 传入 textId 作为 completionKeyPrefix，确保不同课文的完成记录相互独立
+const {
+  currentIndex,
+  completedCount,
+  totalQuestions,
+  progressPercent,
+  isCompleted,
+  hasCompletionRecord,
+  answers,
+  handleSubmit: handleQuizSubmit,
+  resetProgress,
+} = useQuizProgress(
+  totalQuizCount,
+  (questionIndex, answer, isCorrect) => {
+    console.log(
+      `[StepThreeView] 第 ${questionIndex + 1} 题提交，答案: ${answer}，正确: ${isCorrect}`,
+    )
+  },
+  textId.value,
+)
 
-// 统计信息
-const totalQuestions = computed(() => quizConfigs.value.length)
-const completedCount = computed(() => completedQuizzes.value.length)
-const progressPercent = computed(() => {
-  if (totalQuestions.value === 0) return 0
-  return Math.round((completedCount.value / totalQuestions.value) * 100)
+// 判断指定题目是否已提交
+function isSubmitted(index: number): boolean {
+  return answers.value.some((a) => a.questionIndex === index)
+}
+
+// 答对数量
+const correctCount = computed(() => {
+  if (!pageData.value) return 0
+  return answers.value.filter((a) => {
+    const item = pageData.value?.items[a.questionIndex]
+    return item && a.answer === item.quiz.correct_answer
+  }).length
 })
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('stepthree', poemId)
 
-// 加载测验配置
-async function loadQuizConfigs() {
-  try {
-    // 并行加载情景文本和测验数据
-    const [scenarioData, quizData] = await Promise.all([
-      loadScenarioData(),
-      loadQuizData()
-    ])
+// 处理提交
+function handleSubmit(quizIndex: number, selectedOption: number) {
+  console.log(`[StepThreeView] handleSubmit - 题目索引: ${quizIndex}，选择: ${selectedOption}`)
 
-    // 获取匹配的questionNumber
-    const scenarioNumbers = new Set(scenarioData.map(s => s.questionNumber))
-    const quizNumbers = new Set(quizData.map(q => q.questionNumber))
-    
-    // 找出共同的questionNumber
-    const commonNumbers = [...scenarioNumbers].filter(n => quizNumbers.has(n))
-    
-    // 生成配置列表
-    quizConfigs.value = commonNumbers.map(num => ({
-      questionNumber: num
-    })).sort((a, b) => a.questionNumber - b.questionNumber)
+  // 判断答案是否正确
+  const item = pageData.value?.items[quizIndex]
+  const isCorrect = item ? selectedOption === item.quiz.correct_answer : undefined
 
-    // 如果没有匹配的数据，尝试使用所有可用的题目
-    if (quizConfigs.value.length === 0 && quizData.length > 0) {
-      quizConfigs.value = quizData.slice(0, 5).map(q => ({
-        questionNumber: q.questionNumber
-      }))
-    }
-  } catch (e) {
-    console.error('[StepThreeView] 加载测验配置失败:', e)
-    // 使用默认配置
-    quizConfigs.value = [
-      { questionNumber: 1 },
-      { questionNumber: 2 },
-      { questionNumber: 3 }
-    ]
-  }
-}
+  // 调用 useQuizProgress 的 handleSubmit
+  handleQuizSubmit(selectedOption, isCorrect)
 
-// 加载情景文本数据
-async function loadScenarioData() {
-  const url = `/data/level3_scenario_text/${textId.value}.json`
-  const { data: rawData } = useDataLoader<RawScenarioText[]>(() => url)
-  if (rawData.value) {
-    return adaptScenarioText(rawData.value)
-  }
-  return []
-}
-
-// 加载测验数据
-async function loadQuizData() {
-  const url = `/data/${quizLevel.value}_quiz/${textId.value}.json`
-  
-  if (quizLevel.value === 'level1') {
-    const { data: rawData } = useDataLoader<RawLevel1QuizItem[]>(() => url)
-    if (rawData.value) {
-      return adaptLevel1Quiz(rawData.value)
-    }
-  } else if (quizLevel.value === 'level2') {
-    const { data: rawData } = useDataLoader<RawLevel2QuizItem[]>(() => url)
-    if (rawData.value) {
-      return adaptLevel2Quiz(rawData.value)
-    }
-  } else {
-    const { data: rawData } = useDataLoader<RawLevel3QuizItem[]>(() => url)
-    if (rawData.value) {
-      return adaptLevel3Quiz(rawData.value)
-    }
-  }
-  return []
-}
-
-// 处理答题
-function handleAnswer(questionNumber: number, answer: string, isCorrect: boolean) {
-  console.log(`[StepThreeView] 第${questionNumber}题作答: ${answer}, 正确: ${isCorrect}`)
-  
-  // 标记为已完成
-  if (!completedQuizzes.value.includes(questionNumber)) {
-    completedQuizzes.value.push(questionNumber)
-  }
-  
-  // 更新当前索引
-  const currentIndex = quizConfigs.value.findIndex(c => c.questionNumber === questionNumber)
-  if (currentIndex !== -1) {
-    currentQuizIndex.value = currentIndex + 1
-  }
-}
-
-// 处理完成
-function handleComplete(results: { questionNumber: number; answer: string; isCorrect: boolean }[]) {
-  console.log('[StepThreeView] 所有测验完成:', results)
-  completedQuizzes.value = results.map(r => r.questionNumber)
-}
-
-// 处理错误
-function handleQuizError(error: string) {
-  console.error('[StepThreeView] 测验错误:', error)
+  console.log(
+    `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}`,
+  )
 }
 
 // 导航函数包装
@@ -264,18 +237,50 @@ function handleGoPrev() {
   goPrev(router)
 }
 
-// 组件挂载时加载配置
+// 监听 textId 变化，重置进度
+watch(textId, () => {
+  console.log(`[StepThreeView] textId 变化，重置进度`)
+  resetProgress()
+})
+
+// 组件挂载时初始化
 onMounted(() => {
-  loadQuizConfigs()
+  console.log('[StepThreeView] 页面加载:', textId.value)
 })
 </script>
 
 <style scoped>
 .stepthree-view {
   padding: 1rem;
-  max-width: 1200px;
+  max-width: 800px;
   margin: 0 auto;
   padding-bottom: 5rem;
+}
+
+/* 题目列表 */
+.quiz-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.quiz-item {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.quiz-item.hidden {
+  display: none;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 页面标题 */
@@ -334,53 +339,87 @@ onMounted(() => {
   text-align: right;
 }
 
-/* 测验网格 */
-.quiz-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .quiz-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .quiz-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* 测验卡片 */
-.quiz-card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-  animation: fadeInUp 0.5s ease forwards;
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-@keyframes fadeInUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.quiz-card.completed {
-  border: 2px solid #22c55e;
-}
-
-.quiz-card-header {
+/* 加载状态 */
+.loading-state {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
+  justify-content: center;
+  min-height: 300px;
+  padding: 2rem;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #667eea;
+}
+
+.loading-spinner i {
+  font-size: 2rem;
+}
+
+/* 错误状态 */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 2rem;
+  background: #fef2f2;
+  border-radius: 1rem;
+}
+
+.error-icon {
+  font-size: 2rem;
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  margin: 0 0 1rem 0;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.error-retry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* 情景文本 */
+.scenario-text {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 1rem;
+  border-left: 4px solid #f59e0b;
+}
+
+.scenario-text p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #78350f;
+}
+
+/* 题目头部 */
+.quiz-header {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0.75rem 1rem;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 0.75rem 0.75rem 0 0;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -390,34 +429,42 @@ onMounted(() => {
   color: #374151;
 }
 
-.quiz-status {
-  font-size: 0.75rem;
+/* 完成状态 */
+.complete-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border-radius: 1rem;
+  margin-top: 1.5rem;
 }
 
-.quiz-status.completed {
-  color: #22c55e;
+.complete-icon {
+  width: 64px;
+  height: 64px;
+  background: #22c55e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2rem;
+  margin-bottom: 1rem;
 }
 
-.quiz-status.current {
-  color: #667eea;
-  animation: pulse 1.5s infinite;
+.complete-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #166534;
 }
 
-.quiz-status:not(.completed):not(.current) {
-  color: #9ca3af;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.quiz-card-content {
-  padding: 0;
+.complete-stats {
+  margin: 0;
+  font-size: 1rem;
+  color: #15803d;
 }
 
 /* 空状态 */
@@ -454,23 +501,13 @@ onMounted(() => {
   .stepthree-view {
     padding: 0.75rem;
   }
-  
+
   .page-header {
     padding: 1rem;
   }
-  
+
   .page-title {
     font-size: 1.25rem;
-  }
-  
-  .quiz-card-header {
-    padding: 0.75rem 1rem;
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1023px) {
-  .quiz-grid {
-    gap: 1rem;
   }
 }
 </style>

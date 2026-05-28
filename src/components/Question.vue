@@ -165,8 +165,10 @@ async function submitAnswer() {
 
     isCorrect.value = compareAnswers()
     isSubmitted.value = true
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof ApiError) {
+      submitError.value = error.message
+    } else if (error instanceof Error) {
       submitError.value = error.message
     } else {
       submitError.value = '提交失败'

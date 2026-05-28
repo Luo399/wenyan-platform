@@ -104,11 +104,13 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string): 
 
   /**
    * 跳转到下一页（需要传入router）
+   * 如果已是最后一页，则返回首页
    */
   function goNext(router: Router) {
     const path = nextPath.value
     if (!path) {
-      debugWarn('已是最后一页')
+      // 最后一页，返回首页
+      router.push('/')
       return
     }
     router.push(path)

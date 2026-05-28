@@ -22,7 +22,10 @@
             :class="{
               selected: selectedAnswer === option.label,
               correct: showResult && option.label === currentQuiz?.correctAnswer,
-              wrong: showResult && selectedAnswer === option.label && option.label !== currentQuiz?.correctAnswer
+              wrong:
+                showResult &&
+                selectedAnswer === option.label &&
+                option.label !== currentQuiz?.correctAnswer,
             }"
             :disabled="submitted"
             @click="selectOption(option.label)"
@@ -55,11 +58,7 @@
           <i class="fas fa-check"></i>
           提交答案
         </button>
-        <button
-          v-else
-          class="next-btn"
-          @click="handleNext"
-        >
+        <button v-else class="next-btn" @click="handleNext">
           <i class="fas fa-arrow-right"></i>
           {{ hasNext ? '下一题' : '完成' }}
         </button>
@@ -113,7 +112,7 @@ interface Props {
   correct_answer?: string
   explanation?: string
   question_type?: string
-  
+
   // 兼容旧版命名
   textId?: string
   level?: 'level1' | 'level2' | 'level3'
@@ -154,24 +153,25 @@ const isBlockMode = computed(() => {
 // 从props转换为QuizItem格式
 const quizFromProps = computed<QuizItem | null>(() => {
   if (!isBlockMode.value) return null
-  
+
   return {
     textId: props.text_id || props.textId || '',
-    questionNumber: typeof props.question_number === 'number' 
-      ? props.question_number 
-      : parseInt(String(props.question_number)) || 1,
+    questionNumber:
+      typeof props.question_number === 'number'
+        ? props.question_number
+        : parseInt(String(props.question_number)) || 1,
     questionText: props.question_text || '',
     options: [
       { label: 'A', value: props.option_a || '' },
       { label: 'B', value: props.option_b || '' },
       { label: 'C', value: props.option_c || '' },
-      { label: 'D', value: props.option_d || '' }
-    ].filter(opt => opt.value.trim() !== ''),
+      { label: 'D', value: props.option_d || '' },
+    ].filter((opt) => opt.value.trim() !== ''),
     audioFile: props.audio_file || null,
     difficulty: props.difficulty || 'L2',
     correctAnswer: props.correct_answer || null,
     explanation: props.explanation || '',
-    questionType: props.question_type || 'radio'
+    questionType: props.question_type || 'radio',
   }
 })
 
@@ -213,7 +213,7 @@ async function loadData() {
   if (isBlockMode.value) {
     return
   }
-  
+
   if (!props.autoLoad) return
 
   isLoading.value = true
@@ -221,7 +221,7 @@ async function loadData() {
 
   try {
     const url = `/data/${props.level}_quiz/${props.textId}.json`
-    
+
     if (props.level === 'level1') {
       const { data: rawData, error: loadError } = useDataLoader<RawLevel1QuizItem[]>(() => url)
       if (loadError.value) throw new Error(`数据加载失败: ${loadError.value}`)
@@ -266,7 +266,7 @@ function submitAnswer() {
   results.value.push({
     quiz: currentQuiz.value,
     answer: selectedAnswer.value,
-    isCorrect
+    isCorrect,
   })
 
   showResult.value = true
@@ -289,14 +289,17 @@ function handleRetry() {
   loadData()
 }
 
-watch(() => props.questionNumber, () => {
-  if (quizzes.value.length > 0) {
-    const index = quizzes.value.findIndex(q => q.questionNumber === props.questionNumber)
-    if (index !== -1) {
-      currentIndex.value = index
+watch(
+  () => props.questionNumber,
+  () => {
+    if (quizzes.value.length > 0) {
+      const index = quizzes.value.findIndex((q) => q.questionNumber === props.questionNumber)
+      if (index !== -1) {
+        currentIndex.value = index
+      }
     }
-  }
-})
+  },
+)
 
 onMounted(() => {
   loadData()
@@ -312,7 +315,7 @@ defineExpose({
     }
   },
   currentIndex,
-  totalQuestions: computed(() => quizzes.value.length)
+  totalQuestions: computed(() => quizzes.value.length),
 })
 </script>
 

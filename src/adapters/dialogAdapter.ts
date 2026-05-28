@@ -31,7 +31,7 @@ export function adaptDialogData(rawData: RawDialogItem[] | null): ProcessedDialo
   }
 
   return rawData
-    .filter(item => item && item.text_id === 'WEN_01')
+    .filter(item => item && item.text_id)
     .map(item => ({
       textId: item.text_id || '',
       dialogText: item.pre_dialog || '',

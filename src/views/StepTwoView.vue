@@ -45,6 +45,8 @@
           v-for="(block, index) in pageConfig.blocks"
           :key="`${block.type}-${index}`"
           :block="block"
+          :show="isQuizBlockVisible(index)"
+          @quiz-submitted="handleQuizSubmitted"
         />
       </div>
     </template>
@@ -59,11 +61,11 @@
       </div>
     </div>
 
-    <!-- 底部导航按钮 -->
+    <!-- 底部导航按钮（全程显示返回，完成所有 quiz 后显示继续） -->
     <BackContinue
       v-if="showNavigation"
+      :show-continue="allQuizzesSubmitted"
       back-text="返回"
-      continue-text="继续"
       @back="handleGoPrev"
       @continue="handleGoNext"
     />
@@ -77,6 +79,7 @@ import BlockRenderer from '@/components/BlockRenderer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { useQuizProgress } from '@/composables/useQuizProgress'
 import type { PageConfig } from '@/types/pageConfig'
 
 const route = useRoute()
@@ -96,13 +99,93 @@ const wenId = computed(() => {
 })
 
 // 页面配置URL
-const pageUrl = computed(() => `/data/pages/${wenId.value}.json`)
+const pageUrl = computed(() => `/data/pages_level2_dialog_quiz/${wenId.value}.json`)
 
 // 使用数据加载器获取页面配置
 const { data: pageConfig, loading, error, retry } = useDataLoader<PageConfig>(() => pageUrl.value)
 
 // 是否显示导航按钮
 const showNavigation = computed(() => !loading.value && !error.value && pageConfig.value)
+
+// 统计所有 quiz 块的数量（Ref类型，支持响应式更新）
+const totalQuizCount = ref(0)
+
+// 监听 pageConfig 变化，更新 quiz 数量
+watch(
+  () => pageConfig.value,
+  (config) => {
+    const count = config?.blocks.filter((b) => b.type === 'quiz').length || 0
+    totalQuizCount.value = count
+    console.log(`[StepTwoView] quiz数量更新: ${count}`)
+  },
+  { immediate: true, deep: true },
+)
+
+// 使用 useQuizProgress Composable 管理测验进度
+// 传入 wenId 作为 completionKeyPrefix，确保不同课文的完成记录相互独立
+const {
+  currentIndex,
+  completedCount,
+  isCompleted,
+  hasCompletionRecord,
+  handleSubmit: handleQuizSubmit,
+  resetProgress,
+} = useQuizProgress(
+  totalQuizCount,
+  (questionIndex, answer, isCorrect) => {
+    console.log(`[StepTwoView] 第 ${questionIndex + 1} 题提交，答案: ${answer}，正确: ${isCorrect}`)
+  },
+  wenId.value,
+)
+
+// 获取所有 quiz 块的索引列表
+const quizBlockIndices = computed(() => {
+  return (
+    pageConfig.value?.blocks
+      .map((block, index) => (block.type === 'quiz' ? index : -1))
+      .filter((index) => index !== -1) || []
+  )
+})
+
+// 判断指定索引的 block 是否应该显示
+// 逻辑：以 quiz 块为分割点，显示当前允许的最后一个 quiz 及之前的所有块
+// currentIndex = 0: 显示第1个quiz及之前的所有内容
+// currentIndex = 1: 显示第2个quiz及之前的所有内容
+// ...
+function isQuizBlockVisible(blockIndex: number): boolean {
+  const quizIndices = quizBlockIndices.value
+
+  // 如果没有 quiz 块，显示所有内容
+  if (quizIndices.length === 0) return true
+
+  // 当前允许显示到第 currentIndex 个 quiz（currentIndex 从 0 开始）
+  const currentQuizIndex = currentIndex.value
+
+  // 如果所有 quiz 都已解锁，显示所有内容
+  if (currentQuizIndex >= quizIndices.length) {
+    return true
+  }
+
+  // 获取当前已解锁的最后一个 quiz 的位置
+  const lastUnlockedQuizPosition = quizIndices[currentQuizIndex] ?? Infinity
+
+  // 显示该位置及之前的所有块（包括当前quiz）
+  return blockIndex <= lastUnlockedQuizPosition
+}
+
+// 是否所有 quiz 都已提交（或没有 quiz）
+const allQuizzesSubmitted = computed(() => {
+  // 如果数据还没加载或没有 quiz，直接显示继续按钮
+  if (!pageConfig.value || totalQuizCount.value === 0) return true
+  return isCompleted.value
+})
+
+// 处理 quiz 提交事件（适配原事件名）
+function handleQuizSubmitted() {
+  // 调用 useQuizProgress 的 handleSubmit
+  handleQuizSubmit(completedCount.value)
+  console.log(`[StepTwoView] Quiz 已提交，当前完成数: ${completedCount.value}`)
+}
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('steptwo', poemId.value)
@@ -116,9 +199,10 @@ function handleGoPrev() {
   goPrev(router)
 }
 
-// 监听wenId变化，重新加载
+// 监听 wenId 变化，重置进度
 watch(wenId, () => {
-  // useDataLoader会自动响应pageUrl的变化
+  console.log(`[StepTwoView] wenId 变化，重置进度`)
+  resetProgress()
 })
 
 onMounted(() => {
@@ -271,7 +355,7 @@ onMounted(() => {
   .steptwo-view {
     padding: 0.75rem;
   }
-  
+
   .page-title {
     font-size: 1.25rem;
   }

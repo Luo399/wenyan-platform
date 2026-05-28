@@ -180,7 +180,7 @@ async function loadData() {
   error.value = null
 
   try {
-    const url = `/data/level2_dialog/WEN_01.json`
+    const url = `/data/level2_dialog/${props.textId}.json`
     const { data: rawData, error: loadError } = useDataLoader<RawDialogItem[]>(() => url)
 
     if (loadError.value) {
