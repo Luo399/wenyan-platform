@@ -47,6 +47,7 @@
           :block="block"
           :show="isQuizBlockVisible(index)"
           @quiz-submitted="handleQuizSubmitted"
+          @quiz-answer="handleQuizAnswer"
         />
       </div>
     </template>
@@ -180,10 +181,15 @@ const allQuizzesSubmitted = computed(() => {
   return isCompleted.value
 })
 
-// 处理 quiz 提交事件（适配原事件名）
+// 处理 quiz 答案事件（接收用户答案）
+function handleQuizAnswer(event: { quiz: unknown; answer: string; isCorrect: boolean }) {
+  // 调用 useQuizProgress 的 handleSubmit，传递用户答案
+  handleQuizSubmit(event.answer, event.isCorrect)
+  console.log(`[StepTwoView] Quiz 答案提交: 答案=${event.answer}, 是否正确=${event.isCorrect}`)
+}
+
+// 处理 quiz 提交事件（适配原事件名，仅用于触发后续逻辑）
 function handleQuizSubmitted() {
-  // 调用 useQuizProgress 的 handleSubmit，传递当前题目索引
-  handleQuizSubmit(currentIndex.value)
   console.log(`[StepTwoView] Quiz 已提交，当前题目索引: ${currentIndex.value}`)
 }
 
