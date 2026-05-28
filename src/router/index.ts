@@ -6,6 +6,9 @@ import RuleView1 from '@/views/RuleView1.vue'
 import RuleView2 from '@/views/RuleView2.vue'
 import RuleView3 from '@/views/RuleView3.vue'
 import StepOneView from '@/views/StepOneView.vue'
+import StepThreeView from '@/views/StepThreeView.vue'
+import StepTwoView from '@/views/StepTwoView.vue'
+import BlockDemoView from '@/views/BlockDemoView.vue'
 
 export const routes = [
   {
@@ -37,6 +40,21 @@ export const routes = [
     path: '/rule3/:id',
     name: 'rule3',
     component: RuleView3,
+  },
+  {
+    path: '/stepthree/:id',
+    name: 'stepthree',
+    component: StepThreeView,
+  },
+  {
+    path: '/steptwo/:id',
+    name: 'steptwo',
+    component: StepTwoView,
+  },
+  {
+    path: '/block-demo',
+    name: 'block-demo',
+    component: BlockDemoView,
   },
   {
     path: '/detail/:id',

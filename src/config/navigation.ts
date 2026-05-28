@@ -42,7 +42,7 @@
  */
 
 // 页面路由名称定义
-export type RouteName = 'home' | 'rules' | 'stepone' | 'rule1' | 'rule2' | 'rule3' | 'detail'
+export type RouteName = 'home' | 'rules' | 'stepone' | 'rule1' | 'rule2' | 'rule3' | 'steptwo' | 'stepthree' | 'detail'
 
 // 页面配置接口
 export interface PageConfig {
@@ -78,6 +78,14 @@ export const pageSequence: PageConfig[] = [
   {
     name: 'rule3',
     getPath: (id) => `/rule3/${id || '1'}`,
+  },
+  {
+    name: 'stepthree',
+    getPath: (id) => `/stepthree/${id || '1'}`,
+  },
+  {
+    name: 'steptwo',
+    getPath: (id) => `/steptwo/${id || '1'}`,
   },
   {
     name: 'detail',
@@ -143,6 +151,14 @@ export const idTransformMap: Record<RouteName, (id: string) => string | null> = 
     return id || null
   },
   rule3: (id) => {
+    // poemId 不变
+    return id || null
+  },
+  stepthree: (id) => {
+    // poemId 不变
+    return id || null
+  },
+  steptwo: (id) => {
     // poemId 不变
     return id || null
   },
