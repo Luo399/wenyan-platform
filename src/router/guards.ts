@@ -11,15 +11,11 @@ import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-r
 import { useAuthStore } from '@/stores/auth'
 
 /**
- * 需要登录的路由列表
- */
-const protectedRoutes = ['stepone', 'steptwo', 'stepthree']
-
-/**
  * 检查路由是否需要登录
+ * 使用路由元信息中的requiresAuth标记
  */
-function requiresAuth(routeName: string): boolean {
-  return protectedRoutes.includes(routeName)
+function requiresAuth(to: RouteLocationNormalized): boolean {
+  return !!to.meta.requiresAuth
 }
 
 /**
@@ -35,11 +31,10 @@ export function setupAuthGuard(router: Router): void {
       const authStore = useAuthStore()
 
       // 检查是否需要登录
-      if (requiresAuth(to.name as string) && !authStore.isLoggedIn) {
+      if (requiresAuth(to) && !authStore.isLoggedIn) {
         console.log('[AuthGuard] 需要登录，触发登录弹窗')
         
         // 在路由元信息中标记需要登录
-        to.meta.requiresAuth = true
         to.meta.showLoginModal = true
         
         // 允许访问但标记需要登录

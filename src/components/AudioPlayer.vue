@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { debugWarn } from '@/utils/debug'
 
 // ============================================================
@@ -193,6 +193,16 @@ function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60)
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
+
+/**
+ * 组件卸载时清理音频资源
+ */
+onUnmounted(() => {
+  if (audioRef.value) {
+    audioRef.value.pause()
+    audioRef.value.src = ''
+  }
+})
 </script>
 
 <style scoped>

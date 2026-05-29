@@ -1,6 +1,6 @@
 /**
  * 用户认证状态管理
- * 
+ *
  * 功能：
  * - 管理用户登录状态
  * - 处理 JWT token 的存储和验证
@@ -58,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
         console.log('[AuthStore] 从 localStorage 恢复登录状态')
       } catch (e) {
         console.error('[AuthStore] 解析保存的用户信息失败:', e)
+        error.value = '登录状态已过期，请重新登录'
         clearAuthData()
       }
     }
@@ -78,9 +79,9 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ student_id: studentId, student_name: studentName })
+        body: JSON.stringify({ student_id: studentId, student_name: studentName }),
       })
 
       const data = await response.json()
@@ -90,18 +91,19 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // 保存 token 和用户信息
-      token.value = data.data?.token || data.token
-      const userData = data.data?.user || data.user
-      
+      const result = data.data || data
+      token.value = result.token
+      const userData = result.user
+
       if (!userData) {
         throw new Error('登录成功但未返回用户信息')
       }
-      
+
       user.value = {
         id: userData.id,
         username: userData.username || userData.name || studentName || studentId,
         studentId: userData.student_id || userData.studentId || studentId,
-        role: userData.role || 'student'
+        role: userData.role || 'student',
       }
 
       // 持久化到 localStorage
@@ -111,6 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.log('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
+      clearAuthData()
       throw err
     } finally {
       isLoading.value = false
@@ -138,8 +141,8 @@ export const useAuthStore = defineStore('auth', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token.value}`
-        }
+          Authorization: `Bearer ${token.value}`,
+        },
       })
 
       const data = await response.json()
@@ -210,6 +213,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refreshToken,
     isTokenExpired,
-    clearError
+    clearError,
   }
 })

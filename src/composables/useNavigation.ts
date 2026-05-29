@@ -35,7 +35,7 @@ export interface NavigationResult {
   prevPath: ComputedRef<string | null>
   goNext: (router: Router) => void
   goPrev: (router: Router) => void
-  goTo: (router: Router, routeName: RouteName, id?: string) => void
+  goTo: (router: Router, routeName: RouteName, id?: string) => boolean
   currentIndex: ComputedRef<number>
   hasNext: ComputedRef<boolean>
   hasPrev: ComputedRef<boolean>
@@ -130,16 +130,18 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string): 
 
   /**
    * 跳转到指定页面（需要传入router）
+   * @returns 是否跳转成功
    */
-  function goTo(router: Router, routeName: RouteName, id?: string) {
+  function goTo(router: Router, routeName: RouteName, id?: string): boolean {
     const page = pageSequence.find((p) => p.name === routeName)
     if (!page) {
       debugError(`页面 ${routeName} 不存在`)
-      return
+      return false
     }
     const targetId = id ?? getTargetId(routeName)
     const path = page.getPath(targetId)
     router.push(path)
+    return true
   }
 
   return {

@@ -72,15 +72,40 @@ export interface Level1QuizData {
 }
 
 /**
+ * 对话块内容
+ */
+interface DialogBlockContent {
+  speaker: string
+  text: string
+  audio_file?: string
+}
+
+/**
+ * 测验块内容
+ */
+interface QuizBlockContent {
+  question: string
+  options: string[]
+  correct_answer: number | string
+}
+
+/**
  * 二级对话数据
  */
 export interface Level2DialogData {
   text_id: string
-  blocks: Array<{
-    block_id: string
-    block_type: 'dialog' | 'quiz'
-    content: any
-  }>
+  blocks: Array<
+    | {
+        block_id: string
+        block_type: 'dialog'
+        content: DialogBlockContent
+      }
+    | {
+        block_id: string
+        block_type: 'quiz'
+        content: QuizBlockContent
+      }
+  >
 }
 
 /**
@@ -227,6 +252,19 @@ export async function getTextBatch(textIds: string[]): Promise<
 }
 
 /**
+ * 转换参数为查询字符串格式
+ */
+function toQueryParams(params: Record<string, any>): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const key in params) {
+    if (params[key] != null) {
+      result[key] = String(params[key])
+    }
+  }
+  return result
+}
+
+/**
  * 获取文本列表
  *
  * @param page 页码
@@ -246,7 +284,7 @@ export async function getTextList(
     }>
   }>
 > {
-  return get('/api/texts', { page: String(page), page_size: String(pageSize) })
+  return get('/api/texts', toQueryParams({ page, page_size: pageSize }))
 }
 
 // ============================================================
@@ -279,12 +317,31 @@ export function getLocalJsonPath(dataType: string, textId: string): string {
  *
  * @param dataType 数据类型
  * @param textId 文本ID
+ * @param timeout 超时时间（毫秒），默认5000
  */
-export async function getLocalData<T>(dataType: string, textId: string): Promise<T> {
+export async function getLocalData<T>(
+  dataType: string,
+  textId: string,
+  timeout = 5000,
+): Promise<T> {
   const path = getLocalJsonPath(dataType, textId)
-  const response = await fetch(path)
-  if (!response.ok) {
-    throw new Error(`无法加载本地数据: ${response.status} ${path}`)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const response = await fetch(path, { signal: controller.signal })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      throw new Error(`无法加载本地数据: ${response.status} ${response.statusText} - ${path}`)
+    }
+
+    return await response.json()
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`加载本地数据超时: ${path}`)
+    }
+    throw err
   }
-  return await response.json()
 }

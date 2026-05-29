@@ -121,7 +121,22 @@ function handleMouseMove(e: MouseEvent) {
     const def = target.getAttribute('data-def')
     if (def) {
       currentAnnotation.value = def
-      tooltipPosition.value = { x: e.clientX + 10, y: e.clientY + 10 }
+      
+      // 计算Tooltip位置并确保在视口内
+      const tooltipWidth = 200
+      const tooltipHeight = 60
+      let x = e.clientX + 10
+      let y = e.clientY + 10
+      
+      // 边界检查
+      if (x + tooltipWidth > window.innerWidth) {
+        x = e.clientX - tooltipWidth - 10
+      }
+      if (y + tooltipHeight > window.innerHeight) {
+        y = e.clientY - tooltipHeight - 10
+      }
+      
+      tooltipPosition.value = { x, y }
       showTooltip.value = true
       return
     }

@@ -22,7 +22,7 @@ export const poemMap: Record<string, { title: string }> = {
  * @returns 规范化的 wenId 格式
  */
 export function getWenId(id: string): string {
-  if (!id) return 'WEN_01'
+  if (!id || id.trim() === '') return 'WEN_01'
   if (id.startsWith('WEN_')) return id
   const num = parseInt(id, 10)
   if (isNaN(num)) return 'WEN_01'

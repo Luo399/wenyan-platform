@@ -11,8 +11,8 @@
  * // 生产环境返回: https://your-bucket.oss-cn-hangzhou.aliyuncs.com/audio/WEN_01_read_full.mp3
  */
 
-/** OSS 基础路径，从环境变量读取 */
-export const ossBase = import.meta.env.VITE_OSS_BASE_URL as string
+/** OSS 基础路径，从环境变量读取，默认使用当前域名 */
+export const ossBase = (import.meta.env.VITE_OSS_BASE_URL as string) || ''
 
 /**
  * 获取资源完整 URL
@@ -32,5 +32,11 @@ export const ossBase = import.meta.env.VITE_OSS_BASE_URL as string
  * getAssetUrl('video', 'WEN_01_intro.mp4')
  */
 export function getAssetUrl(type: 'audio' | 'images' | 'video', fileName: string): string {
-  return `${ossBase}/${type}/${fileName}`
+  if (!fileName) return ''
+  if (!ossBase) {
+    return `/${type}/${fileName}`
+  }
+  const base = ossBase.endsWith('/') ? ossBase.slice(0, -1) : ossBase
+  const path = type.startsWith('/') ? type : `/${type}`
+  return `${base}${path}/${fileName}`
 }

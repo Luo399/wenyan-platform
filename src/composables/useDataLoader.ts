@@ -74,6 +74,7 @@ interface UseDataLoaderOptions<T> {
   timeout?: number
   retryCount?: number
   cacheEnabled?: boolean
+  cacheTTL?: number // 缓存过期时间（毫秒），默认5分钟
   onLoadSuccess?: (data: T) => void
   onLoadError?: (error: string) => void
   transform?: (raw: unknown) => T // 数据转换函数
@@ -85,6 +86,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     timeout = 10000,
     retryCount = 1,
     cacheEnabled = false,
+    cacheTTL = 5 * 60 * 1000, // 默认5分钟
     onLoadSuccess,
     onLoadError,
     transform, // 数据转换函数
@@ -97,7 +99,11 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
   let abortController: AbortController | null = null
   let retryAttempts = 0
-  const cache = new Map<string, T>()
+  interface CacheEntry {
+    data: T
+    timestamp: number
+  }
+  const cache = new Map<string, CacheEntry>()
 
   async function load() {
     const url = urlGetter()
@@ -113,11 +119,18 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
     // 检查缓存
     if (cacheEnabled && cache.has(url)) {
-      data.value = cache.get(url)!
-      loading.value = false
-      diagLog('📦 从缓存获取数据')
-      onLoadSuccess?.(data.value)
-      return
+      const cachedEntry = cache.get(url)!
+      // 检查缓存是否过期
+      if (Date.now() - cachedEntry.timestamp < cacheTTL) {
+        data.value = cachedEntry.data
+        loading.value = false
+        diagLog('📦 从缓存获取数据')
+        onLoadSuccess?.(data.value)
+        return
+      }
+      // 缓存过期，删除
+      cache.delete(url)
+      diagLog('⏰ 缓存已过期，重新获取')
     }
 
     // 取消之前的请求
@@ -179,7 +192,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
       // 存入缓存
       if (cacheEnabled) {
-        cache.set(url, data.value)
+        cache.set(url, { data: data.value, timestamp: Date.now() })
       }
 
       const duration = Date.now() - startTime
@@ -203,11 +216,12 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
         diagLog('❌ 请求失败:', error.value, err)
       }
 
-      // 自动重试
+      // 自动重试（指数退避）
       if (!isTimeout.value && retryAttempts < retryCount) {
         retryAttempts++
-        debugLog(`[useDataLoader] 🔄 第 ${retryAttempts} 次重试...`)
-        setTimeout(() => load(), 1000)
+        const backoff = Math.min(Math.pow(2, retryAttempts) * 1000, 10000) // 指数退避，最大10秒
+        debugLog(`[useDataLoader] 🔄 第 ${retryAttempts} 次重试，等待 ${backoff}ms...`)
+        setTimeout(() => load(), backoff)
         return
       }
 

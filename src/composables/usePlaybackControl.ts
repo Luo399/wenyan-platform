@@ -14,6 +14,7 @@ export interface UsePlaybackControlOptions {
   onPlay?: () => void
   onPause?: () => void
   onSeek?: (time: number) => void
+  autoPlayOnSeek?: boolean // seek后是否自动播放，默认true
 }
 
 export interface UsePlaybackControlReturn {
@@ -71,7 +72,7 @@ export function usePlaybackControl(
   }
 
   /**
-   * 跳转到指定时间并播放
+   * 跳转到指定时间
    * @param time - 目标时间（秒）
    */
   function seekTo(time: number) {
@@ -80,8 +81,8 @@ export function usePlaybackControl(
     audioRef.value.currentTime = time
     options.onSeek?.(time)
 
-    // 如果当前不是播放状态，则开始播放
-    if (!isPlaying.value) {
+    // 如果当前不是播放状态且配置了自动播放，则开始播放
+    if (options.autoPlayOnSeek !== false && !isPlaying.value) {
       play()
     }
   }

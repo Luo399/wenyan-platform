@@ -267,6 +267,7 @@ function handleSegmentToggle(startTime: number) {
  */
 function playFromTime(startTime: number) {
   seekTo(startTime)
+  play() // 确保播放
 }
 
 function handleSeek(event: Event) {
@@ -302,7 +303,8 @@ onMounted(() => {
   }
 })
 
-watch(multiRoleData, (newData) => {
+// 保存watch引用以便清理
+const multiRoleDataWatch = watch(multiRoleData, (newData) => {
   if (newData) {
     setupAudio()
   }
@@ -313,6 +315,8 @@ onUnmounted(() => {
     audioRef.value.pause()
     audioRef.value.src = ''
   }
+  // 清理watch
+  multiRoleDataWatch()
 })
 
 defineExpose({

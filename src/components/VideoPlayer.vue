@@ -363,9 +363,8 @@ onMounted(() => {
  */
 onUnmounted(() => {
   if (videoRef.value) {
-    // 暂停视频即可，不需要清空 src 或调用 load()
-    // 页面导航时清空 src 会导致浏览器中止加载，产生 ERR_ABORTED 错误
     videoRef.value.pause()
+    videoRef.value.src = ''
   }
 })
 

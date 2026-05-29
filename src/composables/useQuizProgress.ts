@@ -127,7 +127,7 @@ export function useQuizProgress(
   const progressPercent = computed(() => {
     if (totalQuestionsRef.value === 0) return 0
     const percent = (completedCount.value / totalQuestionsRef.value) * 100
-    return Math.round(percent)
+    return Math.min(Math.round(percent), 100)
   })
 
   /**

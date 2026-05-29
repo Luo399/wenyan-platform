@@ -22,7 +22,7 @@ export const useStudentStore = defineStore('student', () => {
   // ============================================================
 
   /** 是否已登录（有学号） */
-  const isLoggedIn = computed(() => studentId.value.length === 4)
+  const isLoggedIn = computed(() => studentId.value.length > 0)
 
   /** 格式化显示的学号（如：1234 -> 学号: 1234） */
   const displayId = computed(() => (studentId.value ? `学号: ${studentId.value}` : ''))
@@ -32,10 +32,23 @@ export const useStudentStore = defineStore('student', () => {
   // ============================================================
 
   /**
+   * 验证学号格式
+   * @param id - 学号
+   * @returns 是否有效
+   */
+  function isValidStudentId(id: string): boolean {
+    return id && /^\d{4}$/.test(id)
+  }
+
+  /**
    * 设置学号
    * @param id - 4位学号
    */
   function setStudentId(id: string) {
+    if (!isValidStudentId(id)) {
+      console.warn(`[StudentStore] 无效的学号格式: ${id}`)
+      return
+    }
     studentId.value = id
     // 持久化到 localStorage
     localStorage.setItem('studentId', id)
@@ -55,8 +68,7 @@ export const useStudentStore = defineStore('student', () => {
    */
   function restoreFromStorage() {
     const saved = localStorage.getItem('studentId')
-    // 验证格式：必须为4位数字
-    if (saved && /^\d{4}$/.test(saved)) {
+    if (isValidStudentId(saved)) {
       studentId.value = saved
     }
   }

@@ -17,6 +17,17 @@ const fs = require('fs')
 const app = express()
 const PORT = process.env.PORT || 3000
 
+/**
+ * 安全解析JSON的辅助函数
+ */
+function safeParse(str) {
+  try {
+    return JSON.parse(str)
+  } catch {
+    return str
+  }
+}
+
 // ============================================================
 // 中间件配置
 // ============================================================
@@ -348,8 +359,8 @@ app.get('/api/texts/:textId/level3-adaptive-quiz', (req, res) => {
  * GET /api/texts?page=1&page_size=20
  */
 app.get('/api/texts', (req, res) => {
-  const page = parseInt(req.query.page) || 1
-  const pageSize = parseInt(req.query.page_size) || 20
+  const page = isNaN(parseInt(req.query.page)) ? 1 : Math.max(1, Math.abs(parseInt(req.query.page)))
+  const pageSize = isNaN(parseInt(req.query.page_size)) ? 20 : Math.min(100, Math.max(1, Math.abs(parseInt(req.query.page_size))))
 
   // 扫描text_basic_info目录，获取所有可用文本
   const texts = []
@@ -564,7 +575,7 @@ app.post('/api/students', (req, res) => {
  */
 app.post('/api/submit', (req, res) => {
   try {
-    const { studentId, studentName, wenId, submittedAt, answers, questions } = req.body
+    const { studentId, studentName, wenId, submittedAt, answers, questions = [] } = req.body
 
     // 验证必填字段
     if (!studentId || !wenId || !submittedAt || !answers) {
@@ -656,8 +667,8 @@ app.post('/api/submit', (req, res) => {
               wenId,
               studentId,
               question.id,
-              JSON.stringify(userAnswer),
-              JSON.stringify(correctAnswer),
+              JSON.stringify(userAnswer ?? null),
+              JSON.stringify(correctAnswer ?? null),
               isCorrect,
               score,
               submittedAt,
@@ -776,8 +787,8 @@ app.get('/api/answers/wen/:wenId', (req, res) => {
         stat.totalScore += row.score
         stat.answers.push({
           questionId: row.question_id,
-          userAnswer: JSON.parse(row.user_answer),
-          correctAnswer: row.correct_answer ? JSON.parse(row.correct_answer) : null,
+          userAnswer: safeParse(row.user_answer),
+          correctAnswer: row.correct_answer ? safeParse(row.correct_answer) : null,
           isCorrect: row.is_correct === 1,
           score: row.score,
           submittedAt: row.submitted_at,
@@ -863,8 +874,8 @@ app.get('/api/answers/student/:studentId', (req, res) => {
         stat.totalScore += row.score
         stat.answers.push({
           questionId: row.question_id,
-          userAnswer: JSON.parse(row.user_answer),
-          correctAnswer: row.correct_answer ? JSON.parse(row.correct_answer) : null,
+          userAnswer: safeParse(row.user_answer),
+          correctAnswer: row.correct_answer ? safeParse(row.correct_answer) : null,
           isCorrect: row.is_correct === 1,
           score: row.score,
           submittedAt: row.submitted_at,
@@ -1048,16 +1059,24 @@ app.post('/api/auth/login', (req, res) => {
  * 生成JWT token（简化版）
  */
 function generateToken(studentId, username) {
+  const crypto = require('crypto')
+  
   const payload = {
     sub: studentId,
     username: username,
-    exp: Math.floor(Date.now() / 1000) + 3600, // 1小时过期
+    exp: Math.floor(Date.now() / 1000) + 3600,
     role: 'student',
   }
 
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64')
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64')
-  const signature = 'wenyan_platform_signature' // 简化签名
+  const secret = process.env.JWT_SECRET || 'wenyan_platform_2026_secret_key'
+  
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  
+  const data = `${header}.${encodedPayload}`
+  const signature = crypto.createHmac('sha256', secret)
+    .update(data)
+    .digest('base64url')
 
   return `${header}.${encodedPayload}.${signature}`
 }
