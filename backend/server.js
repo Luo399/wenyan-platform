@@ -13,6 +13,7 @@ const express = require('express')
 const cors = require('cors')
 const sqlite3 = require('sqlite3').verbose()
 const fs = require('fs')
+const crypto = require('crypto')
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -1059,8 +1060,6 @@ app.post('/api/auth/login', (req, res) => {
  * 生成JWT token（简化版）
  */
 function generateToken(studentId, username) {
-  const crypto = require('crypto')
-  
   const payload = {
     sub: studentId,
     username: username,
