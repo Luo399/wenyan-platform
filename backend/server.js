@@ -104,23 +104,7 @@ function createIndexes() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_wen_student ON answer_records(wen_id, student_id)`)
 }
 
-// 确保表存在 - 学生表
-db.run(
-  `
-  CREATE TABLE IF NOT EXISTS students (
-    student_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )
-`,
-  (err) => {
-    if (err) {
-      console.error('创建学生表失败:', err.message)
-    }
-  },
-)
-
-// 确保表存在 - 答题情况表（第二次定义，确保索引创建）
+// 确保表存在 - 答题情况表（创建成功后创建索引）
 db.run(
   `
   CREATE TABLE IF NOT EXISTS answer_records (
