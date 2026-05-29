@@ -1,0 +1,14 @@
+{
+  "pageId": "WEN_02",
+  "blocks": [
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_02",
+        "pre_dialog": null,
+        "audio_file": null,
+        "icon_dialog": null
+      }
+    }
+  ]
+}

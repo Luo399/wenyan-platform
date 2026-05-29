@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>答题管理后台</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f5f5f5;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #3b82f6;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .search-box input {
+      padding: 0.75rem 1rem;
+      border: 1px solid #ddd;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-box button {
+      padding: 0.75rem 1.5rem;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .search-box button:hover {
+      background-color: #2563eb;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card h3 {
+      color: #666;
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .records-table {
+      background: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: #f9fafb;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    tr:hover {
+      background-color: #f9fafb;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-pass {
+      background-color: #dcfce7;
+      color: #16a34a;
+    }
+
+    .badge-fail {
+      background-color: #fee2e2;
+      color: #dc2626;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+
+    .error {
+      background-color: #fef2f2;
+      color: #dc2626;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>答题管理后台</h1>
+
+    <div class="search-box">
+      <input type="text" id="studentIdInput" placeholder="请输入学号（4位数字）" maxlength="4">
+      <button onclick="searchRecords()">查询</button>
+    </div>
+
+    <div class="stats" id="statsContainer" style="display: none;">
+      <div class="stat-card">
+        <h3>总答题数</h3>
+        <div class="value" id="totalCount">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>通过数</h3>
+        <div class="value" id="passCount">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>通过率</h3>
+        <div class="value" id="passRate">0%</div>
+      </div>
+      <div class="stat-card">
+        <h3>平均得分</h3>
+        <div class="value" id="avgScore">0</div>
+      </div>
+    </div>
+
+    <div id="errorContainer"></div>
+
+    <div class="records-table">
+      <div id="loadingState" class="loading" style="display: none;">加载中...</div>
+      <div id="emptyState" class="empty-state" style="display: none;">暂无数据</div>
+      <div id="tableContainer" style="display: none;">
+        <table>
+          <thead>
+            <tr>
+              <th>学号</th>
+              <th>课文ID</th>
+              <th>题目ID</th>
+              <th>用户答案</th>
+              <th>正确答案</th>
+              <th>得分</th>
+              <th>提交时间</th>
+            </tr>
+          </thead>
+          <tbody id="recordsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API 基础地址
+    const API_BASE = window.location.origin;
+
+    /**
+     * 查询学生答题记录
+     */
+    async function searchRecords() {
+      const studentId = document.getElementById('studentIdInput').value.trim();
+
+      // 验证学号格式
+      if (!/^\d{4}$/.test(studentId)) {
+        showError('请输入有效的4位数字学号');
+        return;
+      }
+
+      hideError();
+      showLoading();
+
+      try {
+        const response = await fetch(`${API_BASE}/api/answers/${studentId}`);
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.message || '查询失败');
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.data && data.data.length > 0) {
+          displayRecords(data.data);
+        } else {
+          showEmpty();
+        }
+      } catch (error) {
+        showError(error.message || '网络错误，请稍后重试');
+        hideTable();
+      } finally {
+        hideLoading();
+      }
+    }
+
+    /**
+     * 显示答题记录
+     */
+    function displayRecords(records) {
+      // 显示统计信息
+      document.getElementById('statsContainer').style.display = 'grid';
+
+      const totalCount = records.length;
+      const passCount = records.filter(r => r.score > 0).length;
+      const passRate = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
+      const avgScore = Math.round(records.reduce((sum, r) => sum + r.score, 0) / totalCount);
+
+      document.getElementById('totalCount').textContent = totalCount;
+      document.getElementById('passCount').textContent = passCount;
+      document.getElementById('passRate').textContent = passRate + '%';
+      document.getElementById('avgScore').textContent = avgScore;
+
+      // 显示表格
+      const tbody = document.getElementById('recordsBody');
+      tbody.innerHTML = records.map(record => `
+        <tr>
+          <td>${record.student_id}</td>
+          <td>${record.wen_id}</td>
+          <td>${record.question_id}</td>
+          <td>${formatAnswer(record.user_answer)}</td>
+          <td>${formatAnswer(record.correct_answer)}</td>
+          <td>
+            <span class="badge ${record.score > 0 ? 'badge-pass' : 'badge-fail'}">
+              ${record.score}
+            </span>
+          </td>
+          <td>${new Date(record.submitted_at).toLocaleString('zh-CN')}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('tableContainer').style.display = 'block';
+      document.getElementById('emptyState').style.display = 'none';
+    }
+
+    /**
+     * 格式化答案显示
+     */
+    function formatAnswer(answer) {
+      if (Array.isArray(answer)) {
+        return answer.join(', ');
+      }
+      return answer ?? '-';
+    }
+
+    /**
+     * 显示错误信息
+     */
+    function showError(message) {
+      document.getElementById('errorContainer').innerHTML = `
+        <div class="error">${message}</div>
+      `;
+      hideTable();
+      document.getElementById('statsContainer').style.display = 'none';
+    }
+
+    /**
+     * 隐藏错误信息
+     */
+    function hideError() {
+      document.getElementById('errorContainer').innerHTML = '';
+    }
+
+    /**
+     * 显示加载中
+     */
+    function showLoading() {
+      document.getElementById('loadingState').style.display = 'block';
+      document.getElementById('tableContainer').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'none';
+    }
+
+    /**
+     * 隐藏加载中
+     */
+    function hideLoading() {
+      document.getElementById('loadingState').style.display = 'none';
+    }
+
+    /**
+     * 显示空状态
+     */
+    function showEmpty() {
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('tableContainer').style.display = 'none';
+      document.getElementById('statsContainer').style.display = 'none';
+    }
+
+    /**
+     * 隐藏表格
+     */
+    function hideTable() {
+      document.getElementById('tableContainer').style.display = 'none';
+    }
+
+    // 回车键搜索
+    document.getElementById('studentIdInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchRecords();
+      }
+    });
+  </script>
+</body>
+</html>

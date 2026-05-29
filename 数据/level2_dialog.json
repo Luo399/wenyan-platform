@@ -1,0 +1,44 @@
+[
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "戍卒：二位屯长，冒昧来访，听完你们的话我才知道许多事情不是天意而是人为，我实在佩服你们的计谋。",
+    "audio_file": "WEN_01_multi_dialog1",
+    "icon_dialog": "WEN_01_icon_dialog1.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "陈胜：既然如此，你觉得我们起义前的一系列安排中，哪项最能体现我们二人的处事智慧？",
+    "audio_file": "WEN_01_multi_dialog2",
+    "icon_dialog": "WEN_01_icon_dialog2.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "吴广：答案是B。我们这些戍卒，年年服役，最信鬼神。帛书从鱼肚子里剖出来，狐狸在夜里叫“陈胜王”，谁不怕？谁不信？这不是装神弄鬼，是借人心所畏，聚人心所向。",
+    "audio_file": "WEN_01_multi_dialog3",
+    "icon_dialog": "WEN_01_icon_dialog3.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "陈胜：没错，A项“借名号”的真实目的是利用扶苏、项燕在民间的声望号召天下响应，而非吸引官兵注意力；C项吴广扬言逃跑的目的是激怒将尉，使其当众鞭打自己，从而激怒众戍卒，而非让将尉放松警惕；D项“祭以尉首”是筑坛盟誓的仪式，象征起义的庄严与决心，具有凝聚军心的重要战略意义，绝非单纯报复。",
+    "audio_file": "WEN_01_multi_dialog4",
+    "icon_dialog": "WEN_01_icon_dialog2.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "吴广：但你可知，光有“天意”还不够。那日我故意在将尉面前说要逃，让他当众鞭我，羞辱我，就是要激怒众戍卒，你知道当天陈胜说的哪句话最能体现我们不甘宿命、敢于反抗的超凡胆识吗？",
+    "audio_file": "WEN_01_multi_dialog5",
+    "icon_dialog": "WEN_01_icon_dialog3.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "陈胜：答案是C。雨下了三十天，期限已误，按律我们全都要斩首。可我偏不信——王侯将相，难道生来就是王侯将相？他们的命是命，我们的命就不是命？",
+    "audio_file": "WEN_01_multi_dialog6",
+    "icon_dialog": "WEN_01_icon_dialog2.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "吴广：至于A项则是陈胜少时抒发志向的话语，B项是对天下形势的判断，属于分析层面的智慧，D项是谋划起义时对利害的权衡，体现的是理性的抉择。只有C项在生死关头当众喊出，直接挑战血统尊卑秩序，所以最能体现不甘宿命、敢于反抗的超凡胆识。",
+    "audio_file": "WEN_01_multi_dialog7",
+    "icon_dialog": "WEN_01_icon_dialog3.png"
+  }
+]
