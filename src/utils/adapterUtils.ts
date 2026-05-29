@@ -69,6 +69,9 @@ export function parseTimeRange(timeRange: string): { start: number; end: number 
  * @returns 转义后的字符串
  */
 export function escapeRegex(str: string): string {
+  if (!str || typeof str !== 'string') {
+    return ''
+  }
   return str.replace(/[.*+?^$()|[\]{}\\]/g, '\\$&')
 }
 
