@@ -2,25 +2,32 @@
  * API 请求封装
  * 
  * 功能：
- * - 自动在请求头中携带 JWT token
- * - 处理 token 过期和刷新
- * - 统一错误处理
- * - 请求取消支持
+ * - 自动在请求头中携带 JWT token（动态获取）
+ * - 统一错误处理（非2xx响应抛出错误）
+ * - 环境变量控制后端地址
+ * - 业务接口集中管理
  */
 
 import { useAuthStore } from '@/stores/auth'
 
-// 定义 auth store 返回类型
-type UseAuthStoreReturn = ReturnType<typeof useAuthStore>
-
-// 存储 auth store 引用
-let authStoreRef: UseAuthStoreReturn | null = null
+/**
+ * 获取后端 API 基础地址
+ * 开发时指向 localhost:3000，部署时改 .env.production
+ */
+function getBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE || 'http://localhost:3000'
+}
 
 /**
- * 设置 auth store 引用
+ * 获取认证请求头
+ * 每次请求时动态调用 useAuthStore() 获取最新状态，token 不会过期残留
  */
-export function setAuthStore(store: UseAuthStoreReturn): void {
-  authStoreRef = store
+function getAuthHeaders(): Record<string, string> {
+  const authStore = useAuthStore()
+  if (!authStore.token) {
+    return {}
+  }
+  return { Authorization: `Bearer ${authStore.token}` }
 }
 
 /**
@@ -44,7 +51,18 @@ export interface ApiResponse<T = any> {
 }
 
 /**
+ * API 错误类
+ */
+export class ApiError extends Error {
+  constructor(message: string, public code?: number) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+/**
  * 基础请求函数
+ * 非 2xx 响应会抛出错误，调用方用 try/catch 包裹即可
  */
 export async function request<T = any>(
   url: string,
@@ -57,16 +75,15 @@ export async function request<T = any>(
     timeout = 30000
   } = config
 
-  // 构建请求头
+  // 构建完整 URL
+  const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
+
+  // 构建请求头（包含认证信息）
   const requestHeaders = new Headers({
     'Content-Type': 'application/json',
+    ...getAuthHeaders(),
     ...headers
   })
-
-  // 添加 Authorization token
-  if (authStoreRef?.token) {
-    requestHeaders.set('Authorization', `Bearer ${authStoreRef.token}`)
-  }
 
   // 创建取消控制器
   const controller = new AbortController()
@@ -75,7 +92,7 @@ export async function request<T = any>(
   }, timeout)
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
@@ -86,32 +103,24 @@ export async function request<T = any>(
 
     // 处理 token 过期
     if (response.status === 401) {
-      handleUnauthorized()
-      throw new Error('登录已过期，请重新登录')
+      const authStore = useAuthStore()
+      authStore.logout()
+      throw new ApiError('登录已过期，请重新登录', 401)
     }
 
-    // 处理服务器错误
+    // 统一错误处理：非 2xx 响应抛出错误
     if (!response.ok) {
       const errorData = await response.json().catch(() => null)
-      throw new Error(errorData?.message || `请求失败: ${response.status}`)
+      throw new ApiError(errorData?.message || `请求失败: ${response.status}`, response.status)
     }
 
     return await response.json()
   } catch (err) {
+    clearTimeout(timeoutId)
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('请求超时')
+      throw new ApiError('请求超时')
     }
     throw err
-  }
-}
-
-/**
- * 处理未授权错误
- */
-function handleUnauthorized(): void {
-  if (authStoreRef) {
-    authStoreRef.logout()
-    // 可以在这里触发登录弹窗或跳转到登录页
   }
 }
 
@@ -120,11 +129,13 @@ function handleUnauthorized(): void {
  */
 export async function get<T = any>(
   url: string,
-  params?: Record<string, string>,
+  params?: Record<string, string | number>,
   config: Omit<RequestConfig, 'method' | 'body'> = {}
 ): Promise<ApiResponse<T>> {
   const queryString = params
-    ? '?' + new URLSearchParams(params).toString()
+    ? '?' + new URLSearchParams(Object.fromEntries(
+        Object.entries(params).map(([k, v]) => [k, String(v)])
+      )).toString()
     : ''
   return request<T>(url + queryString, config)
 }
@@ -161,10 +172,17 @@ export async function del<T = any>(
   return request<T>(url, { ...config, method: 'DELETE' })
 }
 
+// ============================================================
+// 业务接口封装
+// ============================================================
+
 /**
  * 登录请求
+ * 
+ * @param studentId - 学号
+ * @returns 用户信息和 token
  */
-export async function login(studentId: string): Promise<ApiResponse<{
+export interface LoginResponse {
   token: string
   user: {
     id: string
@@ -172,39 +190,28 @@ export async function login(studentId: string): Promise<ApiResponse<{
     student_id: string
     role: 'student' | 'teacher' | 'admin'
   }
-}>> {
-  return post('/api/auth/login', { student_id: studentId })
+}
+
+export async function login(studentId: string): Promise<LoginResponse> {
+  const response = await post<LoginResponse>('/api/auth/login', { student_id: studentId })
+  return response.data!
 }
 
 /**
- * API 错误类
+ * 答题数据接口
  */
-export class ApiError extends Error {
-  constructor(message: string, public code?: number) {
-    super(message)
-    this.name = 'ApiError'
-  }
+export interface AnswerItem {
+  question_number: number
+  selected: number | string
+  is_correct: boolean
 }
 
-/**
- * 提交答案
- * 
- * @param data - 答题数据，包含答案和题目信息
- * @param wenId - 课文ID
- * @param studentId - 学生ID（学号）
- * @param studentName - 学生姓名（可选）
- * @param timeout - 请求超时时间
- */
-export async function submitAnswers(
-  data: {
-    answers: Record<string, string | number | (string | number)[]>
-    questions: Array<{ id: string; correctAnswer: string | number | (string | number)[] }>
-  },
-  wenId: string,
-  studentId: string,
-  studentName?: string,
-  timeout?: number
-): Promise<{
+export interface SubmitAnswersParams {
+  wen_id: string
+  answers: AnswerItem[]
+}
+
+export interface SubmitAnswersResponse {
   success: boolean
   message: string
   data?: {
@@ -216,39 +223,60 @@ export async function submitAnswers(
     wrongCount: number
     totalScore: number
     avgScore: number
-    details: Array<{ questionId: string; score: number; isCorrect: number; attemptNumber: number }>
+    details: Array<{ 
+      questionId: string 
+      score: number 
+      isCorrect: number 
+      attemptNumber: number 
+    }>
   }
-}> {
-  try {
-    // 生成当前时间戳（ISO格式），确保每次答题都有唯一时间记录
-    const submittedAt = new Date().toISOString()
-    
-    const response = await fetch('/api/submit', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authStoreRef?.token ? { Authorization: `Bearer ${authStoreRef.token}` } : {})
-      },
-      body: JSON.stringify({
-        ...data,
-        wenId,
-        studentId,
-        studentName,
-        submittedAt  // 每次答题都携带时间戳
-      }),
-      signal: timeout ? AbortSignal.timeout(timeout) : undefined
-    })
+}
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      throw new ApiError(errorData?.message || '提交失败', response.status)
-    }
-    
-    return await response.json()
-  } catch (err) {
-    if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new ApiError('请求超时')
-    }
-    throw err
-  }
+/**
+ * 提交答题结果
+ * 
+ * @param params - 答题数据
+ * @returns 提交结果
+ */
+export async function submitAnswers(params: SubmitAnswersParams): Promise<SubmitAnswersResponse> {
+  const response = await post<SubmitAnswersResponse>('/api/submit', params)
+  return response.data!
+}
+
+/**
+ * 获取文本基础信息
+ * 
+ * @param textId - 课文ID
+ */
+export interface TextBasicInfo {
+  text_id: string
+  title: string
+  author: string
+  dynasty: string
+  original_text: string
+  illustration?: string
+  bgm?: string
+}
+
+export async function getTextBasicInfo(textId: string): Promise<TextBasicInfo> {
+  const response = await get<TextBasicInfo>(`/api/texts/${textId}/basic-info`)
+  return response.data!
+}
+
+/**
+ * 获取字词注释数据
+ * 
+ * @param textId - 课文ID
+ */
+export interface WordItem {
+  text_id: string
+  word: string
+  basic_meaning: string
+  synonym_analysis?: string
+  follow_up_questions?: string[]
+}
+
+export async function getWordList(textId: string): Promise<WordItem[]> {
+  const response = await get<WordItem[]>(`/api/texts/${textId}/word-list`)
+  return response.data!
 }

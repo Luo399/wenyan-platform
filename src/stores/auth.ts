@@ -199,6 +199,27 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
+  /**
+   * 设置用户信息
+   * @param userData - 用户数据
+   */
+  function setUser(userData: {
+    id: string
+    username: string
+    student_id: string
+    role: 'student' | 'teacher' | 'admin'
+  }): void {
+    user.value = {
+      id: userData.id,
+      username: userData.username,
+      studentId: userData.student_id,
+      role: userData.role,
+    }
+    // 持久化到 localStorage
+    localStorage.setItem('auth_user', JSON.stringify(user.value))
+    console.log('[AuthStore] 用户信息已更新:', user.value)
+  }
+
   return {
     // 状态
     user,
@@ -214,5 +235,6 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken,
     isTokenExpired,
     clearError,
+    setUser,
   }
 })

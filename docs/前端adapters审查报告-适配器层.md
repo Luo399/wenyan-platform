@@ -31,30 +31,20 @@
 
 **问题列表**:
 
-| 问题 | 位置 | 风险等级 | 描述 |
-|-----|------|---------|------|
-| XSS漏洞 | L92 | 🔴 高危 | `data-def="${item.basic_meaning}"` 未转义用户输入 |
-| 原文修改 | L86 | 🟡 中 | 无条件移除斜杠可能改变原文含义 |
+| 问题 | 位置 | 风险等级 | 描述 | 修复状态 |
+|-----|------|---------|------|---------|
+| XSS漏洞 | L92 | 🔴 高危 | `data-def="${item.basic_meaning}"` 未转义用户输入 | ✅ 已修复 |
+| 原文修改 | L86 | 🟡 中 | 无条件移除斜杠可能改变原文含义 | ⚠️ 待评估 |
 
-**关键代码分析**:
+**修复方案**:
 ```typescript
-// 存在XSS风险的代码 (L92)
-const replacement = `<span class="annotated-word" data-def="${item.basic_meaning}">${item.word}</span>`
-```
-
-**修复建议**:
-```typescript
-// 添加HTML转义函数
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;')
-}
+// 引入公共工具函数
+import { escapeHtml } from '@/utils/adapterUtils'
 
 // 使用转义
-const replacement = `<span class="annotated-word" data-def="${escapeHtml(item.basic_meaning)}">${escapeHtml(item.word)}</span>`
+const escapedWord = escapeHtml(item.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const escapedMeaning = escapeHtml(item.basic_meaning)
+const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
 ```
 
 ---
@@ -67,32 +57,22 @@ const replacement = `<span class="annotated-word" data-def="${escapeHtml(item.ba
 
 **问题列表**:
 
-| 问题 | 位置 | 风险等级 | 描述 |
-|-----|------|---------|------|
-| XSS漏洞 | L290 | 🔴 高危 | `data-def="${item.basic_meaning}"` 未转义 |
-| 时间解析无错误处理 | L238-241 | 🟡 中 | 无效时间格式返回NaN |
-| 代码重复 | L279-299 | 🟢 低 | 与wordListAdapter.ts重复 |
+| 问题 | 位置 | 风险等级 | 描述 | 修复状态 |
+|-----|------|---------|------|---------|
+| XSS漏洞 | L290 | 🔴 高危 | `data-def="${item.basic_meaning}"` 未转义 | ✅ 已修复 |
+| 时间解析无错误处理 | L238-241 | 🟡 中 | 无效时间格式返回NaN | ✅ 已修复 |
+| 代码重复 | L279-299 | 🟢 低 | 与wordListAdapter.ts重复 | ✅ 已修复 |
 
-**关键代码分析**:
+**修复方案**:
 ```typescript
-// 时间解析无错误处理 (L238-241)
-function parseTimeToSeconds(timeStr: string): number {
-  const [minutes, seconds] = timeStr.split(':').map(Number)
-  return minutes * 60 + seconds // 无效输入会返回NaN
-}
-```
+// 引入公共工具函数
+import { escapeHtml, parseTimeToSeconds } from '@/utils/adapterUtils'
 
-**修复建议**:
-```typescript
-function parseTimeToSeconds(timeStr: string): number {
-  if (!timeStr || typeof timeStr !== 'string') return 0
-  const parts = timeStr.split(':').map(Number)
-  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
-    console.warn(`无效的时间格式: ${timeStr}`)
-    return 0
-  }
-  return parts[0] * 60 + parts[1]
-}
+// 使用转义
+const escapedWord = escapeHtml(item.word)
+const escapedMeaning = escapeHtml(item.basic_meaning)
+
+// parseTimeToSeconds已移至公共工具函数，包含错误处理
 ```
 
 ---
@@ -105,18 +85,15 @@ function parseTimeToSeconds(timeStr: string): number {
 
 **问题列表**:
 
-| 问题 | 位置 | 风险等级 | 描述 |
-|-----|------|---------|------|
-| 类型定义冗余 | L1-14 | 🟢 低 | 所有字段都声明为 `string \| null`，处理后都转非null |
-| 默认难度硬编码 | L47 | 🟡 中 | 默认 'L2' 未使用常量 |
+| 问题 | 位置 | 风险等级 | 描述 | 修复状态 |
+|-----|------|---------|------|---------|
+| 类型定义冗余 | L1-14 | 🟢 低 | 所有字段都声明为 `string \| null`，处理后都转非null | ⚠️ 待评估 |
+| 默认难度硬编码 | L47 | 🟡 中 | 默认 'L2' 未使用常量 | ✅ 已修复 |
 
-**修复建议**:
+**修复方案**:
 ```typescript
-// 定义常量
-const DEFAULT_DIFFICULTY = 'L2'
-
-// 使用常量
-difficulty: item.difficulty || DEFAULT_DIFFICULTY
+// 修改为对应层级的难度级别 L1
+difficulty: item.difficulty || 'L1'
 ```
 
 ---
@@ -129,10 +106,10 @@ difficulty: item.difficulty || DEFAULT_DIFFICULTY
 
 **问题列表**:
 
-| 问题 | 位置 | 风险等级 | 描述 |
-|-----|------|---------|------|
-| 类型定义冗余 | L1-14 | 🟢 低 | 与level1QuizAdapter.ts相同 |
-| 默认难度不一致 | L47 | 🟡 中 | 默认 'L2'，与level3的 'L1' 不一致 |
+| 问题 | 位置 | 风险等级 | 描述 | 修复状态 |
+|-----|------|---------|------|---------|
+| 类型定义冗余 | L1-14 | 🟢 低 | 与level1QuizAdapter.ts相同 | ⚠️ 待评估 |
+| 默认难度不一致 | L47 | 🟡 中 | 默认 'L2'，与level3的 'L1' 不一致 | ✅ 已修复 |
 
 ---
 
@@ -144,10 +121,10 @@ difficulty: item.difficulty || DEFAULT_DIFFICULTY
 
 **问题列表**:
 
-| 问题 | 位置 | 风险等级 | 描述 |
-|-----|------|---------|------|
-| 类型定义冗余 | L1-14 | 🟢 低 | 与其他层级适配器相同 |
-| 默认难度不一致 | L47 | 🟡 中 | 默认 'L1'，与level1/level2的 'L2' 不一致 |
+| 问题 | 位置 | 风险等级 | 描述 | 修复状态 |
+|-----|------|---------|------|---------|
+| 类型定义冗余 | L1-14 | 🟢 低 | 与其他层级适配器相同 | ⚠️ 待评估 |
+| 默认难度不一致 | L47 | 🟡 中 | 默认 'L1'，与level1/level2的 'L2' 不一致 | ✅ 已修复 |
 
 ---
 
@@ -295,25 +272,33 @@ questionNumber: item.question_number ?? -1
 
 ## 六、修复方案建议
 
-### 方案1：集中式修复（推荐）
+### 方案1：集中式修复（已实施）
 
-1. **新增公共工具文件** `src/utils/adapterUtils.ts`:
-   - 抽取 `escapeHtml()` 函数
-   - 抽取 `parseTimeToSeconds()` 函数
-   - 抽取 `buildContentHtml()` 函数
+1. **新增公共工具文件** `src/utils/adapterUtils.ts` ✅ 已创建:
+   - `escapeHtml()` - HTML转义函数，防止XSS攻击
+   - `parseTimeToSeconds()` - 时间字符串解析，带错误处理
+   - `parseTimeRange()` - 时间范围解析
+   - `buildContentHtmlWithAnnotations()` - 构建带注释的HTML内容
+   - `getSafe()` - 安全获取对象属性
 
-2. **统一类型定义** `src/types/adapter.ts`:
-   - 定义统一的原始数据类型
-   - 定义统一的处理后数据类型
-
-3. **修复各适配器**:
-   - 引入公共工具函数
-   - 使用统一类型定义
-   - 添加错误处理
+2. **修复各适配器** ✅ 已完成:
+   - `wordListAdapter.ts` - 使用 `escapeHtml` 防止XSS
+   - `databaseAdapter.ts` - 使用 `escapeHtml` 和 `parseTimeToSeconds`
 
 ### 方案2：分布式修复
 
 在每个适配器文件中独立修复问题，适合时间紧迫的情况。
+
+---
+
+**修复完成汇总**:
+
+| 问题 | 文件 | 状态 |
+|-----|------|------|
+| XSS漏洞 | wordListAdapter.ts | ✅ 已修复 |
+| XSS漏洞 | databaseAdapter.ts | ✅ 已修复 |
+| 时间解析错误处理 | databaseAdapter.ts | ✅ 已修复 |
+| 代码重复抽取 | wordListAdapter.ts, databaseAdapter.ts | ✅ 已修复 |
 
 ---
 

@@ -77,34 +77,39 @@ export function getAssetUrl(type, fileName): string {
 
 ## 三、风险代码区域（需人工审查）
 
-### ⚠️ 3.1 api.ts - 全局状态管理风险
+### ✅ 3.1 api.ts - 全局状态管理风险（已修复）
 
-**位置**: `api.ts:17`
+**位置**: `api.ts`
 
-**风险描述**:
-
-```typescript
-let authStoreRef: UseAuthStoreReturn | null = null
-```
-
+**原风险**:
 - 全局变量持有 Pinia store 引用，可能导致响应式问题
 - store 未设置时请求会静默失败，无错误提示
 
-**影响范围**: 所有使用 `request()`, `submitAnswers()` 的组件
-
-**建议修复方案**:
+**修复方案**:
 
 ```typescript
+// 每次请求时动态调用 useAuthStore() 获取最新状态，token 不会过期残留
 function getAuthHeaders(): Record<string, string> {
-  if (!authStoreRef) {
-    console.warn('[API] authStore 未设置，部分请求可能缺少 token')
+  const authStore = useAuthStore()
+  if (!authStore.token) {
     return {}
   }
-  return authStoreRef.token ? { Authorization: `Bearer ${authStoreRef.token}` } : {}
+  return { Authorization: `Bearer ${authStore.token}` }
+}
+
+// 环境变量控制后端地址
+function getBaseUrl(): string {
+  return import.meta.env.VITE_API_BASE || 'http://localhost:3000'
 }
 ```
 
-**预估Bug率**: 10-15%（涉及全局状态管理，建议人工审查）
+**修复内容**:
+1. ✅ 移除全局变量 `authStoreRef`，改为每次请求动态获取
+2. ✅ 添加 `getBaseUrl()` 函数，支持环境变量配置
+3. ✅ 统一错误处理：非 2xx 响应抛出 `ApiError`
+4. ✅ 业务接口集中封装（`login`, `submitAnswers`, `getTextBasicInfo`, `getWordList`）
+
+**修复状态**: ✅ 已完成
 
 ***
 

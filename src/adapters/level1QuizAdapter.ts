@@ -44,7 +44,7 @@ export function adaptLevel1Quiz(rawData: RawLevel1QuizItem[] | null): ProcessedL
         { label: 'D', value: item.option_d || '' }
       ],
       audioFile: item.audio_file || null,
-      difficulty: item.difficulty || 'L2',
+      difficulty: item.difficulty || 'L1',
       correctAnswer: item.correct_answer || null,
       explanation: item.explanation || '',
       questionType: item.question_type || 'radio'

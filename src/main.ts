@@ -16,14 +16,10 @@ app.config.errorHandler = (err, instance, info) => {
   console.error('【组件实例】', instance)
 }
 
-// 初始化认证状态
+// 初始化认证状态（确保 Pinia 实例挂载后，api.ts 中的 useAuthStore() 才能正常工作）
 import { useAuthStore } from './stores/auth'
 const authStore = useAuthStore(pinia)
 authStore.initialize()
-
-// 设置 API 模块的 auth store 引用
-import { setAuthStore } from './utils/api'
-setAuthStore(authStore)
 
 // 从 localStorage 恢复学号（旧版，保持兼容）
 import { useStudentStore } from './stores/student'

@@ -121,6 +121,9 @@ export function useQuizProgress(
   /** 答案记录列表 */
   const answers = ref<QuizAnswer[]>([])
 
+  /** 提交状态列表（记录每个题目是否已提交） */
+  const submittedList = ref<boolean[]>([])
+
   /**
    * 完成百分比（0-100）
    */
@@ -205,7 +208,8 @@ export function useQuizProgress(
     }
 
     // 增加已完成计数（仅在首次提交时）
-    if (completedCount.value === currentIndex.value) {
+    if (!submittedList.value[currentIndex.value]) {
+      submittedList.value[currentIndex.value] = true
       completedCount.value++
     }
 
@@ -259,6 +263,7 @@ export function useQuizProgress(
     currentIndex.value = 0
     completedCount.value = 0
     answers.value = []
+    submittedList.value = []
 
     console.log(`[useQuizProgress] resetProgress - 进度已重置`, {
       operation: 'reset',
@@ -296,7 +301,7 @@ export function useQuizProgress(
   }
 
   /**
-   * 监听题目总数变化，自动重置进度
+   * 监听题目总数变化，自动初始化提交状态列表
    */
   watch(totalQuestionsRef, (newVal, oldVal) => {
     console.log(`[useQuizProgress] watch - 题目总数变化`, {
@@ -305,11 +310,14 @@ export function useQuizProgress(
       newValue: newVal,
     })
 
+    // 初始化提交状态列表
+    submittedList.value = new Array(newVal).fill(false)
+
     // 当题目总数变为0或增加时，重置进度
-    if (newVal === 0 || newVal > oldVal) {
+    if (newVal === 0 || (oldVal !== undefined && newVal > oldVal)) {
       resetProgress()
     }
-  })
+  }, { immediate: true })
 
   return {
     currentIndex,

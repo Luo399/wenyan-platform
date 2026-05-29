@@ -12,6 +12,7 @@
  */
 
 import type { TextBasicInfo, WordItem } from '@/services/apiService'
+import { escapeHtml, parseTimeToSeconds } from '@/utils/adapterUtils'
 
 // ============================================================
 // 原始数据接口（保持与原JSON格式兼容）
@@ -223,21 +224,14 @@ export function adaptWordListPairFromApi(
  * @param timeRange 时间范围字符串
  */
 function parseTimeRange(timeRange: string): { start: number; end: number } {
+  if (!timeRange || typeof timeRange !== 'string') {
+    return { start: 0, end: 0 }
+  }
   const [startStr, endStr] = timeRange.split('-')
   return {
     start: parseTimeToSeconds(startStr),
     end: parseTimeToSeconds(endStr),
   }
-}
-
-/**
- * 将时间字符串转换为秒数
- *
- * @param timeStr 时间字符串（如 '00:16'）
- */
-function parseTimeToSeconds(timeStr: string): number {
-  const [minutes, seconds] = timeStr.split(':').map(Number)
-  return minutes * 60 + seconds
 }
 
 /**
@@ -285,9 +279,10 @@ function buildContentHtmlWithAnnotations(
 
   // 处理所有词汇（按长度降序已排序）
   for (const item of wordList) {
-    const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(escaped, 'g')
-    const replacement = `<span class="annotated-word" data-def="${item.basic_meaning}">${item.word}</span>`
+    const escapedWord = escapeHtml(item.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const escapedMeaning = escapeHtml(item.basic_meaning)
+    const regex = new RegExp(escapedWord, 'g')
+    const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
     content = content.replace(regex, replacement)
   }
 
