@@ -5,7 +5,7 @@
  * 所有复杂的处理逻辑（排序、过滤、拼接 HTML、计算派生字段等）都在此完成
  */
 
-import { escapeHtml } from '@/utils/adapterUtils'
+import { escapeHtml, escapeRegex } from '@/utils/adapterUtils'
 
 // 原始数据接口
 export interface RawWordItem {
@@ -89,9 +89,11 @@ function buildContentHtml(originalText: string, wordList: ProcessedWordItem[]): 
 
   // 处理所有词汇
   for (const item of wordList) {
-    const escapedWord = escapeHtml(item.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // 先转义正则特殊字符（用于正则匹配），再转义HTML（用于输出）
+    const escapedRegex = escapeRegex(item.word)
+    const escapedWord = escapeHtml(item.word)
     const escapedMeaning = escapeHtml(item.basic_meaning)
-    const regex = new RegExp(escapedWord, 'g')
+    const regex = new RegExp(escapedRegex, 'g')
     const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
     content = content.replace(regex, replacement)
   }

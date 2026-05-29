@@ -12,7 +12,7 @@
  */
 
 import type { TextBasicInfo, WordItem } from '@/services/apiService'
-import { escapeHtml, parseTimeToSeconds } from '@/utils/adapterUtils'
+import { escapeHtml, parseTimeToSeconds, escapeRegex } from '@/utils/adapterUtils'
 
 // ============================================================
 // 原始数据接口（保持与原JSON格式兼容）
@@ -279,9 +279,11 @@ function buildContentHtmlWithAnnotations(
 
   // 处理所有词汇（按长度降序已排序）
   for (const item of wordList) {
-    const escapedWord = escapeHtml(item.word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // 先转义正则特殊字符（用于正则匹配），再转义HTML（用于输出）
+    const escapedRegex = escapeRegex(item.word)
+    const escapedWord = escapeHtml(item.word)
     const escapedMeaning = escapeHtml(item.basic_meaning)
-    const regex = new RegExp(escapedWord, 'g')
+    const regex = new RegExp(escapedRegex, 'g')
     const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
     content = content.replace(regex, replacement)
   }

@@ -63,6 +63,16 @@ export function parseTimeRange(timeRange: string): { start: number; end: number 
 }
 
 /**
+ * 转义正则表达式特殊字符
+ * 
+ * @param str - 需要转义的字符串
+ * @returns 转义后的字符串
+ */
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^$()|[\]{}\\]/g, '\\$&')
+}
+
+/**
  * 构建带注释的HTML内容
  * 
  * @param content - 原始内容
@@ -83,10 +93,12 @@ export function buildContentHtmlWithAnnotations(
   const sortedAnnotations = [...annotations].sort((a, b) => b.word.length - a.word.length)
   
   for (const item of sortedAnnotations) {
+    // 先转义正则特殊字符（用于正则匹配），再转义HTML（用于输出）
+    const escapedRegex = escapeRegex(item.word)
     const escapedWord = escapeHtml(item.word)
     const escapedMeaning = escapeHtml(item.meaning)
     const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
-    result = result.replace(new RegExp(escapedWord, 'g'), replacement)
+    result = result.replace(new RegExp(escapedRegex, 'g'), replacement)
   }
   
   return result
