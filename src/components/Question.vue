@@ -154,14 +154,11 @@ async function submitAnswer() {
 
   try {
     const submitData = {
-      studentId: studentId.value,
-      wenId: props.question.wenId,
-      submittedAt: new Date().toISOString(),
       answers: { [props.question.id]: selectedAnswer.value },
       questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }],
     }
 
-    await submitAnswers(submitData, 30000)
+    await submitAnswers(submitData, props.question.wenId, studentId.value, undefined, 30000)
 
     isCorrect.value = compareAnswers()
     isSubmitted.value = true

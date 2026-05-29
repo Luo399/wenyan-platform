@@ -40,14 +40,17 @@ app.use(express.static('public'))
 // 数据库连接配置
 // ============================================================
 
+// 确定数据库路径（支持测试模式）
+const dbDir = process.env.TEST_MODE ? __dirname : './database'
+const dbPath = process.env.DB_PATH || `${dbDir}/answers.db`
+
 // 确保 database 目录存在
-const dbDir = './database'
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true })
 }
 
 // 创建数据库连接
-const db = new sqlite3.Database('./database/answers.db', (err) => {
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('数据库连接失败:', err.message)
     process.exit(1)
@@ -75,6 +78,7 @@ db.run(
 db.run(
   `
   CREATE TABLE IF NOT EXISTS answer_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     wen_id TEXT NOT NULL,
     student_id TEXT NOT NULL,
     question_id TEXT NOT NULL,
@@ -83,7 +87,7 @@ db.run(
     is_correct INTEGER DEFAULT 0,
     score INTEGER DEFAULT 0,
     submitted_at TEXT NOT NULL,
-    PRIMARY KEY (wen_id, student_id, question_id)
+    attempt_number INTEGER DEFAULT 1
   )
 `,
   (err) => {
@@ -93,14 +97,413 @@ db.run(
   },
 )
 
-// 创建索引优化查询性能
-db.run(`CREATE INDEX IF NOT EXISTS idx_wen_id ON answer_records(wen_id)`)
-db.run(`CREATE INDEX IF NOT EXISTS idx_student_id ON answer_records(student_id)`)
-db.run(`CREATE INDEX IF NOT EXISTS idx_wen_student ON answer_records(wen_id, student_id)`)
+// 创建索引优化查询性能（在表创建完成后执行）
+function createIndexes() {
+  db.run(`CREATE INDEX IF NOT EXISTS idx_wen_id ON answer_records(wen_id)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_student_id ON answer_records(student_id)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_wen_student ON answer_records(wen_id, student_id)`)
+}
+
+// 确保表存在 - 学生表
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS students (
+    student_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )
+`,
+  (err) => {
+    if (err) {
+      console.error('创建学生表失败:', err.message)
+    }
+  },
+)
+
+// 确保表存在 - 答题情况表（第二次定义，确保索引创建）
+db.run(
+  `
+  CREATE TABLE IF NOT EXISTS answer_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    wen_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    user_answer TEXT NOT NULL,
+    correct_answer TEXT,
+    is_correct INTEGER DEFAULT 0,
+    score INTEGER DEFAULT 0,
+    submitted_at TEXT NOT NULL,
+    attempt_number INTEGER DEFAULT 1
+  )
+`,
+  (err) => {
+    if (err) {
+      console.error('创建答题情况表失败:', err.message)
+    } else {
+      createIndexes()
+    }
+  },
+)
 
 // ============================================================
 // API 路由
 // ============================================================
+
+/**
+ * 健康检查接口
+ * GET /
+ */
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: '文言文学习平台后端服务运行正常',
+    version: '1.0.0',
+    endpoints: {
+      'POST /api/students': '学生注册',
+      'POST /api/submit': '提交答案',
+      'GET /api/students': '查询所有学生',
+      'GET /api/students/:studentId': '按学生ID查询学生信息',
+      'GET /api/answers/wen/:wenId': '按文言文ID查询答题情况',
+      'GET /api/answers/student/:studentId': '按学生ID查询答题情况',
+      'GET /api/texts/:textId/basic-info': '获取文本基础信息',
+      'GET /api/texts/:textId/word-list': '获取字词注释',
+      'GET /api/texts/:textId/multi-role-reading': '获取多角色朗读数据',
+      'GET /api/texts/:textId/level1-quiz': '获取一级测验数据',
+      'GET /api/texts/:textId/level2-dialog': '获取二级对话数据',
+      'GET /api/texts/:textId/level2-quiz': '获取二级测验数据',
+      'GET /api/texts/:textId/level3-scenario-text': '获取三级情景文本',
+      'GET /api/texts/:textId/level3-adaptive-quiz': '获取三级自适应测验',
+      'GET /api/texts': '获取文本列表',
+      'POST /api/texts/batch': '批量获取文本数据',
+    },
+  })
+})
+
+// ============================================================
+// 数据获取 API
+// ============================================================
+
+/**
+ * 辅助函数：从JSON文件读取数据
+ */
+function readJsonFile(filePath) {
+  try {
+    if (fs.existsSync(filePath)) {
+      const content = fs.readFileSync(filePath, 'utf8')
+      return JSON.parse(content)
+    }
+    return null
+  } catch (err) {
+    console.error(`读取文件失败 ${filePath}:`, err)
+    return null
+  }
+}
+
+/**
+ * 获取文本基础信息
+ * GET /api/texts/:textId/basic-info
+ */
+app.get('/api/texts/:textId/basic-info', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/text_basic_info/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `文本基础信息不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取字词注释
+ * GET /api/texts/:textId/word-list
+ */
+app.get('/api/texts/:textId/word-list', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/word_list/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `字词注释不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取多角色朗读数据
+ * GET /api/texts/:textId/multi-role-reading
+ */
+app.get('/api/texts/:textId/multi-role-reading', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/multi_role_reading/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `多角色朗读数据不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取一级测验数据
+ * GET /api/texts/:textId/level1-quiz
+ */
+app.get('/api/texts/:textId/level1-quiz', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/level1_quiz/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `一级测验数据不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取二级对话数据
+ * GET /api/texts/:textId/level2-dialog
+ */
+app.get('/api/texts/:textId/level2-dialog', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/level2_dialog/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `二级对话数据不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取二级测验数据
+ * GET /api/texts/:textId/level2-quiz
+ */
+app.get('/api/texts/:textId/level2-quiz', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/level2_quiz/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `二级测验数据不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取三级情景文本数据
+ * GET /api/texts/:textId/level3-scenario-text
+ */
+app.get('/api/texts/:textId/level3-scenario-text', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/level3_scenario_text/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `三级情景文本不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取三级自适应测验数据
+ * GET /api/texts/:textId/level3-adaptive-quiz
+ */
+app.get('/api/texts/:textId/level3-adaptive-quiz', (req, res) => {
+  const { textId } = req.params
+  const filePath = `./public/data/level3_adaptive_quiz/${textId}.json`
+  const data = readJsonFile(filePath)
+
+  if (data) {
+    res.json({ success: true, data })
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `三级自适应测验数据不存在: ${textId}`,
+    })
+  }
+})
+
+/**
+ * 获取文本列表
+ * GET /api/texts?page=1&page_size=20
+ */
+app.get('/api/texts', (req, res) => {
+  const page = parseInt(req.query.page) || 1
+  const pageSize = parseInt(req.query.page_size) || 20
+
+  // 扫描text_basic_info目录，获取所有可用文本
+  const texts = []
+  const basicInfoDir = './public/data/text_basic_info'
+
+  if (fs.existsSync(basicInfoDir)) {
+    const files = fs.readdirSync(basicInfoDir)
+    files.forEach((file) => {
+      if (file.endsWith('.json')) {
+        const filePath = `${basicInfoDir}/${file}`
+        const data = readJsonFile(filePath)
+        if (data && data.text_id) {
+          texts.push({
+            text_id: data.text_id,
+            title: data.title,
+            author: data.author,
+            dynasty: data.dynasty,
+          })
+        }
+      }
+    })
+  }
+
+  // 分页处理
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedTexts = texts.slice(startIndex, endIndex)
+
+  res.json({
+    success: true,
+    data: {
+      total: texts.length,
+      texts: paginatedTexts,
+    },
+  })
+})
+
+/**
+ * 批量获取文本数据
+ * POST /api/texts/batch
+ *
+ * 请求体格式：
+ * { text_ids: ['WEN_01', 'WEN_02'] }
+ */
+app.post('/api/texts/batch', (req, res) => {
+  try {
+    const { text_ids } = req.body
+
+    if (!Array.isArray(text_ids) || text_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: 'text_ids 必须是非空数组',
+      })
+    }
+
+    const results = text_ids.map((textId) => {
+      const basicInfoPath = `./public/data/text_basic_info/${textId}.json`
+      const wordListPath = `./public/data/word_list/${textId}.json`
+      const basicInfo = readJsonFile(basicInfoPath)
+      const wordList = readJsonFile(wordListPath)
+
+      return {
+        text_id: textId,
+        basic_info: basicInfo,
+        word_list: wordList || [],
+      }
+    })
+
+    res.json({ success: true, data: results })
+  } catch (err) {
+    console.error('批量获取文本数据失败:', err)
+    res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+})
+
+/**
+ * 按学生ID查询学生信息接口
+ * GET /api/students/:studentId
+ *
+ * 返回学生的基本信息（学号、姓名）
+ */
+app.get('/api/students/:studentId', (req, res) => {
+  try {
+    const { studentId } = req.params
+
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: '学生ID不能为空',
+      })
+    }
+
+    db.get(
+      'SELECT student_id, name, created_at FROM students WHERE student_id = ?',
+      [studentId],
+      (err, row) => {
+        if (err) {
+          console.error('查询学生信息失败:', err)
+          return res.status(500).json({
+            success: false,
+            error: 'DATABASE_ERROR',
+            message: '查询学生信息失败',
+          })
+        }
+
+        if (row) {
+          res.json({
+            success: true,
+            data: {
+              student_id: row.student_id,
+              name: row.name,
+              created_at: row.created_at,
+            },
+          })
+        } else {
+          res.status(404).json({
+            success: false,
+            error: 'STUDENT_NOT_FOUND',
+            message: `未找到学号为 ${studentId} 的学生`,
+          })
+        }
+      },
+    )
+  } catch (err) {
+    console.error('处理请求失败:', err)
+    res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+})
 
 /**
  * 学生注册接口
@@ -188,12 +591,12 @@ app.post('/api/submit', (req, res) => {
       })
     }
 
-    // 验证学号格式（4位数字）
-    if (!/^\d{4}$/.test(studentId)) {
+    // 验证学号（非空且仅包含数字）
+    if (!studentId.trim() || !/^\d+$/.test(studentId)) {
       return res.status(400).json({
         success: false,
         error: 'INVALID_STUDENT_ID',
-        message: '学号格式不正确，必须为4位数字',
+        message: '学号格式不正确，请输入有效的数字学号',
       })
     }
 
@@ -238,36 +641,52 @@ app.post('/api/submit', (req, res) => {
           }
         }
 
-        // 插入或更新记录到 answer_records 表
-        const stmt = db.prepare(`
-          INSERT OR REPLACE INTO answer_records (
-            wen_id,
-            student_id,
-            question_id,
-            user_answer,
-            correct_answer,
-            is_correct,
-            score,
-            submitted_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-
-        stmt.run(
-          wenId,
-          studentId,
-          question.id,
-          JSON.stringify(userAnswer),
-          JSON.stringify(correctAnswer),
-          isCorrect,
-          score,
-          submittedAt,
-          (err) => {
-            stmt.finalize()
-            if (err) {
-              reject(err)
-            } else {
-              resolve({ questionId: question.id, score, isCorrect })
+        // 查询当前题目已答题次数
+        db.get(
+          `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+          [wenId, studentId, question.id],
+          (countErr, countRow) => {
+            if (countErr) {
+              reject(countErr)
+              return
             }
+
+            const attemptNumber = (countRow?.count || 0) + 1
+
+            // 插入新记录（不覆盖，保留每次答题记录）
+            const stmt = db.prepare(`
+              INSERT INTO answer_records (
+                wen_id,
+                student_id,
+                question_id,
+                user_answer,
+                correct_answer,
+                is_correct,
+                score,
+                submitted_at,
+                attempt_number
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+
+            stmt.run(
+              wenId,
+              studentId,
+              question.id,
+              JSON.stringify(userAnswer),
+              JSON.stringify(correctAnswer),
+              isCorrect,
+              score,
+              submittedAt,
+              attemptNumber,
+              (err) => {
+                stmt.finalize()
+                if (err) {
+                  reject(err)
+                } else {
+                  resolve({ questionId: question.id, score, isCorrect, attemptNumber })
+                }
+              },
+            )
           },
         )
       })
@@ -378,6 +797,7 @@ app.get('/api/answers/wen/:wenId', (req, res) => {
           isCorrect: row.is_correct === 1,
           score: row.score,
           submittedAt: row.submitted_at,
+          attemptNumber: row.attempt_number,
         })
       })
 
@@ -408,11 +828,12 @@ app.get('/api/answers/wen/:wenId', (req, res) => {
 app.get('/api/answers/student/:studentId', (req, res) => {
   const { studentId } = req.params
 
-  if (!/^\d{4}$/.test(studentId)) {
+  // 验证学号格式（非空且仅包含数字，不限制长度）
+  if (!studentId.trim() || !/^\d+$/.test(studentId)) {
     return res.status(400).json({
       success: false,
       error: 'INVALID_STUDENT_ID',
-      message: '学号格式不正确',
+      message: '学号格式不正确，请输入有效的数字学号',
     })
   }
 
@@ -463,6 +884,7 @@ app.get('/api/answers/student/:studentId', (req, res) => {
           isCorrect: row.is_correct === 1,
           score: row.score,
           submittedAt: row.submitted_at,
+          attemptNumber: row.attempt_number,
         })
       })
 
@@ -519,22 +941,165 @@ app.get('/api/students', (req, res) => {
   })
 })
 
+/**
+ * 登录接口
+ * POST /api/auth/login
+ *
+ * 请求体格式：
+ * {
+ *   student_id: string,    // 学号
+ *   student_name?: string  // 学生姓名（可选）
+ * }
+ *
+ * 返回格式：
+ * {
+ *   success: true,
+ *   data: {
+ *     token: string,
+ *     user: {
+ *       id: string,
+ *       username: string,
+ *       student_id: string,
+ *       role: string
+ *     }
+ *   }
+ * }
+ */
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { student_id: studentId, student_name: studentName } = req.body
+
+    // 验证学号
+    if (!studentId || !studentId.trim() || !/^\d+$/.test(studentId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_STUDENT_ID',
+        message: '请输入有效的数字学号',
+      })
+    }
+
+    // 查询数据库验证学生
+    db.get(
+      'SELECT student_id, name, created_at FROM students WHERE student_id = ?',
+      [studentId],
+      (err, row) => {
+        if (err) {
+          console.error('查询学生信息失败:', err)
+          return res.status(500).json({
+            success: false,
+            error: 'DATABASE_ERROR',
+            message: '登录失败，请重试',
+          })
+        }
+
+        if (!row) {
+          // 如果数据库中没有该学生，但提供了姓名，则自动注册
+          if (studentName && studentName.trim()) {
+            db.run(
+              'INSERT INTO students (student_id, name) VALUES (?, ?)',
+              [studentId, studentName],
+              (insertErr) => {
+                if (insertErr) {
+                  console.error('自动注册学生失败:', insertErr)
+                  return res.status(500).json({
+                    success: false,
+                    error: 'REGISTER_FAILED',
+                    message: '自动注册失败，请联系管理员',
+                  })
+                }
+
+                // 注册成功后生成token
+                const token = generateToken(studentId, studentName)
+                res.status(200).json({
+                  success: true,
+                  data: {
+                    token,
+                    user: {
+                      id: studentId,
+                      username: studentName,
+                      student_id: studentId,
+                      role: 'student',
+                    },
+                  },
+                })
+              },
+            )
+          } else {
+            return res.status(401).json({
+              success: false,
+              error: 'STUDENT_NOT_FOUND',
+              message: `学号 ${studentId} 不存在，请联系管理员注册`,
+            })
+          }
+        } else {
+          // 学生存在，生成token
+          const name = studentName && studentName.trim() ? studentName : row.name
+          const token = generateToken(studentId, name)
+          res.status(200).json({
+            success: true,
+            data: {
+              token,
+              user: {
+                id: studentId,
+                username: name,
+                student_id: studentId,
+                role: 'student',
+              },
+            },
+          })
+        }
+      },
+    )
+  } catch (err) {
+    console.error('处理登录请求失败:', err)
+    res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+})
+
+/**
+ * 生成JWT token（简化版）
+ */
+function generateToken(studentId, username) {
+  const payload = {
+    sub: studentId,
+    username: username,
+    exp: Math.floor(Date.now() / 1000) + 3600, // 1小时过期
+    role: 'student',
+  }
+
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64')
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64')
+  const signature = 'wenyan_platform_signature' // 简化签名
+
+  return `${header}.${encodedPayload}.${signature}`
+}
+
 // ============================================================
 // 服务器启动
 // ============================================================
 
-app.listen(PORT, () => {
-  console.log(`服务器运行在 http://localhost:${PORT}`)
-})
-
-// 优雅关闭
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) {
-      console.error('关闭数据库连接失败:', err.message)
-    } else {
-      console.log('数据库连接已关闭')
-    }
-    process.exit(0)
+// 仅在非测试模式下启动服务器
+if (!process.env.TEST_MODE) {
+  const server = app.listen(PORT, () => {
+    console.log(`服务器运行在 http://localhost:${PORT}`)
   })
-})
+
+  // 优雅关闭
+  process.on('SIGINT', () => {
+    db.close((err) => {
+      if (err) {
+        console.error('关闭数据库连接失败:', err.message)
+      } else {
+        console.log('数据库连接已关闭')
+      }
+      process.exit(0)
+    })
+  })
+}
+
+// 导出app和db用于测试
+module.exports = { app, db }

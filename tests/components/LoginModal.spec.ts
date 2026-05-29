@@ -69,10 +69,10 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const button = wrapper.find('button[type="submit"]')
       await button.trigger('click')
-      
+
       expect(wrapper.text()).toContain('请输入学号')
     })
 
@@ -82,28 +82,28 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const input = wrapper.find('input#studentId')
       await input.setValue('2024001')
-      
+
       expect(wrapper.text()).not.toContain('请输入学号')
     })
 
     it('登录成功应该触发 login-success 事件', async () => {
       mockLogin.mockResolvedValue(undefined)
-      
+
       const wrapper = mount(LoginModal, {
         props: {
           visible: true,
         },
       })
-      
+
       const input = wrapper.find('input#studentId')
       await input.setValue('2024001')
-      
+
       const button = wrapper.find('button[type="submit"]')
       await button.trigger('click')
-      
+
       expect(mockLogin).toHaveBeenCalledWith('2024001')
       expect(wrapper.emitted('login-success')).toBeTruthy()
     })
@@ -114,10 +114,10 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const closeBtn = wrapper.find('.close-btn')
       await closeBtn.trigger('click')
-      
+
       expect(wrapper.emitted('close')).toBeTruthy()
     })
   })
@@ -129,10 +129,10 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const overlay = wrapper.find('.modal-overlay')
       await overlay.trigger('click')
-      
+
       expect(wrapper.emitted('close')).toBeTruthy()
     })
 
@@ -142,10 +142,10 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const container = wrapper.find('.modal-container')
       await container.trigger('click')
-      
+
       expect(wrapper.emitted('close')).toBeFalsy()
     })
 
@@ -155,9 +155,9 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       await wrapper.trigger('keydown', { key: 'Escape' })
-      
+
       expect(wrapper.emitted('close')).toBeTruthy()
     })
   })
@@ -170,17 +170,17 @@ describe('LoginModal.vue', () => {
         isLoading: true,
         error: null,
       }
-      
+
       vi.mock('@/stores/auth', () => ({
         useAuthStore: () => mockStore,
       }))
-      
+
       const wrapper = mount(LoginModal, {
         props: {
           visible: true,
         },
       })
-      
+
       expect(wrapper.text()).toContain('登录中...')
     })
   })
@@ -192,7 +192,7 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const checkbox = wrapper.find('.checkbox-input')
       expect(checkbox.exists()).toBe(true)
     })
@@ -203,7 +203,7 @@ describe('LoginModal.vue', () => {
           visible: true,
         },
       })
-      
+
       const checkbox = wrapper.find('.checkbox-input')
       expect(checkbox.element.checked).toBe(true)
     })

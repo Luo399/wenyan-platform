@@ -9,6 +9,7 @@ import StepOneView from '@/views/StepOneView.vue'
 import StepThreeView from '@/views/StepThreeView.vue'
 import StepTwoView from '@/views/StepTwoView.vue'
 import BlockDemoView from '@/views/BlockDemoView.vue'
+import AnswerQueryView from '@/views/AnswerQueryView.vue'
 
 export const routes = [
   {
@@ -63,6 +64,12 @@ export const routes = [
     path: '/detail/:id',
     name: 'detail',
     component: DetailView,
+  },
+  {
+    path: '/answer-query',
+    name: 'answer-query',
+    component: AnswerQueryView,
+    meta: { requiresAuth: true },
   },
 ]
 

@@ -72,10 +72,10 @@ describe('QuizCard.vue', () => {
           submitted: false,
         },
       })
-      
+
       const optionB = wrapper.find('[data-option="B"]')
       await optionB.trigger('click')
-      
+
       expect(optionB.classes()).toContain('selected')
     })
 
@@ -86,10 +86,10 @@ describe('QuizCard.vue', () => {
           submitted: false,
         },
       })
-      
+
       const optionC = wrapper.find('[data-option="C"]')
       await optionC.trigger('click')
-      
+
       expect(optionC.classes()).toContain('selected')
     })
 
@@ -100,13 +100,13 @@ describe('QuizCard.vue', () => {
           submitted: false,
         },
       })
-      
+
       const optionA = wrapper.find('[data-option="A"]')
       const optionB = wrapper.find('[data-option="B"]')
-      
+
       await optionA.trigger('click')
       await optionB.trigger('click')
-      
+
       expect(optionA.classes()).not.toContain('selected')
       expect(optionB.classes()).toContain('selected')
     })
@@ -120,13 +120,13 @@ describe('QuizCard.vue', () => {
           submitted: false,
         },
       })
-      
+
       const optionB = wrapper.find('[data-option="B"]')
       await optionB.trigger('click')
-      
+
       const submitBtn = wrapper.find('button[type="submit"]')
       await submitBtn.trigger('click')
-      
+
       expect(wrapper.emitted('submit')).toBeTruthy()
       expect(wrapper.emitted('submit')[0]).toEqual(['B'])
     })
@@ -138,7 +138,7 @@ describe('QuizCard.vue', () => {
           submitted: false,
         },
       })
-      
+
       const submitBtn = wrapper.find('button[type="submit"]')
       expect(submitBtn.element.disabled).toBe(true)
     })
@@ -150,10 +150,10 @@ describe('QuizCard.vue', () => {
           submitted: false,
         },
       })
-      
+
       const optionA = wrapper.find('[data-option="A"]')
       await optionA.trigger('click')
-      
+
       const submitBtn = wrapper.find('button[type="submit"]')
       expect(submitBtn.element.disabled).toBe(false)
     })
@@ -167,9 +167,9 @@ describe('QuizCard.vue', () => {
           submitted: true,
         },
       })
-      
+
       const options = wrapper.findAll('[data-option]')
-      options.forEach(option => {
+      options.forEach((option) => {
         expect(option.element.disabled).toBe(true)
       })
     })
@@ -181,7 +181,7 @@ describe('QuizCard.vue', () => {
           submitted: true,
         },
       })
-      
+
       const submitBtn = wrapper.find('button[type="submit"]')
       expect(submitBtn.exists()).toBe(false)
     })
@@ -193,7 +193,7 @@ describe('QuizCard.vue', () => {
           submitted: true,
         },
       })
-      
+
       expect(wrapper.find('.result-area').exists()).toBe(true)
     })
   })

@@ -21,22 +21,17 @@ export async function startMockService(): Promise<void> {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url)
 
-    // 处理登录请求
-    if (url.endsWith('/api/auth/login') && init?.method === 'POST') {
-      return handleLogin(new Request(input, init))
-    }
-
-    // 处理刷新 token 请求
+    // 处理刷新 token 请求（保留 mock）
     if (url.endsWith('/api/auth/refresh') && init?.method === 'POST') {
       return handleRefresh(new Request(input, init))
     }
 
-    // 处理获取用户信息请求
+    // 处理获取用户信息请求（保留 mock）
     if (url.endsWith('/api/auth/user') && init?.method === 'GET') {
       return handleGetUser(new Request(input, init))
     }
 
-    // 其他请求使用原始 fetch
+    // 登录请求和其他请求直接转发到后端（不再使用 mock）
     return originalFetch(input, init)
   }
 

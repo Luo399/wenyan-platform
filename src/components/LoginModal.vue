@@ -31,11 +31,17 @@
                 :class="{ 'error': hasError && !studentId }"
                 placeholder="请输入学号"
                 :disabled="isLoading"
-                @input="clearValidation"
+                @input="handleStudentIdInput"
               />
               <span v-if="hasError && !studentId" class="error-message">
                 请输入学号
               </span>
+            </div>
+
+            <!-- 学生姓名显示 -->
+            <div v-if="studentName" class="student-name-display">
+              <span class="name-label">学生姓名：</span>
+              <span class="name-value">{{ studentName }}</span>
             </div>
 
             <!-- 记住登录状态 -->
@@ -70,7 +76,8 @@
           <!-- 测试账号提示 -->
           <div class="test-account-hint">
             <p>测试账号：</p>
-            <p class="test-accounts">2024001 | 2024002 | 2024003</p>
+            <p class="test-accounts">1 | 2 | 3 | 4 | 5</p>
+            <p class="format-hint">学号格式：数字（如：1、2024001）</p>
           </div>
         </div>
       </div>
@@ -81,6 +88,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { get } from '@/utils/api'
 
 // Props
 interface Props {
@@ -100,6 +108,7 @@ const modalRef = ref<HTMLElement | null>(null)
 
 // State
 const studentId = ref('')
+const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 const isSubmitting = ref(false)
@@ -125,11 +134,10 @@ watch(
   () => props.visible,
   (newVisible) => {
     if (newVisible) {
-      // 弹窗打开时清空表单和错误
       studentId.value = ''
+      studentName.value = ''
       hasError.value = false
       authStore.clearError()
-      // 自动聚焦输入框
       setTimeout(() => {
         const input = document.getElementById('studentId')
         input?.focus()
@@ -137,6 +145,33 @@ watch(
     }
   }
 )
+
+// 学号输入处理
+async function handleStudentIdInput(): Promise<void> {
+  clearValidation()
+  
+  // 当学号长度 >= 1 时查询学生姓名
+  if (studentId.value.trim().length >= 1) {
+    await fetchStudentName()
+  } else {
+    studentName.value = ''
+  }
+}
+
+// 查询学生姓名
+async function fetchStudentName(): Promise<void> {
+  try {
+    const response = await get(`/api/students/${studentId.value.trim()}`)
+    if (response.success && response.data) {
+      studentName.value = response.data.name || ''
+    } else {
+      studentName.value = ''
+    }
+  } catch (err) {
+    console.error('查询学生信息失败:', err)
+    studentName.value = ''
+  }
+}
 
 // 清除验证状态
 function clearValidation(): void {
@@ -146,18 +181,16 @@ function clearValidation(): void {
 
 // 提交表单
 async function handleSubmit(): Promise<void> {
-  // 前端验证
   if (!studentId.value.trim()) {
     hasError.value = true
     return
   }
 
-  // 防止重复提交
   if (isSubmitting.value) return
   isSubmitting.value = true
 
   try {
-    await authStore.login(studentId.value.trim())
+    await authStore.login(studentId.value.trim(), studentName.value)
     emit('login-success')
     handleClose()
   } catch (err) {
@@ -330,6 +363,29 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
+/* 学生姓名显示 */
+.student-name-display {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: #ecfdf5;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 1px solid #10b981;
+}
+
+.name-label {
+  font-size: 0.875rem;
+  color: #059669;
+  font-weight: 500;
+}
+
+.name-value {
+  font-size: 0.875rem;
+  color: #047857;
+  font-weight: 600;
+}
+
 /* 记住我选项 */
 .remember-group {
   display: flex;
@@ -446,6 +502,12 @@ onUnmounted(() => {
   margin-top: 0.25rem !important;
   color: #4f46e5 !important;
   font-family: monospace;
+}
+
+.format-hint {
+  margin-top: 0.5rem !important;
+  color: #9ca3af !important;
+  font-size: 0.625rem !important;
 }
 
 /* 响应式设计 */

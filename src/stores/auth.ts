@@ -66,9 +66,10 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * 登录
    * @param studentId 学号
+   * @param studentName 学生姓名（可选，用于显示）
    * @returns Promise
    */
-  async function login(studentId: string): Promise<void> {
+  async function login(studentId: string, studentName?: string): Promise<void> {
     isLoading.value = true
     error.value = null
 
@@ -79,7 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ student_id: studentId })
+        body: JSON.stringify({ student_id: studentId, student_name: studentName })
       })
 
       const data = await response.json()
@@ -89,12 +90,18 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // 保存 token 和用户信息
-      token.value = data.token
+      token.value = data.data?.token || data.token
+      const userData = data.data?.user || data.user
+      
+      if (!userData) {
+        throw new Error('登录成功但未返回用户信息')
+      }
+      
       user.value = {
-        id: data.user.id,
-        username: data.user.username,
-        studentId: data.user.student_id,
-        role: data.user.role
+        id: userData.id,
+        username: userData.username || userData.name || studentName || studentId,
+        studentId: userData.student_id || userData.studentId || studentId,
+        role: userData.role || 'student'
       }
 
       // 持久化到 localStorage

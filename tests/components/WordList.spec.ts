@@ -47,18 +47,22 @@ describe('WordList.vue', () => {
 
   describe('数据加载测试', () => {
     it('应该正确加载字词数据', async () => {
-      global.fetch = vi.fn()
+      global.fetch = vi
+        .fn()
         .mockResolvedValueOnce({
           arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(mockWordListData)),
         })
         .mockResolvedValueOnce({
-          arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({
-            text_id: 'WEN_01',
-            title: '陈涉世家',
-            author: '司马迁',
-            dynasty: '汉',
-            original_text: '陈胜者，阳城人也',
-          })),
+          arrayBuffer: async () =>
+            new TextEncoder().encode(
+              JSON.stringify({
+                text_id: 'WEN_01',
+                title: '陈涉世家',
+                author: '司马迁',
+                dynasty: '汉',
+                original_text: '陈胜者，阳城人也',
+              }),
+            ),
         })
 
       const wrapper = mount(WordList, {
@@ -67,24 +71,28 @@ describe('WordList.vue', () => {
         },
       })
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(fetch).toHaveBeenCalledTimes(2)
     })
 
     it('加载成功后应该显示字词列表', async () => {
-      global.fetch = vi.fn()
+      global.fetch = vi
+        .fn()
         .mockResolvedValueOnce({
           arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(mockWordListData)),
         })
         .mockResolvedValueOnce({
-          arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({
-            text_id: 'WEN_01',
-            title: '陈涉世家',
-            author: '司马迁',
-            dynasty: '汉',
-            original_text: '陈胜者，阳城人也',
-          })),
+          arrayBuffer: async () =>
+            new TextEncoder().encode(
+              JSON.stringify({
+                text_id: 'WEN_01',
+                title: '陈涉世家',
+                author: '司马迁',
+                dynasty: '汉',
+                original_text: '陈胜者，阳城人也',
+              }),
+            ),
         })
 
       const wrapper = mount(WordList, {
@@ -93,25 +101,29 @@ describe('WordList.vue', () => {
         },
       })
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(wrapper.text()).toContain('阳城')
       expect(wrapper.text()).toContain('陈涉')
     })
 
     it('应该显示课文标题', async () => {
-      global.fetch = vi.fn()
+      global.fetch = vi
+        .fn()
         .mockResolvedValueOnce({
           arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(mockWordListData)),
         })
         .mockResolvedValueOnce({
-          arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({
-            text_id: 'WEN_01',
-            title: '陈涉世家',
-            author: '司马迁',
-            dynasty: '汉',
-            original_text: '陈胜者，阳城人也',
-          })),
+          arrayBuffer: async () =>
+            new TextEncoder().encode(
+              JSON.stringify({
+                text_id: 'WEN_01',
+                title: '陈涉世家',
+                author: '司马迁',
+                dynasty: '汉',
+                original_text: '陈胜者，阳城人也',
+              }),
+            ),
         })
 
       const wrapper = mount(WordList, {
@@ -120,7 +132,7 @@ describe('WordList.vue', () => {
         },
       })
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(wrapper.text()).toContain('陈涉世家')
     })
@@ -136,7 +148,7 @@ describe('WordList.vue', () => {
         },
       })
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(wrapper.text()).toContain('错误')
     })
@@ -150,7 +162,7 @@ describe('WordList.vue', () => {
         },
       })
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(wrapper.find('.retry-btn').exists()).toBe(true)
     })
@@ -158,18 +170,22 @@ describe('WordList.vue', () => {
 
   describe('空数据处理测试', () => {
     it('空数据应该显示暂无数据', async () => {
-      global.fetch = vi.fn()
+      global.fetch = vi
+        .fn()
         .mockResolvedValueOnce({
           arrayBuffer: async () => new TextEncoder().encode(JSON.stringify([])),
         })
         .mockResolvedValueOnce({
-          arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({
-            text_id: 'WEN_01',
-            title: '陈涉世家',
-            author: '司马迁',
-            dynasty: '汉',
-            original_text: '陈胜者，阳城人也',
-          })),
+          arrayBuffer: async () =>
+            new TextEncoder().encode(
+              JSON.stringify({
+                text_id: 'WEN_01',
+                title: '陈涉世家',
+                author: '司马迁',
+                dynasty: '汉',
+                original_text: '陈胜者，阳城人也',
+              }),
+            ),
         })
 
       const wrapper = mount(WordList, {
@@ -178,7 +194,7 @@ describe('WordList.vue', () => {
         },
       })
 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       expect(wrapper.text()).toContain('暂无数据')
     })

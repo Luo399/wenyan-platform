@@ -5,7 +5,7 @@
  */
 
 /**
- * 模拟用户数据
+ * 模拟用户数据（与数据库数据同步）
  */
 const mockUsers: Record<string, {
   id: string
@@ -13,20 +13,50 @@ const mockUsers: Record<string, {
   student_id: string
   role: 'student' | 'teacher' | 'admin'
 }> = {
-  '2024001': {
+  '1': {
     id: '1',
+    username: '闃夸緷濞滃瓬',
+    student_id: '1',
+    role: 'student'
+  },
+  '2': {
+    id: '2',
+    username: '绗戝皵棣欐槑',
+    student_id: '2',
+    role: 'student'
+  },
+  '3': {
+    id: '3',
+    username: '涓夋槦闄�',
+    student_id: '3',
+    role: 'student'
+  },
+  '4': {
+    id: '4',
+    username: '鍥涘ぇ姝�',
+    student_id: '4',
+    role: 'student'
+  },
+  '5': {
+    id: '5',
+    username: '浜斿皬闃冲厜',
+    student_id: '5',
+    role: 'student'
+  },
+  '2024001': {
+    id: '1001',
     username: '张三',
     student_id: '2024001',
     role: 'student'
   },
   '2024002': {
-    id: '2',
+    id: '1002',
     username: '李四',
     student_id: '2024002',
     role: 'student'
   },
   '2024003': {
-    id: '3',
+    id: '1003',
     username: '王五',
     student_id: '2024003',
     role: 'student'
@@ -66,9 +96,9 @@ export async function handleLogin(request: Request): Promise<Response> {
 
     await new Promise(resolve => setTimeout(resolve, 500))
 
-    if (!studentId || studentId.trim().length < 3) {
+    if (!studentId || !studentId.trim()) {
       return new Response(
-        JSON.stringify({ success: false, message: '学号格式不正确' }),
+        JSON.stringify({ success: false, message: '请输入学号' }),
         { status: 400 }
       )
     }
@@ -76,7 +106,7 @@ export async function handleLogin(request: Request): Promise<Response> {
     const user = mockUsers[studentId]
     if (!user) {
       return new Response(
-        JSON.stringify({ success: false, message: '学号不存在，请使用测试账号' }),
+        JSON.stringify({ success: false, message: '学号不存在，请确认学号是否正确' }),
         { status: 401 }
       )
     }

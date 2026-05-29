@@ -188,22 +188,54 @@ export class ApiError extends Error {
 
 /**
  * 提交答案
+ * 
+ * @param data - 答题数据，包含答案和题目信息
+ * @param wenId - 课文ID
+ * @param studentId - 学生ID（学号）
+ * @param studentName - 学生姓名（可选）
+ * @param timeout - 请求超时时间
  */
 export async function submitAnswers(
   data: {
     answers: Record<string, string | number | (string | number)[]>
     questions: Array<{ id: string; correctAnswer: string | number | (string | number)[] }>
   },
+  wenId: string,
+  studentId: string,
+  studentName?: string,
   timeout?: number
-): Promise<void> {
+): Promise<{
+  success: boolean
+  message: string
+  data?: {
+    studentId: string
+    wenId: string
+    submittedAt: string
+    questionCount: number
+    correctCount: number
+    wrongCount: number
+    totalScore: number
+    avgScore: number
+    details: Array<{ questionId: string; score: number; isCorrect: number; attemptNumber: number }>
+  }
+}> {
   try {
-    const response = await fetch('/api/answers/submit', {
+    // 生成当前时间戳（ISO格式），确保每次答题都有唯一时间记录
+    const submittedAt = new Date().toISOString()
+    
+    const response = await fetch('/api/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authStoreRef?.token ? { Authorization: `Bearer ${authStoreRef.token}` } : {})
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        wenId,
+        studentId,
+        studentName,
+        submittedAt  // 每次答题都携带时间戳
+      }),
       signal: timeout ? AbortSignal.timeout(timeout) : undefined
     })
 
@@ -211,6 +243,8 @@ export async function submitAnswers(
       const errorData = await response.json().catch(() => null)
       throw new ApiError(errorData?.message || '提交失败', response.status)
     }
+    
+    return await response.json()
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
       throw new ApiError('请求超时')
