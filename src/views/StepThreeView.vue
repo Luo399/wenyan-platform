@@ -221,12 +221,13 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   const item = pageData.value?.items[quizIndex]
   const isCorrect = item ? selectedOption === item.quiz.correct_answer : undefined
   
-  // 获取 questionId 和 module
+  // 获取 questionId、module 和 correctAnswer
   const questionId = item?.quiz.question_id || ''
   const module = item?.quiz.module || 'C'
+  const correctAnswer = item?.quiz.correct_answer
 
-  // 调用 useQuizProgress 的 handleSubmit，传递 questionId 和 module
-  await handleQuizSubmit(selectedOption, isCorrect, questionId, module)
+  // 调用 useQuizProgress 的 handleSubmit，传递 questionId、module 和 correctAnswer
+  await handleQuizSubmit(selectedOption, isCorrect, questionId, module, correctAnswer)
 
   console.log(
     `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}，questionId: ${questionId}，module: ${module}`,

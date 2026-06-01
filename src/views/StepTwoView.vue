@@ -182,9 +182,9 @@ const allQuizzesSubmitted = computed(() => {
 })
 
 // 处理 quiz 答案事件（接收用户答案）
-async function handleQuizAnswer(event: { quiz: unknown; answer: string; isCorrect: boolean; questionId?: string; module?: string }) {
-  // 调用 useQuizProgress 的 handleSubmit，传递用户答案、questionId 和 module
-  await handleQuizSubmit(event.answer, event.isCorrect, event.questionId, event.module || 'B')
+async function handleQuizAnswer(event: { quiz: unknown; answer: string; isCorrect: boolean; questionId?: string; module?: string; correctAnswer?: string | number | (string | number)[] }) {
+  // 调用 useQuizProgress 的 handleSubmit，传递用户答案、questionId、module 和 correctAnswer
+  await handleQuizSubmit(event.answer, event.isCorrect, event.questionId, event.module || 'B', event.correctAnswer)
   console.log(`[StepTwoView] Quiz 答案提交: 答案=${event.answer}, 是否正确=${event.isCorrect}, questionId=${event.questionId}, module=${event.module}`)
 }
 

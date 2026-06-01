@@ -60,7 +60,7 @@ app.use(express.static('public'))
 
 // 确定数据库路径（支持测试模式）
 const path = require('path')
-const dbDir = process.env.TEST_MODE ? __dirname : './database'
+const dbDir = process.env.TEST_MODE ? __dirname : path.join(__dirname, 'database')
 const dbPath = process.env.DB_PATH || path.join(dbDir, 'answers.db')
 
 // 确保 database 目录存在

@@ -36,6 +36,7 @@ export interface QuizAnswer {
   module?: string
   answer: number | string
   isCorrect?: boolean
+  correctAnswer?: string | number | (string | number)[]
 }
 
 /**
@@ -69,8 +70,9 @@ export interface UseQuizProgressReturn {
    * @param isCorrect 是否正确（可选）
    * @param questionId 题目ID（可选，用于后端提交）
    * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
+   * @param correctAnswer 正确答案（可选，用于后端提交）
    */
-  handleSubmit: (answer: number | string, isCorrect?: boolean, questionId?: string, module?: string) => void
+  handleSubmit: (answer: number | string, isCorrect?: boolean, questionId?: string, module?: string, correctAnswer?: string | number | (string | number)[]) => void
 
   /**
    * 重置进度到初始状态（同时清除完成记录）
@@ -215,7 +217,7 @@ export function useQuizProgress(
       // 构建题目数据（包含正确答案和题目ID）
       const questions = answers.value.map((ans) => ({
         id: ans.questionId || `question_${ans.questionIndex}`,
-        correctAnswer: ans.isCorrect !== undefined && ans.isCorrect ? ans.answer : 'unknown',
+        correctAnswer: ans.correctAnswer ?? 'unknown',
       }))
 
       // 构建答案映射（使用 questionId 或 questionIndex）
@@ -246,12 +248,14 @@ export function useQuizProgress(
    * @param isCorrect 是否正确（可选）
    * @param questionId 题目ID（可选，用于后端提交）
    * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
+   * @param correctAnswer 正确答案（可选，用于后端提交）
    */
   async function handleSubmit(
     answer: number | string,
     isCorrect?: boolean,
     questionId?: string,
     module?: string,
+    correctAnswer?: string | number | (string | number)[],
   ): Promise<void> {
     const prevCurrentIndex = currentIndex.value
     const prevCompletedCount = completedCount.value
@@ -270,6 +274,7 @@ export function useQuizProgress(
       module,
       answer,
       isCorrect,
+      correctAnswer,
     }
 
     if (existingIndex >= 0) {
