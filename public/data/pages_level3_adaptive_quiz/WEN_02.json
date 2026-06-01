@@ -4,7 +4,8 @@
     {
       "text": "经过层层探寻，你已经把握了《马说》的意蕴，结合全文内容，完成最后的感悟理解。",
       "quiz": {
-        "question_id": "WEN_02_Q1",
+        "question_id": "WEN_02_C1",
+        "module": "C",
         "question_type": "radio",
         "question_text": "本文以马喻人、托物寓意，全文寄托的核心情感是（）",
         "options": [

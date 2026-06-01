@@ -100,6 +100,8 @@ type QuizItem = ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLev
 interface Props {
   // Block模式数据（下划线命名）
   text_id?: string
+  question_id?: string
+  module?: string
   question_number?: number
   question_text?: string
   option_a?: string
@@ -130,7 +132,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'answer', quiz: QuizItem, answer: string, isCorrect: boolean): void
+  (e: 'answer', quiz: QuizItem, answer: string, isCorrect: boolean, questionId?: string, module?: string): void
   (e: 'complete', results: { quiz: QuizItem; answer: string; isCorrect: boolean }[]): void
   (e: 'error', error: string): void
   (e: 'quiz-submitted'): void
@@ -156,6 +158,8 @@ const quizFromProps = computed<QuizItem | null>(() => {
 
   return {
     textId: props.text_id || props.textId || '',
+    questionId: props.question_id || '',
+    module: props.module || '',
     questionNumber:
       typeof props.question_number === 'number'
         ? props.question_number
@@ -172,7 +176,7 @@ const quizFromProps = computed<QuizItem | null>(() => {
     correctAnswer: props.correct_answer || null,
     explanation: props.explanation || '',
     questionType: props.question_type || 'radio',
-  }
+  } as QuizItem
 })
 
 const hasContent = computed(() => {
@@ -271,7 +275,7 @@ function submitAnswer() {
 
   showResult.value = true
   submitted.value = true
-  emit('answer', currentQuiz.value, selectedAnswer.value, isCorrect)
+  emit('answer', currentQuiz.value, selectedAnswer.value, isCorrect, currentQuiz.value.questionId, currentQuiz.value.module)
   emit('quiz-submitted')
 }
 

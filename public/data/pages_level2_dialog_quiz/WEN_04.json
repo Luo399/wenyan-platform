@@ -5,6 +5,8 @@
       "type": "quiz",
       "data": {
         "text_id": "WEN_04",
+        "question_id": "WEN_04_B1",
+        "module": "B",
         "question_number": 1,
         "question_text": "庄子曰：\"子非鱼，安知我不知鱼之乐？\" 这句话运用了下列哪种辩论技巧？（ ）",
         "option_a": "以子之矛，攻子之盾",
@@ -23,6 +25,8 @@
       "type": "quiz",
       "data": {
         "text_id": "WEN_04",
+        "question_id": "WEN_04_B2",
+        "module": "B",
         "question_number": 2,
         "question_text": "惠子曰：\"我非子，固不知子矣；子固非鱼也，子之不知鱼之乐，全矣。\" 这句话运用了下列哪种辩论技巧？（ ）",
         "option_a": "以子之矛，攻子之盾",

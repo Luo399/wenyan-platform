@@ -9,14 +9,13 @@
 <template>
   <div class="student-login">
     <h2>请输入您的学号</h2>
-    <p class="subtitle">学号为4位数字</p>
+    <p class="subtitle">请输入您的学号</p>
 
     <div class="input-group">
       <input
         v-model="inputId"
         type="text"
-        maxlength="4"
-        placeholder="请输入4位学号"
+        placeholder="请输入学号"
         @keyup.enter="handleSubmit"
         :class="{ 'error': hasError }"
       />
@@ -26,7 +25,7 @@
     </div>
 
     <p v-if="hasError" class="error-message">
-      学号必须为4位数字
+      学号不能为空
     </p>
   </div>
 </template>
@@ -43,10 +42,17 @@ const inputId = ref('')
 const hasError = ref(false)
 
 /**
- * 验证输入是否为4位数字
+ * 验证输入是否非空（新逻辑：支持任意格式的学号）
+ * 
+ * 旧逻辑（已注释）：
+ * - 要求4位数字：/^\d{4}$/.test(inputId.value)
+ * 
+ * 新逻辑：
+ * - 只要非空即可，具体验证由后端处理
  */
 const isValid = computed(() => {
-  return /^\d{4}$/.test(inputId.value)
+  // 新逻辑：学号非空即可
+  return inputId.value.trim().length > 0
 })
 
 /**
@@ -60,8 +66,8 @@ function handleSubmit() {
   }
 
   hasError.value = false
-  // 保存到 Store
-  studentStore.setStudentId(inputId.value)
+  // 保存到 Store（新逻辑：直接保存，不限制格式）
+  studentStore.setStudentId(inputId.value.trim())
   // 清空输入
   inputId.value = ''
 }

@@ -114,6 +114,7 @@ import { useQuizProgress } from '@/composables/useQuizProgress'
 // 数据类型定义
 interface QuizItem {
   question_id: string
+  module: string
   question_type: 'radio' | 'checkbox' | string
   question_text: string
   options: string[]
@@ -213,18 +214,22 @@ const correctCount = computed(() => {
 const { goNext, goPrev } = useNavigation('stepthree', poemId)
 
 // 处理提交
-function handleSubmit(quizIndex: number, selectedOption: number) {
+async function handleSubmit(quizIndex: number, selectedOption: number) {
   console.log(`[StepThreeView] handleSubmit - 题目索引: ${quizIndex}，选择: ${selectedOption}`)
 
   // 判断答案是否正确
   const item = pageData.value?.items[quizIndex]
   const isCorrect = item ? selectedOption === item.quiz.correct_answer : undefined
+  
+  // 获取 questionId 和 module
+  const questionId = item?.quiz.question_id || ''
+  const module = item?.quiz.module || 'C'
 
-  // 调用 useQuizProgress 的 handleSubmit
-  handleQuizSubmit(selectedOption, isCorrect)
+  // 调用 useQuizProgress 的 handleSubmit，传递 questionId 和 module
+  await handleQuizSubmit(selectedOption, isCorrect, questionId, module)
 
   console.log(
-    `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}`,
+    `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}，questionId: ${questionId}，module: ${module}`,
   )
 }
 

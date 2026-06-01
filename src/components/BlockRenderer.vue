@@ -11,7 +11,7 @@
       v-if="block.type === 'quiz'"
       v-bind="block.data"
       @quiz-submitted="$emit('quiz-submitted')"
-      @answer="(quiz, answer, isCorrect) => $emit('quiz-answer', { quiz, answer, isCorrect })"
+      @answer="(quiz, answer, isCorrect, questionId, module) => $emit('quiz-answer', { quiz, answer, isCorrect, questionId, module })"
     />
     <!-- 其他类型直接渲染 -->
     <component v-else :is="componentMap[block.type]" v-bind="block.data" />
@@ -69,7 +69,7 @@ const props = withDefaults(defineProps<Props>(), {
 // 事件定义
 const emit = defineEmits<{
   (e: 'quiz-submitted'): void
-  (e: 'quiz-answer', answer: { quiz: unknown; answer: string; isCorrect: boolean }): void
+  (e: 'quiz-answer', answer: { quiz: unknown; answer: string; isCorrect: boolean; questionId?: string; module?: string }): void
 }>()
 </script>
 

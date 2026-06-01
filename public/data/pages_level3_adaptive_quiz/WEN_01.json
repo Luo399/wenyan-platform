@@ -4,7 +4,8 @@
     {
       "text": "起义誓师之后，戍卒们围坐一起，纷纷议论陈胜、吴广。你身旁的同伴问你：“兄弟，你接触他们最深，你说，陈胜和吴广这两人最重要的特质是什么？”你沉思片刻，给出自己的判断。",
       "quiz": {
-        "question_id": "WEN_01_Q1",
+        "question_id": "WEN_01_C1",
+        "module": "C",
         "question_type": "radio",
         "question_text": "你认为陈胜吴广最重要的特质是下列哪一项？（）",
         "options": [

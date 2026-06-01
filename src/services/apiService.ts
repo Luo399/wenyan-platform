@@ -13,7 +13,8 @@
  * const data = await getTextBasicInfo('WEN_01')
  */
 
-import { get, post, ApiResponse } from '@/utils/api'
+import { get, post } from '@/utils/api'
+import type { ApiResponse } from '@/utils/api'
 
 // ============================================================
 // 类型定义

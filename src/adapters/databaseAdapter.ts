@@ -229,8 +229,8 @@ function parseTimeRange(timeRange: string): { start: number; end: number } {
   }
   const [startStr, endStr] = timeRange.split('-')
   return {
-    start: parseTimeToSeconds(startStr),
-    end: parseTimeToSeconds(endStr),
+    start: parseTimeToSeconds(startStr ?? ''),
+    end: parseTimeToSeconds(endStr ?? ''),
   }
 }
 

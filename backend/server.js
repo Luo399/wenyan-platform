@@ -45,6 +45,12 @@ app.use(
 // JSON 请求体解析，设置最大 10MB
 app.use(express.json({ limit: '10mb' }))
 
+// 设置 UTF-8 响应头，解决中文乱码问题
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  next()
+})
+
 // 静态文件服务
 app.use(express.static('public'))
 
@@ -53,8 +59,9 @@ app.use(express.static('public'))
 // ============================================================
 
 // 确定数据库路径（支持测试模式）
+const path = require('path')
 const dbDir = process.env.TEST_MODE ? __dirname : './database'
-const dbPath = process.env.DB_PATH || `${dbDir}/answers.db`
+const dbPath = process.env.DB_PATH || path.join(dbDir, 'answers.db')
 
 // 确保 database 目录存在
 if (!fs.existsSync(dbDir)) {
@@ -69,6 +76,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
   console.log('成功连接到 SQLite 数据库')
 })
+
+// 创建索引优化查询性能
+function createIndexes() {
+  db.run(`CREATE INDEX IF NOT EXISTS idx_wen_id ON answer_records(wen_id)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_student_id ON answer_records(student_id)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_wen_student ON answer_records(wen_id, student_id)`)
+}
 
 // 确保表存在 - 学生表
 db.run(
@@ -85,36 +99,6 @@ db.run(
     }
   },
 )
-
-// 确保表存在 - 答题情况表
-db.run(
-  `
-  CREATE TABLE IF NOT EXISTS answer_records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    wen_id TEXT NOT NULL,
-    student_id TEXT NOT NULL,
-    question_id TEXT NOT NULL,
-    user_answer TEXT NOT NULL,
-    correct_answer TEXT,
-    is_correct INTEGER DEFAULT 0,
-    score INTEGER DEFAULT 0,
-    submitted_at TEXT NOT NULL,
-    attempt_number INTEGER DEFAULT 1
-  )
-`,
-  (err) => {
-    if (err) {
-      console.error('创建答题情况表失败:', err.message)
-    }
-  },
-)
-
-// 创建索引优化查询性能（在表创建完成后执行）
-function createIndexes() {
-  db.run(`CREATE INDEX IF NOT EXISTS idx_wen_id ON answer_records(wen_id)`)
-  db.run(`CREATE INDEX IF NOT EXISTS idx_student_id ON answer_records(student_id)`)
-  db.run(`CREATE INDEX IF NOT EXISTS idx_wen_student ON answer_records(wen_id, student_id)`)
-}
 
 // 确保表存在 - 答题情况表（创建成功后创建索引）
 db.run(
@@ -193,6 +177,105 @@ function readJsonFile(filePath) {
     console.error(`读取文件失败 ${filePath}:`, err)
     return null
   }
+}
+
+/**
+ * 辅助函数：根据题目ID和课文ID从JSON文件获取正确答案
+ * 支持多个测验目录的查找
+ */
+function getCorrectAnswerFromJson(questionId, wenId) {
+  const possibleDirs = ['level1_quiz', 'level2_quiz', 'level3_adaptive_quiz']
+
+  for (const dir of possibleDirs) {
+    const filePath = `./public/data/${dir}/${wenId}.json`
+    const data = readJsonFile(filePath)
+
+    if (data) {
+      // 尝试在 questions 数组中查找
+      if (data.questions && Array.isArray(data.questions)) {
+        const question = data.questions.find(
+          (q) => q.id === questionId || q.questionId === questionId,
+        )
+        if (
+          question &&
+          (question.correctAnswer !== undefined || question.correct_answer !== undefined)
+        ) {
+          return question.correctAnswer ?? question.correct_answer
+        }
+      }
+
+      // 尝试在 blocks 中查找 quiz 块
+      if (data.blocks && Array.isArray(data.blocks)) {
+        for (const block of data.blocks) {
+          if (block.type === 'quiz' && block.data && block.data.questions) {
+            const question = block.data.questions.find(
+              (q) => q.id === questionId || q.questionId === questionId,
+            )
+            if (
+              question &&
+              (question.correctAnswer !== undefined || question.correct_answer !== undefined)
+            ) {
+              return question.correctAnswer ?? question.correct_answer
+            }
+          }
+        }
+      }
+
+      // 尝试在 quiz 数组中查找（扁平结构）
+      if (data.quiz && Array.isArray(data.quiz)) {
+        const question = data.quiz.find((q) => q.id === questionId || q.questionId === questionId)
+        if (
+          question &&
+          (question.correctAnswer !== undefined || question.correct_answer !== undefined)
+        ) {
+          return question.correctAnswer ?? question.correct_answer
+        }
+      }
+    }
+  }
+
+  // 如果在测验文件中找不到，尝试从页面配置文件中查找
+  const pageConfigs = [
+    `./public/data/pages_level2_dialog_quiz/${wenId}.json`,
+    `./public/data/pages_level3_adaptive_quiz/${wenId}.json`,
+  ]
+
+  for (const filePath of pageConfigs) {
+    const data = readJsonFile(filePath)
+    if (data && data.blocks && Array.isArray(data.blocks)) {
+      for (const block of data.blocks) {
+        if (block.type === 'quiz' && block.data && block.data.questions) {
+          const question = block.data.questions.find(
+            (q) => q.id === questionId || q.questionId === questionId,
+          )
+          if (
+            question &&
+            (question.correctAnswer !== undefined || question.correct_answer !== undefined)
+          ) {
+            return question.correctAnswer ?? question.correct_answer
+          }
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * 辅助函数：处理答案值，确保格式正确
+ */
+function processAnswerValue(value) {
+  if (value === null || value === undefined) return null
+  if (value === 'unknown') return null
+  if (typeof value === 'string' && value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return value
+    }
+  }
+  return value
 }
 
 /**
@@ -361,7 +444,9 @@ app.get('/api/texts/:textId/level3-adaptive-quiz', (req, res) => {
  */
 app.get('/api/texts', (req, res) => {
   const page = isNaN(parseInt(req.query.page)) ? 1 : Math.max(1, Math.abs(parseInt(req.query.page)))
-  const pageSize = isNaN(parseInt(req.query.page_size)) ? 20 : Math.min(100, Math.max(1, Math.abs(parseInt(req.query.page_size))))
+  const pageSize = isNaN(parseInt(req.query.page_size))
+    ? 20
+    : Math.min(100, Math.max(1, Math.abs(parseInt(req.query.page_size))))
 
   // 扫描text_basic_info目录，获取所有可用文本
   const texts = []
@@ -508,12 +593,13 @@ app.get('/api/students/:studentId', (req, res) => {
  * 请求体格式：
  * {
  *   studentId: string,        // 学生ID（学号）
- *   name: string              // 学生姓名
+ *   name: string,             // 学生姓名
+ *   class: number             // 班级号（可选，默认9）
  * }
  */
 app.post('/api/students', (req, res) => {
   try {
-    const { studentId, name } = req.body
+    const { studentId, name, class: studentClass = 9 } = req.body
 
     if (!studentId || !name) {
       return res.status(400).json({
@@ -525,10 +611,10 @@ app.post('/api/students', (req, res) => {
 
     // 插入或更新学生信息
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO students (student_id, name) VALUES (?, ?)
+      INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)
     `)
 
-    stmt.run(studentId, name, (err) => {
+    stmt.run(studentId, name, studentClass, (err) => {
       stmt.finalize()
       if (err) {
         console.error('学生注册失败:', err)
@@ -542,7 +628,7 @@ app.post('/api/students', (req, res) => {
       res.status(200).json({
         success: true,
         message: '学生注册成功',
-        data: { studentId, name },
+        data: { studentId, name, class: studentClass },
       })
     })
   } catch (err) {
@@ -786,10 +872,17 @@ app.get('/api/answers/wen/:wenId', (req, res) => {
         stat.correctCount += row.is_correct
         stat.wrongCount += row.is_correct === 0 ? 1 : 0
         stat.totalScore += row.score
+
+        // 处理答案值：如果是 'unknown' 或 null，从 JSON 文件获取正确答案
+        let correctAnswerValue = processAnswerValue(row.correct_answer)
+        if (correctAnswerValue === null || correctAnswerValue === 'unknown') {
+          correctAnswerValue = getCorrectAnswerFromJson(row.question_id, row.wen_id)
+        }
+
         stat.answers.push({
           questionId: row.question_id,
           userAnswer: safeParse(row.user_answer),
-          correctAnswer: row.correct_answer ? safeParse(row.correct_answer) : null,
+          correctAnswer: correctAnswerValue,
           isCorrect: row.is_correct === 1,
           score: row.score,
           submittedAt: row.submitted_at,
@@ -860,6 +953,7 @@ app.get('/api/answers/student/:studentId', (req, res) => {
             studentId: row.student_id,
             studentName: row.student_name,
             wenId: row.wen_id,
+            submittedAt: row.submitted_at,
             totalQuestions: 0,
             correctCount: 0,
             wrongCount: 0,
@@ -873,10 +967,17 @@ app.get('/api/answers/student/:studentId', (req, res) => {
         stat.correctCount += row.is_correct
         stat.wrongCount += row.is_correct === 0 ? 1 : 0
         stat.totalScore += row.score
+
+        // 处理答案值：如果是 'unknown' 或 null，从 JSON 文件获取正确答案
+        let correctAnswerValue = processAnswerValue(row.correct_answer)
+        if (correctAnswerValue === null || correctAnswerValue === 'unknown') {
+          correctAnswerValue = getCorrectAnswerFromJson(row.question_id, row.wen_id)
+        }
+
         stat.answers.push({
           questionId: row.question_id,
           userAnswer: safeParse(row.user_answer),
-          correctAnswer: row.correct_answer ? safeParse(row.correct_answer) : null,
+          correctAnswer: correctAnswerValue,
           isCorrect: row.is_correct === 1,
           score: row.score,
           submittedAt: row.submitted_at,
@@ -916,11 +1017,26 @@ app.get('/api/answers/student/:studentId', (req, res) => {
 })
 
 /**
- * 查询所有学生列表接口
+ * 查询学生列表接口
  * GET /api/students
+ *
+ * 查询参数：
+ * - class: 班级编号（可选）
  */
 app.get('/api/students', (req, res) => {
-  db.all('SELECT * FROM students ORDER BY created_at DESC', [], (err, rows) => {
+  const { class: classNum } = req.query
+
+  let query = 'SELECT * FROM students'
+  let params = []
+
+  if (classNum && /^\d+$/.test(String(classNum))) {
+    query += ' WHERE class = ?'
+    params.push(parseInt(classNum))
+  }
+
+  query += ' ORDER BY student_id ASC'
+
+  db.all(query, params, (err, rows) => {
     if (err) {
       console.error('查询失败:', err)
       return res.status(500).json({
@@ -992,7 +1108,7 @@ app.post('/api/auth/login', (req, res) => {
           // 如果数据库中没有该学生，但提供了姓名，则自动注册
           if (studentName && studentName.trim()) {
             db.run(
-              'INSERT INTO students (student_id, name) VALUES (?, ?)',
+              'INSERT INTO students (student_id, name, class) VALUES (?, ?, 9)',
               [studentId, studentName],
               (insertErr) => {
                 if (insertErr) {
@@ -1068,17 +1184,142 @@ function generateToken(studentId, username) {
   }
 
   const secret = process.env.JWT_SECRET || 'wenyan_platform_2026_secret_key'
-  
+
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  
+
   const data = `${header}.${encodedPayload}`
-  const signature = crypto.createHmac('sha256', secret)
-    .update(data)
-    .digest('base64url')
+  const signature = crypto.createHmac('sha256', secret).update(data).digest('base64url')
 
   return `${header}.${encodedPayload}.${signature}`
 }
+
+/**
+ * 修改学生信息接口
+ * PUT /api/students/:studentId
+ *
+ * 请求体格式：
+ * {
+ *   name: string,             // 学生姓名
+ *   class: number             // 班级号（可选）
+ * }
+ */
+app.put('/api/students/:studentId', (req, res) => {
+  try {
+    const { studentId } = req.params
+    const { name, class: studentClass } = req.body
+
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: '学生ID不能为空',
+      })
+    }
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: '学生姓名不能为空',
+      })
+    }
+
+    // 构建更新语句
+    let updateSql = 'UPDATE students SET name = ?'
+    let params = [name.trim()]
+
+    if (studentClass !== undefined) {
+      updateSql += ', class = ?'
+      params.push(studentClass)
+    }
+
+    updateSql += ' WHERE student_id = ?'
+    params.push(studentId)
+
+    db.run(updateSql, params, function (err) {
+      if (err) {
+        console.error('修改学生信息失败:', err)
+        return res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '修改学生信息失败',
+        })
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'STUDENT_NOT_FOUND',
+          message: `未找到学号为 ${studentId} 的学生`,
+        })
+      }
+
+      res.status(200).json({
+        success: true,
+        message: '学生信息修改成功',
+        data: { studentId, name: name.trim(), class: studentClass },
+      })
+    })
+  } catch (err) {
+    console.error('处理请求失败:', err)
+    res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+})
+
+/**
+ * 删除学生接口
+ * DELETE /api/students/:studentId
+ */
+app.delete('/api/students/:studentId', (req, res) => {
+  try {
+    const { studentId } = req.params
+
+    if (!studentId) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: '学生ID不能为空',
+      })
+    }
+
+    db.run('DELETE FROM students WHERE student_id = ?', [studentId], function (err) {
+      if (err) {
+        console.error('删除学生失败:', err)
+        return res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '删除学生失败',
+        })
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'STUDENT_NOT_FOUND',
+          message: `未找到学号为 ${studentId} 的学生`,
+        })
+      }
+
+      res.status(200).json({
+        success: true,
+        message: '学生删除成功',
+        data: { studentId },
+      })
+    })
+  } catch (err) {
+    console.error('处理请求失败:', err)
+    res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+})
 
 // ============================================================
 // 服务器启动

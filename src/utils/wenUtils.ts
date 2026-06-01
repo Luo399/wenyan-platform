@@ -36,12 +36,10 @@ export function getWenId(id: string): string {
  */
 export function getPoemTitle(poemId: string): string {
   // 如果是 WEN_xx 格式，提取数字部分
-  const id = poemId.startsWith('WEN_') 
-    ? poemId.replace('WEN_', '') 
-    : poemId
-  
+  const id = poemId.startsWith('WEN_') ? poemId.replace('WEN_', '') : poemId
+
   // 如果提取后是 '01' 格式，去掉前导零
   const normalizedId = parseInt(id, 10).toString()
-  
+
   return poemMap[normalizedId]?.title || '未知篇目'
 }

@@ -14,6 +14,8 @@
       "type": "quiz",
       "data": {
         "text_id": "WEN_01",
+        "question_id": "WEN_01_B1",
+        "module": "B",
         "question_number": 1,
         "question_text": "下列对陈胜、吴广起义前一系列安排的分析，最能体现二人处事智慧的一项是（）",
         "option_a": "假借扶苏、项燕名号起义，核心目的是吸引官兵注意力，方便起义军突围",
@@ -50,6 +52,8 @@
       "type": "quiz",
       "data": {
         "text_id": "WEN_01",
+        "question_id": "WEN_01_B2",
+        "module": "B",
         "question_number": 2,
         "question_text": "杀死将尉后，陈胜对全体戍卒做起义动员，哪一句话最能体现他不甘宿命、敢于反抗的超凡胆识？（）",
         "option_a": "燕雀安知鸿鹄之志哉",

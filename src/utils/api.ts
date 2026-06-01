@@ -1,6 +1,6 @@
 /**
  * API 请求封装
- * 
+ *
  * 功能：
  * - 自动在请求头中携带 JWT token（动态获取）
  * - 统一错误处理（非2xx响应抛出错误）
@@ -12,10 +12,16 @@ import { useAuthStore } from '@/stores/auth'
 
 /**
  * 获取后端 API 基础地址
- * 开发时指向 localhost:3000，部署时改 .env.production
+ * 开发环境返回空字符串，让请求使用相对路径（通过 Vite 代理转发）
+ * 生产环境配置 .env.production 中的 VITE_API_BASE
  */
 function getBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE || 'http://localhost:3000'
+  const baseUrl = import.meta.env.VITE_API_BASE
+  // 开发环境（无配置或本地地址）使用相对路径
+  if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+    return ''
+  }
+  return baseUrl
 }
 
 /**
@@ -54,7 +60,10 @@ export interface ApiResponse<T = any> {
  * API 错误类
  */
 export class ApiError extends Error {
-  constructor(message: string, public code?: number) {
+  constructor(
+    message: string,
+    public code?: number,
+  ) {
     super(message)
     this.name = 'ApiError'
   }
@@ -66,14 +75,9 @@ export class ApiError extends Error {
  */
 export async function request<T = any>(
   url: string,
-  config: RequestConfig = {}
+  config: RequestConfig = {},
 ): Promise<ApiResponse<T>> {
-  const {
-    method = 'GET',
-    headers = {},
-    body,
-    timeout = 30000
-  } = config
+  const { method = 'GET', headers = {}, body, timeout = 30000 } = config
 
   // 构建完整 URL
   const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
@@ -82,7 +86,7 @@ export async function request<T = any>(
   const requestHeaders = new Headers({
     'Content-Type': 'application/json',
     ...getAuthHeaders(),
-    ...headers
+    ...headers,
   })
 
   // 创建取消控制器
@@ -96,7 +100,7 @@ export async function request<T = any>(
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal
+      signal: controller.signal,
     })
 
     clearTimeout(timeoutId)
@@ -130,12 +134,13 @@ export async function request<T = any>(
 export async function get<T = any>(
   url: string,
   params?: Record<string, string | number>,
-  config: Omit<RequestConfig, 'method' | 'body'> = {}
+  config: Omit<RequestConfig, 'method' | 'body'> = {},
 ): Promise<ApiResponse<T>> {
   const queryString = params
-    ? '?' + new URLSearchParams(Object.fromEntries(
-        Object.entries(params).map(([k, v]) => [k, String(v)])
-      )).toString()
+    ? '?' +
+      new URLSearchParams(
+        Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+      ).toString()
     : ''
   return request<T>(url + queryString, config)
 }
@@ -146,7 +151,7 @@ export async function get<T = any>(
 export async function post<T = any>(
   url: string,
   body?: any,
-  config: Omit<RequestConfig, 'method'> = {}
+  config: Omit<RequestConfig, 'method'> = {},
 ): Promise<ApiResponse<T>> {
   return request<T>(url, { ...config, method: 'POST', body })
 }
@@ -157,7 +162,7 @@ export async function post<T = any>(
 export async function put<T = any>(
   url: string,
   body?: any,
-  config: Omit<RequestConfig, 'method'> = {}
+  config: Omit<RequestConfig, 'method'> = {},
 ): Promise<ApiResponse<T>> {
   return request<T>(url, { ...config, method: 'PUT', body })
 }
@@ -167,7 +172,7 @@ export async function put<T = any>(
  */
 export async function del<T = any>(
   url: string,
-  config: Omit<RequestConfig, 'method'> = {}
+  config: Omit<RequestConfig, 'method'> = {},
 ): Promise<ApiResponse<T>> {
   return request<T>(url, { ...config, method: 'DELETE' })
 }
@@ -178,7 +183,7 @@ export async function del<T = any>(
 
 /**
  * 登录请求
- * 
+ *
  * @param studentId - 学号
  * @returns 用户信息和 token
  */
@@ -200,15 +205,18 @@ export async function login(studentId: string): Promise<LoginResponse> {
 /**
  * 答题数据接口
  */
-export interface AnswerItem {
-  question_number: number
-  selected: number | string
-  is_correct: boolean
+export interface QuestionForSubmit {
+  id: string
+  correctAnswer: string | number | (string | number)[]
 }
 
 export interface SubmitAnswersParams {
-  wen_id: string
-  answers: AnswerItem[]
+  studentId: string
+  studentName?: string
+  wenId: string
+  submittedAt: string
+  answers: Record<string, string | number | (string | number)[]>
+  questions: QuestionForSubmit[]
 }
 
 export interface SubmitAnswersResponse {
@@ -223,29 +231,48 @@ export interface SubmitAnswersResponse {
     wrongCount: number
     totalScore: number
     avgScore: number
-    details: Array<{ 
-      questionId: string 
-      score: number 
-      isCorrect: number 
-      attemptNumber: number 
+    details: Array<{
+      questionId: string
+      score: number
+      isCorrect: number
+      attemptNumber: number
     }>
   }
 }
 
 /**
  * 提交答题结果
- * 
- * @param params - 答题数据
+ *
+ * @param submitData - 答题数据（包含answers和questions）
+ * @param wenId - 课文ID
+ * @param studentId - 学生ID
+ * @param studentName - 学生姓名（可选）
+ * @param timeout - 超时时间
  * @returns 提交结果
  */
-export async function submitAnswers(params: SubmitAnswersParams): Promise<SubmitAnswersResponse> {
-  const response = await post<SubmitAnswersResponse>('/api/submit', params)
+export async function submitAnswers(
+  submitData: { answers: Record<string, any>; questions: QuestionForSubmit[] },
+  wenId: string,
+  studentId: string,
+  studentName?: string,
+  timeout?: number,
+): Promise<SubmitAnswersResponse> {
+  const params: SubmitAnswersParams = {
+    studentId,
+    studentName,
+    wenId,
+    submittedAt: new Date().toISOString(),
+    answers: submitData.answers,
+    questions: submitData.questions,
+  }
+
+  const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
   return response.data!
 }
 
 /**
  * 获取文本基础信息
- * 
+ *
  * @param textId - 课文ID
  */
 export interface TextBasicInfo {
@@ -265,7 +292,7 @@ export async function getTextBasicInfo(textId: string): Promise<TextBasicInfo> {
 
 /**
  * 获取字词注释数据
- * 
+ *
  * @param textId - 课文ID
  */
 export interface WordItem {
