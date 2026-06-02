@@ -1,0 +1,21 @@
+{
+  "text_id": "WEN_04",
+  "cards": [
+    {
+      "text_id": "WEN_04",
+      "card_id": 1,
+      "card_name": "濠水之鱼",
+      "image_file": "WEN_04_card_fish.png",
+      "knowledge_text": "观看图片，领取庄子和惠子给你的奖励——濠水之鱼，鱼乐之辩又称濠梁之辩，是中国思想史上的一次著名辩论",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_04",
+      "card_id": 2,
+      "card_name": "新疆寓言",
+      "image_file": "WEN_04_card_yuyan.mp4",
+      "knowledge_text": "欣赏新疆寓言故事，体会在寓言中说理的特点",
+      "unlock_condition": "完成第三关题目后出现按钮“我已完成”，点击“我已完成”"
+    }
+  ]
+}
