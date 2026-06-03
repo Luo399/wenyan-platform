@@ -37,12 +37,14 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0',
+    port: 5173,
     fs: {
       strict: false,
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://8.138.106.162',
         changeOrigin: true,
         secure: false,
       },
