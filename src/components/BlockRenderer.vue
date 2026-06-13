@@ -7,12 +7,12 @@
 <template>
   <div class="block-renderer" :class="`block-type-${block.type}`" v-if="show">
     <!-- 针对 quiz 类型，透传事件 -->
-    <AdaptQuiz
-      v-if="block.type === 'quiz'"
-      v-bind="block.data"
-      @quiz-submitted="$emit('quiz-submitted')"
-      @answer="(quiz, answer, isCorrect) => $emit('quiz-answer', { quiz, answer, isCorrect })"
-    />
+  <AdaptQuiz
+    v-if="block.type === 'quiz'"
+    v-bind="block.data"
+    @quiz-submitted="$emit('quiz-submitted')"
+    @answer="(quiz, answer, isCorrect, questionId, module, correctAnswer) => $emit('quiz-answer', { quiz, answer, isCorrect, questionId, module, correctAnswer })"
+  />
     <!-- 其他类型直接渲染 -->
     <component v-else :is="componentMap[block.type]" v-bind="block.data" />
   </div>
@@ -69,7 +69,7 @@ const props = withDefaults(defineProps<Props>(), {
 // 事件定义
 const emit = defineEmits<{
   (e: 'quiz-submitted'): void
-  (e: 'quiz-answer', answer: { quiz: unknown; answer: string; isCorrect: boolean }): void
+  (e: 'quiz-answer', answer: { quiz: unknown; answer: string; isCorrect: boolean; questionId?: string; module?: string; correctAnswer?: string | number | (string | number)[] }): void
 }>()
 </script>
 

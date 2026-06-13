@@ -23,14 +23,20 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
+import { submitAnswers } from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
 
 /**
  * 答案记录类型
  */
 export interface QuizAnswer {
   questionIndex: number
+  questionId?: string
+  module?: string
   answer: number | string
   isCorrect?: boolean
+  correctAnswer?: string | number | (string | number)[]
 }
 
 /**
@@ -62,8 +68,11 @@ export interface UseQuizProgressReturn {
    * 提交当前题目
    * @param answer 用户选择的答案（数字索引或字符串）
    * @param isCorrect 是否正确（可选）
+   * @param questionId 题目ID（可选，用于后端提交）
+   * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
+   * @param correctAnswer 正确答案（可选，用于后端提交）
    */
-  handleSubmit: (answer: number | string, isCorrect?: boolean) => void
+  handleSubmit: (answer: number | string, isCorrect?: boolean, questionId?: string, module?: string, correctAnswer?: string | number | (string | number)[]) => void
 
   /**
    * 重置进度到初始状态（同时清除完成记录）
@@ -174,12 +183,80 @@ export function useQuizProgress(
   }
 
   /**
+   * 提交答案到后端
+   */
+  async function submitAnswersToBackend(): Promise<void> {
+    if (!completionKeyPrefix || answers.value.length === 0) {
+      console.log(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
+      return
+    }
+
+    try {
+      // 优先使用新的认证 store（新逻辑）
+      const authStore = useAuthStore()
+      let studentId = ''
+      let studentName = ''
+
+      // 新逻辑：从 authStore 获取学生信息
+      if (authStore.isLoggedIn && authStore.user) {
+        studentId = authStore.user.studentId
+        studentName = authStore.user.username
+        console.log(`[useQuizProgress] 使用新登录逻辑 - 学生ID: ${studentId}, 姓名: ${studentName}`)
+      } else {
+        // 旧逻辑：从 studentStore 获取学生ID（兼容旧代码）
+        const studentStore = useStudentStore()
+        studentId = studentStore.studentId
+        console.log(`[useQuizProgress] 使用旧登录逻辑 - 学生ID: ${studentId}`)
+      }
+
+      if (!studentId) {
+        console.warn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
+        return
+      }
+
+      // 构建题目数据（包含正确答案和题目ID）
+      const questions = answers.value.map((ans) => ({
+        id: ans.questionId || `question_${ans.questionIndex}`,
+        correctAnswer: ans.correctAnswer ?? 'unknown',
+      }))
+
+      // 构建答案映射（使用 questionId 或 questionIndex）
+      const answerMap: Record<string, any> = {}
+      answers.value.forEach((ans) => {
+        const key = ans.questionId || `question_${ans.questionIndex}`
+        answerMap[key] = ans.answer
+      })
+
+      // 提交到后端（传入学生姓名）
+      await submitAnswers(
+        { answers: answerMap, questions },
+        completionKeyPrefix,
+        studentId,
+        studentName,
+      )
+
+      console.log(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
+    } catch (error) {
+      console.error('[useQuizProgress] submitAnswersToBackend - 提交失败:', error)
+    }
+  }
+
+  /**
    * 提交当前题目
    *
    * @param answer 用户选择的答案（数字索引或字符串）
    * @param isCorrect 是否正确（可选）
+   * @param questionId 题目ID（可选，用于后端提交）
+   * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
+   * @param correctAnswer 正确答案（可选，用于后端提交）
    */
-  function handleSubmit(answer: number | string, isCorrect?: boolean): void {
+  async function handleSubmit(
+    answer: number | string,
+    isCorrect?: boolean,
+    questionId?: string,
+    module?: string,
+    correctAnswer?: string | number | (string | number)[],
+  ): Promise<void> {
     const prevCurrentIndex = currentIndex.value
     const prevCompletedCount = completedCount.value
 
@@ -189,22 +266,23 @@ export function useQuizProgress(
       return
     }
 
-    // 记录答案
+    // 记录答案（包含 questionId 和 module）
     const existingIndex = answers.value.findIndex((a) => a.questionIndex === currentIndex.value)
+    const answerRecord: QuizAnswer = {
+      questionIndex: currentIndex.value,
+      questionId,
+      module,
+      answer,
+      isCorrect,
+      correctAnswer,
+    }
+
     if (existingIndex >= 0) {
       // 更新已有答案
-      answers.value[existingIndex] = {
-        questionIndex: currentIndex.value,
-        answer,
-        isCorrect,
-      }
+      answers.value[existingIndex] = answerRecord
     } else {
       // 添加新答案
-      answers.value.push({
-        questionIndex: currentIndex.value,
-        answer,
-        isCorrect,
-      })
+      answers.value.push(answerRecord)
     }
 
     // 增加已完成计数（仅在首次提交时）
@@ -218,9 +296,10 @@ export function useQuizProgress(
       onSubmit(currentIndex.value, answer, isCorrect)
     }
 
-    // 检查是否全部完成，如果是则保存完成记录
+    // 检查是否全部完成，如果是则保存完成记录并提交到后端
     if (isCompleted.value) {
       saveCompletionRecord()
+      await submitAnswersToBackend()
     }
 
     // 自动解锁下一题（如果有下一题）
@@ -236,6 +315,8 @@ export function useQuizProgress(
       newCompletedCount: completedCount.value,
       answer,
       isCorrect,
+      questionId,
+      module,
       isCompleted: isCompleted.value,
     })
   }
@@ -303,21 +384,25 @@ export function useQuizProgress(
   /**
    * 监听题目总数变化，自动初始化提交状态列表
    */
-  watch(totalQuestionsRef, (newVal, oldVal) => {
-    console.log(`[useQuizProgress] watch - 题目总数变化`, {
-      operation: 'totalQuestionsChange',
-      oldValue: oldVal,
-      newValue: newVal,
-    })
+  watch(
+    totalQuestionsRef,
+    (newVal, oldVal) => {
+      console.log(`[useQuizProgress] watch - 题目总数变化`, {
+        operation: 'totalQuestionsChange',
+        oldValue: oldVal,
+        newValue: newVal,
+      })
 
-    // 初始化提交状态列表
-    submittedList.value = new Array(newVal).fill(false)
+      // 初始化提交状态列表
+      submittedList.value = new Array(newVal).fill(false)
 
-    // 当题目总数变为0或增加时，重置进度
-    if (newVal === 0 || (oldVal !== undefined && newVal > oldVal)) {
-      resetProgress()
-    }
-  }, { immediate: true })
+      // 当题目总数变为0或增加时，重置进度
+      if (newVal === 0 || (oldVal !== undefined && newVal > oldVal)) {
+        resetProgress()
+      }
+    },
+    { immediate: true },
+  )
 
   return {
     currentIndex,

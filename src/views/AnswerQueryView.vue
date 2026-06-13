@@ -1,32 +1,57 @@
 <!--
-  AnswerQueryView.vue - 学生答题情况查询页面
-  
+  AnswerQueryView.vue - 学生信息查询与管理页面
+
   功能说明：
-  - 支持按文言文ID和学生ID查询答题情况
+  - 学生信息CRUD管理（新增、删除、修改、查询）
+  - 按文言文ID和学生ID查询答题情况
   - 展示学生列表和答题记录
   - 提供数据筛选、排序和分页功能
-  - 支持数据导出和可视化展示
+  - 支持数据导出
 -->
 <template>
   <div class="answer-query-container">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h1>学生答题情况查询</h1>
-      <p class="subtitle">查看学生的答题记录和统计信息</p>
+      <h1>学生信息查询与管理</h1>
+      <p class="subtitle">管理系统中的学生信息，支持增删查改操作</p>
     </div>
+
+    <!-- 操作反馈提示 -->
+    <Transition name="fade">
+      <div v-if="toast.show" :class="['toast', toast.type]">
+        <span class="toast-icon">{{ toast.type === 'success' ? '✓' : '✕' }}</span>
+        <span class="toast-message">{{ toast.message }}</span>
+      </div>
+    </Transition>
 
     <!-- 查询表单 -->
     <div class="query-form">
       <div class="form-tabs">
-        <button 
-          v-for="tab in tabs" 
-          :key="tab.id"
-          class="tab-btn"
-          :class="{ active: activeTab === tab.id }"
-          @click="activeTab = tab.id"
-        >
-          {{ tab.name }}
-        </button>
+        <div class="tabs-left">
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'students' }"
+            @click="activeTab = 'students'"
+          >
+            学生管理
+          </button>
+        </div>
+        <div class="tabs-right">
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'wenId' }"
+            @click="activeTab = 'wenId'"
+          >
+            按文言文ID查询
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'studentId' }"
+            @click="activeTab = 'studentId'"
+          >
+            按学生ID查询
+          </button>
+        </div>
       </div>
 
       <!-- 按文言文ID查询 -->
@@ -34,9 +59,9 @@
         <div class="form-row">
           <div class="form-group">
             <label>文言文ID</label>
-            <input 
-              v-model="queryForm.wenId" 
-              type="text" 
+            <input
+              v-model="queryForm.wenId"
+              type="text"
               placeholder="如：WEN_01"
               class="form-input"
             />
@@ -50,10 +75,10 @@
         <div class="form-row">
           <div class="form-group">
             <label>学生学号</label>
-            <input 
-              v-model="queryForm.studentId" 
-              type="text" 
-              placeholder="如：1234"
+            <input
+              v-model="queryForm.studentId"
+              type="text"
+              placeholder="如：2024001"
               class="form-input"
             />
           </div>
@@ -61,9 +86,33 @@
         </div>
       </div>
 
-      <!-- 查询所有学生 -->
+      <!-- 学生列表管理 -->
       <div v-show="activeTab === 'students'" class="tab-content">
-        <button class="query-btn" @click="loadAllStudents">加载所有学生</button>
+        <div class="students-toolbar">
+          <div class="left-buttons">
+            <div class="search-group">
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索学号或姓名..."
+                class="search-input"
+                @input="handleSearch"
+              />
+              <button class="search-btn" @click="handleSearch">
+                <span>🔍</span>
+              </button>
+            </div>
+            <div class="class-filter">
+              <select v-model="selectedClass" class="class-select" @change="queryByClass">
+                <option value="">全部班级</option>
+                <option v-for="cls in availableClasses" :key="cls" :value="cls">
+                  班级{{ cls }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <button class="add-btn" @click="openAddModal"><span>+</span> 新增学生</button>
+        </div>
       </div>
     </div>
 
@@ -71,7 +120,7 @@
     <div v-if="statistics" class="stats-cards">
       <div class="stat-card">
         <div class="stat-value">{{ statistics.totalStudents }}</div>
-        <div class="stat-label">学生总数</div>
+        <div class="stat-label">{{ activeTab === 'students' ? '学生总数' : '学生人数' }}</div>
       </div>
       <div class="stat-card success">
         <div class="stat-value">{{ statistics.totalCorrect }}</div>
@@ -97,7 +146,7 @@
             <option value="score">按得分排序</option>
           </select>
           <button class="export-btn" @click="exportData" :disabled="!hasData">
-            <span>导出Excel</span>
+            <span>导出</span>
           </button>
         </div>
       </div>
@@ -118,15 +167,17 @@
       <!-- 空数据状态 -->
       <div v-else-if="!hasData" class="empty-state">
         <span>暂无数据</span>
-        <p>请选择查询方式并点击查询</p>
+        <p v-if="activeTab === 'students'">点击"新增学生"添加第一条记录</p>
+        <p v-else>请选择查询方式并点击查询</p>
       </div>
 
-      <!-- 学生列表 -->
+      <!-- 学生列表（带CRUD操作） -->
       <table v-else-if="activeTab === 'students'" class="data-table">
         <thead>
           <tr>
             <th>学号</th>
             <th>姓名</th>
+            <th>班级</th>
             <th>创建时间</th>
             <th>操作</th>
           </tr>
@@ -135,10 +186,15 @@
           <tr v-for="student in displayData" :key="student.student_id">
             <td>{{ student.student_id }}</td>
             <td>{{ student.name }}</td>
+            <td>{{ student.class || '-' }}</td>
             <td>{{ formatDate(student.created_at) }}</td>
-            <td>
-              <button class="action-btn view-btn" @click="viewStudentDetail(student)">查看详情</button>
-              <button class="action-btn answer-btn" @click="viewStudentAnswers(student.student_id)">答题记录</button>
+            <td class="actions-cell">
+              <button class="action-btn view-btn" @click="viewStudentDetail(student)">查看</button>
+              <button class="action-btn edit-btn" @click="openEditModal(student)">编辑</button>
+              <button class="action-btn answer-btn" @click="viewStudentAnswers(student.student_id)">
+                答题
+              </button>
+              <button class="action-btn delete-btn" @click="confirmDelete(student)">删除</button>
             </td>
           </tr>
         </tbody>
@@ -166,7 +222,9 @@
             <td class="wrong">{{ student.wrongCount }}</td>
             <td>{{ student.avgScore }}%</td>
             <td>
-              <button class="action-btn detail-btn" @click="viewWenStudentDetail(student)">查看详情</button>
+              <button class="action-btn detail-btn" @click="viewWenStudentDetail(student)">
+                详情
+              </button>
             </td>
           </tr>
         </tbody>
@@ -192,7 +250,9 @@
             <td class="correct">{{ record.correctCount }}</td>
             <td>{{ record.avgScore }}%</td>
             <td>
-              <button class="action-btn detail-btn" @click="viewStudentWenDetail(record)">查看详情</button>
+              <button class="action-btn detail-btn" @click="viewStudentWenDetail(record)">
+                详情
+              </button>
             </td>
           </tr>
         </tbody>
@@ -201,19 +261,20 @@
 
     <!-- 分页 -->
     <div v-if="hasData && pagination" class="pagination">
-      <button 
-        class="page-btn" 
-        :disabled="pagination.currentPage <= 1"
-        @click="prevPage"
-      >上一页</button>
+      <button class="page-btn" :disabled="pagination.currentPage <= 1" @click="prevPage">
+        上一页
+      </button>
       <span class="page-info">
-        第 {{ pagination.currentPage }} / {{ pagination.totalPages }} 页
+        第 {{ pagination.currentPage }} / {{ pagination.totalPages }} 页，共
+        {{ pagination.total }} 条
       </span>
-      <button 
-        class="page-btn" 
+      <button
+        class="page-btn"
         :disabled="pagination.currentPage >= pagination.totalPages"
         @click="nextPage"
-      >下一页</button>
+      >
+        下一页
+      </button>
     </div>
 
     <!-- 学生详情弹窗 -->
@@ -233,6 +294,10 @@
             <span class="detail-value">{{ selectedStudent.name }}</span>
           </div>
           <div class="detail-row">
+            <span class="detail-label">班级：</span>
+            <span class="detail-value">{{ selectedStudent.class || '-' }}</span>
+          </div>
+          <div class="detail-row">
             <span class="detail-label">创建时间：</span>
             <span class="detail-value">{{ formatDate(selectedStudent.created_at) }}</span>
           </div>
@@ -249,7 +314,7 @@
         </div>
         <div v-if="selectedAnswers.length > 0" class="modal-body">
           <div class="answer-detail-header">
-            <span>学生：{{ selectedStudentInfo }}</span>
+            <span>{{ selectedStudentInfo }}</span>
           </div>
           <div v-for="(answer, index) in selectedAnswers" :key="index" class="answer-item">
             <div class="answer-header">
@@ -276,27 +341,156 @@
         </div>
       </div>
     </div>
+
+    <!-- 新增/编辑学生弹窗 -->
+    <div v-if="showStudentFormModal" class="modal-overlay" @click.self="closeFormModal">
+      <div class="modal-content student-form-modal">
+        <div class="modal-header">
+          <h3>{{ isEditMode ? '编辑学生信息' : '新增学生' }}</h3>
+          <button class="close-btn" @click="closeFormModal">×</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="handleSubmitForm" class="student-form">
+            <div class="form-group">
+              <label for="studentIdInput">学号 <span class="required">*</span></label>
+              <input
+                id="studentIdInput"
+                v-model="studentForm.studentId"
+                type="text"
+                placeholder="请输入学号（纯数字）"
+                class="form-input"
+                :disabled="isEditMode || isSubmitting"
+                :class="{ error: formErrors.studentId }"
+              />
+              <span v-if="formErrors.studentId" class="error-text">{{ formErrors.studentId }}</span>
+            </div>
+
+            <div class="form-group">
+              <label for="studentNameInput">姓名 <span class="required">*</span></label>
+              <input
+                id="studentNameInput"
+                v-model="studentForm.name"
+                type="text"
+                placeholder="请输入姓名"
+                class="form-input"
+                :disabled="isSubmitting"
+                :class="{ error: formErrors.name }"
+              />
+              <span v-if="formErrors.name" class="error-text">{{ formErrors.name }}</span>
+            </div>
+
+            <div class="form-group">
+              <label for="studentClassInput">班级 <span class="required">*</span></label>
+              <input
+                id="studentClassInput"
+                v-model.number="studentForm.class"
+                type="number"
+                placeholder="请输入班级（如：9）"
+                class="form-input"
+                :disabled="isSubmitting"
+                :class="{ error: formErrors.class }"
+              />
+              <span v-if="formErrors.class" class="error-text">{{ formErrors.class }}</span>
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="cancel-btn"
+                @click="closeFormModal"
+                :disabled="isSubmitting"
+              >
+                取消
+              </button>
+              <button type="submit" class="submit-btn" :disabled="isSubmitting">
+                <span v-if="isSubmitting" class="spinner-small"></span>
+                <span v-else>{{ isEditMode ? '保存' : '添加' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
+      <div class="modal-content delete-confirm-modal">
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="close-btn" @click="closeDeleteModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="confirm-content">
+            <div class="warning-icon">⚠</div>
+            <p>
+              确定要删除学生 <strong>{{ studentToDelete?.name }}</strong> 吗？
+            </p>
+            <p class="sub-text">学号：{{ studentToDelete?.student_id }}</p>
+            <p class="sub-text danger">此操作将同时删除该学生的所有答题记录，且无法恢复！</p>
+          </div>
+          <div class="form-actions">
+            <button
+              type="button"
+              class="cancel-btn"
+              @click="closeDeleteModal"
+              :disabled="isDeleting"
+            >
+              取消
+            </button>
+            <button type="button" class="danger-btn" @click="handleDelete" :disabled="isDeleting">
+              <span v-if="isDeleting" class="spinner-small"></span>
+              <span v-else>确认删除</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { get } from '@/utils/api'
+import {
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  validateStudentId,
+  validateStudentName,
+  type StudentInfo,
+} from '@/utils/studentApi'
 
-// 查询标签页
+interface StudentRecord {
+  student_id: string
+  name: string
+  class?: number
+  created_at?: string
+}
+
+interface Toast {
+  show: boolean
+  message: string
+  type: 'success' | 'error'
+}
+
+interface FormErrors {
+  studentId: string
+  name: string
+  class?: string
+}
+
 const tabs = [
   { id: 'wenId', name: '按文言文ID查询' },
   { id: 'studentId', name: '按学生ID查询' },
-  { id: 'students', name: '学生列表' },
+  { id: 'students', name: '学生管理' },
 ]
 
-// 状态
 const activeTab = ref('students')
 const loading = ref(false)
 const error = ref('')
 const queryForm = reactive({
   wenId: '',
-  studentId: ''
+  studentId: '',
 })
 const allData = ref<any[]>([])
 const statistics = ref<{
@@ -306,37 +500,75 @@ const statistics = ref<{
   avgScore: number
 } | null>(null)
 
-// 分页
 const pagination = ref<{
   currentPage: number
   totalPages: number
   pageSize: number
+  total: number
 } | null>(null)
 
-// 弹窗状态
 const showStudentModal = ref(false)
 const showAnswerModal = ref(false)
-const selectedStudent = ref<any>(null)
+const selectedStudent = ref<StudentRecord | null>(null)
 const selectedAnswers = ref<any[]>([])
 const selectedStudentInfo = ref('')
 
-// 排序
 const sortBy = ref('time')
 
-// 表格标题
+const searchKeyword = ref('')
+
+const selectedClass = ref('')
+const availableClasses = ref<number[]>([9])
+
+const showStudentFormModal = ref(false)
+const showDeleteModal = ref(false)
+const isEditMode = ref(false)
+const isSubmitting = ref(false)
+const isDeleting = ref(false)
+const studentToDelete = ref<StudentRecord | null>(null)
+
+const studentForm = reactive({
+  studentId: '',
+  name: '',
+  class: 9,
+})
+
+const formErrors = reactive<FormErrors>({
+  studentId: '',
+  name: '',
+  class: '',
+})
+
+const toast = reactive<Toast>({
+  show: false,
+  message: '',
+  type: 'success',
+})
+
+function showToast(message: string, type: 'success' | 'error' = 'success') {
+  toast.message = message
+  toast.type = type
+  toast.show = true
+  setTimeout(() => {
+    toast.show = false
+  }, 3000)
+}
+
 const tableTitle = computed(() => {
   switch (activeTab.value) {
-    case 'wenId': return '文言文答题情况'
-    case 'studentId': return '学生答题记录'
-    case 'students': return '学生列表'
-    default: return '数据列表'
+    case 'wenId':
+      return '文言文答题情况'
+    case 'studentId':
+      return '学生答题记录'
+    case 'students':
+      return '学生列表'
+    default:
+      return '数据列表'
   }
 })
 
-// 是否有数据
 const hasData = computed(() => allData.value.length > 0)
 
-// 显示数据（分页后）
 const displayData = computed(() => {
   if (!pagination.value) return allData.value
   const start = (pagination.value.currentPage - 1) * pagination.value.pageSize
@@ -344,48 +576,53 @@ const displayData = computed(() => {
   return allData.value.slice(start, end)
 })
 
-// 格式化日期
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
   return date.toLocaleString('zh-CN')
 }
 
-// 格式化答案
 function formatAnswer(answer: any): string {
   if (answer === null || answer === undefined) return '-'
   if (Array.isArray(answer)) return answer.join(', ')
   return String(answer)
 }
 
-// 按文言文ID查询
 async function queryByWenId() {
   const wenId = queryForm.wenId.trim()
   if (!wenId) {
     error.value = '请输入文言文ID'
     return
   }
-
   await fetchData(`/api/answers/wen/${wenId}`, 'wenId')
 }
 
-// 按学生ID查询
 async function queryByStudentId() {
   const studentId = queryForm.studentId.trim()
   if (!studentId) {
     error.value = '请输入学生学号'
     return
   }
-
   await fetchData(`/api/answers/student/${studentId}`, 'studentId')
 }
 
-// 加载所有学生
-async function loadAllStudents() {
-  await fetchData('/api/students', 'students')
+async function loadAllStudents(classNum?: number) {
+  let url = '/api/students'
+  if (classNum !== undefined) {
+    url += `?class=${classNum}`
+  }
+  await fetchData(url, 'students')
 }
 
-// 获取数据
+async function queryByClass() {
+  const classNum = selectedClass.value
+  if (!classNum) {
+    await loadAllStudents()
+  } else {
+    await loadAllStudents(parseInt(classNum))
+  }
+}
+
 async function fetchData(url: string, type: string) {
   loading.value = true
   error.value = ''
@@ -394,43 +631,49 @@ async function fetchData(url: string, type: string) {
 
   try {
     const response = await get(url)
-    
+
     if (response.success && response.data) {
       if (type === 'wenId') {
-        // 按文言文查询结果
         allData.value = response.data.students || []
+        const students = response.data.students || []
+        let totalCorrect = 0
+        let totalWrong = 0
+        let totalQuestions = 0
+        students.forEach((student: any) => {
+          totalCorrect += student.correctCount || 0
+          totalWrong += student.wrongCount || 0
+          totalQuestions += student.totalQuestions || 0
+        })
         statistics.value = {
           totalStudents: response.data.studentCount || 0,
-          totalCorrect: 0,
-          totalWrong: 0,
-          avgScore: 0
+          totalCorrect,
+          totalWrong,
+          avgScore: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
         }
       } else if (type === 'studentId') {
-        // 按学生查询结果
         allData.value = response.data.wenRecords || []
         statistics.value = {
           totalStudents: 1,
           totalCorrect: response.data.totalAllCorrect || 0,
           totalWrong: response.data.totalAllWrong || 0,
-          avgScore: response.data.overallAvgScore || 0
+          avgScore: response.data.overallAvgScore || 0,
         }
       } else if (type === 'students') {
-        // 学生列表
         allData.value = response.data || []
         statistics.value = {
           totalStudents: allData.value.length,
           totalCorrect: 0,
           totalWrong: 0,
-          avgScore: 0
+          avgScore: 0,
         }
       }
 
-      // 设置分页
       const total = allData.value.length
       pagination.value = {
         currentPage: 1,
         totalPages: Math.ceil(total / 10),
-        pageSize: 10
+        pageSize: 10,
+        total,
       }
     } else {
       error.value = response.message || '获取数据失败'
@@ -443,7 +686,6 @@ async function fetchData(url: string, type: string) {
   }
 }
 
-// 重试查询
 function retryQuery() {
   switch (activeTab.value) {
     case 'wenId':
@@ -458,10 +700,9 @@ function retryQuery() {
   }
 }
 
-// 排序处理
 function handleSort() {
   if (!hasData.value) return
-  
+
   if (sortBy.value === 'score') {
     allData.value.sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0))
   } else {
@@ -473,7 +714,28 @@ function handleSort() {
   }
 }
 
-// 分页
+function handleSearch() {
+  if (!allData.value.length) return
+
+  const keyword = searchKeyword.value.toLowerCase().trim()
+  if (!keyword) {
+    loadAllStudents()
+    return
+  }
+
+  const filtered = allData.value.filter((student: any) => {
+    const s = student as StudentRecord
+    return s.student_id.toLowerCase().includes(keyword) || s.name.toLowerCase().includes(keyword)
+  })
+
+  allData.value = filtered
+  if (pagination.value) {
+    pagination.value.total = filtered.length
+    pagination.value.totalPages = Math.ceil(filtered.length / pagination.value.pageSize)
+    pagination.value.currentPage = 1
+  }
+}
+
 function prevPage() {
   if (pagination.value && pagination.value.currentPage > 1) {
     pagination.value.currentPage--
@@ -486,34 +748,29 @@ function nextPage() {
   }
 }
 
-// 查看学生详情
 function viewStudentDetail(student: any) {
   selectedStudent.value = student
   showStudentModal.value = true
 }
 
-// 查看学生答题记录
 function viewStudentAnswers(studentId: string) {
   queryForm.studentId = studentId
   activeTab.value = 'studentId'
   queryByStudentId()
 }
 
-// 查看文言文学生详情
 function viewWenStudentDetail(student: any) {
   selectedStudentInfo.value = `${student.studentId} - ${student.studentName || '未知'}`
   selectedAnswers.value = student.answers || []
   showAnswerModal.value = true
 }
 
-// 查看学生文言文详情
 function viewStudentWenDetail(record: any) {
-  selectedStudentInfo.value = record.wenId
+  selectedStudentInfo.value = `${record.studentId} - ${record.studentName || '未知'}`
   selectedAnswers.value = record.answers || []
   showAnswerModal.value = true
 }
 
-// 关闭弹窗
 function closeModals() {
   showStudentModal.value = false
   showAnswerModal.value = false
@@ -521,7 +778,128 @@ function closeModals() {
   selectedAnswers.value = []
 }
 
-// 导出数据
+function openAddModal() {
+  isEditMode.value = false
+  studentForm.studentId = ''
+  studentForm.name = ''
+  studentForm.class = 9
+  formErrors.studentId = ''
+  formErrors.name = ''
+  formErrors.class = ''
+  showStudentFormModal.value = true
+}
+
+function openEditModal(student: StudentRecord) {
+  isEditMode.value = true
+  studentForm.studentId = student.student_id
+  studentForm.name = student.name
+  studentForm.class = student.class || 9
+  formErrors.studentId = ''
+  formErrors.name = ''
+  formErrors.class = ''
+  selectedStudent.value = student
+  showStudentFormModal.value = true
+}
+
+function closeFormModal() {
+  showStudentFormModal.value = false
+  selectedStudent.value = null
+}
+
+function validateForm(): boolean {
+  let valid = true
+  formErrors.studentId = ''
+  formErrors.name = ''
+  formErrors.class = ''
+
+  if (!isEditMode.value) {
+    const idValidation = validateStudentId(studentForm.studentId)
+    if (!idValidation.valid) {
+      formErrors.studentId = idValidation.error!
+      valid = false
+    }
+  }
+
+  const nameValidation = validateStudentName(studentForm.name)
+  if (!nameValidation.valid) {
+    formErrors.name = nameValidation.error!
+    valid = false
+  }
+
+  if (!studentForm.class || studentForm.class <= 0) {
+    formErrors.class = '请输入有效的班级号'
+    valid = false
+  }
+
+  return valid
+}
+
+async function handleSubmitForm() {
+  if (!validateForm()) return
+
+  isSubmitting.value = true
+
+  try {
+    let result
+    if (isEditMode.value && selectedStudent.value) {
+      result = await updateStudent(selectedStudent.value.student_id, {
+        name: studentForm.name.trim(),
+        class: studentForm.class,
+      })
+    } else {
+      result = await createStudent({
+        studentId: studentForm.studentId.trim(),
+        name: studentForm.name.trim(),
+        class: studentForm.class,
+      })
+    }
+
+    if (result.success) {
+      showToast(isEditMode.value ? '学生信息修改成功' : '学生添加成功', 'success')
+      closeFormModal()
+      await loadAllStudents()
+    } else {
+      showToast(result.message, 'error')
+    }
+  } catch (err) {
+    showToast('操作失败，请重试', 'error')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function confirmDelete(student: StudentRecord) {
+  studentToDelete.value = student
+  showDeleteModal.value = true
+}
+
+function closeDeleteModal() {
+  showDeleteModal.value = false
+  studentToDelete.value = null
+}
+
+async function handleDelete() {
+  if (!studentToDelete.value) return
+
+  isDeleting.value = true
+
+  try {
+    const result = await deleteStudent(studentToDelete.value.student_id)
+
+    if (result.success) {
+      showToast('学生删除成功', 'success')
+      closeDeleteModal()
+      await loadAllStudents()
+    } else {
+      showToast(result.message, 'error')
+    }
+  } catch (err) {
+    showToast('删除失败，请重试', 'error')
+  } finally {
+    isDeleting.value = false
+  }
+}
+
 function exportData() {
   if (!hasData.value) return
 
@@ -531,24 +909,23 @@ function exportData() {
   if (activeTab.value === 'students') {
     headers = ['学号', '姓名', '创建时间']
     csvContent = headers.join(',') + '\n'
-    allData.value.forEach(row => {
+    allData.value.forEach((row: any) => {
       csvContent += `${row.student_id},${row.name || ''},${row.created_at || ''}\n`
     })
   } else if (activeTab.value === 'wenId') {
     headers = ['学号', '姓名', '答题数', '正确数', '错误数', '平均分']
     csvContent = headers.join(',') + '\n'
-    allData.value.forEach(row => {
+    allData.value.forEach((row: any) => {
       csvContent += `${row.studentId},${row.studentName || ''},${row.totalQuestions || 0},${row.correctCount || 0},${row.wrongCount || 0},${row.avgScore || 0}\n`
     })
   } else if (activeTab.value === 'studentId') {
     headers = ['文言文ID', '答题时间', '答题数', '正确数', '平均分']
     csvContent = headers.join(',') + '\n'
-    allData.value.forEach(row => {
+    allData.value.forEach((row: any) => {
       csvContent += `${row.wenId},${row.submittedAt || ''},${row.totalQuestions || 0},${row.correctCount || 0},${row.avgScore || 0}\n`
     })
   }
 
-  // 下载CSV文件
   const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
@@ -556,7 +933,6 @@ function exportData() {
   link.click()
 }
 
-// 页面加载时自动加载学生列表
 loadAllStudents()
 </script>
 
@@ -565,9 +941,9 @@ loadAllStudents()
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  position: relative;
 }
 
-/* 页面标题 */
 .page-header {
   text-align: center;
   margin-bottom: 2rem;
@@ -583,7 +959,47 @@ loadAllStudents()
   color: #6b7280;
 }
 
-/* 查询表单 */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast.success {
+  background: #10b981;
+  color: white;
+}
+
+.toast.error {
+  background: #ef4444;
+  color: white;
+}
+
+.toast-icon {
+  font-size: 1.2rem;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
 .query-form {
   background: white;
   border-radius: 0.5rem;
@@ -594,8 +1010,21 @@ loadAllStudents()
 
 .form-tabs {
   display: flex;
-  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.tabs-left {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+
+.tabs-right {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 .tab-btn {
@@ -622,8 +1051,90 @@ loadAllStudents()
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.students-toolbar {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left-buttons {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.search-group {
+  display: flex;
+  gap: 0;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem 0 0 0.375rem;
+  font-size: 1rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.search-btn {
+  padding: 0.75rem 1rem;
+  background: #3b82f6;
+  border: none;
+  border-radius: 0 0.375rem 0.375rem 0;
+  color: white;
+  cursor: pointer;
+}
+
+.class-filter {
+  display: flex;
+  align-items: center;
+}
+
+.class-select {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  min-width: 120px;
+}
+
+.class-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.add-btn {
+  padding: 0.75rem 1.5rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s;
+}
+
+.add-btn:hover {
+  background: #059669;
 }
 
 .form-row {
@@ -659,6 +1170,26 @@ loadAllStudents()
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.form-input.error {
+  border-color: #ef4444;
+}
+
+.form-input:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.required {
+  color: #ef4444;
+}
+
 .query-btn {
   padding: 0.75rem 1.5rem;
   background: #3b82f6;
@@ -675,7 +1206,6 @@ loadAllStudents()
   background: #2563eb;
 }
 
-/* 统计卡片 */
 .stats-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -717,7 +1247,6 @@ loadAllStudents()
   margin-top: 0.25rem;
 }
 
-/* 表格容器 */
 .table-container {
   background: white;
   border-radius: 0.5rem;
@@ -759,9 +1288,6 @@ loadAllStudents()
   border-radius: 0.375rem;
   font-size: 0.875rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
   transition: all 0.2s;
 }
 
@@ -774,7 +1300,6 @@ loadAllStudents()
   cursor: not-allowed;
 }
 
-/* 数据表格 */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -808,7 +1333,10 @@ loadAllStudents()
   font-weight: 500;
 }
 
-/* 操作按钮 */
+.actions-cell {
+  white-space: nowrap;
+}
+
 .action-btn {
   padding: 0.375rem 0.75rem;
   border: none;
@@ -829,6 +1357,15 @@ loadAllStudents()
   background: #e5e7eb;
 }
 
+.edit-btn {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.edit-btn:hover {
+  background: #fde68a;
+}
+
 .answer-btn {
   background: #dbeafe;
   color: #2563eb;
@@ -847,7 +1384,15 @@ loadAllStudents()
   background: #2563eb;
 }
 
-/* 状态显示 */
+.delete-btn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.delete-btn:hover {
+  background: #fecaca;
+}
+
 .loading-state,
 .error-state,
 .empty-state {
@@ -866,7 +1411,9 @@ loadAllStudents()
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .error-state {
@@ -892,7 +1439,6 @@ loadAllStudents()
   cursor: pointer;
 }
 
-/* 分页 */
 .pagination {
   display: flex;
   justify-content: center;
@@ -924,7 +1470,6 @@ loadAllStudents()
   font-size: 0.875rem;
 }
 
-/* 弹窗 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -942,7 +1487,7 @@ loadAllStudents()
 .modal-content {
   background: white;
   border-radius: 0.5rem;
-  max-width: 600px;
+  max-width: 500px;
   width: 100%;
   max-height: 80vh;
   overflow: hidden;
@@ -985,7 +1530,6 @@ loadAllStudents()
   max-height: calc(80vh - 6rem);
 }
 
-/* 学生详情 */
 .detail-row {
   margin-bottom: 0.75rem;
 }
@@ -1000,7 +1544,94 @@ loadAllStudents()
   color: #1f2937;
 }
 
-/* 答题详情 */
+.student-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  justify-content: flex-end;
+}
+
+.cancel-btn {
+  padding: 0.625rem 1.25rem;
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.submit-btn {
+  padding: 0.625rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.submit-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.danger-btn {
+  padding: 0.625rem 1.5rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 .answer-detail-header {
   padding: 0.75rem;
   background: #f9fafb;
@@ -1072,7 +1703,31 @@ loadAllStudents()
   font-weight: 500;
 }
 
-/* 响应式设计 */
+.confirm-content {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.warning-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.confirm-content p {
+  margin: 0.5rem 0;
+  color: #374151;
+}
+
+.sub-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.sub-text.danger {
+  color: #ef4444;
+  font-weight: 500;
+}
+
 @media (max-width: 768px) {
   .answer-query-container {
     padding: 1rem;
@@ -1080,6 +1735,20 @@ loadAllStudents()
 
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .students-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-group {
+    max-width: none;
+  }
+
+  .add-btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .form-row {
@@ -1108,7 +1777,7 @@ loadAllStudents()
 
   .action-btn {
     margin-bottom: 0.25rem;
-    margin-right: 0;
+    margin-right: 0.25rem;
   }
 
   .modal-content {

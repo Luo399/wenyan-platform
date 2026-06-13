@@ -1,0 +1,48 @@
+{
+  "pageId": "WEN_04",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_04",
+        "question_id": "WEN_04_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "庄子曰：\"子非鱼，安知我不知鱼之乐？\" 这句话运用了下列哪种辩论技巧？（ ）",
+        "option_a": "以子之矛，攻子之盾",
+        "option_b": "以退为进，反守为攻",
+        "option_c": "类比推理",
+        "option_d": "举例论证",
+        "difficulty": "L2",
+        "pre_dialog": "学生：二位先生，刚才路过听完了二位的辩论，感觉颇有启迪。\n庄子：既然如此，你觉得我在刚才的论辩中运用了什么技巧？",
+        "audio_file": "WEN_04_multi_dialog1"
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_04",
+        "question_id": "WEN_04_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "惠子曰：\"我非子，固不知子矣；子固非鱼也，子之不知鱼之乐，全矣。\" 这句话运用了下列哪种辩论技巧？（ ）",
+        "option_a": "以子之矛，攻子之盾",
+        "option_b": "以退为进，反守为攻",
+        "option_c": "归谬法",
+        "option_d": "举例论证",
+        "difficulty": "L2",
+        "pre_dialog": "庄子：答案是A。惠子先提出 \"子非鱼，安知鱼之乐\" 的观点，认为不是鱼就不知道鱼的快乐。而我巧妙地借用惠子的逻辑，反问 \"子非我，安知我不知鱼之乐\"，用惠子自己的论证方法来反驳惠子，这就是 \"以子之矛，攻子之盾\" 的辩论技巧。\n惠子：但你可知，我采用了什么论辩技巧吗？",
+        "audio_file": "WEN_04_multi_dialog2"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_04",
+        "pre_dialog": "惠子：答案是B。我先主动退一步，承认 \"我不是你，本来就不知道你\"，顺着庄子之前的逻辑承认了 \"不是对方就不知道对方的想法\" 这一前提。然后我立刻调转方向，用这个我们双方都认可的前提反过来攻击庄子：既然你承认 \"不是对方就不知道对方\"，那你本来就不是鱼，所以你不知道鱼的快乐，这个结论是完全成立的。这种先退让一步、再趁机反击的技巧，就是 \"以退为进，反守为攻\"",
+        "audio_file": "WEN_04_multi_dialog3",
+        "icon_dialog": "WEN_04_avatar_huizi.png"
+      }
+    }
+  ]
+}

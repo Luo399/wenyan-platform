@@ -1,0 +1,98 @@
+[
+  {
+    "id": 5,
+    "wen_id": "WEN_02",
+    "student_id": "2024001",
+    "question_id": "WEN_02_C1",
+    "user_answer": 2,
+    "correct_answer": 2,
+    "is_correct": 1,
+    "score": 100,
+    "submitted_at": "2026-06-03T03:27:34.708Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 4,
+    "wen_id": "WEN_02",
+    "student_id": "2024001",
+    "question_id": "WEN_02_B2",
+    "user_answer": "B",
+    "correct_answer": "unknown",
+    "is_correct": 0,
+    "score": 0,
+    "submitted_at": "2026-06-03T03:27:22.281Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 6,
+    "wen_id": "WEN_02",
+    "student_id": "2024001",
+    "question_id": "WEN_02_B1",
+    "user_answer": "D",
+    "correct_answer": "unknown",
+    "is_correct": 0,
+    "score": 0,
+    "submitted_at": "2026-06-03T03:27:22.281Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 7,
+    "wen_id": "WEN_01",
+    "student_id": "2024001",
+    "question_id": "WEN_01_B1",
+    "user_answer": "B",
+    "correct_answer": "unknown",
+    "is_correct": 0,
+    "score": 0,
+    "submitted_at": "2026-06-01T11:18:10.406Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 8,
+    "wen_id": "WEN_01",
+    "student_id": "2024001",
+    "question_id": "WEN_01_B2",
+    "user_answer": "A",
+    "correct_answer": "unknown",
+    "is_correct": 0,
+    "score": 0,
+    "submitted_at": "2026-06-01T11:18:10.406Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 2,
+    "wen_id": "WEN_01",
+    "student_id": "1002",
+    "question_id": "WEN_01_C1",
+    "user_answer": 1,
+    "correct_answer": 1,
+    "is_correct": 1,
+    "score": 100,
+    "submitted_at": "2026-06-01T08:36:03.770Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 1,
+    "wen_id": "WEN_01",
+    "student_id": "1002",
+    "question_id": "WEN_01_B1",
+    "user_answer": "C",
+    "correct_answer": "unknown",
+    "is_correct": 0,
+    "score": 0,
+    "submitted_at": "2026-06-01T08:35:58.496Z",
+    "attempt_number": 1
+  },
+  {
+    "id": 3,
+    "wen_id": "WEN_01",
+    "student_id": "1002",
+    "question_id": "WEN_01_B2",
+    "user_answer": "B",
+    "correct_answer": "unknown",
+    "is_correct": 0,
+    "score": 0,
+    "submitted_at": "2026-06-01T08:35:58.496Z",
+    "attempt_number": 1
+  }
+]

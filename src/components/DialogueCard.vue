@@ -45,6 +45,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { getAssetUrl } from '@/utils/asset'
 
 interface Props {
   // Block模式数据（下划线命名）
@@ -155,7 +156,7 @@ function playAudio() {
     audio.pause()
   }
   
-  audio = new Audio(`/audio/${audioFile.value}.mp3`)
+  audio = new Audio(getAssetUrl(`audio/${audioFile.value}.mp3`))
   audio.onended = () => {
     isPlaying.value = false
     emit('audio-pause')

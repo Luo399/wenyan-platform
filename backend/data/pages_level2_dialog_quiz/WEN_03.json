@@ -1,0 +1,40 @@
+{
+  "pageId": "WEN_03",
+  "blocks": [
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_03",
+        "pre_dialog": "书生：先生，您请范公写《岳阳楼记》，可我细读文章，几乎没细致写岳阳楼的楼宇模样，这是为何呀？",
+        "audio_file": "WEN_03_muti_dialog1",
+        "icon_dialog": "WEN_03_icon_dialog1.png"
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_03",
+        "question_id": "WEN_03_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "本文题为《岳阳楼记》，却并未具体描写岳阳楼本身，下列对这一写作特点的理解错误的一项是（）",
+        "option_a": "因为“前人之述备矣”，前人对岳阳楼的描述已经十分详尽，无需重复",
+        "option_b": "范仲淹意在借岳阳楼抒发 “先天下之忧而忧，后天下之乐而乐” 的政治抱负，而非介绍建筑",
+        "option_c": "范仲淹从未登临岳阳楼，无法描写楼的具体样貌，只能借洞庭湖景色抒情",
+        "option_d": "范仲淹将笔墨放在洞庭湖景色与迁客骚人的情感上，为引出“古仁人之心”做铺垫",
+        "difficulty": "L2",
+        "pre_dialog": "滕子京：此言问到了关键之处，你来分辨一下，以下说法哪一项理解有误？",
+        "audio_file": "WEN_03_muti_dialog2"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_03",
+        "pre_dialog": "滕子京：答案是C。前人对其形貌描写已然用尽笔墨，再重复前人旧调，毫无新意可言，所以希文兄虽未亲临巴陵，但其所写的，是心中的洞庭湖，心中的岳阳楼，是比楼更为高远的胸怀抱负。",
+        "audio_file": "WEN_03_muti_dialog3",
+        "icon_dialog": "WEN_03_icon_dialog3.png"
+      }
+    }
+  ]
+}
