@@ -9,7 +9,7 @@ const path = require('path');
 
 // 导入配置
 const config = require('./config/app');
-const { initTables } = require('./config/database');
+const { initAllTables } = require('./config/database');
 
 // 导入路由
 const { registerRoutes } = require('./routes');
@@ -74,7 +74,7 @@ function createApp() {
 async function startServer() {
   try {
     // 初始化数据库表
-    await initTables();
+    await initAllTables();
     
     const app = createApp();
     const { port, host } = config.server;

@@ -3,7 +3,7 @@
  * 提供学生相关的业务逻辑
  */
 
-const { db } = require('../config/database');
+const { studentDb } = require('../config/database');
 
 /**
  * 获取学生信息
@@ -12,7 +12,7 @@ const { db } = require('../config/database');
  */
 function getStudentById(studentId) {
   return new Promise((resolve, reject) => {
-    db.get(
+    studentDb.get(
       'SELECT student_id, name, class, created_at FROM students WHERE student_id = ?',
       [studentId],
       (err, row) => {
@@ -34,7 +34,7 @@ function getStudentById(studentId) {
  */
 function createOrUpdateStudent(studentId, name, studentClass = 9) {
   return new Promise((resolve, reject) => {
-    const stmt = db.prepare(
+    const stmt = studentDb.prepare(
       'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)'
     );
 
@@ -65,7 +65,7 @@ function getStudentList(classNum) {
 
     query += ' ORDER BY student_id ASC';
 
-    db.all(query, params, (err, rows) => {
+    studentDb.all(query, params, (err, rows) => {
       if (err) {
         return reject(err);
       }
@@ -94,7 +94,7 @@ function updateStudent(studentId, name, studentClass) {
     updateSql += ' WHERE student_id = ?';
     params.push(studentId);
 
-    db.run(updateSql, params, function (err) {
+    studentDb.run(updateSql, params, function (err) {
       if (err) {
         return reject(err);
       }
@@ -119,7 +119,7 @@ function updateStudent(studentId, name, studentClass) {
  */
 function deleteStudent(studentId) {
   return new Promise((resolve, reject) => {
-    db.run('DELETE FROM students WHERE student_id = ?', [studentId], function (err) {
+    studentDb.run('DELETE FROM students WHERE student_id = ?', [studentId], function (err) {
       if (err) {
         return reject(err);
       }

@@ -1,0 +1,45 @@
+{
+  "text_id": "WEN_01",
+  "cards": [
+    {
+      "text_id": "WEN_01",
+      "card_id": 1,
+      "card_name": "历史回响",
+      "image_file": "WEN_01_card_uprising.mp4",
+      "knowledge_text": "观看视频，了解新疆各族人民起义。你会发现，从大泽乡到天山脚下，被压迫者反抗暴政的勇气和智慧，穿越千年，从未断绝。",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_01",
+      "card_id": 2,
+      "card_name": "新疆谚语",
+      "image_file": "文字",
+      "knowledge_text": "勇敢不在于力量，而在于胆量。（塔吉克族）",
+      "unlock_condition": "完成第三关题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_01",
+      "card_id": 3,
+      "card_name": "新疆谚语",
+      "image_file": "文字",
+      "knowledge_text": "雄鹰不畏风暴，勇士不惧艰难。（维吾尔族）",
+      "unlock_condition": "完成第三关题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_01",
+      "card_id": 4,
+      "card_name": "新疆谚语",
+      "image_file": "文字",
+      "knowledge_text": "人的智慧如鸟的翅膀。（乌孜别克族）",
+      "unlock_condition": "完成第三关题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_01",
+      "card_id": 5,
+      "card_name": "新疆谚语",
+      "image_file": "文字",
+      "knowledge_text": "石头山里出宝玉，年轻人中出智慧。（哈萨克族）",
+      "unlock_condition": "完成第三关题目后出现按钮“我已完成”，点击“我已完成”"
+    }
+  ]
+}

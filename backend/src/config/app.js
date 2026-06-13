@@ -38,9 +38,9 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || 3600 // 1小时
   },
 
-  // 数据目录配置
+  // 数据目录配置（题目数据在 backend/data/ 目录，与前端 public/data 结构一致）
   data: {
-    basePath: process.env.DATA_BASE_PATH || './public/data'
+    basePath: process.env.DATA_BASE_PATH || path.join(__dirname, '../../data')
   },
 
   // 测试模式

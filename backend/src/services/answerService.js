@@ -3,8 +3,29 @@
  * 提供答题相关的业务逻辑
  */
 
-const { db } = require('../config/database');
+const { answerDb, studentDb } = require('../config/database');
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader');
+
+/**
+ * 获取学生姓名（从学生数据库）
+ * @param {string} studentId - 学生ID
+ * @returns {Promise<string|null>} - 学生姓名
+ */
+async function getStudentName(studentId) {
+  return new Promise((resolve) => {
+    studentDb.get(
+      'SELECT name FROM students WHERE student_id = ?',
+      [studentId],
+      (err, row) => {
+        if (err) {
+          console.warn('查询学生姓名失败:', err);
+          resolve(null);
+        }
+        resolve(row?.name || null);
+      }
+    );
+  });
+}
 
 /**
  * 提交答题记录
@@ -54,7 +75,7 @@ async function submitAnswers(data) {
       }
 
       // 查询当前题目已答题次数
-      db.get(
+      answerDb.get(
         `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
         [wenId, studentId, question.id],
         (countErr, countRow) => {
@@ -66,7 +87,7 @@ async function submitAnswers(data) {
           const attemptNumber = (countRow?.count || 0) + 1;
 
           // 插入新记录（不覆盖，保留每次答题记录）
-          const stmt = db.prepare(`
+          const stmt = answerDb.prepare(`
             INSERT INTO answer_records (
               wen_id,
               student_id,
@@ -128,27 +149,36 @@ async function submitAnswers(data) {
  * @param {string} wenId - 文言文ID
  * @returns {Promise<object>} - 查询结果
  */
-function getAnswersByWenId(wenId) {
+async function getAnswersByWenId(wenId) {
   return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT ar.*, s.name as student_name
-       FROM answer_records ar
-       LEFT JOIN students s ON ar.student_id = s.student_id
-       WHERE ar.wen_id = ?
-       ORDER BY ar.submitted_at DESC`,
+    answerDb.all(
+      `SELECT * FROM answer_records
+       WHERE wen_id = ?
+       ORDER BY submitted_at DESC`,
       [wenId],
-      (err, rows) => {
+      async (err, rows) => {
         if (err) {
           return reject(err);
+        }
+
+        // 获取所有学生ID
+        const studentIds = [...new Set(rows.map((row) => row.student_id))];
+        
+        // 批量查询学生姓名
+        const studentNames = {};
+        for (const studentId of studentIds) {
+          studentNames[studentId] = await getStudentName(studentId);
         }
 
         // 按学生分组统计
         const studentStats = {};
         rows.forEach((row) => {
+          const studentName = studentNames[row.student_id];
+          
           if (!studentStats[row.student_id]) {
             studentStats[row.student_id] = {
               studentId: row.student_id,
-              studentName: row.student_name,
+              studentName: studentName,
               wenId: row.wen_id,
               totalQuestions: 0,
               correctCount: 0,
@@ -202,19 +232,20 @@ function getAnswersByWenId(wenId) {
  * @param {string} studentId - 学生ID
  * @returns {Promise<object>} - 查询结果
  */
-function getAnswersByStudentId(studentId) {
+async function getAnswersByStudentId(studentId) {
   return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT ar.*, s.name as student_name
-       FROM answer_records ar
-       LEFT JOIN students s ON ar.student_id = s.student_id
-       WHERE ar.student_id = ?
-       ORDER BY ar.wen_id, ar.submitted_at DESC`,
+    answerDb.all(
+      `SELECT * FROM answer_records
+       WHERE student_id = ?
+       ORDER BY wen_id, submitted_at DESC`,
       [studentId],
-      (err, rows) => {
+      async (err, rows) => {
         if (err) {
           return reject(err);
         }
+
+        // 获取学生姓名
+        const studentName = await getStudentName(studentId);
 
         // 按文言文分组统计
         const wenStats = {};
@@ -222,7 +253,7 @@ function getAnswersByStudentId(studentId) {
           if (!wenStats[row.wen_id]) {
             wenStats[row.wen_id] = {
               studentId: row.student_id,
-              studentName: row.student_name,
+              studentName: studentName,
               wenId: row.wen_id,
               submittedAt: row.submitted_at,
               totalQuestions: 0,
@@ -271,7 +302,7 @@ function getAnswersByStudentId(studentId) {
 
         resolve({
           studentId,
-          studentName: rows.length > 0 ? rows[0].student_name : null,
+          studentName: studentName,
           totalWenCount: Object.keys(wenStats).length,
           totalAllQuestions,
           totalAllCorrect,
