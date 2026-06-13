@@ -53,11 +53,13 @@ public/images/
 # ============================================================
 .env
 .env.local
+.env.development
 .env.production
 .env.*.local
 # 忽略所有子目录下的环境变量文件
 **/.env
 **/.env.local
+**/.env.development
 **/.env.production
 **/.env.*.local
 # 保留所有位置的模板文件
