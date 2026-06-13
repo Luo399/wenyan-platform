@@ -35,6 +35,7 @@ import VideoPlayer from '@/components/VideoPlayer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
+import { getAssetUrl } from '@/utils/asset'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,7 +58,7 @@ const currentTitle = computed(() => getPoemTitle(poemId))
 
 const videoUrl = computed(() => {
   const wenId = getWenId(poemId)
-  return `/video/${wenId}_rule_1.mp4`
+  return getAssetUrl(`video/${wenId}_rule_1.mp4`)
 })
 </script>
 

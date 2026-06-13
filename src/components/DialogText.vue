@@ -91,6 +91,7 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptDialogData, getAllDialogs } from '@/adapters/dialogAdapter'
 import type { ProcessedDialogItem, RawDialogItem } from '@/adapters/dialogAdapter'
+import { getAssetUrl } from '@/utils/asset'
 
 interface Props {
   textId?: string
@@ -248,7 +249,7 @@ function toggleAudio() {
     audioRef.value?.pause()
     isPlaying.value = false
   } else {
-    const audioUrl = `/audio/${dialog.audioFile}.mp3`
+    const audioUrl = getAssetUrl(`audio/${dialog.audioFile}.mp3`)
     audioRef.value = new Audio(audioUrl)
     audioRef.value.onended = () => {
       isPlaying.value = false
