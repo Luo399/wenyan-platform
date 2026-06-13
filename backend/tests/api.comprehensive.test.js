@@ -14,6 +14,7 @@
 const request = require('supertest')
 const path = require('path')
 const fs = require('fs')
+const { closeAllDatabases } = require('../src/config/database')
 
 // 动态导入server模块
 let app
@@ -42,7 +43,6 @@ beforeAll(async () => {
 // 每个测试套件后清理测试数据
 afterAll(() => {
   // 关闭所有数据库连接
-  const { closeAllDatabases } = require('../src/config/database')
   closeAllDatabases()
   // 删除测试数据库文件
   if (fs.existsSync(testDbPath)) {
