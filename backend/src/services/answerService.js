@@ -20,8 +20,9 @@ async function getStudentName(studentId) {
         if (err) {
           console.warn('查询学生姓名失败:', err);
           resolve(null);
+        } else {
+          resolve(row?.name || null);
         }
-        resolve(row?.name || null);
       }
     );
   });
