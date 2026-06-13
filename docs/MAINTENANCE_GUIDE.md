@@ -3,8 +3,9 @@
 ---
 
 ## 文档信息
-- **版本**: v1.1
+- **版本**: v1.2
 - **创建日期**: 2026-06-12
+- **更新日期**: 2026-06-13
 - **适用项目**: 文言文预习平台 (classicalab.cn)
 
 ---
@@ -19,8 +20,14 @@
    - [只改前端](#31-只改前端)
    - [只改后端](#32-只改后端)
    - [前后端都改](#33-前后端都改)
-4. [日常维护小贴士](#4-日常维护小贴士)
-5. [故障恢复指南](#5-如果改代码时把网站搞崩了怎么办)
+4. [媒体文件管理](#4-媒体文件管理)
+   - [文件存储策略](#41-文件存储策略)
+   - [OSS上传流程](#42-oss上传流程)
+5. [数据库管理](#5-数据库管理)
+   - [数据库初始化](#51-数据库初始化)
+   - [数据导入导出](#52-数据导入导出)
+6. [日常维护小贴士](#6-日常维护小贴士)
+7. [故障恢复指南](#7-如果改代码时把网站搞崩了怎么办)
 
 ---
 
@@ -215,7 +222,145 @@
 
 ---
 
-## 4. 日常维护小贴士
+## 4. 媒体文件管理
+
+### 4.1 文件存储策略
+
+项目采用**代码与媒体分离**的架构：
+
+| 文件类型 | 存储位置 | Git管理 | 说明 |
+|---------|---------|---------|------|
+| 前端代码 | OSS + CDN | ✅ 提交 | `dist/` 打包后上传 |
+| 后端代码 | 宝塔服务器 | ✅ 提交 | `git pull` 拉取 |
+| 媒体文件 | OSS | ❌ 不提交 | 通过脚本上传 |
+| 数据库文件 | 服务器本地 | ❌ 不提交 | `migrate.js` + `seed.js` |
+
+**为什么媒体文件不提交到 Git？**
+
+- Git 是**代码版本控制工具**，不适合存储大文件
+- 媒体文件（视频、音频、图片）会让仓库体积急剧膨胀
+- 每次克隆仓库都要下载所有历史版本的大文件，效率极低
+- OSS 专门用于存储和分发静态资源，支持 CDN 加速
+
+### 4.2 OSS 上传流程
+
+#### 配置 OSS 凭证
+
+在 `.env` 文件中配置：
+
+```bash
+# OSS 区域，如 oss-cn-hangzhou
+OSS_REGION=oss-cn-hangzhou
+
+# 阿里云 AccessKey（从控制台获取）
+OSS_ACCESS_KEY_ID=your-access-key-id
+OSS_ACCESS_KEY_SECRET=your-access-key-secret
+
+# OSS Bucket 名称
+OSS_BUCKET=your-bucket-name
+```
+
+#### 上传媒体文件
+
+```bash
+# 预览模式（仅显示待上传文件，不上传）
+npm run upload:oss:dry
+
+# 执行上传
+npm run upload:oss
+```
+
+#### 更新媒体文件流程
+
+```
+本地修改媒体文件 → 执行 npm run upload:oss → 验证 CDN 链接
+```
+
+**注意**：
+- 媒体文件修改后**不需要**提交 Git
+- 上传脚本会自动扫描 `public/video/`、`public/audio/`、`public/img/` 目录
+- 上传后文件 URL 格式：`https://bucket.oss-cn-hangzhou.aliyuncs.com/video/xxx.mp4`
+
+---
+
+## 5. 数据库管理
+
+### 5.1 数据库初始化
+
+项目使用 SQLite 数据库，分为两个独立的数据库文件：
+
+| 数据库文件 | 内容 | 路径 |
+|-----------|------|------|
+| `students.db` | 学生信息表 | `backend/database/students.db` |
+| `answer_records.db` | 答题记录表 | `backend/database/answer_records.db` |
+
+**服务器首次部署流程**：
+
+```bash
+cd /www/wwwroot/api.classicalab.cn
+
+# 1. 拉取代码
+git pull origin main
+
+# 2. 安装依赖
+npm install
+
+# 3. 配置环境变量
+cp .env.example .env
+# 编辑 .env 设置数据库路径、JWT密钥等
+
+# 4. 创建数据库表结构
+node scripts/migrate.js
+
+# 5. 导入初始数据（学生名单等）
+node scripts/seed.js
+
+# 6. 启动服务
+pm2 start server.js --name wenyan-api
+pm2 save
+```
+
+### 5.2 数据导入导出
+
+#### 导出数据到 JSON（用于备份或迁移）
+
+```bash
+cd backend
+node scripts/export.js
+```
+
+导出的文件：
+- `backend/data/students.json` - 学生数据
+- `backend/data/answer_records.json` - 答题记录数据
+
+这些 JSON 文件会提交到 Git 进行版本管理。
+
+#### 导入数据到数据库
+
+```bash
+# 导入全部数据
+node scripts/seed.js
+
+# 仅导入学生数据
+node scripts/seed.js --students-only
+
+# 仅导入答题记录
+node scripts/seed.js --answers-only
+```
+
+**特性**：
+- **幂等性设计**：已存在的数据会跳过，不会重复插入
+- 多次执行脚本不会造成数据重复
+
+#### 更新学生名单流程
+
+```
+修改 backend/data/students.json → git commit → 服务器 git pull → node scripts/seed.js
+```
+
+---
+
+## 6. 日常维护小贴士
 
 ### 数据库备份
 
@@ -259,7 +404,7 @@ npm install
 
 ---
 
-## 5. 如果改代码时把网站搞崩了怎么办？
+## 7. 如果改代码时把网站搞崩了怎么办？
 
 ### 后端崩溃
 
@@ -344,6 +489,6 @@ pm2 restart wenyan-api
 
 ---
 
-**文档版本**: v1.1
-**最后更新**: 2026-06-12
+**文档版本**: v1.2
+**最后更新**: 2026-06-13
 **适用项目**: wenyan-platform

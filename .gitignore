@@ -14,7 +14,43 @@ dist-ssr
 coverage
 *.local
 
+# ============================================================
+# 媒体文件（大文件通过 OSS 上传，不提交到 Git）
+# ============================================================
+# 视频文件
+public/video/
+public/videos/
+*.mp4
+*.webm
+*.mov
+*.avi
+
+# 音频文件
+public/audio/
+public/audios/
+*.mp3
+*.wav
+*.ogg
+*.flac
+
+# 图片文件（大图）
+public/img/
+public/images/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.ico
+
+# 保留小图标和必要图片（如 favicon）
+!public/favicon.ico
+!public/*.svg
+
+# ============================================================
 # 环境变量文件（包含敏感信息，不要提交）
+# ============================================================
 .env
 .env.local
 .env.production
@@ -26,6 +62,13 @@ coverage
 **/.env.*.local
 # 保留所有位置的模板文件
 **/.env.example
+
+# ============================================================
+# 数据库文件（仅存在于服务器，不提交）
+# ============================================================
+*.db
+*.db-journal
+backend/database/
 
 # Editor directories and files
 .vscode/*
