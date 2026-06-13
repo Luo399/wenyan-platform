@@ -22,14 +22,17 @@ const RESOURCE_DIR = path.join(__dirname, '../../public');
 // 动态导入server模块
 let app;
 
-beforeAll(() => {
+beforeAll(async () => {
   process.env.TEST_MODE = 'true';
   process.env.DB_PATH = path.join(__dirname, 'test-wen-module.db');
   
-  const serverModule = require('../server.js');
-  app = serverModule.app;
-  
-  return Promise.resolve();
+  // 初始化数据库
+  const { initAllTables } = require('../src/config/database');
+  await initAllTables();
+
+  // 创建应用实例
+  const { createApp } = require('../src/app');
+  app = createApp();
 });
 
 // ============================================================
