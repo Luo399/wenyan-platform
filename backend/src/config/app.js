@@ -40,7 +40,7 @@ const config = {
 
   // 数据目录配置
   data: {
-    basePath: './public/data'
+    basePath: process.env.DATA_BASE_PATH || './public/data'
   },
 
   // 测试模式
