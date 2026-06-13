@@ -24,8 +24,7 @@ coverage
 **/.env.local
 **/.env.production
 **/.env.*.local
-# 保留模板文件
-!.env.example
+# 保留所有位置的模板文件
 **/.env.example
 
 # Editor directories and files
