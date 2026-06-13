@@ -275,7 +275,7 @@ function submitAnswer() {
 
   showResult.value = true
   submitted.value = true
-  emit('answer', currentQuiz.value, selectedAnswer.value, isCorrect, currentQuiz.value.questionId, currentQuiz.value.module, currentQuiz.value.correctAnswer)
+  emit('answer', currentQuiz.value, selectedAnswer.value, isCorrect, currentQuiz.value.questionId, currentQuiz.value.module, currentQuiz.value.correctAnswer ?? undefined)
   emit('quiz-submitted')
 }
 

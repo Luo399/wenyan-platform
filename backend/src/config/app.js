@@ -3,7 +3,15 @@
  * 管理应用的全局配置项
  */
 
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// 根据NODE_ENV加载对应的环境配置文件
+const envFile = process.env.NODE_ENV === 'production' 
+  ? '.env.production' 
+  : '.env';
+
+dotenv.config({ path: path.join(__dirname, '../../', envFile) });
 
 const config = {
   // 服务器配置

@@ -463,6 +463,7 @@ import {
 interface StudentRecord {
   student_id: string
   name: string
+  class?: number
   created_at?: string
 }
 

@@ -1,9 +1,13 @@
 import { fileURLToPath, URL } from 'node:url'
-
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, type Plugin, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import legacy from '@vitejs/plugin-legacy'
+
+// 加载环境变量
+function loadViteEnv(mode: string) {
+  return loadEnv(mode, process.cwd())
+}
 
 // JSON 响应头插件
 function jsonCharsetPlugin(): Plugin {
