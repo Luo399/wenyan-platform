@@ -19,8 +19,14 @@ coverage
 .env.local
 .env.production
 .env.*.local
+# 忽略所有子目录下的环境变量文件
+**/.env
+**/.env.local
+**/.env.production
+**/.env.*.local
 # 保留模板文件
 !.env.example
+**/.env.example
 
 # Editor directories and files
 .vscode/*
