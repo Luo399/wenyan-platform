@@ -349,8 +349,68 @@ git push origin develop
 - 若兼容性测试未通过（存在任何标记为[ ]的未完成项），相关 Pull Request 不得合并；测试过程中发现的阻塞性缺陷需详细记录在测试报告的"缺陷跟踪"栏目中
 - 合并 Pull Request 时，必须在提交描述中清晰附上对应兼容性测试报告的相对路径链接，格式示例：`测试报告: docs/testing/compatibility/compat-20231015.md`
 
+## 9. 自动部署配置
+
+### 9.1 后端自动部署（GitHub Actions）
+
+项目已配置 GitHub Actions 自动部署工作流，位于 `.github/workflows/deploy.yml`：
+
+**触发条件**：每次 `git push` 到 `main` 分支自动触发
+
+**部署流程**：
+1. SSH 连接到服务器 `api.classicalab.cn`
+2. 拉取最新代码（`git pull origin main`）
+3. 安装生产依赖（`npm install --omit=dev`）
+4. 执行数据库迁移（`node scripts/migrate.js`）
+5. 执行数据种子（`node scripts/seed.js`）
+6. 重启 PM2 服务（`pm2 restart backend`）
+
+**Secrets 配置**（在 GitHub 仓库 → Settings → Secrets and variables → Actions）：
+
+| Secret 名称 | 说明 |
+|------------|------|
+| `SSH_HOST` | 服务器 IP 地址 |
+| `SSH_PRIVATE_KEY` | SSH 私钥（RSA格式，用于免密登录） |
+
+### 9.2 前端手动部署
+
+前端代码需要手动构建并上传到 OSS：
+
+```bash
+# 1. 确保环境变量配置正确
+# 检查 .env.production 中：
+# VITE_API_BASE_URL=https://api.classicalab.cn
+# VITE_OSS_BASE_URL=https://www.classicalab.cn
+
+# 2. 构建项目
+rm -rf dist
+npm run build
+
+# 3. 上传到 OSS
+# 使用 ossutil 或阿里云控制台
+# 清空 Bucket 后上传 dist/ 目录所有文件
+```
+
+### 9.3 API 分离说明
+
+前端通过 `https://api.classicalab.cn` 调用后端 API，与静态资源域名 `https://www.classicalab.cn` 完全分离，避免 CORS 和 405 等问题。
+
+### 9.4 日常开发流程速查
+
+| 修改内容 | 操作流程 |
+|---------|---------|
+| 后端代码/数据 JSON | 本地修改 → `git add . && git commit -m "描述" && git push origin main` → **自动部署** |
+| 前端代码 | 修改 → `npm run build` → 清空 OSS Bucket 并上传 `dist/` 所有文件 → 刷新 CDN（如有） |
+| 数据库结构变更 | 修改 `migrate.js` 或 `seed.js` → 提交推送 → **自动执行** |
+| 新增/修改学生或答案 | 编辑 `backend/data/*.json` → 提交推送 → **自动执行 seed.js 更新数据库** |
+
+### 9.5 密钥安全提醒
+
+- **服务器 `.env` 文件**：绝对不要提交到 Git，只存在于服务器
+- **GitHub Secrets**：已安全存储，无需再改动
+
 ---
 
-**文档版本**: 1.2  
-**更新日期**: 2026-05-27  
+**文档版本**: 1.3  
+**更新日期**: 2026-06-14  
 **适用项目**: wenyan-platform
