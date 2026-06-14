@@ -1,0 +1,27 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into server and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /www/wwwroot/api.classicalab.cn
+            git pull origin main
+            cd backend
+            /www/server/nodejs/v24.16.0/bin/npm install --omit=dev --no-audit --no-fund
+            /www/server/nodejs/v24.16.0/bin/node scripts/migrate.js
+            /www/server/nodejs/v24.16.0/bin/node scripts/seed.js
+            /www/server/nodejs/v24.16.0/bin/pm2 restart backend
+            echo "Deploy completed at $(date)"
