@@ -10,6 +10,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { post } from '@/utils/api'
 
 /**
  * 用户信息接口
@@ -75,23 +76,18 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      // 调用登录接口
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ student_id: studentId, student_name: studentName }),
+      // 使用统一的API封装函数，确保正确使用 VITE_API_BASE 配置
+      const response = await post('/api/auth/login', {
+        student_id: studentId,
+        student_name: studentName,
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || '登录失败')
+      if (!response.success) {
+        throw new Error(response.message || '登录失败')
       }
 
       // 保存 token 和用户信息
-      const result = data.data || data
+      const result = response.data!
       token.value = result.token
       const userData = result.user
 
@@ -137,22 +133,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token.value}`,
-        },
-      })
+      // 使用统一的API封装函数，Authorization header 会自动添加
+      const response = await post('/api/auth/refresh')
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || '刷新令牌失败')
+      if (!response.success) {
+        throw new Error(response.message || '刷新令牌失败')
       }
 
       // 更新 token
-      token.value = data.token
+      token.value = response.data!.token
       localStorage.setItem('auth_token', token.value!)
 
       console.log('[AuthStore] 令牌已刷新')

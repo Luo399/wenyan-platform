@@ -108,7 +108,10 @@ export async function request<T = any>(
     // 处理 token 过期
     if (response.status === 401) {
       const authStore = useAuthStore()
-      authStore.logout()
+      // 只在用户已登录状态且token无效时才登出
+      if (authStore.isLoggedIn) {
+        authStore.logout()
+      }
       throw new ApiError('登录已过期，请重新登录', 401)
     }
 

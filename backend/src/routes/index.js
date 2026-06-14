@@ -76,6 +76,15 @@ function registerRoutes(app) {
   app.get('/api/answers/student/:studentId', answerController.getAnswersByStudentId);
 
   // ============================================================
+  // 学生接口
+  // ============================================================
+  app.get('/api/students', studentController.getStudentList);
+  app.get('/api/students/:studentId', studentController.getStudent);
+  app.post('/api/students', studentController.createStudent);
+  app.put('/api/students/:studentId', studentController.updateStudent);
+  app.delete('/api/students/:studentId', studentController.deleteStudent);
+
+  // ============================================================
   // 认证接口
   // ============================================================
   app.post('/api/auth/login', authController.login);

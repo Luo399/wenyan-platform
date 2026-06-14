@@ -97,7 +97,7 @@ const { loading, error, data: basicInfo, retry } = useDataLoader<TextBasicInfo>(
 
 const bgmUrl = computed(() => {
   if (!basicInfo.value?.bgm) return ''
-  return getAssetUrl('audio', basicInfo.value.bgm)
+  return getAssetUrl(`audio/${basicInfo.value.bgm}`)
 })
 
 function togglePlay() {
