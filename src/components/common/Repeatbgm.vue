@@ -1,12 +1,12 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <!--
   Repeatbgm.vue - 背景音乐循环播放组件
-
+  
   功能说明：
-  1. 根据 wenId 加载 text_basic_info 数据
-  2. 获取 bgm 属性并循环播放背景音乐
-  3. 提供播放/暂停控制
-  4. 支持音量调节
+  1. 根据当前活动 wenId 自动加载对应的背景音乐
+  2. 响应全局 BGM store 的状态变化
+  3. 默认自动播放，初始音量为 20
+  4. 提供播放/暂停控制和音量调节
 -->
 <template>
   <div class="repeat-bgm">
@@ -17,7 +17,7 @@
     <BaseError v-else-if="error" :error="error" @retry="retry" />
 
     <!-- 正常状态 -->
-    <div v-else-if="basicInfo" class="bgm-controls">
+    <div v-else-if="currentBgmFile" class="bgm-controls">
       <!-- 音频元素 -->
       <audio
         ref="audioRef"
@@ -25,12 +25,13 @@
         loop
         @loadedmetadata="handleLoadedMetadata"
         @error="handleAudioError"
-      ></audio>
+        @ended="handleAudioEnded"
+      />
 
       <!-- 播放/暂停按钮 -->
       <button
         class="bgm-btn"
-        @click="togglePlay"
+        @click="handleTogglePlay"
         :title="isPlaying ? '暂停背景音乐' : '播放背景音乐'"
       >
         <i v-if="isPlaying" class="fas fa-pause"></i>
@@ -40,15 +41,16 @@
 
       <!-- 音量控制 -->
       <div class="volume-control">
-        <button class="volume-btn" @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
+        <button class="volume-btn" @click="handleToggleMute" :title="isMuted ? '取消静音' : '静音'">
           <i v-if="isMuted" class="fas fa-volume-mute"></i>
+          <i v-else-if="currentVolume === 0" class="fas fa-volume-off"></i>
           <i v-else class="fas fa-volume-up"></i>
         </button>
         <input
           type="range"
           min="0"
           max="100"
-          :value="volume"
+          :value="isMuted ? 0 : currentVolume"
           @input="handleVolumeChange"
           class="volume-slider"
         />
@@ -58,104 +60,151 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import BaseLoader from './BaseLoader.vue'
 import BaseError from './BaseError.vue'
-import { useDataLoader } from '@/composables/useDataLoader'
-import { getAssetUrl } from '@/utils/asset'
+import { getAudioUrl } from '@/utils/asset'
+import { useBgmStore } from '@/stores/bgm'
+import { getWenId } from '@/utils/wenUtils'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
-interface TextBasicInfo {
-  text_id: string
-  title: string
-  author: string
-  dynasty: string
-  original_text: string
-  illustration?: string
-  bgm?: string
-}
-
-interface Props {
-  wenId: string
-  autoPlay?: boolean
-  defaultVolume?: number
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  autoPlay: true,
-  defaultVolume: 50,
-})
+const route = useRoute()
+const bgmStore = useBgmStore()
 
 const audioRef = ref<HTMLAudioElement | null>(null)
-const isPlaying = ref(false)
-const isMuted = ref(false)
-const volume = ref(props.defaultVolume)
+const loading = ref(false)
+const error = ref<string | null>(null)
 
-const dataUrl = computed(() => `/data/text_basic_info/${props.wenId}.json`)
-
-const { loading, error, data: basicInfo, retry } = useDataLoader<TextBasicInfo>(() => dataUrl.value)
-
-const bgmUrl = computed(() => {
-  if (!basicInfo.value?.bgm) return ''
-  return getAssetUrl(`audio/${basicInfo.value.bgm}`)
+// 计算当前BGM文件
+const currentBgmFile = computed(() => {
+  return bgmStore.currentBgmFile
 })
 
-function togglePlay() {
-  if (!audioRef.value) return
+// 计算当前播放状态
+const isPlaying = computed(() => {
+  return bgmStore.isPlaying
+})
 
-  if (isPlaying.value) {
+// 当前音量（从store获取）
+const currentVolume = computed(() => {
+  return bgmStore.volume
+})
+
+// 是否静音
+const isMuted = computed(() => {
+  return bgmStore.isMuted
+})
+
+// BGM URL
+const bgmUrl = computed(() => {
+  if (!currentBgmFile.value) return ''
+  return getAudioUrl(currentBgmFile.value)
+})
+
+// 监听路由变化，自动更新wenId
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) {
+      const wenId = getWenId(newId as string)
+      debugLog('[Repeatbgm] 路由变化，更新wenId:', wenId)
+      bgmStore.setActiveWenId(wenId)
+    }
+  },
+  { immediate: true }
+)
+
+// 监听BGM文件变化，重新加载音频
+watch(currentBgmFile, (newFile, oldFile) => {
+  if (newFile && newFile !== oldFile && audioRef.value) {
+    debugLog('[Repeatbgm] BGM文件变化:', oldFile, '->', newFile)
     audioRef.value.pause()
-    isPlaying.value = false
-  } else {
-    audioRef.value.play().catch((err) => {
-      debugError('[Repeatbgm] 播放失败:', err)
-    })
-    isPlaying.value = true
+    audioRef.value.load()
+    bgmStore.pause()
   }
-}
+})
 
-function toggleMute() {
+// 监听store播放状态变化
+watch(() => bgmStore.isPlaying, (playing) => {
   if (!audioRef.value) return
-  isMuted.value = !isMuted.value
-  audioRef.value.muted = isMuted.value
-}
-
-function handleVolumeChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  volume.value = Number(target.value)
-  if (audioRef.value) {
-    audioRef.value.volume = volume.value / 100
+  
+  if (playing) {
+    audioRef.value.play().catch((err) => {
+      debugWarn('[Repeatbgm] 播放失败:', err)
+      bgmStore.pause()
+    })
+  } else {
+    audioRef.value.pause()
   }
-}
+})
+
+// 监听音量变化
+watch(() => bgmStore.volume, (newVolume) => {
+  if (audioRef.value) {
+    audioRef.value.volume = newVolume / 100
+  }
+})
+
+// 监听静音状态变化
+watch(() => bgmStore.isMuted, (muted) => {
+  if (audioRef.value) {
+    audioRef.value.muted = muted
+  }
+})
 
 function handleLoadedMetadata() {
-  debugLog('[Repeatbgm] ✅ 背景音乐加载完成:', basicInfo.value?.bgm)
+  debugLog('[Repeatbgm] ✅ 背景音乐加载完成:', currentBgmFile.value)
 
   if (audioRef.value) {
-    audioRef.value.volume = volume.value / 100
+    audioRef.value.volume = currentVolume.value / 100
+    audioRef.value.muted = isMuted.value
 
-    if (props.autoPlay) {
-      audioRef.value.play().catch((err) => {
-        debugWarn('[Repeatbgm] 自动播放失败（可能需要用户交互）:', err)
-      })
-    }
+    // 默认自动播放
+    bgmStore.play()
   }
 }
 
 function handleAudioError() {
   debugError('[Repeatbgm] ❌ 音频加载失败:', bgmUrl.value)
+  error.value = '背景音乐加载失败'
 }
 
-watch(bgmUrl, (newUrl) => {
-  if (newUrl && audioRef.value) {
+function handleAudioEnded() {
+  // 循环播放不需要特殊处理，audio元素已有loop属性
+  debugLog('[Repeatbgm] 音频播放结束，将自动循环')
+}
+
+function handleTogglePlay() {
+  bgmStore.togglePlay()
+}
+
+function handleToggleMute() {
+  bgmStore.toggleMute()
+}
+
+function handleVolumeChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const newVolume = Number(target.value)
+  bgmStore.setVolume(newVolume)
+}
+
+function retry() {
+  error.value = null
+  if (audioRef.value) {
     audioRef.value.load()
-    isPlaying.value = false
   }
+}
+
+onMounted(() => {
+  debugLog('[Repeatbgm] 组件挂载')
 })
 
 onUnmounted(() => {
+  debugLog('[Repeatbgm] 组件卸载')
   if (audioRef.value) {
     audioRef.value.pause()
+    audioRef.value.src = ''
   }
 })
 </script>

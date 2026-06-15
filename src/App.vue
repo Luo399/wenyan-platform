@@ -1,8 +1,9 @@
 <template>
   <div id="app">
-    <!-- 右上角显示学号 -->
+    <!-- 右上角显示学号和背景音乐控制 -->
     <div class="top-bar">
       <StudentDisplay />
+      <Repeatbgm />
     </div>
 
     <router-view />
@@ -20,6 +21,7 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import StudentDisplay from '@/components/StudentDisplay.vue'
+import Repeatbgm from '@/components/common/Repeatbgm.vue'
 import LoginModal from '@/components/LoginModal.vue'
 import { useAuthStore } from '@/stores/auth'
 
