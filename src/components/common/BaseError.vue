@@ -2,9 +2,7 @@
   <div class="base-error">
     <i class="fas fa-exclamation-circle"></i>
     <p class="error-message">{{ error }}</p>
-    <button v-if="showRetry" @click="$emit('retry')" class="retry-btn">
-      重试
-    </button>
+    <button v-if="showRetry" @click="$emit('retry')" class="retry-btn">重试</button>
   </div>
 </template>
 
@@ -15,7 +13,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  showRetry: true
+  showRetry: true,
 })
 
 defineEmits<{

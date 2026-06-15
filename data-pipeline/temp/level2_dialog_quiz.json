@@ -9,9 +9,10 @@
     "option_d": "杀尉后“祭以尉首”，只是为了报复将尉的欺压，没有战略意义",
     "audio_file": "WEN_01_multi_dialog2",
     "difficulty": "L3",
-    "correct_answer": null,
-    "explanation": null,
-    "question_type": null
+    "correct_answer": "B",
+    "correct_index": 1,
+    "pre_dialog": "陈胜：既然如此，你觉得我们起义前的一系列安排中，哪项最能体现我们二人的处事智慧？",
+    "icon_dialog": "WEN_01_icon_dialog2.png"
   },
   {
     "text_id": "WEN_01",
@@ -23,8 +24,9 @@
     "option_d": "等死，死国可乎",
     "audio_file": "WEN_01_multi_dialog5",
     "difficulty": "L2",
-    "correct_answer": null,
-    "explanation": null,
-    "question_type": null
+    "correct_answer": "C",
+    "correct_index": 2,
+    "pre_dialog": "吴广：但你可知，光有“天意”还不够。那日我故意在将尉面前说要逃，让他当众鞭我，羞辱我，就是要激怒众戍卒，你知道当天陈胜说的哪句话最能体现我们不甘宿命、敢于反抗的超凡胆识吗？",
+    "icon_dialog": "WEN_01_icon_dialog3.png"
   }
 ]

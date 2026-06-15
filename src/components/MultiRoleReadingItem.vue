@@ -6,10 +6,7 @@
       <div class="text">{{ segment.dialogue }}</div>
     </div>
     <button class="play-btn" @click.stop="handleToggle">
-      <i
-        class="fas"
-        :class="isActive && isCurrentlyPlaying ? 'fa-pause' : 'fa-play'"
-      ></i>
+      <i class="fas" :class="isActive && isCurrentlyPlaying ? 'fa-pause' : 'fa-play'"></i>
     </button>
   </div>
 </template>

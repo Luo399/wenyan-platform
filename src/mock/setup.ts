@@ -1,6 +1,6 @@
 /**
  * Mock 服务配置
- * 
+ *
  * 在开发环境中拦截 HTTP 请求并返回模拟数据
  */
 
@@ -19,7 +19,7 @@ export async function startMockService(): Promise<void> {
 
   // 拦截 fetch 请求
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url)
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
 
     // 处理刷新 token 请求（保留 mock）
     if (url.endsWith('/api/auth/refresh') && init?.method === 'POST') {

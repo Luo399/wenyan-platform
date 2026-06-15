@@ -1,11 +1,11 @@
 /**
  * 媒体资源路径工具函数
  * 用于动态拼接基础路径与相对路径
- * 
+ *
  * 使用方法：
  *   import { getAssetUrl } from '@/utils/asset'
  *   const videoUrl = getAssetUrl('videos/intro.mp4')
- * 
+ *
  * 环境变量配置：
  *   - VITE_OSS_BASE_URL: OSS 基础路径（生产环境）
  *   - 本地开发时为空或 '/'
@@ -19,18 +19,18 @@
 export function getAssetUrl(relativePath: string): string {
   // 获取基础路径（开发环境为空，生产环境为 OSS 域名）
   const baseUrl = import.meta.env.VITE_OSS_BASE_URL || ''
-  
+
   // 移除相对路径开头的斜杠（如果有）
   const normalizedPath = relativePath.replace(/^\/+/, '')
-  
+
   // 如果基础路径为空，直接返回相对路径
   if (!baseUrl) {
     return `/${normalizedPath}`
   }
-  
+
   // 确保基础路径末尾没有斜杠
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, '')
-  
+
   // 拼接完整 URL
   return `${normalizedBaseUrl}/${normalizedPath}`
 }

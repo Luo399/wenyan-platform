@@ -1,12 +1,12 @@
 /**
  * useAnswerSubmitter - 答题数据提交 Composable
- * 
+ *
  * 功能：
  * - 统一收集和管理答题数据
  * - 将零散的答案转换为后端API要求的格式
  * - 提供答案验证和提交功能
  * - 处理数据类型转换、字段映射和数据校验
- * 
+ *
  * 使用方式：
  * const {
  *   answers,
@@ -97,31 +97,31 @@ export interface ValidationResult {
 export interface UseAnswerSubmitterReturn {
   /** 答案列表 */
   answers: Ref<AnswerRecord[]>
-  
+
   /** 添加答案 */
   addAnswer: (record: AnswerRecord) => void
-  
+
   /** 更新答案 */
   updateAnswer: (questionId: string, updates: Partial<AnswerRecord>) => void
-  
+
   /** 删除答案 */
   removeAnswer: (questionId: string) => void
-  
+
   /** 清空所有答案 */
   clearAnswers: () => void
-  
+
   /** 验证答案是否完整 */
   validateAnswers: () => ValidationResult
-  
+
   /** 构建提交载荷 */
   buildSubmitPayload: (wenId: string) => SubmitPayload | null
-  
+
   /** 提交答案到后端 */
   submitAnswers: (wenId: string) => Promise<SubmitResponse>
-  
+
   /** 是否正在提交 */
   isSubmitting: Ref<boolean>
-  
+
   /** 提交错误信息 */
   submitError: Ref<string | null>
 }
@@ -133,13 +133,15 @@ const TypeConverter = {
   /**
    * 将答案值转换为后端可接受的格式
    */
-  convertAnswerValue(value: string | number | (string | number)[]): string | number | (string | number)[] {
+  convertAnswerValue(
+    value: string | number | (string | number)[],
+  ): string | number | (string | number)[] {
     if (Array.isArray(value)) {
-      return value.map(v => this.convertSingleValue(v))
+      return value.map((v) => this.convertSingleValue(v))
     }
     return this.convertSingleValue(value)
   },
-  
+
   /**
    * 转换单个值
    */
@@ -153,24 +155,24 @@ const TypeConverter = {
     }
     return value
   },
-  
+
   /**
    * 验证答案值是否有效
    */
   isValidAnswer(value: unknown): boolean {
     if (value === undefined || value === null) return false
     if (Array.isArray(value)) {
-      return value.length > 0 && value.every(v => v !== undefined && v !== null)
+      return value.length > 0 && value.every((v) => v !== undefined && v !== null)
     }
     return true
   },
-  
+
   /**
    * 生成ISO格式的时间戳
    */
   generateTimestamp(): string {
     return new Date().toISOString()
-  }
+  },
 }
 
 /**
@@ -179,10 +181,10 @@ const TypeConverter = {
 export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
   /** 答案列表 */
   const answers = ref<AnswerRecord[]>([])
-  
+
   /** 是否正在提交 */
   const isSubmitting = ref(false)
-  
+
   /** 提交错误信息 */
   const submitError = ref<string | null>(null)
 
@@ -218,12 +220,15 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     const processedRecord: AnswerRecord = {
       ...record,
       userAnswer: TypeConverter.convertAnswerValue(record.userAnswer),
-      correctAnswer: record.correctAnswer !== undefined 
-        ? TypeConverter.convertAnswerValue(record.correctAnswer) 
-        : undefined
+      correctAnswer:
+        record.correctAnswer !== undefined
+          ? TypeConverter.convertAnswerValue(record.correctAnswer)
+          : undefined,
     }
 
-    const existingIndex = answers.value.findIndex(a => a.questionId === processedRecord.questionId)
+    const existingIndex = answers.value.findIndex(
+      (a) => a.questionId === processedRecord.questionId,
+    )
     if (existingIndex >= 0) {
       answers.value[existingIndex] = { ...answers.value[existingIndex], ...processedRecord }
     } else {
@@ -238,10 +243,10 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
    * @param updates - 更新内容
    */
   function updateAnswer(questionId: string, updates: Partial<AnswerRecord>): void {
-    const index = answers.value.findIndex(a => a.questionId === questionId)
+    const index = answers.value.findIndex((a) => a.questionId === questionId)
     if (index >= 0) {
       const current = answers.value[index]!
-      
+
       // 处理数据类型转换
       const processedUpdates: Partial<AnswerRecord> = { ...updates }
       if (updates.userAnswer !== undefined) {
@@ -254,7 +259,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
       answers.value[index] = {
         questionId: current.questionId,
         userAnswer: current.userAnswer,
-        ...processedUpdates
+        ...processedUpdates,
       } as AnswerRecord
       console.log(`[useAnswerSubmitter] 答案已更新: ${questionId}`)
     }
@@ -265,7 +270,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
    * @param questionId - 题目ID
    */
   function removeAnswer(questionId: string): void {
-    const index = answers.value.findIndex(a => a.questionId === questionId)
+    const index = answers.value.findIndex((a) => a.questionId === questionId)
     if (index >= 0) {
       answers.value.splice(index, 1)
       console.log(`[useAnswerSubmitter] 答案已删除: ${questionId}`)
@@ -291,7 +296,11 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     answers.value.forEach((answer, index) => {
       // 验证 questionId
-      if (!answer.questionId || typeof answer.questionId !== 'string' || answer.questionId.trim() === '') {
+      if (
+        !answer.questionId ||
+        typeof answer.questionId !== 'string' ||
+        answer.questionId.trim() === ''
+      ) {
         const msg = `第 ${index + 1} 题缺少有效的 questionId`
         errors.push(msg)
         missing.push(msg)
@@ -315,7 +324,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     })
 
     // 验证是否有重复的 questionId
-    const questionIds = answers.value.map(a => a.questionId)
+    const questionIds = answers.value.map((a) => a.questionId)
     const uniqueIds = new Set(questionIds)
     if (questionIds.length !== uniqueIds.size) {
       errors.push('存在重复的题目ID')
@@ -324,7 +333,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     return {
       valid: errors.length === 0,
       errors,
-      missing
+      missing,
     }
   }
 
@@ -335,7 +344,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
    */
   function buildSubmitPayload(wenId: string): SubmitPayload | null {
     const studentId = getStudentId()
-    
+
     // 验证学生ID
     if (!studentId || studentId.trim() === '') {
       console.error('[useAnswerSubmitter] 学生未登录或学号为空')
@@ -363,25 +372,25 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     // 构建 answers 对象（{ questionId: userAnswer } 格式）
     const answersObject: Record<string, string | number | (string | number)[]> = {}
-    answers.value.forEach(answer => {
+    answers.value.forEach((answer) => {
       answersObject[answer.questionId] = answer.userAnswer
     })
 
     // 构建 questions 数组（包含题目ID和正确答案）
     const questionsArray: QuestionInfo[] = answers.value
-      .filter(answer => answer.correctAnswer !== undefined)
-      .map(answer => ({
+      .filter((answer) => answer.correctAnswer !== undefined)
+      .map((answer) => ({
         id: answer.questionId,
-        correctAnswer: answer.correctAnswer!
+        correctAnswer: answer.correctAnswer!,
       }))
 
     // 如果没有正确答案信息，仍然构建载荷（后端可能自己判断）
     if (questionsArray.length === 0 && answers.value.length > 0) {
       console.warn('[useAnswerSubmitter] 没有提供正确答案信息，后端将无法自动判分')
-      answers.value.forEach(answer => {
+      answers.value.forEach((answer) => {
         questionsArray.push({
           id: answer.questionId,
-          correctAnswer: ''
+          correctAnswer: '',
         })
       })
     }
@@ -395,7 +404,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
       wenId,
       submittedAt: TypeConverter.generateTimestamp(),
       answers: answersObject,
-      questions: questionsArray
+      questions: questionsArray,
     }
 
     // 添加可选的学生姓名
@@ -414,7 +423,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
    */
   async function submitAnswers(wenId: string): Promise<SubmitResponse> {
     const payload = buildSubmitPayload(wenId)
-    
+
     if (!payload) {
       throw new Error('无法构建提交载荷')
     }
@@ -424,13 +433,13 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     try {
       const apiResponse = await post<SubmitResponse['data']>('/api/submit', payload)
-      
+
       if (apiResponse.success) {
         console.log('[useAnswerSubmitter] 答案提交成功')
         return {
           success: true,
           message: apiResponse.message || '提交成功',
-          data: apiResponse.data
+          data: apiResponse.data,
         }
       } else {
         throw new Error(apiResponse.message || '提交失败')
@@ -455,7 +464,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     buildSubmitPayload,
     submitAnswers,
     isSubmitting,
-    submitError
+    submitError,
   }
 }
 
@@ -467,22 +476,25 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
  * @returns 转换后的答案记录列表
  */
 export function convertFromQuizProgress(
-  quizAnswers: Array<{ 
-    questionIndex: number 
-    answer: number | string 
+  quizAnswers: Array<{
+    questionIndex: number
+    answer: number | string
     isCorrect?: boolean
     questionId?: string
     module?: string
   }>,
   questionIds?: string[],
-  questionInfos?: Array<{ questionId: string; correctAnswer: string | number | (string | number)[] }>
+  questionInfos?: Array<{
+    questionId: string
+    correctAnswer: string | number | (string | number)[]
+  }>,
 ): AnswerRecord[] {
   return quizAnswers.map((ans, index) => {
     // 优先使用 ans.questionId，其次使用 questionIds 数组，最后生成默认ID
     const questionId = ans.questionId || questionIds?.[index] || `question_${ans.questionIndex}`
-    
+
     // 查找对应的正确答案
-    const matchingInfo = questionInfos?.find(q => q.questionId === questionId)
+    const matchingInfo = questionInfos?.find((q) => q.questionId === questionId)
 
     return {
       questionId,
@@ -490,7 +502,7 @@ export function convertFromQuizProgress(
       isCorrect: ans.isCorrect,
       correctAnswer: matchingInfo?.correctAnswer,
       module: ans.module,
-      questionNumber: ans.questionIndex + 1
+      questionNumber: ans.questionIndex + 1,
     }
   })
 }
@@ -502,19 +514,19 @@ export function convertFromQuizProgress(
  * @returns 答案记录列表
  */
 export function convertFromQuestions(
-  questions: Array<{ 
-    questionId: string 
+  questions: Array<{
+    questionId: string
     correctAnswer?: string | number | (string | number)[]
     module?: string
     questionNumber?: number
   }>,
-  userAnswers: Record<string, string | number | (string | number)[]>
+  userAnswers: Record<string, string | number | (string | number)[]>,
 ): AnswerRecord[] {
   return questions.map((q, index) => ({
     questionId: q.questionId,
     userAnswer: userAnswers[q.questionId] ?? '',
     correctAnswer: q.correctAnswer,
     module: q.module,
-    questionNumber: q.questionNumber || (index + 1)
+    questionNumber: q.questionNumber || index + 1,
   }))
 }

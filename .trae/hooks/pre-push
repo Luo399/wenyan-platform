@@ -1,0 +1,93 @@
+#!/usr/bin/env pwsh
+<#
+.SYNOPSIS
+Trae pre-push hook - 在推送前自动执行数据流水线
+
+.DESCRIPTION
+在每次 git push 前自动执行数据处理流水线，确保：
+1. 如果有人直接改了 Excel 或配置文件，推送会自动完成生成
+2. 前后端代码与最新数据始终一致
+3. 数据生成失败时阻止推送
+
+.NOTES
+放置位置: .trae/hooks/pre-push
+#>
+
+$ErrorActionPreference = "Stop"
+
+Write-Host "`n╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║                  Trae Pre-Push Hook 执行中                      ║" -ForegroundColor Cyan
+Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+
+try {
+    # 获取项目根目录
+    $projectRoot = Split-Path -Parent $PSScriptRoot
+    $projectRoot = Split-Path -Parent $projectRoot
+
+    Write-Host "`n📂 项目根目录: $projectRoot" -ForegroundColor Gray
+
+    # 检查是否有未提交的 Excel 或配置文件变更
+    Write-Host "`n🔍 检查数据文件变更..." -ForegroundColor Yellow
+    
+    $changedFiles = git diff --cached --name-only
+    $hasDataChanges = $false
+    $changedDataFiles = @()
+
+    foreach ($file in $changedFiles) {
+        if ($file -match "^data-pipeline/source/.*\.xlsx$" -or 
+            $file -match "^data-pipeline/python/.*\.json$" -or
+            $file -match "^data-pipeline/python/.*\.py$") {
+            $hasDataChanges = $true
+            $changedDataFiles += $file
+        }
+    }
+
+    if ($hasDataChanges) {
+        Write-Host "⚠️  检测到以下数据相关文件变更:" -ForegroundColor Yellow
+        foreach ($file in $changedDataFiles) {
+            Write-Host "  - $file" -ForegroundColor Gray
+        }
+        
+        Write-Host "`n🔄 自动执行数据流水线..." -ForegroundColor Yellow
+        
+        # 切换到 data-pipeline/python 目录
+        $pythonDir = Join-Path $projectRoot "data-pipeline/python"
+        Set-Location $pythonDir
+
+        # 执行数据处理脚本
+        Write-Host "`n运行: python data_processor/main.py" -ForegroundColor Gray
+        python data_processor/main.py
+        
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "`n❌ 数据流水线执行失败，推送已被阻断!" -ForegroundColor Red
+            Write-Host "   请检查错误信息并修复后重新推送。" -ForegroundColor Gray
+            exit 1
+        }
+
+        Write-Host "`n✅ 数据流水线执行成功" -ForegroundColor Green
+        
+        # 暂存新生成的 JSON 文件
+        Write-Host "`n📦 暂存新生成的 JSON 文件..." -ForegroundColor Yellow
+        Set-Location $projectRoot
+        git add backend/data/
+        git add public/data/
+        git add data-pipeline/temp/
+
+        Write-Host "✅ 数据文件已更新并暂存" -ForegroundColor Green
+    }
+    else {
+        Write-Host "✅ 未检测到数据文件变更，跳过数据流水线" -ForegroundColor Green
+    }
+
+    Write-Host "`n╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║                     Pre-Push Hook 执行完成                      ║" -ForegroundColor Cyan
+    Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host ""
+
+    exit 0
+}
+catch {
+    Write-Host "`n❌ Pre-push hook 执行异常: $_" -ForegroundColor Red
+    Write-Host "   推送已被阻断，请检查错误并修复后重新推送。" -ForegroundColor Gray
+    exit 1
+}

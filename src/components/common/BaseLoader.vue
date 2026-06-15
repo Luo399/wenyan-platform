@@ -11,7 +11,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  loadingText: '加载中...'
+  loadingText: '加载中...',
 })
 </script>
 

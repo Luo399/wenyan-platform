@@ -47,7 +47,7 @@
             selected: selectedAnswer === index,
             locked: submitted,
             correct: submitted && isCorrectOption(index),
-            wrong: submitted && isWrongOption(index)
+            wrong: submitted && isWrongOption(index),
           }"
           :disabled="submitted"
           @click="selectOption(index)"
@@ -73,11 +73,7 @@
 
     <!-- 卡片底部（未提交时显示） -->
     <div class="quiz-card-footer" v-if="!submitted">
-      <button
-        class="submit-btn"
-        :disabled="selectedAnswer === null"
-        @click="handleSubmit"
-      >
+      <button class="submit-btn" :disabled="selectedAnswer === null" @click="handleSubmit">
         <i class="fas fa-check"></i>
         提交答案
       </button>
@@ -129,7 +125,7 @@ const selectedAnswer = ref<number | null>(null)
  */
 const isCorrectOption = (index: number): boolean => {
   if (props.data.correct_answer === undefined) return false
-  
+
   if (Array.isArray(props.data.correct_answer)) {
     return props.data.correct_answer.includes(index)
   }
@@ -149,10 +145,10 @@ const isWrongOption = (index: number): boolean => {
  */
 const selectOption = (index: number) => {
   if (props.submitted) return
-  
+
   // 根据题目类型处理选择
   const questionType = props.data.question_type || 'radio'
-  
+
   if (questionType === 'radio') {
     // 单选题：直接替换选中项
     selectedAnswer.value = index
@@ -165,7 +161,7 @@ const selectOption = (index: number) => {
  */
 const handleSubmit = () => {
   if (selectedAnswer.value === null || props.submitted) return
-  
+
   // 发射提交事件
   emit('submit', selectedAnswer.value)
 }
@@ -185,7 +181,9 @@ defineExpose({ reset })
 .quiz-card {
   background: white;
   border-radius: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 

@@ -220,7 +220,7 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   // 判断答案是否正确
   const item = pageData.value?.items[quizIndex]
   const isCorrect = item ? selectedOption === item.quiz.correct_answer : undefined
-  
+
   // 获取 questionId、module 和 correctAnswer
   const questionId = item?.quiz.question_id || ''
   const module = item?.quiz.module || 'C'

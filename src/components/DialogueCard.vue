@@ -24,7 +24,9 @@
       <div class="dialogue-content">
         <div class="dialogue-speaker">{{ speakerName }}</div>
         <div class="dialogue-text-content">
-          <span v-for="(char, index) in displayedText" :key="index" class="dialogue-char">{{ char }}</span>
+          <span v-for="(char, index) in displayedText" :key="index" class="dialogue-char">{{
+            char
+          }}</span>
         </div>
       </div>
 
@@ -53,13 +55,13 @@ interface Props {
   pre_dialog?: string
   audio_file?: string
   icon_dialog?: string
-  
+
   // 兼容旧版命名
   textId?: string
   dialogText?: string
   audioFile?: string
   iconDialog?: string
-  
+
   autoType?: boolean
   typeSpeed?: number
 }
@@ -117,14 +119,14 @@ const speakerClass = computed(() => {
 function typeText() {
   const content = dialogContent.value
   if (!content) return
-  
+
   displayedText.value = ''
   let index = 0
-  
+
   if (typeInterval) {
     clearInterval(typeInterval)
   }
-  
+
   typeInterval = setInterval(() => {
     if (index < content.length) {
       displayedText.value += content[index]
@@ -141,7 +143,7 @@ function typeText() {
 // 切换音频播放
 function toggleAudio() {
   if (!audioFile.value) return
-  
+
   if (isPlaying.value) {
     pauseAudio()
   } else {
@@ -151,23 +153,26 @@ function toggleAudio() {
 
 function playAudio() {
   if (!audioFile.value) return
-  
+
   if (audio) {
     audio.pause()
   }
-  
+
   audio = new Audio(getAssetUrl(`audio/${audioFile.value}.mp3`))
   audio.onended = () => {
     isPlaying.value = false
     emit('audio-pause')
   }
-  
-  audio.play().then(() => {
-    isPlaying.value = true
-    emit('audio-play', audioFile.value as string)
-  }).catch((e) => {
-    console.error('音频播放失败:', e)
-  })
+
+  audio
+    .play()
+    .then(() => {
+      isPlaying.value = true
+      emit('audio-play', audioFile.value as string)
+    })
+    .catch((e) => {
+      console.error('音频播放失败:', e)
+    })
 }
 
 function pauseAudio() {
@@ -320,17 +325,17 @@ onUnmounted(() => {
     padding: 12px;
     gap: 10px;
   }
-  
+
   .dialogue-avatar {
     width: 40px;
     height: 40px;
     font-size: 16px;
   }
-  
+
   .dialogue-speaker {
     font-size: 12px;
   }
-  
+
   .dialogue-text-content {
     font-size: 13px;
   }

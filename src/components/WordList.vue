@@ -24,12 +24,18 @@
       <div class="article-header">
         <h1 class="article-title">{{ adaptedData.basicInfo.title || '未知标题' }}</h1>
         <p class="article-meta">
-          <span class="author">{{ adaptedData.basicInfo.dynasty }} · {{ adaptedData.basicInfo.author }}</span>
+          <span class="author"
+            >{{ adaptedData.basicInfo.dynasty }} · {{ adaptedData.basicInfo.author }}</span
+          >
         </p>
       </div>
 
       <!-- 文章内容（直接使用适配器预生成的 HTML） -->
-      <div ref="contentRef" class="article-content" v-html="adaptedData.basicInfo.contentHtml"></div>
+      <div
+        ref="contentRef"
+        class="article-content"
+        v-html="adaptedData.basicInfo.contentHtml"
+      ></div>
 
       <!-- Tooltip -->
       <div
@@ -46,11 +52,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { 
-  adaptWordList, 
-  type RawWordItem, 
-  type RawTextBasicInfo, 
-  type WordListAdapterResult 
+import {
+  adaptWordList,
+  type RawWordItem,
+  type RawTextBasicInfo,
+  type WordListAdapterResult,
 } from '@/adapters/wordListAdapter'
 
 // Tooltip 状态
@@ -104,7 +110,7 @@ const adaptedData = computed<WordListAdapterResult | null>(() => {
   if (!wordListData.value || !basicInfoData.value) {
     return null
   }
-  
+
   // 调用适配器进行数据转换
   return adaptWordList(basicInfoData.value, wordListData.value)
 })
@@ -121,13 +127,13 @@ function handleMouseMove(e: MouseEvent) {
     const def = target.getAttribute('data-def')
     if (def) {
       currentAnnotation.value = def
-      
+
       // 计算Tooltip位置并确保在视口内
       const tooltipWidth = 200
       const tooltipHeight = 60
       let x = e.clientX + 10
       let y = e.clientY + 10
-      
+
       // 边界检查
       if (x + tooltipWidth > window.innerWidth) {
         x = e.clientX - tooltipWidth - 10
@@ -135,7 +141,7 @@ function handleMouseMove(e: MouseEvent) {
       if (y + tooltipHeight > window.innerHeight) {
         y = e.clientY - tooltipHeight - 10
       }
-      
+
       tooltipPosition.value = { x, y }
       showTooltip.value = true
       return

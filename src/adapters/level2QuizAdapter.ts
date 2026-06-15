@@ -34,7 +34,7 @@ export function adaptLevel2Quiz(rawData: RawLevel2QuizItem[] | null): ProcessedL
   }
 
   return rawData
-    .filter(item => item && item.text_id)
+    .filter((item) => item && item.text_id)
     .map((item, index) => {
       const textId = item.text_id || ''
       return {
@@ -47,20 +47,23 @@ export function adaptLevel2Quiz(rawData: RawLevel2QuizItem[] | null): ProcessedL
           { label: 'A', value: item.option_a || '' },
           { label: 'B', value: item.option_b || '' },
           { label: 'C', value: item.option_c || '' },
-          { label: 'D', value: item.option_d || '' }
+          { label: 'D', value: item.option_d || '' },
         ],
         audioFile: item.audio_file || null,
         difficulty: item.difficulty || 'L2',
         correctAnswer: item.correct_answer || null,
         explanation: item.explanation || '',
-        questionType: item.question_type || 'radio'
+        questionType: item.question_type || 'radio',
       }
     })
-    .filter(item => item.questionText.trim())
+    .filter((item) => item.questionText.trim())
 }
 
-export function getLevel2QuizByQuestionNumber(data: ProcessedLevel2QuizItem[], questionNumber: number): ProcessedLevel2QuizItem | null {
-  return data.find(item => item.questionNumber === questionNumber) || null
+export function getLevel2QuizByQuestionNumber(
+  data: ProcessedLevel2QuizItem[],
+  questionNumber: number,
+): ProcessedLevel2QuizItem | null {
+  return data.find((item) => item.questionNumber === questionNumber) || null
 }
 
 export function getAllLevel2Quizzes(data: ProcessedLevel2QuizItem[]): ProcessedLevel2QuizItem[] {

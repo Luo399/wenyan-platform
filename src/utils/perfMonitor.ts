@@ -1,11 +1,11 @@
 /**
  * 性能监控工具
- * 
+ *
  * 功能说明：
  * - 监控组件渲染性能
  * - 记录数据加载时间
  * - 检测内存泄漏风险
- * 
+ *
  * 使用示例：
  * const monitor = createPerfMonitor('WordList')
  * monitor.start('dataLoad')
@@ -27,7 +27,7 @@ export function createPerfMonitor(componentName: string) {
     const key = `${componentName}:${name}`
     records.set(key, {
       name,
-      startTime: performance.now()
+      startTime: performance.now(),
     })
     console.log(`[${componentName}] ⏱️ 开始 ${name}`)
   }
@@ -56,7 +56,7 @@ export function createPerfMonitor(componentName: string) {
   }
 
   function getAverageTime(name: string) {
-    const filtered = Array.from(records.values()).filter(r => r.name === name)
+    const filtered = Array.from(records.values()).filter((r) => r.name === name)
     if (filtered.length === 0) return 0
 
     const total = filtered.reduce((sum, r) => sum + (r.duration || 0), 0)
@@ -72,7 +72,7 @@ export function createPerfMonitor(componentName: string) {
     end,
     getRecords,
     getAverageTime,
-    clear
+    clear,
   }
 }
 
@@ -105,7 +105,7 @@ export function checkMemoryUsage() {
  */
 export function withPerfMonitor<T extends (...args: any[]) => any>(
   componentName: string,
-  fn: T
+  fn: T,
 ): T {
   return ((...args: any[]) => {
     const startTime = performance.now()

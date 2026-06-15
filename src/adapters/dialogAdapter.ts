@@ -31,14 +31,14 @@ export function adaptDialogData(rawData: RawDialogItem[] | null): ProcessedDialo
   }
 
   return rawData
-    .filter(item => item && item.text_id)
-    .map(item => ({
+    .filter((item) => item && item.text_id)
+    .map((item) => ({
       textId: item.text_id || '',
       dialogText: item.pre_dialog || '',
       audioFile: item.audio_file || null,
-      iconDialog: item.icon_dialog || null
+      iconDialog: item.icon_dialog || null,
     }))
-    .filter(item => item.dialogText.trim())
+    .filter((item) => item.dialogText.trim())
 }
 
 /**
@@ -56,7 +56,10 @@ export function getAllDialogs(data: ProcessedDialogItem[]): ProcessedDialogItem[
  * @param index 索引
  * @returns 对应的对话数据
  */
-export function getDialogByIndex(data: ProcessedDialogItem[], index: number): ProcessedDialogItem | null {
+export function getDialogByIndex(
+  data: ProcessedDialogItem[],
+  index: number,
+): ProcessedDialogItem | null {
   return data[index] || null
 }
 
@@ -66,6 +69,9 @@ export function getDialogByIndex(data: ProcessedDialogItem[], index: number): Pr
  * @param speakerName 说话者名称
  * @returns 该说话者的所有对话
  */
-export function getDialogsBySpeaker(data: ProcessedDialogItem[], speakerName: string): ProcessedDialogItem[] {
-  return data.filter(item => item.dialogText.includes(speakerName))
+export function getDialogsBySpeaker(
+  data: ProcessedDialogItem[],
+  speakerName: string,
+): ProcessedDialogItem[] {
+  return data.filter((item) => item.dialogText.includes(speakerName))
 }

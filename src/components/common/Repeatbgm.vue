@@ -1,7 +1,7 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <!--
   Repeatbgm.vue - 背景音乐循环播放组件
-  
+
   功能说明：
   1. 根据当前活动 wenId 自动加载对应的背景音乐
   2. 响应全局 BGM store 的状态变化
@@ -112,7 +112,7 @@ watch(
       bgmStore.setActiveWenId(wenId)
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 // 监听BGM文件变化，重新加载音频
@@ -126,32 +126,41 @@ watch(currentBgmFile, (newFile, oldFile) => {
 })
 
 // 监听store播放状态变化
-watch(() => bgmStore.isPlaying, (playing) => {
-  if (!audioRef.value) return
-  
-  if (playing) {
-    audioRef.value.play().catch((err) => {
-      debugWarn('[Repeatbgm] 播放失败:', err)
-      bgmStore.pause()
-    })
-  } else {
-    audioRef.value.pause()
-  }
-})
+watch(
+  () => bgmStore.isPlaying,
+  (playing) => {
+    if (!audioRef.value) return
+
+    if (playing) {
+      audioRef.value.play().catch((err) => {
+        debugWarn('[Repeatbgm] 播放失败:', err)
+        bgmStore.pause()
+      })
+    } else {
+      audioRef.value.pause()
+    }
+  },
+)
 
 // 监听音量变化
-watch(() => bgmStore.volume, (newVolume) => {
-  if (audioRef.value) {
-    audioRef.value.volume = newVolume / 100
-  }
-})
+watch(
+  () => bgmStore.volume,
+  (newVolume) => {
+    if (audioRef.value) {
+      audioRef.value.volume = newVolume / 100
+    }
+  },
+)
 
 // 监听静音状态变化
-watch(() => bgmStore.isMuted, (muted) => {
-  if (audioRef.value) {
-    audioRef.value.muted = muted
-  }
-})
+watch(
+  () => bgmStore.isMuted,
+  (muted) => {
+    if (audioRef.value) {
+      audioRef.value.muted = muted
+    }
+  },
+)
 
 function handleLoadedMetadata() {
   debugLog('[Repeatbgm] ✅ 背景音乐加载完成:', currentBgmFile.value)

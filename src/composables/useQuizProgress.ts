@@ -72,7 +72,13 @@ export interface UseQuizProgressReturn {
    * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
    * @param correctAnswer 正确答案（可选，用于后端提交）
    */
-  handleSubmit: (answer: number | string, isCorrect?: boolean, questionId?: string, module?: string, correctAnswer?: string | number | (string | number)[]) => void
+  handleSubmit: (
+    answer: number | string,
+    isCorrect?: boolean,
+    questionId?: string,
+    module?: string,
+    correctAnswer?: string | number | (string | number)[],
+  ) => void
 
   /**
    * 重置进度到初始状态（同时清除完成记录）

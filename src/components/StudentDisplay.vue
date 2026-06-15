@@ -16,9 +16,7 @@
         <span v-if="userName" class="name-text">| 姓名：{{ userName }}</span>
         <span class="edit-text"> 修改</span>
       </template>
-      <template v-else>
-        请登录
-      </template>
+      <template v-else> 请登录 </template>
     </span>
 
     <!-- 修改学号弹窗 -->
@@ -52,9 +50,13 @@
           <button class="cancel-btn" @click="handleClose" :disabled="isLoading">取消</button>
           <button class="save-btn" @click="handleSave" :disabled="!isValid || isLoading">
             <span v-if="isLoading" class="loading-spinner"></span>
-            {{ isLoading ? (isLoggedIn ? '保存中...' : '登录中...') : (isLoggedIn ? '保存' : '登录') }}
+            {{
+              isLoading ? (isLoggedIn ? '保存中...' : '登录中...') : isLoggedIn ? '保存' : '登录'
+            }}
           </button>
-          <button v-if="isLoggedIn" class="logout-btn" @click="handleLogout" :disabled="isLoading">退出登录</button>
+          <button v-if="isLoggedIn" class="logout-btn" @click="handleLogout" :disabled="isLoading">
+            退出登录
+          </button>
         </div>
       </div>
     </div>
@@ -113,7 +115,7 @@ function handleClick() {
  */
 async function handleInput() {
   clearError()
-  
+
   if (inputId.value.trim()) {
     await fetchStudentName()
   } else {
@@ -165,7 +167,7 @@ async function handleSave() {
       // 修改学号 - 先登出再登录
       authStore.logout()
     }
-    
+
     // 登录
     await authStore.login(inputId.value.trim(), searchedName.value)
     showEditModal.value = false
@@ -449,20 +451,20 @@ onMounted(() => {
     font-size: 0.75rem;
     padding: 0.125rem 0.375rem;
   }
-  
+
   .edit-text {
     display: none;
   }
-  
+
   .modal-content {
     padding: 1rem;
     border-radius: 0.375rem;
   }
-  
+
   .modal-content h3 {
     font-size: 1.125rem;
   }
-  
+
   .modal-buttons {
     flex-direction: column;
   }

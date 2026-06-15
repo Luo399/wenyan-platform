@@ -44,7 +44,7 @@ watch(
       }
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 // 关闭登录弹窗

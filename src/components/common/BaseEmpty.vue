@@ -11,7 +11,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  emptyText: '暂无数据'
+  emptyText: '暂无数据',
 })
 </script>
 

@@ -17,16 +17,12 @@
         type="text"
         placeholder="请输入学号"
         @keyup.enter="handleSubmit"
-        :class="{ 'error': hasError }"
+        :class="{ error: hasError }"
       />
-      <button @click="handleSubmit" :disabled="!isValid">
-        确认
-      </button>
+      <button @click="handleSubmit" :disabled="!isValid">确认</button>
     </div>
 
-    <p v-if="hasError" class="error-message">
-      学号不能为空
-    </p>
+    <p v-if="hasError" class="error-message">学号不能为空</p>
   </div>
 </template>
 
@@ -43,10 +39,10 @@ const hasError = ref(false)
 
 /**
  * 验证输入是否非空（新逻辑：支持任意格式的学号）
- * 
+ *
  * 旧逻辑（已注释）：
  * - 要求4位数字：/^\d{4}$/.test(inputId.value)
- * 
+ *
  * 新逻辑：
  * - 只要非空即可，具体验证由后端处理
  */

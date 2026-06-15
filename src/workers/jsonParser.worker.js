@@ -8,14 +8,14 @@
  *   worker.onmessage = (e) => { ... }
  */
 
-self.onmessage = function(e) {
+self.onmessage = function (e) {
   const { text, id } = e.data
 
   if (!text || typeof text !== 'string') {
     self.postMessage({
       id,
       success: false,
-      error: '无效的文本数据'
+      error: '无效的文本数据',
     })
     return
   }
@@ -27,13 +27,13 @@ self.onmessage = function(e) {
     self.postMessage({
       id,
       success: true,
-      data: parsed
+      data: parsed,
     })
   } catch (err) {
     self.postMessage({
       id,
       success: false,
-      error: err instanceof Error ? err.message : 'JSON 解析失败'
+      error: err instanceof Error ? err.message : 'JSON 解析失败',
     })
   }
 }

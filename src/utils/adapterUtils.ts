@@ -58,7 +58,7 @@ export function parseTimeRange(timeRange: string): { start: number; end: number 
 
   return {
     start: parseTimeToSeconds(startStr ?? ''),
-    end: parseTimeToSeconds(endStr ?? '')
+    end: parseTimeToSeconds(endStr ?? ''),
   }
 }
 
@@ -84,7 +84,7 @@ export function escapeRegex(str: string): string {
  */
 export function buildContentHtmlWithAnnotations(
   content: string,
-  annotations: Array<{ word: string; meaning: string }>
+  annotations: Array<{ word: string; meaning: string }>,
 ): string {
   if (!content || !annotations || annotations.length === 0) {
     return escapeHtml(content || '')

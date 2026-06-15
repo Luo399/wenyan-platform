@@ -99,7 +99,9 @@ const emit = defineEmits<{
 const isLoading = ref(false)
 const error = ref<string | null>(null)
 const scenarios = ref<ProcessedScenarioText[]>([])
-const quizzes = ref<(ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem)[]>([])
+const quizzes = ref<
+  (ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem)[]
+>([])
 const currentQuestionNumber = ref(1)
 
 interface MatchedItem {
@@ -110,27 +112,29 @@ interface MatchedItem {
 
 const matchedItems = computed<MatchedItem[]>(() => {
   const result: MatchedItem[] = []
-  
-  const scenarioNumbers = new Set(scenarios.value.map(s => s.questionNumber))
-  const quizNumbers = new Set(quizzes.value.map(q => q.questionNumber))
-  
-  const commonNumbers = [...scenarioNumbers].filter(n => quizNumbers.has(n))
-  
-  commonNumbers.forEach(num => {
+
+  const scenarioNumbers = new Set(scenarios.value.map((s) => s.questionNumber))
+  const quizNumbers = new Set(quizzes.value.map((q) => q.questionNumber))
+
+  const commonNumbers = [...scenarioNumbers].filter((n) => quizNumbers.has(n))
+
+  commonNumbers.forEach((num) => {
     result.push({
       questionNumber: num,
-      scenario: scenarios.value.find(s => s.questionNumber === num) || null,
-      quiz: quizzes.value.find(q => q.questionNumber === num) || null
+      scenario: scenarios.value.find((s) => s.questionNumber === num) || null,
+      quiz: quizzes.value.find((q) => q.questionNumber === num) || null,
     })
   })
-  
+
   return result.sort((a, b) => a.questionNumber - b.questionNumber)
 })
 
-const hasMatchingData = computed(() => matchedItems.value.length > 0 && !error.value && !isLoading.value)
+const hasMatchingData = computed(
+  () => matchedItems.value.length > 0 && !error.value && !isLoading.value,
+)
 
 const currentScenario = computed(() => {
-  return scenarios.value.find(s => s.questionNumber === currentQuestionNumber.value) || null
+  return scenarios.value.find((s) => s.questionNumber === currentQuestionNumber.value) || null
 })
 
 const quizLevel = computed(() => props.quizLevel)
@@ -140,10 +144,7 @@ async function loadData() {
   error.value = null
 
   try {
-    await Promise.all([
-      loadScenarios(),
-      loadQuizzes()
-    ])
+    await Promise.all([loadScenarios(), loadQuizzes()])
 
     if (matchedItems.value.length > 0 && matchedItems.value[0]) {
       currentQuestionNumber.value = matchedItems.value[0].questionNumber
@@ -160,11 +161,11 @@ async function loadData() {
 async function loadScenarios() {
   const url = `/data/level3_scenario_text/${props.textId}.json`
   const { data: rawData, error: loadError } = useDataLoader<RawScenarioText[]>(() => url)
-  
+
   if (loadError.value) {
     throw new Error(`情景数据加载失败: ${loadError.value}`)
   }
-  
+
   if (rawData.value) {
     scenarios.value = getAllScenarios(adaptScenarioText(rawData.value))
   }
@@ -172,24 +173,36 @@ async function loadScenarios() {
 
 async function loadQuizzes() {
   const url = `/data/${props.quizLevel}_quiz/${props.textId}.json`
-  
+
   if (props.quizLevel === 'level1') {
     const { data: rawData, error: loadError } = useDataLoader<RawLevel1QuizItem[]>(() => url)
     if (loadError.value) throw new Error(`题目数据加载失败: ${loadError.value}`)
     if (rawData.value) {
-      quizzes.value = getAllLevel1Quizzes(adaptLevel1Quiz(rawData.value)) as (ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem)[]
+      quizzes.value = getAllLevel1Quizzes(adaptLevel1Quiz(rawData.value)) as (
+        | ProcessedLevel1QuizItem
+        | ProcessedLevel2QuizItem
+        | ProcessedLevel3QuizItem
+      )[]
     }
   } else if (props.quizLevel === 'level2') {
     const { data: rawData, error: loadError } = useDataLoader<RawLevel2QuizItem[]>(() => url)
     if (loadError.value) throw new Error(`题目数据加载失败: ${loadError.value}`)
     if (rawData.value) {
-      quizzes.value = getAllLevel2Quizzes(adaptLevel2Quiz(rawData.value)) as (ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem)[]
+      quizzes.value = getAllLevel2Quizzes(adaptLevel2Quiz(rawData.value)) as (
+        | ProcessedLevel1QuizItem
+        | ProcessedLevel2QuizItem
+        | ProcessedLevel3QuizItem
+      )[]
     }
   } else {
     const { data: rawData, error: loadError } = useDataLoader<RawLevel3QuizItem[]>(() => url)
     if (loadError.value) throw new Error(`题目数据加载失败: ${loadError.value}`)
     if (rawData.value) {
-      quizzes.value = getAllLevel3Quizzes(adaptLevel3Quiz(rawData.value)) as (ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem)[]
+      quizzes.value = getAllLevel3Quizzes(adaptLevel3Quiz(rawData.value)) as (
+        | ProcessedLevel1QuizItem
+        | ProcessedLevel2QuizItem
+        | ProcessedLevel3QuizItem
+      )[]
     }
   }
 }
@@ -206,15 +219,25 @@ function handleScenarioError(err: string) {
   console.error('Scenario error:', err)
 }
 
-function handleAnswer(quiz: ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem, answer: string, isCorrect: boolean) {
+function handleAnswer(
+  quiz: ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem,
+  answer: string,
+  isCorrect: boolean,
+) {
   emit('answer', quiz.questionNumber, answer, isCorrect)
 }
 
-function handleComplete(results: { quiz: ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem; answer: string; isCorrect: boolean }[]) {
-  const formattedResults = results.map(r => ({
+function handleComplete(
+  results: {
+    quiz: ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem
+    answer: string
+    isCorrect: boolean
+  }[],
+) {
+  const formattedResults = results.map((r) => ({
     questionNumber: r.quiz.questionNumber,
     answer: r.answer,
-    isCorrect: r.isCorrect
+    isCorrect: r.isCorrect,
   }))
   emit('complete', formattedResults)
 }
@@ -227,13 +250,19 @@ function handleRetry() {
   loadData()
 }
 
-watch(() => props.quizLevel, () => {
-  loadData()
-})
+watch(
+  () => props.quizLevel,
+  () => {
+    loadData()
+  },
+)
 
-watch(() => props.textId, () => {
-  loadData()
-})
+watch(
+  () => props.textId,
+  () => {
+    loadData()
+  },
+)
 
 onMounted(() => {
   loadData()
@@ -242,13 +271,13 @@ onMounted(() => {
 defineExpose({
   reload: loadData,
   goToQuestion: (questionNumber: number) => {
-    const exists = matchedItems.value.some(item => item.questionNumber === questionNumber)
+    const exists = matchedItems.value.some((item) => item.questionNumber === questionNumber)
     if (exists) {
       currentQuestionNumber.value = questionNumber
     }
   },
   currentQuestionNumber,
-  matchedItems
+  matchedItems,
 })
 </script>
 

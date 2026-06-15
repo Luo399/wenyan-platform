@@ -1,11 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div
-        v-if="visible"
-        class="modal-overlay"
-        @click.self="handleOverlayClick"
-      >
+      <div v-if="visible" class="modal-overlay" @click.self="handleOverlayClick">
         <div class="modal-container" ref="modalRef">
           <!-- 关闭按钮 -->
           <button class="close-btn" @click="handleClose" aria-label="关闭">
@@ -28,14 +24,12 @@
                 v-model="studentId"
                 type="text"
                 class="form-input"
-                :class="{ 'error': hasError && !studentId }"
+                :class="{ error: hasError && !studentId }"
                 placeholder="请输入学号"
                 :disabled="isLoading"
                 @input="handleStudentIdInput"
               />
-              <span v-if="hasError && !studentId" class="error-message">
-                请输入学号
-              </span>
+              <span v-if="hasError && !studentId" class="error-message"> 请输入学号 </span>
             </div>
 
             <!-- 学生姓名显示 -->
@@ -47,11 +41,7 @@
             <!-- 记住登录状态 -->
             <div class="form-group remember-group">
               <label class="checkbox-label">
-                <input
-                  v-model="rememberMe"
-                  type="checkbox"
-                  class="checkbox-input"
-                />
+                <input v-model="rememberMe" type="checkbox" class="checkbox-input" />
                 <span class="checkbox-text">记住登录状态</span>
               </label>
             </div>
@@ -63,11 +53,7 @@
             </div>
 
             <!-- 登录按钮 -->
-            <button
-              type="submit"
-              class="login-btn"
-              :disabled="isLoading || !studentId"
-            >
+            <button type="submit" class="login-btn" :disabled="isLoading || !studentId">
               <span v-if="isLoading" class="loading-spinner"></span>
               <span>{{ isLoading ? '登录中...' : '登录' }}</span>
             </button>
@@ -126,7 +112,7 @@ watch(
     if (newError) {
       hasError.value = true
     }
-  }
+  },
 )
 
 // 监听可见性变化
@@ -143,13 +129,13 @@ watch(
         input?.focus()
       }, 300)
     }
-  }
+  },
 )
 
 // 学号输入处理
 async function handleStudentIdInput(): Promise<void> {
   clearValidation()
-  
+
   // 当学号长度 >= 1 时查询学生姓名
   if (studentId.value.trim().length >= 1) {
     await fetchStudentName()

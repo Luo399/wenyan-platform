@@ -2,9 +2,7 @@
   <div class="base-timeout">
     <i class="fas fa-clock"></i>
     <p>{{ timeoutText }}</p>
-    <button @click="$emit('retry')" class="retry-btn">
-      重试
-    </button>
+    <button @click="$emit('retry')" class="retry-btn">重试</button>
   </div>
 </template>
 
@@ -14,7 +12,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  timeoutText: '请求超时，请稍后重试'
+  timeoutText: '请求超时，请稍后重试',
 })
 
 defineEmits<{

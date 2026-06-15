@@ -132,7 +132,15 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'answer', quiz: QuizItem, answer: string, isCorrect: boolean, questionId?: string, module?: string, correctAnswer?: string | number | (string | number)[]): void
+  (
+    e: 'answer',
+    quiz: QuizItem,
+    answer: string,
+    isCorrect: boolean,
+    questionId?: string,
+    module?: string,
+    correctAnswer?: string | number | (string | number)[],
+  ): void
   (e: 'complete', results: { quiz: QuizItem; answer: string; isCorrect: boolean }[]): void
   (e: 'error', error: string): void
   (e: 'quiz-submitted'): void
@@ -275,7 +283,15 @@ function submitAnswer() {
 
   showResult.value = true
   submitted.value = true
-  emit('answer', currentQuiz.value, selectedAnswer.value, isCorrect, currentQuiz.value.questionId, currentQuiz.value.module, currentQuiz.value.correctAnswer ?? undefined)
+  emit(
+    'answer',
+    currentQuiz.value,
+    selectedAnswer.value,
+    isCorrect,
+    currentQuiz.value.questionId,
+    currentQuiz.value.module,
+    currentQuiz.value.correctAnswer ?? undefined,
+  )
   emit('quiz-submitted')
 }
 

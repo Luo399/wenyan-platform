@@ -29,13 +29,13 @@ export function adaptScenarioText(rawData: RawScenarioText[] | null): ProcessedS
   }
 
   return rawData
-    .filter(item => item && item.text_id)
-    .map(item => ({
+    .filter((item) => item && item.text_id)
+    .map((item) => ({
       textId: item.text_id || '',
       scenarioText: item.scenario_text || '',
-      questionNumber: item.question_number || 0
+      questionNumber: item.question_number || 0,
     }))
-    .filter(item => item.scenarioText.trim())
+    .filter((item) => item.scenarioText.trim())
 }
 
 /**
@@ -46,9 +46,9 @@ export function adaptScenarioText(rawData: RawScenarioText[] | null): ProcessedS
  */
 export function getScenarioTextByQuestion(
   data: ProcessedScenarioText[],
-  questionNumber: number
+  questionNumber: number,
 ): ProcessedScenarioText | null {
-  return data.find(item => item.questionNumber === questionNumber) || null
+  return data.find((item) => item.questionNumber === questionNumber) || null
 }
 
 /**

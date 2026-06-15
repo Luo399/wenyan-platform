@@ -19,7 +19,12 @@
         @complete="onVideoComplete"
       />
     </div>
-    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="handleGoNext" />
+    <BackContinue
+      back-text="返回"
+      continue-text="继续"
+      @back="handleGoPrev"
+      @continue="handleGoNext"
+    />
   </div>
 </template>
 

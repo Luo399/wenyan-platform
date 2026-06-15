@@ -33,10 +33,10 @@ export const useStudentStore = defineStore('student', () => {
 
   /**
    * 验证学号格式（新逻辑）
-   * 
+   *
    * 旧逻辑（已废弃）：
    * - 要求4位数字：return id && /^\d{4}$/.test(id)
-   * 
+   *
    * 新逻辑：
    * - 只要非空即可，支持任意格式的学号（数字、字母等）
    * @param id - 学号
@@ -48,10 +48,10 @@ export const useStudentStore = defineStore('student', () => {
 
   /**
    * 设置学号（新逻辑）
-   * 
+   *
    * 旧逻辑（已废弃）：
    * - 只接受4位数字学号
-   * 
+   *
    * 新逻辑：
    * - 接受任意非空学号，与Excel导入的students表数据匹配
    * @param id - 学号（支持任意格式）
