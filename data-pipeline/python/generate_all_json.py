@@ -48,7 +48,7 @@ def main():
     )
     
     # 配置参数
-    EXCEL_FILE = '开发需求填写.dbt.xlsx'
+    EXCEL_FILE = '../source/开发需求填写.dbt.xlsx'
     ALLOWED_SHEETS = list(TRANSFORM_MAP.keys())
     
     try:
@@ -96,7 +96,7 @@ def process_sheet(workbook, sheet_name: str):
     
     # 创建配置
     config = ExcelConfig(
-        input_file='开发需求填写.dbt.xlsx',
+        input_file='../source/开发需求填写.dbt.xlsx',
         sheet_name=sheet_name,
         header_row=1,
         property_row=2,

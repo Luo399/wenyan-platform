@@ -82,6 +82,15 @@
         <h2 class="complete-title">测验完成！</h2>
         <p class="complete-stats">答对 {{ correctCount }} / {{ completedCount }} 题</p>
       </div>
+
+      <!-- 文化卡片区域（测验完成后显示） -->
+      <div class="culture-cards-section" v-if="isCompleted">
+        <CultureCards
+          :wen-id="textId"
+          @load-success="handleCultureCardsLoad"
+          @card-click="handleCultureCardClick"
+        />
+      </div>
     </template>
 
     <!-- 空状态 -->
@@ -107,6 +116,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BackContinue from '@/components/BackContinue.vue'
 import QuizCard from '@/components/QuizCard.vue'
+import CultureCards from '@/components/CultureCards.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
@@ -241,6 +251,14 @@ function handleGoNext() {
 
 function handleGoPrev() {
   goPrev(router)
+}
+
+function handleCultureCardsLoad(data: unknown) {
+  console.log('[StepThreeView] 文化卡片加载成功:', data)
+}
+
+function handleCultureCardClick(card: { card_id: number; card_name: string }) {
+  console.log('[StepThreeView] 文化卡片点击:', card)
 }
 
 // 监听 textId 变化，重置进度
@@ -471,6 +489,13 @@ onMounted(() => {
   margin: 0;
   font-size: 1rem;
   color: #15803d;
+}
+
+/* 文化卡片区域 */
+.culture-cards-section {
+  margin-top: 1.5rem;
+  padding: 1rem 0;
+  border-top: 1px solid #e2e8f0;
 }
 
 /* 空状态 */

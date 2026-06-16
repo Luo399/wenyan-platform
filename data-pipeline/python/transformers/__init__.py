@@ -70,15 +70,15 @@ GROUP_MAP = {
     'culture_cards': group_culture_cards,
 }
 
-# 输出目录映射表
+# 输出目录映射表（相对于 data-pipeline/python 目录）
 OUTPUT_DIR_MAP = {
-    'text_basic_info': '../public/data/text_basic_info',
-    'level1_word_list': '../public/data/word_list',
-    'level1_multi_role_reading': '../public/data/multi_role_reading',
-    'level1_quiz': '../public/data/level1_quiz',
-    'level2_dialog_quiz': '../public/data/pages_level2_dialog_quiz',
-    'level3_adaptive_quiz': '../public/data/pages_level3_adaptive_quiz',
-    'culture_cards': '../public/data/culture_cards',
+    'text_basic_info': '../../public/data/text_basic_info',
+    'level1_word_list': '../../public/data/word_list',
+    'level1_multi_role_reading': '../../public/data/multi_role_reading',
+    'level1_quiz': '../../public/data/level1_quiz',
+    'level2_dialog_quiz': '../../public/data/pages_level2_dialog_quiz',
+    'level3_adaptive_quiz': '../../public/data/pages_level3_adaptive_quiz',
+    'culture_cards': '../../public/data/culture_cards',
 }
 
 __all__ = [

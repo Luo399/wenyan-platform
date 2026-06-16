@@ -47,6 +47,16 @@ function getLevel1Quiz(textId) {
 }
 
 /**
+ * 获取文化卡片数据
+ * @param {string} textId - 课文ID
+ * @returns {object|null} - 文化卡片数据
+ */
+function getCultureCards(textId) {
+  const filePath = getDataFilePath('culture_cards', `${textId}.json`);
+  return readJsonFile(filePath);
+}
+
+/**
  * 获取二级对话数据
  * @param {string} textId - 课文ID
  * @returns {object|null} - 二级对话数据
@@ -171,6 +181,7 @@ module.exports = {
   getWordList,
   getMultiRoleReading,
   getLevel1Quiz,
+  getCultureCards,
   getLevel2Dialog,
   getLevel2Quiz,
   getLevel3ScenarioText,

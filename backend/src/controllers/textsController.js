@@ -82,6 +82,25 @@ function getLevel1Quiz(req, res) {
 }
 
 /**
+ * 获取文化卡片数据
+ * GET /api/texts/:textId/culture-cards
+ */
+function getCultureCards(req, res) {
+  const { textId } = req.params;
+  const data = textsService.getCultureCards(textId);
+
+  if (data) {
+    res.json({ success: true, data });
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'NOT_FOUND',
+      message: `文化卡片数据不存在: ${textId}`,
+    });
+  }
+}
+
+/**
  * 获取二级对话数据
  * GET /api/texts/:textId/level2-dialog
  */
@@ -211,6 +230,7 @@ module.exports = {
   getWordList,
   getMultiRoleReading,
   getLevel1Quiz,
+  getCultureCards,
   getLevel2Dialog,
   getLevel2Quiz,
   getLevel3ScenarioText,

@@ -3,10 +3,10 @@
  * 集中管理所有API路由
  */
 
-const studentController = require('../controllers/studentController');
-const textsController = require('../controllers/textsController');
-const answerController = require('../controllers/answerController');
-const authController = require('../controllers/authController');
+const studentController = require('../controllers/studentController')
+const textsController = require('../controllers/textsController')
+const answerController = require('../controllers/answerController')
+const authController = require('../controllers/authController')
 
 /**
  * 注册所有路由
@@ -34,6 +34,7 @@ function registerRoutes(app) {
         'GET /api/texts/:textId/word-list': '获取字词注释',
         'GET /api/texts/:textId/multi-role-reading': '获取多角色朗读数据',
         'GET /api/texts/:textId/level1-quiz': '获取一级测验数据',
+        'GET /api/texts/:textId/culture-cards': '获取文化卡片数据',
         'GET /api/texts/:textId/level2-dialog': '获取二级对话数据',
         'GET /api/texts/:textId/level2-quiz': '获取二级测验数据',
         'GET /api/texts/:textId/level3-scenario-text': '获取三级情景文本',
@@ -42,54 +43,55 @@ function registerRoutes(app) {
         'POST /api/texts/batch': '批量获取文本数据',
         'POST /api/auth/login': '学生登录',
       },
-    });
-  });
+    })
+  })
 
   // ============================================================
   // 学生管理接口
   // ============================================================
-  app.get('/api/students', studentController.getStudentList);
-  app.get('/api/students/:studentId', studentController.getStudent);
-  app.post('/api/students', studentController.createStudent);
-  app.put('/api/students/:studentId', studentController.updateStudent);
-  app.delete('/api/students/:studentId', studentController.deleteStudent);
+  app.get('/api/students', studentController.getStudentList)
+  app.get('/api/students/:studentId', studentController.getStudent)
+  app.post('/api/students', studentController.createStudent)
+  app.put('/api/students/:studentId', studentController.updateStudent)
+  app.delete('/api/students/:studentId', studentController.deleteStudent)
 
   // ============================================================
   // 课文数据接口
   // ============================================================
-  app.get('/api/texts', textsController.getTextList);
-  app.post('/api/texts/batch', textsController.getTextsBatch);
-  app.get('/api/texts/:textId/basic-info', textsController.getBasicInfo);
-  app.get('/api/texts/:textId/word-list', textsController.getWordList);
-  app.get('/api/texts/:textId/multi-role-reading', textsController.getMultiRoleReading);
-  app.get('/api/texts/:textId/level1-quiz', textsController.getLevel1Quiz);
-  app.get('/api/texts/:textId/level2-dialog', textsController.getLevel2Dialog);
-  app.get('/api/texts/:textId/level2-quiz', textsController.getLevel2Quiz);
-  app.get('/api/texts/:textId/level3-scenario-text', textsController.getLevel3ScenarioText);
-  app.get('/api/texts/:textId/level3-adaptive-quiz', textsController.getLevel3AdaptiveQuiz);
+  app.get('/api/texts', textsController.getTextList)
+  app.post('/api/texts/batch', textsController.getTextsBatch)
+  app.get('/api/texts/:textId/basic-info', textsController.getBasicInfo)
+  app.get('/api/texts/:textId/word-list', textsController.getWordList)
+  app.get('/api/texts/:textId/multi-role-reading', textsController.getMultiRoleReading)
+  app.get('/api/texts/:textId/level1-quiz', textsController.getLevel1Quiz)
+  app.get('/api/texts/:textId/culture-cards', textsController.getCultureCards)
+  app.get('/api/texts/:textId/level2-dialog', textsController.getLevel2Dialog)
+  app.get('/api/texts/:textId/level2-quiz', textsController.getLevel2Quiz)
+  app.get('/api/texts/:textId/level3-scenario-text', textsController.getLevel3ScenarioText)
+  app.get('/api/texts/:textId/level3-adaptive-quiz', textsController.getLevel3AdaptiveQuiz)
 
   // ============================================================
   // 答题接口
   // ============================================================
-  app.post('/api/submit', answerController.submitAnswers);
-  app.get('/api/answers/wen/:wenId', answerController.getAnswersByWenId);
-  app.get('/api/answers/student/:studentId', answerController.getAnswersByStudentId);
+  app.post('/api/submit', answerController.submitAnswers)
+  app.get('/api/answers/wen/:wenId', answerController.getAnswersByWenId)
+  app.get('/api/answers/student/:studentId', answerController.getAnswersByStudentId)
 
   // ============================================================
   // 学生接口
   // ============================================================
-  app.get('/api/students', studentController.getStudentList);
-  app.get('/api/students/:studentId', studentController.getStudent);
-  app.post('/api/students', studentController.createStudent);
-  app.put('/api/students/:studentId', studentController.updateStudent);
-  app.delete('/api/students/:studentId', studentController.deleteStudent);
+  app.get('/api/students', studentController.getStudentList)
+  app.get('/api/students/:studentId', studentController.getStudent)
+  app.post('/api/students', studentController.createStudent)
+  app.put('/api/students/:studentId', studentController.updateStudent)
+  app.delete('/api/students/:studentId', studentController.deleteStudent)
 
   // ============================================================
   // 认证接口
   // ============================================================
-  app.post('/api/auth/login', authController.login);
+  app.post('/api/auth/login', authController.login)
 }
 
 module.exports = {
-  registerRoutes
-};
+  registerRoutes,
+}
