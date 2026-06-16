@@ -114,7 +114,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  baseUrl: '/data/level1_quiz/',
+  baseUrl: '/api/texts/',
   autoLoad: true,
 })
 
@@ -125,7 +125,7 @@ const emit = defineEmits<{
   (e: 'complete', result: { correct: number; total: number }): void
 }>()
 
-const quizUrl = computed(() => `${props.baseUrl}${props.wenId}.json`)
+const quizUrl = computed(() => `${props.baseUrl}${props.wenId}/level1-quiz`)
 
 const {
   loading,
@@ -138,6 +138,10 @@ const {
   retryCount: 1,
   onLoadSuccess: (data) => emit('load-success', data),
   onLoadError: (err) => emit('load-error', err),
+  transform: (raw) => {
+    const result = raw as { success: boolean; data: Level1QuizItem[] }
+    return result.data || []
+  },
 })
 
 const selectedAnswers = ref<(number | null)[]>([])
