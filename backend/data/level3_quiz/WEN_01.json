@@ -1,16 +1,16 @@
 [
   {
     "text_id": "WEN_01",
-    "question_number": 1,
     "question_text": "你认为陈胜吴广最重要的特质是下列哪一项？（）",
     "option_a": "胆小懦弱，只是走投无路才被迫造反",
     "option_b": "有胆有识，既有反抗暴秦的勇气，也有周密谋划的智慧",
     "option_c": "有勇无谋，能起事全靠运气",
     "option_d": "阴险狡诈，只是利用普通戍卒满足个人野心",
-    "audio_file": null,
-    "difficulty": "L1",
     "correct_answer": "B",
+    "correct_index": 1,
     "explanation": "陈胜吴广身处绝境敢于奋起反抗秦朝暴政，具备过人胆识；同时巧用舆论造势、找准起事时机，谋划周全。并非被迫盲从、鲁莽行事，也不是只为私心算计，因此最核心特质是有胆有识。",
-    "question_type": "radio"
+    "difficulty": "L1",
+    "question_type": "radio",
+    "scenario_text": "起义誓师之后，戍卒们围坐一起，纷纷议论陈胜、吴广。你身旁的同伴问你：“兄弟，你接触他们最深，你说，陈胜和吴广这两人最重要的特质是什么？”你沉思片刻，给出自己的判断。"
   }
 ]

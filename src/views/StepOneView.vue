@@ -1,9 +1,10 @@
 <!--
-  StepOneView.vue - 字词学习 + 多角色朗读组合页面
+  StepOneView.vue - 字词学习 + 多角色朗读 + 一级测验组合页面
 
   布局说明：
   - 上方：WordList 组件（字词注释）
-  - 下方：MultiRoleReading 组件（多角色朗读）
+  - 中部：MultiRoleReading 组件（多角色朗读）
+  - 下方：Level1Quiz 组件（一级阅读测验）
   - 底部：BackContinue 导航按钮
 
   页面顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> detail
@@ -29,6 +30,20 @@
       />
     </section>
 
+    <!-- 分割线 -->
+    <SectionDivider text="课后小测" />
+
+    <!-- 一级测验区域 -->
+    <section class="quiz-section">
+      <Level1Quiz
+        :wen-id="wenId"
+        @load-success="handleQuizLoadSuccess"
+        @load-error="handleQuizLoadError"
+        @submit="handleQuizSubmit"
+        @complete="handleQuizComplete"
+      />
+    </section>
+
     <!-- 底部导航按钮 -->
     <BackContinue
       back-text="返回"
@@ -44,6 +59,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
+import Level1Quiz from '@/components/Level1Quiz.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
@@ -97,6 +113,23 @@ function handleAudioLoadError(error: string) {
 function handleSegmentChange(index: number) {
   console.log('[StepOneView] 当前段落切换到:', index)
 }
+
+// Level1Quiz 事件处理
+function handleQuizLoadSuccess(data: unknown) {
+  console.log('[StepOneView] 测验题目加载成功:', data)
+}
+
+function handleQuizLoadError(error: string) {
+  console.error('[StepOneView] 测验题目加载失败:', error)
+}
+
+function handleQuizSubmit(answers: Record<number, number>) {
+  console.log('[StepOneView] 测验答案已提交:', answers)
+}
+
+function handleQuizComplete(result: { correct: number; total: number }) {
+  console.log('[StepOneView] 测验完成:', result)
+}
 </script>
 
 <style scoped>
@@ -119,6 +152,13 @@ function handleSegmentChange(index: number) {
   padding: 1rem;
   position: relative;
   min-height: 200px;
+}
+
+/* 测验区域 */
+.quiz-section {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0;
 }
 
 /* 加载覆盖层 */
