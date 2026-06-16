@@ -1,12 +1,15 @@
-name: Test & Deploy
+name: Test Workflow
 
 on:
   push:
+    branches-ignore:
+      - main
+  pull_request:
     branches:
       - main
 
 jobs:
-  test:
+  frontend-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +25,17 @@ jobs:
       
       - name: Run frontend unit tests
         run: npm run test:unit
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
       
       - name: Install backend dependencies
         run: |
@@ -32,6 +46,16 @@ jobs:
         run: |
           cd backend
           npm test
+
+  data-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
       
       - name: Validate JSON data files
         run: |
@@ -43,27 +67,8 @@ jobs:
                   echo "Invalid JSON: $file"
                   exit 1
                 fi
+                size=$(cat "$file" | node -e "console.log(JSON.parse(require('fs').readFileSync(0, 'utf-8')).length || 'object')")
+                echo "Valid JSON: $file (size: $size)"
               fi
             done
           done
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: SSH into server and deploy
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            cd /www/wwwroot/api.classicalab.cn
-            git pull origin main
-            cd backend
-            /www/server/nodejs/v24.16.0/bin/npm install --omit=dev --no-audit --no-fund
-            /www/server/nodejs/v24.16.0/bin/node scripts/migrate.js
-            /www/server/nodejs/v24.16.0/bin/node scripts/seed.js
-            /www/server/nodejs/v24.16.0/bin/pm2 restart backend
-            echo "Deploy completed at $(date)"

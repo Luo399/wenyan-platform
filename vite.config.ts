@@ -55,9 +55,15 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/api': {
-          target: 'http://8.138.106.162',
+          target: env.VITE_API_BASE || 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
+        },
+        '/oss': {
+          target: 'https://classic-chinese.oss-cn-zhongwei.aliyuncs.com',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/oss/, ''),
         },
       },
     },
