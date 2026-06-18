@@ -49,7 +49,6 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - name: SSH into server and deploy
         uses: appleboy/ssh-action@v1.2.0
