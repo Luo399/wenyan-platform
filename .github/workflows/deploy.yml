@@ -10,29 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: 'npm'
-      
+
       - name: Install frontend dependencies
         run: npm ci
-      
+
       - name: Run frontend unit tests
-        run: npm run test:unit
-      
+        run: npm test
+
       - name: Install backend dependencies
         run: |
           cd backend
           npm ci
-      
+
       - name: Run backend tests
         run: |
           cd backend
           npm test
-      
+
       - name: Validate JSON data files
         run: |
           cd backend/data
