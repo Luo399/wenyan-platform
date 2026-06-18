@@ -1,29 +1,18 @@
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  plugins: [vue() as any],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.{ts,tsx,vue}'],
-      exclude: [
-        'src/**/*.d.ts',
-        'src/main.ts',
-        '**/node_modules/**',
-        '**/*.spec.ts',
-        '**/*.test.ts',
-      ],
-    },
-    setupFiles: ['./tests/setup.ts'],
-  },
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['tests/**/*.spec.ts'],
+    exclude: ['**/node_modules/**', '**/backend/tests/**'],
   },
 })

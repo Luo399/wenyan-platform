@@ -17,7 +17,7 @@
   <div class="level1-quiz-container">
     <BaseLoader v-if="loading || (quizList === null && !error)" loading-text="加载题目中..." />
     <BaseError v-else-if="error" :error="error" @retry="retry" />
-    <BaseEmpty v-else-if="!quizList.length" empty-text="暂无题目数据" />
+    <BaseEmpty v-else-if="!quizList?.length" empty-text="暂无题目数据" />
     <div v-else class="quiz-content">
       <div v-for="(quiz, index) in quizList" :key="quiz.question_number || index" class="quiz-item">
         <div class="quiz-header">
@@ -75,9 +75,9 @@
       <div v-if="showResult" class="result-panel">
         <div class="result-header">测试结果</div>
         <div class="result-stats">
-          <span class="correct-count">正确: {{ correctCount }}/{{ quizList.length }}</span>
+          <span class="correct-count">正确: {{ correctCount }}/{{ quizList?.length || 0 }}</span>
           <span class="score"
-            >得分: {{ Math.round((correctCount / quizList.length) * 100) }}分</span
+            >得分: {{ Math.round((correctCount / (quizList?.length || 1)) * 100) }}分</span
           >
         </div>
         <button class="reset-btn" @click="resetQuiz">重新测试</button>
@@ -114,7 +114,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  baseUrl: '/api/texts/',
+  baseUrl: '/data/level1_quiz/',
   autoLoad: true,
 })
 
@@ -125,7 +125,7 @@ const emit = defineEmits<{
   (e: 'complete', result: { correct: number; total: number }): void
 }>()
 
-const quizUrl = computed(() => `${props.baseUrl}${props.wenId}/level1-quiz`)
+const quizUrl = computed(() => `${props.baseUrl}${props.wenId}.json`)
 
 const {
   loading,
