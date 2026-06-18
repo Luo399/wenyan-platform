@@ -4,15 +4,13 @@ import QuizCard from '@/components/QuizCard.vue'
 
 describe('QuizCard.vue', () => {
   const mockQuestionData = {
-    id: 'Q001',
-    question: '下列哪个选项是正确的？',
-    options: [
-      { key: 'A', value: '选项A' },
-      { key: 'B', value: '选项B' },
-      { key: 'C', value: '选项C' },
-      { key: 'D', value: '选项D' },
-    ],
-    correctAnswer: 'B',
+    question_id: 'Q001',
+    question_type: 'radio',
+    question_text: '下列哪个选项是正确的？',
+    options: ['选项A', '选项B', '选项C', '选项D'],
+    correct_answer: 1,
+    explanation: '这是正确答案的解析',
+    difficulty: 'L2',
   }
 
   beforeEach(() => {
@@ -73,7 +71,8 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const optionB = wrapper.find('[data-option="B"]')
+      const optionBtns = wrapper.findAll('.option-btn')
+      const optionB = optionBtns[1]
       await optionB.trigger('click')
 
       expect(optionB.classes()).toContain('selected')
@@ -87,7 +86,8 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const optionC = wrapper.find('[data-option="C"]')
+      const optionBtns = wrapper.findAll('.option-btn')
+      const optionC = optionBtns[2]
       await optionC.trigger('click')
 
       expect(optionC.classes()).toContain('selected')
@@ -101,8 +101,9 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const optionA = wrapper.find('[data-option="A"]')
-      const optionB = wrapper.find('[data-option="B"]')
+      const optionBtns = wrapper.findAll('.option-btn')
+      const optionA = optionBtns[0]
+      const optionB = optionBtns[1]
 
       await optionA.trigger('click')
       await optionB.trigger('click')
@@ -121,14 +122,15 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const optionB = wrapper.find('[data-option="B"]')
+      const optionBtns = wrapper.findAll('.option-btn')
+      const optionB = optionBtns[1]
       await optionB.trigger('click')
 
-      const submitBtn = wrapper.find('button[type="submit"]')
+      const submitBtn = wrapper.find('.submit-btn')
       await submitBtn.trigger('click')
 
       expect(wrapper.emitted('submit')).toBeTruthy()
-      expect(wrapper.emitted('submit')[0]).toEqual(['B'])
+      expect(wrapper.emitted('submit')[0]).toEqual([1])
     })
 
     it('未选择选项时提交按钮应该禁用', () => {
@@ -139,7 +141,7 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const submitBtn = wrapper.find('button[type="submit"]')
+      const submitBtn = wrapper.find('.submit-btn')
       expect(submitBtn.element.disabled).toBe(true)
     })
 
@@ -151,16 +153,17 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const optionA = wrapper.find('[data-option="A"]')
+      const optionBtns = wrapper.findAll('.option-btn')
+      const optionA = optionBtns[0]
       await optionA.trigger('click')
 
-      const submitBtn = wrapper.find('button[type="submit"]')
+      const submitBtn = wrapper.find('.submit-btn')
       expect(submitBtn.element.disabled).toBe(false)
     })
   })
 
   describe('提交状态测试', () => {
-    it('已提交状态下应该锁定所有选项', async () => {
+    it('已提交状态下应该锁定所有选项', () => {
       const wrapper = mount(QuizCard, {
         props: {
           data: mockQuestionData,
@@ -168,8 +171,8 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const options = wrapper.findAll('[data-option]')
-      options.forEach((option) => {
+      const optionBtns = wrapper.findAll('.option-btn')
+      optionBtns.forEach((option) => {
         expect(option.element.disabled).toBe(true)
       })
     })
@@ -182,7 +185,7 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      const submitBtn = wrapper.find('button[type="submit"]')
+      const submitBtn = wrapper.find('.submit-btn')
       expect(submitBtn.exists()).toBe(false)
     })
 
@@ -194,7 +197,7 @@ describe('QuizCard.vue', () => {
         },
       })
 
-      expect(wrapper.find('.result-area').exists()).toBe(true)
+      expect(wrapper.find('.explanation-box').exists()).toBe(true)
     })
   })
 })
