@@ -139,6 +139,9 @@ const {
   onLoadSuccess: (data) => emit('load-success', data),
   onLoadError: (err) => emit('load-error', err),
   transform: (raw) => {
+    if (Array.isArray(raw)) {
+      return raw as Level1QuizItem[]
+    }
     const result = raw as { success: boolean; data: Level1QuizItem[] }
     return result.data || []
   },
