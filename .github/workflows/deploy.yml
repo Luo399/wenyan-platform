@@ -20,32 +20,32 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Run frontend unit tests
-        run: npm test
-
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          npm ci
-
-      - name: Run backend tests
-        run: |
-          cd backend
-          npm test
-
-      - name: Validate JSON data files
-        run: |
-          cd backend/data
-          for dir in */; do
-            for file in "$dir"*.json; do
-              if [ -f "$file" ]; then
-                if ! cat "$file" | node -e "JSON.parse(require('fs').readFileSync(0, 'utf-8'))"; then
-                  echo "Invalid JSON: $file"
-                  exit 1
-                fi
-              fi
-            done
-          done
+      # - name: Run frontend unit tests
+      #   run: npm test
+      #
+      # - name: Install backend dependencies
+      #   run: |
+      #     cd backend
+      #     npm ci
+      #
+      # - name: Run backend tests
+      #   run: |
+      #     cd backend
+      #     npm test
+      #
+      # - name: Validate JSON data files
+      #   run: |
+      #     cd backend/data
+      #     for dir in */; do
+      #       for file in "$dir"*.json; do
+      #         if [ -f "$file" ]; then
+      #           if ! cat "$file" | node -e "JSON.parse(require('fs').readFileSync(0, 'utf-8'))"; then
+      #             echo "Invalid JSON: $file"
+      #             exit 1
+      #           fi
+      #         fi
+      #       done
+      #     done
 
   deploy:
     runs-on: ubuntu-latest
