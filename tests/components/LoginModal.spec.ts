@@ -6,14 +6,22 @@ import LoginModal from '@/components/LoginModal.vue'
 // Mock auth store
 const mockLogin = vi.fn()
 const mockClearError = vi.fn()
+const mockFetchStudentName = vi.fn()
+
+// 定义 mockStore 在顶层，确保所有测试都能访问
+const mockStore = {
+  login: mockLogin,
+  clearError: mockClearError,
+  fetchStudentName: mockFetchStudentName,
+  isLoading: false,
+  error: null,
+  isLoggedIn: false,
+  user: null,
+  token: null,
+}
 
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    login: mockLogin,
-    clearError: mockClearError,
-    isLoading: false,
-    error: null,
-  }),
+  useAuthStore: () => mockStore,
 }))
 
 describe('LoginModal.vue', () => {
@@ -21,6 +29,12 @@ describe('LoginModal.vue', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     vi.clearAllMocks()
+    // 重置 mockStore 状态
+    mockStore.isLoading = false
+    mockStore.error = null
+    mockStore.isLoggedIn = false
+    mockStore.user = null
+    mockStore.token = null
   })
 
   describe('基础渲染测试', () => {
@@ -164,16 +178,8 @@ describe('LoginModal.vue', () => {
 
   describe('加载状态测试', () => {
     it('加载中应该显示加载文字', async () => {
-      const mockStore = {
-        login: mockLogin,
-        clearError: mockClearError,
-        isLoading: true,
-        error: null,
-      }
-
-      vi.mock('@/stores/auth', () => ({
-        useAuthStore: () => mockStore,
-      }))
+      // 修改 mockStore 的 isLoading 属性
+      mockStore.isLoading = true
 
       const wrapper = mount(LoginModal, {
         props: {
@@ -182,6 +188,9 @@ describe('LoginModal.vue', () => {
       })
 
       expect(wrapper.text()).toContain('登录中...')
+
+      // 恢复状态
+      mockStore.isLoading = false
     })
   })
 
