@@ -28,7 +28,7 @@
           v-for="(card, index) in cardsData.cards"
           :key="card.card_id || index"
           class="card-item"
-          :class="{ locked: !isUnlocked(card) }"
+          :class="{ locked: !isUnlocked(card), 'text-only': card.image_file === '文字' }"
           @click="handleCardClick(card)"
         >
           <div class="card-header">
@@ -37,7 +37,12 @@
           </div>
 
           <div class="card-content">
-            <p class="knowledge-text">{{ card.knowledge_text }}</p>
+            <div v-if="card.image_file === '文字'" class="text-container">
+              <p class="knowledge-text">{{ card.knowledge_text }}</p>
+            </div>
+            <template v-else>
+              <p class="knowledge-text">{{ card.knowledge_text }}</p>
+            </template>
           </div>
 
           <div v-if="card.unlock_condition" class="unlock-tip">
@@ -78,7 +83,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  baseUrl: '/api/texts/',
+  baseUrl: '/data/culture_cards/',
   autoLoad: true,
 })
 
@@ -88,7 +93,7 @@ const emit = defineEmits<{
   (e: 'card-click', card: CultureCard): void
 }>()
 
-const cardsUrl = computed(() => `${props.baseUrl}${props.wenId}/culture-cards`)
+const cardsUrl = computed(() => `${props.baseUrl}${props.wenId}.json`)
 
 const {
   loading,
@@ -102,6 +107,9 @@ const {
   onLoadSuccess: (data) => emit('load-success', data),
   onLoadError: (err) => emit('load-error', err),
   transform: (raw) => {
+    if (raw && typeof raw === 'object' && 'text_id' in raw) {
+      return raw as CardsData
+    }
     const result = raw as { success: boolean; data: CardsData }
     return result.data || { text_id: props.wenId, cards: [] }
   },
@@ -206,6 +214,25 @@ function handleCardClick(card: CultureCard) {
   line-height: 1.8;
   color: #555;
   text-align: justify;
+  margin: 0;
+}
+
+.text-container {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 8px;
+  padding: 16px;
+  border-left: 4px solid #4a90d9;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.text-container .knowledge-text {
+  color: #4a5568;
+  font-style: italic;
+}
+
+.card-item.text-only {
+  border: 2px solid #e2e8f0;
+  background: #fafbfc;
 }
 
 .unlock-tip {
