@@ -67,7 +67,7 @@ def transform_level1_quiz(raw_data: List[Dict[str, Any]]) -> List[Dict[str, Any]
             'correct_index': correct_index,
             'explanation': row.get('explanation'),
             'difficulty': row.get('difficulty'),
-            'question_type': row.get('question_type'),
+            'question_type': row.get('question_type', 'radio'),
             'audio_file': row.get('audio_file')
         }
         

@@ -66,6 +66,7 @@ def group_by_text_id(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
                     'correct_answer': item.get('correct_answer'),
                     'explanation': item.get('explanation'),
                     'difficulty': item.get('difficulty'),
+                    'question_type': item.get('question_type', 'radio'),
                     'pre_dialog': item.get('pre_dialog'),
                     'audio_file': item.get('audio_file')
                 }

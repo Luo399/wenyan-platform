@@ -11,7 +11,7 @@
     "difficulty": "L2",
     "correct_answer": 2,
     "explanation": "文章先追忆②陈胜年少心怀大志；随后发生①大泽乡遇雨延误期限，面临死罪绝境；绝境下陈胜谋划④假借扶苏、项燕名义起事；接着用⑤鱼腹藏书、篝火狐鸣收拢人心；之后③吴广激怒并斩杀军官，陈胜动员众人；最后⑥筑坛结盟，正式发动起义。",
-    "question_type": null
+    "question_type": "radio"
   },
   {
     "text_id": "WEN_02",
@@ -25,7 +25,7 @@
     "difficulty": "L1",
     "correct_answer": 3,
     "explanation": "正确选项：D。文章核心写千里马有千里之能，却因食马者不识其才、喂养驱使不当，导致才华埋没。A错误，千里马本身能力出众；B本文言简意赅，全篇篇幅短小，以托物寓意的手法层层剖析事理，逻辑脉络清晰，寥寥数语便道出怀才不遇的感慨，言浅意深，意蕴隽永。并非长篇大论；C表述绝对，食马者是不懂识才，并非完全不识所有马匹。",
-    "question_type": null
+    "question_type": "radio"
   },
   {
     "text_id": "WEN_03",
@@ -39,7 +39,7 @@
     "difficulty": "L1",
     "correct_answer": 3,
     "explanation": "本文开篇记叙重修岳阳楼、作记缘由；再以两段描写阴晴两种洞庭盛景，抒发迁客骚人悲喜之情；文末引出“不以物喜，不以己悲”“先忧后乐”，则是全文的议论升华。由事及景，由景生情，由情入理，层层递进。",
-    "question_type": null
+    "question_type": "radio"
   },
   {
     "text_id": "WEN_04",
@@ -53,6 +53,6 @@
     "difficulty": "L1",
     "correct_answer": 0,
     "explanation": "文章中原文庄子曰：“鲦鱼出游从容，是鱼之乐也。”惠子曰：“子非鱼，安知鱼之乐？”可得知二者争论的焦点是庄子是否知道鱼的快乐",
-    "question_type": null
+    "question_type": "radio"
   }
 ]
