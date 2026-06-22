@@ -1,28 +1,9 @@
-/**
- * OSS 上传脚本
- * 将本地媒体文件批量上传到阿里云 OSS
- * 
- * 使用方法：
- *   node scripts/upload-to-oss.js
- *   node scripts/upload-to-oss.js --dry-run  仅预览不上传
- * 
- * 环境变量（在 .env 中配置）：
- *   OSS_REGION - OSS 区域，如 oss-cn-hangzhou
- *   OSS_ACCESS_KEY_ID - 阿里云 AccessKey ID
- *   OSS_ACCESS_KEY_SECRET - 阿里云 AccessKey Secret
- *   OSS_BUCKET - Bucket 名称
- */
+import * as dotenv from 'dotenv';
+dotenv.config();
+import OSS from 'ali-oss';
+import fs from 'fs';
+import path from 'path';
 
-require('dotenv').config();
-const OSS = require('ali-oss');
-const fs = require('fs');
-const path = require('path');
-
-// ============================================================
-// 配置
-// ============================================================
-
-// OSS 配置（从环境变量读取）
 const ossConfig = {
   region: process.env.OSS_REGION || 'oss-cn-hangzhou',
   accessKeyId: process.env.OSS_ACCESS_KEY_ID,
@@ -30,19 +11,12 @@ const ossConfig = {
   bucket: process.env.OSS_BUCKET
 };
 
-// 本地媒体目录
-const publicDir = path.join(__dirname, '..', 'public');
+const publicDir = path.join(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]):/, '$1:'), '..', 'public');
 
-// 媒体文件扩展名
 const mediaExtensions = ['.mp4', '.mp3', '.png', '.jpg', '.jpeg', '.gif', '.webm', '.webp'];
 
-// 命令行参数
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
-
-// ============================================================
-// 验证配置
-// ============================================================
 
 function validateConfig() {
   const missing = [];
@@ -57,10 +31,6 @@ function validateConfig() {
     process.exit(1);
   }
 }
-
-// ============================================================
-// 扫描媒体文件
-// ============================================================
 
 function scanMediaFiles(dir, files = []) {
   if (!fs.existsSync(dir)) {
@@ -86,10 +56,6 @@ function scanMediaFiles(dir, files = []) {
   return files;
 }
 
-// ============================================================
-// 上传文件到 OSS
-// ============================================================
-
 async function uploadToOSS(client, localPath, ossPath) {
   try {
     const result = await client.put(ossPath, localPath);
@@ -107,10 +73,6 @@ async function uploadToOSS(client, localPath, ossPath) {
   }
 }
 
-// ============================================================
-// 主函数
-// ============================================================
-
 async function runUpload() {
   console.log('========================================');
   console.log('OSS 媒体文件上传脚本');
@@ -121,12 +83,10 @@ async function runUpload() {
   console.log(`运行模式: ${dryRun ? '预览模式（不上传）' : '上传模式'}`);
   console.log('========================================');
 
-  // 验证配置
   if (!dryRun) {
     validateConfig();
   }
 
-  // 扫描媒体文件
   console.log('\n扫描媒体文件...');
   const files = scanMediaFiles(publicDir);
 
@@ -142,7 +102,6 @@ async function runUpload() {
     console.log(`  - ${relativePath} (${sizeKB} KB)`);
   });
 
-  // 预览模式：仅显示文件列表
   if (dryRun) {
     console.log('\n========================================');
     console.log('✅ 预览完成！以上文件将被上传到 OSS');
@@ -151,15 +110,12 @@ async function runUpload() {
     process.exit(0);
   }
 
-  // 创建 OSS 客户端
   const client = new OSS(ossConfig);
 
-  // 上传文件
   console.log('\n开始上传...');
   const results = [];
 
   for (const localPath of files) {
-    // 计算 OSS 路径（去掉 public 前缀）
     const ossPath = path.relative(publicDir, localPath);
     
     console.log(`上传: ${ossPath}`);
@@ -173,7 +129,6 @@ async function runUpload() {
     }
   }
 
-  // 统计结果
   const successCount = results.filter(r => r.success).length;
   const failCount = results.filter(r => !r.success).length;
 
@@ -194,5 +149,4 @@ async function runUpload() {
   process.exit(0);
 }
 
-// 执行上传
 runUpload();

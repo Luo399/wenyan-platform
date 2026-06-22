@@ -63,7 +63,24 @@ import Level1Quiz from '@/components/Level1Quiz.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { submitAnswers } from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
 import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
+
+interface Level1QuizItem {
+  text_id: string
+  question_number: number
+  question_text: string
+  option_a: string
+  option_b: string
+  option_c: string
+  option_d: string
+  correct_answer: string
+  correct_index?: number
+  explanation: string
+  difficulty: string
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -89,8 +106,84 @@ const wenId = computed(() => {
 // 组件引用
 const audioPlayer = ref<InstanceType<typeof MultiRoleReading> | null>(null)
 
+// 测验题目数据（用于提交答案时获取正确答案）
+const quizData = ref<Level1QuizItem[]>([])
+
+// 是否正在提交答案
+const isSubmitting = ref(false)
+
 // 使用导航composable（新版，需要传入router）
 const { goNext, goPrev } = useNavigation('stepone', poemId)
+
+/**
+ * 获取学生ID（优先从authStore，其次从studentStore）
+ */
+function getStudentId(): string {
+  const authStore = useAuthStore()
+  if (authStore.isLoggedIn && authStore.user) {
+    return authStore.user.studentId
+  }
+  const studentStore = useStudentStore()
+  return studentStore.studentId
+}
+
+/**
+ * 获取学生姓名
+ */
+function getStudentName(): string {
+  const authStore = useAuthStore()
+  if (authStore.isLoggedIn && authStore.user) {
+    return authStore.user.username
+  }
+  return ''
+}
+
+/**
+ * 提交答案到后端
+ */
+async function submitAnswersToBackend(answers: Record<number, number>) {
+  const studentId = getStudentId()
+  if (!studentId) {
+    console.warn('[StepOneView] 未登录，跳过后端提交')
+    return
+  }
+
+  if (!quizData.value.length) {
+    console.warn('[StepOneView] 无题目数据，跳过后端提交')
+    return
+  }
+
+  try {
+    isSubmitting.value = true
+
+    // 构建题目信息（包含正确答案和题目ID）
+    const questions = quizData.value.map((quiz, index) => ({
+      id: `level1_q${quiz.question_number || index + 1}`,
+      correctAnswer: quiz.correct_answer,
+    }))
+
+    // 构建答案映射
+    const answerMap: Record<string, number> = {}
+    Object.entries(answers).forEach(([index, answer]) => {
+      const quiz = quizData.value[parseInt(index)]
+      if (quiz) {
+        const key = `level1_q${quiz.question_number || parseInt(index) + 1}`
+        answerMap[key] = answer
+      }
+    })
+
+    const studentName = getStudentName()
+
+    // 提交到后端
+    await submitAnswers({ answers: answerMap, questions }, wenId.value, studentId, studentName)
+
+    console.log('[StepOneView] 答题数据已成功提交到后端')
+  } catch (error) {
+    console.error('[StepOneView] 答案提交失败:', error)
+  } finally {
+    isSubmitting.value = false
+  }
+}
 
 // 导航函数包装
 function handleGoNext() {
@@ -115,8 +208,9 @@ function handleSegmentChange(index: number) {
 }
 
 // Level1Quiz 事件处理
-function handleQuizLoadSuccess(data: unknown) {
-  console.log('[StepOneView] 测验题目加载成功:', data)
+function handleQuizLoadSuccess(data: Level1QuizItem[]) {
+  quizData.value = data
+  console.log('[StepOneView] 测验题目加载成功:', data.length, '道题')
 }
 
 function handleQuizLoadError(error: string) {
@@ -125,6 +219,8 @@ function handleQuizLoadError(error: string) {
 
 function handleQuizSubmit(answers: Record<number, number>) {
   console.log('[StepOneView] 测验答案已提交:', answers)
+  // 提交答案到后端
+  submitAnswersToBackend(answers)
 }
 
 function handleQuizComplete(result: { correct: number; total: number }) {

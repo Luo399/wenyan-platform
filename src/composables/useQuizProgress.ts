@@ -228,9 +228,14 @@ export function useQuizProgress(
 
       // 构建答案映射（使用 questionId 或 questionIndex）
       const answerMap: Record<string, any> = {}
+      const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
       answers.value.forEach((ans) => {
         const key = ans.questionId || `question_${ans.questionIndex}`
-        answerMap[key] = ans.answer
+        let mappedAnswer = ans.answer
+        if (typeof ans.answer === 'string' && letterToIndex[ans.answer] !== undefined) {
+          mappedAnswer = letterToIndex[ans.answer]
+        }
+        answerMap[key] = mappedAnswer
       })
 
       // 提交到后端（传入学生姓名）

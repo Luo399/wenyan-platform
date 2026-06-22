@@ -101,7 +101,7 @@ interface Level1QuizItem {
   option_b: string
   option_c: string
   option_d: string
-  correct_answer: string
+  correct_answer: number
   correct_index?: number
   explanation: string
   difficulty: string
@@ -180,8 +180,7 @@ function getCorrectIndex(quiz: Level1QuizItem): number {
   if (quiz.correct_index !== undefined) {
     return quiz.correct_index
   }
-  const answerMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
-  return answerMap[quiz.correct_answer] || 0
+  return typeof quiz.correct_answer === 'number' ? quiz.correct_answer : 0
 }
 
 function selectOption(quizIndex: number, optIndex: number) {

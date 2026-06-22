@@ -21,11 +21,12 @@
             class="option-btn"
             :class="{
               selected: selectedAnswer === option.label,
-              correct: showResult && option.label === currentQuiz?.correctAnswer,
+              correct:
+                showResult && option.label === getCorrectAnswerLabel(currentQuiz?.correctAnswer),
               wrong:
                 showResult &&
                 selectedAnswer === option.label &&
-                option.label !== currentQuiz?.correctAnswer,
+                option.label !== getCorrectAnswerLabel(currentQuiz?.correctAnswer),
             }"
             :disabled="submitted"
             @click="selectOption(option.label)"
@@ -33,7 +34,10 @@
             <span class="option-label">{{ option.label }}</span>
             <span class="option-text">{{ option.value }}</span>
             <span class="option-icon" v-if="showResult">
-              <i v-if="option.label === currentQuiz?.correctAnswer" class="fas fa-check"></i>
+              <i
+                v-if="option.label === getCorrectAnswerLabel(currentQuiz?.correctAnswer)"
+                class="fas fa-check"
+              ></i>
               <i v-else-if="selectedAnswer === option.label" class="fas fa-times"></i>
             </span>
           </button>
@@ -98,7 +102,6 @@ import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapt
 type QuizItem = ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem
 
 interface Props {
-  // Block模式数据（下划线命名）
   text_id?: string
   question_id?: string
   module?: string
@@ -111,11 +114,10 @@ interface Props {
   audio_file?: string
   difficulty?: string
   pre_dialog?: string
-  correct_answer?: string
+  correct_answer?: number | string
   explanation?: string
   question_type?: string
 
-  // 兼容旧版命名
   textId?: string
   level?: 'level1' | 'level2' | 'level3'
   questionNumber?: number
@@ -164,6 +166,11 @@ const isBlockMode = computed(() => {
 const quizFromProps = computed<QuizItem | null>(() => {
   if (!isBlockMode.value) return null
 
+  let correctAnswer: number | string | null = null
+  if (props.correct_answer !== undefined && props.correct_answer !== null) {
+    correctAnswer = props.correct_answer
+  }
+
   return {
     textId: props.text_id || props.textId || '',
     questionId: props.question_id || '',
@@ -181,7 +188,7 @@ const quizFromProps = computed<QuizItem | null>(() => {
     ].filter((opt) => opt.value.trim() !== ''),
     audioFile: props.audio_file || null,
     difficulty: props.difficulty || 'L2',
-    correctAnswer: props.correct_answer || null,
+    correctAnswer,
     explanation: props.explanation || '',
     questionType: props.question_type || 'radio',
   } as QuizItem
@@ -219,6 +226,13 @@ const difficultyLabel = computed(() => {
   const diff = currentQuiz.value?.difficulty || 'L2'
   return diff
 })
+
+function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined): string {
+  if (correctAnswer === null || correctAnswer === undefined) return ''
+  if (typeof correctAnswer === 'string') return correctAnswer
+  const labels = ['A', 'B', 'C', 'D']
+  return labels[correctAnswer] || ''
+}
 
 async function loadData() {
   // Block模式：直接使用props数据，不需要加载
@@ -274,7 +288,8 @@ function selectOption(label: string) {
 function submitAnswer() {
   if (!selectedAnswer.value || !currentQuiz.value || submitted.value) return
 
-  const isCorrect = selectedAnswer.value === currentQuiz.value.correctAnswer
+  const correctLabel = getCorrectAnswerLabel(currentQuiz.value.correctAnswer)
+  const isCorrect = selectedAnswer.value === correctLabel
   results.value.push({
     quiz: currentQuiz.value,
     answer: selectedAnswer.value,
