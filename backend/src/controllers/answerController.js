@@ -127,8 +127,63 @@ async function getAnswersByStudentId(req, res) {
   }
 }
 
+/**
+ * 提交单题答题记录
+ * POST /api/submit/single
+ */
+async function submitSingleAnswer(req, res) {
+  try {
+    const { studentId, studentName, wenId, questionId, userAnswer, correctAnswer, submittedAt } = req.body;
+
+    if (!studentId || !wenId || !questionId || userAnswer === undefined || userAnswer === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: '缺少必填字段',
+      });
+    }
+
+    if (!studentId.trim() || !/^\d+$/.test(studentId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_STUDENT_ID',
+        message: '学号格式不正确，请输入有效的数字学号',
+      });
+    }
+
+    const result = await answerService.submitSingleAnswer({
+      studentId,
+      studentName,
+      wenId,
+      questionId,
+      userAnswer,
+      correctAnswer,
+      submittedAt: submittedAt || new Date().toISOString(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: '单题答案提交成功',
+      data: result,
+    });
+  } catch (err) {
+    error('单题答题提交失败', {
+      studentId: req.body?.studentId,
+      wenId: req.body?.wenId,
+      questionId: req.body?.questionId,
+      error: err.message,
+    });
+    res.status(500).json({
+      success: false,
+      error: 'DATABASE_ERROR',
+      message: '数据库操作失败: ' + err.message,
+    });
+  }
+}
+
 module.exports = {
   submitAnswers,
+  submitSingleAnswer,
   getAnswersByWenId,
   getAnswersByStudentId
 };

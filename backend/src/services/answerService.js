@@ -342,8 +342,121 @@ async function getAnswersByStudentId(studentId) {
   });
 }
 
+/**
+ * 提交单题答题记录
+ * @param {object} data - 单题答题数据
+ * @returns {Promise<object>} - 提交结果
+ */
+async function submitSingleAnswer(data) {
+  const { studentId, studentName, wenId, questionId, userAnswer, correctAnswer, submittedAt } = data;
+
+  info('开始处理单题答题提交', {
+    studentId,
+    studentName,
+    wenId,
+    questionId,
+  });
+
+  // 如果提供了学生姓名，自动注册或更新学生信息
+  if (studentName) {
+    try {
+      const { createOrUpdateStudent } = await import('./studentService');
+      await createOrUpdateStudent(studentId, studentName);
+      info('学生信息更新成功', { studentId, studentName });
+    } catch (err) {
+      warn('学生信息更新失败', { studentId, studentName, error: err.message });
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    // 计算得分和是否正确
+    let score = 0;
+    let isCorrect = 0;
+
+    if (Array.isArray(correctAnswer)) {
+      if (Array.isArray(userAnswer)) {
+        const sortedCorrect = [...correctAnswer].map(String).sort();
+        const sortedUser = [...userAnswer].map(String).sort();
+        if (JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser)) {
+          score = 100;
+          isCorrect = 1;
+        }
+      }
+    } else {
+      const stringCorrect = String(correctAnswer ?? '');
+      const stringUser = String(userAnswer ?? '');
+      if (stringCorrect === stringUser) {
+        score = 100;
+        isCorrect = 1;
+      }
+    }
+
+    answerDb.serialize(() => {
+      answerDb.get(
+        `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+        [wenId, studentId, questionId],
+        (countErr, countRow) => {
+          if (countErr) {
+            reject(countErr);
+            return;
+          }
+
+          const attemptNumber = (countRow?.count || 0) + 1;
+
+          const stmt = answerDb.prepare(`
+            INSERT INTO answer_records (
+              wen_id,
+              student_id,
+              question_id,
+              user_answer,
+              correct_answer,
+              is_correct,
+              score,
+              submitted_at,
+              attempt_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          stmt.run(
+            wenId,
+            studentId,
+            questionId,
+            JSON.stringify(userAnswer ?? null),
+            JSON.stringify(correctAnswer ?? null),
+            isCorrect,
+            score,
+            submittedAt,
+            attemptNumber,
+            (err) => {
+              stmt.finalize();
+              if (err) {
+                reject(err);
+              } else {
+                const result = {
+                  studentId,
+                  wenId,
+                  questionId,
+                  userAnswer,
+                  correctAnswer,
+                  isCorrect,
+                  score,
+                  submittedAt,
+                  attemptNumber,
+                };
+                logOperation('单题答题提交完成', result);
+                resolve(result);
+              }
+            }
+          );
+        }
+      );
+    });
+  });
+}
+
 module.exports = {
   submitAnswers,
+  submitSingleAnswer,
   getAnswersByWenId,
   getAnswersByStudentId
 };

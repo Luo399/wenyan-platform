@@ -76,6 +76,12 @@ function registerRoutes(app) {
   // 答题接口（需要认证和限流）
   // ============================================================
   app.post('/api/submit', optionalAuthMiddleware, submitRateLimit, answerController.submitAnswers)
+  app.post(
+    '/api/submit/single',
+    optionalAuthMiddleware,
+    submitRateLimit,
+    answerController.submitSingleAnswer,
+  )
   app.get('/api/answers/wen/:wenId', optionalAuthMiddleware, answerController.getAnswersByWenId)
   app.get(
     '/api/answers/student/:studentId',

@@ -216,7 +216,10 @@ const correctCount = computed(() => {
   if (!pageData.value) return 0
   return answers.value.filter((a) => {
     const item = pageData.value?.items[a.questionIndex]
-    return item && a.answer === item.quiz.correct_answer
+    if (!item) return false
+    const stringAnswer = String(a.answer)
+    const stringCorrect = String(item.quiz.correct_answer)
+    return stringAnswer === stringCorrect
   }).length
 })
 

@@ -23,7 +23,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers } from '@/utils/api'
+import { submitAnswers, submitSingleAnswer } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentStore } from '@/stores/student'
 
@@ -189,7 +189,66 @@ export function useQuizProgress(
   }
 
   /**
-   * 提交答案到后端
+   * 获取学生信息
+   */
+  function getStudentInfo(): { studentId: string; studentName: string } {
+    const authStore = useAuthStore()
+    let studentId = ''
+    let studentName = ''
+
+    if (authStore.isLoggedIn && authStore.user) {
+      studentId = authStore.user.studentId
+      studentName = authStore.user.username
+    } else {
+      const studentStore = useStudentStore()
+      studentId = studentStore.studentId
+    }
+
+    return { studentId, studentName }
+  }
+
+  /**
+   * 提交单题答案到后端（每次答题后立即提交）
+   */
+  async function submitSingleAnswerToBackend(answer: QuizAnswer): Promise<void> {
+    if (!completionKeyPrefix) {
+      console.log(`[useQuizProgress] submitSingleAnswerToBackend - 无需提交`)
+      return
+    }
+
+    try {
+      const { studentId, studentName } = getStudentInfo()
+
+      if (!studentId) {
+        console.warn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
+        return
+      }
+
+      const questionId =
+        answer.questionId || `${completionKeyPrefix}_question_${answer.questionIndex}`
+
+      await submitSingleAnswer({
+        studentId,
+        studentName,
+        wenId: completionKeyPrefix,
+        questionId,
+        userAnswer: answer.answer,
+        correctAnswer: answer.correctAnswer,
+        submittedAt: new Date().toISOString(),
+      })
+
+      console.log(`[useQuizProgress] submitSingleAnswerToBackend - 单题答案已提交`, {
+        questionId,
+        answer: answer.answer,
+        isCorrect: answer.isCorrect,
+      })
+    } catch (error) {
+      console.error('[useQuizProgress] submitSingleAnswerToBackend - 提交失败:', error)
+    }
+  }
+
+  /**
+   * 提交全部答案到后端（兼容旧逻辑，全部完成后提交汇总）
    */
   async function submitAnswersToBackend(): Promise<void> {
     if (!completionKeyPrefix || answers.value.length === 0) {
@@ -198,35 +257,18 @@ export function useQuizProgress(
     }
 
     try {
-      // 优先使用新的认证 store（新逻辑）
-      const authStore = useAuthStore()
-      let studentId = ''
-      let studentName = ''
-
-      // 新逻辑：从 authStore 获取学生信息
-      if (authStore.isLoggedIn && authStore.user) {
-        studentId = authStore.user.studentId
-        studentName = authStore.user.username
-        console.log(`[useQuizProgress] 使用新登录逻辑 - 学生ID: ${studentId}, 姓名: ${studentName}`)
-      } else {
-        // 旧逻辑：从 studentStore 获取学生ID（兼容旧代码）
-        const studentStore = useStudentStore()
-        studentId = studentStore.studentId
-        console.log(`[useQuizProgress] 使用旧登录逻辑 - 学生ID: ${studentId}`)
-      }
+      const { studentId, studentName } = getStudentInfo()
 
       if (!studentId) {
         console.warn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
         return
       }
 
-      // 构建题目数据（包含正确答案和题目ID）
       const questions = answers.value.map((ans) => ({
         id: ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`,
         correctAnswer: ans.correctAnswer ?? 0,
       }))
 
-      // 构建答案映射（使用 questionId 或 questionIndex，key格式与questions保持一致）
       const answerMap: Record<string, any> = {}
       const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
       answers.value.forEach((ans) => {
@@ -241,7 +283,6 @@ export function useQuizProgress(
         answerMap[key] = mappedAnswer
       })
 
-      // 提交到后端（传入学生姓名）
       await submitAnswers(
         { answers: answerMap, questions },
         completionKeyPrefix,
@@ -310,10 +351,12 @@ export function useQuizProgress(
       onSubmit(currentIndex.value, answer, isCorrect)
     }
 
-    // 检查是否全部完成，如果是则保存完成记录并提交到后端
+    // 每次答题后立即提交单题到后端（包含时间戳）
+    await submitSingleAnswerToBackend(answerRecord)
+
+    // 检查是否全部完成，如果是则保存完成记录
     if (isCompleted.value) {
       saveCompletionRecord()
-      await submitAnswersToBackend()
     }
 
     // 自动解锁下一题（如果有下一题）

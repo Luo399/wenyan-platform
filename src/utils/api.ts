@@ -324,6 +324,42 @@ export async function submitAnswers(
   return response.data!
 }
 
+export interface SubmitSingleAnswerParams {
+  studentId: string
+  studentName?: string
+  wenId: string
+  questionId: string
+  userAnswer: string | number | (string | number)[]
+  correctAnswer?: string | number | (string | number)[]
+  submittedAt?: string
+}
+
+export interface SubmitSingleAnswerResponse {
+  success: boolean
+  message: string
+  data?: {
+    studentId: string
+    wenId: string
+    questionId: string
+    userAnswer: string | number | (string | number)[]
+    correctAnswer?: string | number | (string | number)[]
+    isCorrect: number
+    score: number
+    submittedAt: string
+    attemptNumber: number
+  }
+}
+
+export async function submitSingleAnswer(
+  params: SubmitSingleAnswerParams,
+): Promise<SubmitSingleAnswerResponse> {
+  const response = await post<SubmitSingleAnswerResponse>('/api/submit/single', {
+    ...params,
+    submittedAt: params.submittedAt || new Date().toISOString(),
+  })
+  return response.data!
+}
+
 /**
  * 获取文本基础信息
  *
