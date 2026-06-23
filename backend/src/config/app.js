@@ -6,10 +6,9 @@
 const path = require('path')
 const dotenv = require('dotenv')
 
-// 根据NODE_ENV加载对应的环境配置文件
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
-
-dotenv.config({ path: path.join(__dirname, '../../', envFile) })
+const envPath = path.join(__dirname, '../../')
+dotenv.config({ path: path.join(envPath, '.env') })
+dotenv.config({ path: path.join(envPath, '.env.production') })
 
 const config = {
   // 服务器配置
