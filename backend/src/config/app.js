@@ -7,10 +7,8 @@ const path = require('path')
 const dotenv = require('dotenv')
 
 const envPath = path.join(__dirname, '../../')
-dotenv.config({ path: path.join(envPath, '.env') })
-dotenv.config({ path: path.join(envPath, '.env.production') })
-
-const isProduction = process.env.NODE_ENV === 'production'
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
+dotenv.config({ path: path.join(envPath, envFile) })
 
 const config = {
   // 服务器配置
@@ -21,7 +19,7 @@ const config = {
 
   // CORS配置
   cors: {
-    origin: process.env.CORS_ORIGIN || (isProduction ? 'https://www.classicalab.cn' : '*'),
+    origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
