@@ -17,7 +17,9 @@
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui",
     "upload:oss": "node scripts/upload-to-oss.js",
-    "upload:oss:dry": "node scripts/upload-to-oss.js --dry-run"
+    "upload:oss:dry": "node scripts/upload-to-oss.js --dry-run",
+    "upload:oss:dist": "node scripts/upload-to-oss.js --dist",
+    "upload:oss:dist:dry": "node scripts/upload-to-oss.js --dist --dry-run"
   },
   "dependencies": {
     "@videojs-player/vue": "^1.0.0",

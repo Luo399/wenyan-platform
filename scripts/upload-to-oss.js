@@ -11,12 +11,15 @@ const ossConfig = {
   bucket: process.env.OSS_BUCKET
 };
 
-const publicDir = path.join(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]):/, '$1:'), '..', 'public');
-
-const mediaExtensions = ['.mp4', '.mp3', '.png', '.jpg', '.jpeg', '.gif', '.webm', '.webp'];
-
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
+const uploadDist = args.includes('--dist');
+
+const targetDir = uploadDist
+  ? path.join(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]):/, '$1:'), '..', 'dist')
+  : path.join(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]):/, '$1:'), '..', 'public');
+
+const mediaExtensions = ['.mp4', '.mp3', '.png', '.jpg', '.jpeg', '.gif', '.webm', '.webp'];
 
 function validateConfig() {
   const missing = [];
@@ -32,7 +35,7 @@ function validateConfig() {
   }
 }
 
-function scanMediaFiles(dir, files = []) {
+function scanFiles(dir, files = []) {
   if (!fs.existsSync(dir)) {
     console.log(`⚠️  目录不存在: ${dir}`);
     return files;
@@ -44,10 +47,10 @@ function scanMediaFiles(dir, files = []) {
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      scanMediaFiles(fullPath, files);
+      scanFiles(fullPath, files);
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
-      if (mediaExtensions.includes(ext)) {
+      if (uploadDist || mediaExtensions.includes(ext)) {
         files.push(fullPath);
       }
     }
@@ -75,29 +78,30 @@ async function uploadToOSS(client, localPath, ossPath) {
 
 async function runUpload() {
   console.log('========================================');
-  console.log('OSS 媒体文件上传脚本');
+  console.log(uploadDist ? 'OSS 前端构建产物上传脚本' : 'OSS 媒体文件上传脚本');
   console.log('========================================');
   console.log(`OSS 区域: ${ossConfig.region}`);
   console.log(`OSS Bucket: ${ossConfig.bucket}`);
-  console.log(`本地目录: ${publicDir}`);
+  console.log(`本地目录: ${targetDir}`);
   console.log(`运行模式: ${dryRun ? '预览模式（不上传）' : '上传模式'}`);
+  console.log(`上传类型: ${uploadDist ? '构建产物 (dist)' : '媒体文件 (public)'}`);
   console.log('========================================');
 
   if (!dryRun) {
     validateConfig();
   }
 
-  console.log('\n扫描媒体文件...');
-  const files = scanMediaFiles(publicDir);
+  console.log('\n扫描文件...');
+  const files = scanFiles(targetDir);
 
   if (files.length === 0) {
-    console.log('⚠️  未找到任何媒体文件');
+    console.log('⚠️  未找到任何文件');
     process.exit(0);
   }
 
-  console.log(`找到 ${files.length} 个媒体文件：`);
+  console.log(`找到 ${files.length} 个文件：`);
   files.forEach(f => {
-    const relativePath = path.relative(publicDir, f);
+    const relativePath = path.relative(targetDir, f);
     const sizeKB = Math.round(fs.statSync(f).size / 1024);
     console.log(`  - ${relativePath} (${sizeKB} KB)`);
   });
@@ -116,8 +120,8 @@ async function runUpload() {
   const results = [];
 
   for (const localPath of files) {
-    const ossPath = path.relative(publicDir, localPath);
-    
+    const ossPath = path.relative(targetDir, localPath);
+
     console.log(`上传: ${ossPath}`);
     const result = await uploadToOSS(client, localPath, ossPath);
     results.push(result);
