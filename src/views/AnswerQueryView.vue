@@ -449,7 +449,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { get } from '@/utils/api'
 import {
   createStudent,
@@ -933,7 +933,9 @@ function exportData() {
   link.click()
 }
 
-loadAllStudents()
+onMounted(() => {
+  loadAllStudents()
+})
 </script>
 
 <style scoped>
