@@ -3,7 +3,7 @@
  * 提供学生相关的业务逻辑
  */
 
-const { studentDb } = require('../config/database');
+const { studentDb, answerDb } = require('../config/database');
 
 /**
  * 获取学生信息
@@ -113,26 +113,45 @@ function updateStudent(studentId, name, studentClass) {
 }
 
 /**
- * 删除学生
+ * 删除学生（级联删除答题记录）
  * @param {string} studentId - 学生ID
  * @returns {Promise<object>} - 删除结果
  */
 function deleteStudent(studentId) {
   return new Promise((resolve, reject) => {
-    studentDb.run('DELETE FROM students WHERE student_id = ?', [studentId], function (err) {
-      if (err) {
-        return reject(err);
-      }
+    studentDb.serialize(() => {
+      let deletedRecordsCount = 0;
 
-      if (this.changes === 0) {
-        return resolve({ success: false, message: '未找到该学生' });
-      }
+      answerDb.run(
+        'DELETE FROM answer_records WHERE student_id = ?',
+        [studentId],
+        function (err) {
+          if (err) {
+            return reject(err);
+          }
+          deletedRecordsCount = this.changes || 0;
 
-      resolve({
-        success: true,
-        message: '学生删除成功',
-        data: { studentId }
-      });
+          studentDb.run(
+            'DELETE FROM students WHERE student_id = ?',
+            [studentId],
+            function (err) {
+              if (err) {
+                return reject(err);
+              }
+
+              if (this.changes === 0) {
+                return resolve({ success: false, message: '未找到该学生' });
+              }
+
+              resolve({
+                success: true,
+                message: `学生删除成功，同时删除了 ${deletedRecordsCount} 条答题记录`,
+                data: { studentId, deletedRecordsCount }
+              });
+            }
+          );
+        }
+      );
     });
   });
 }
