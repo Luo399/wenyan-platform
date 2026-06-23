@@ -231,9 +231,12 @@ export function useQuizProgress(
       const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
       answers.value.forEach((ans) => {
         const key = ans.questionId || `question_${ans.questionIndex}`
-        let mappedAnswer = ans.answer
-        if (typeof ans.answer === 'string' && letterToIndex[ans.answer] !== undefined) {
-          mappedAnswer = letterToIndex[ans.answer]
+        let mappedAnswer: string | number = ans.answer
+        if (typeof ans.answer === 'string') {
+          const index = letterToIndex[ans.answer]
+          if (index !== undefined) {
+            mappedAnswer = index
+          }
         }
         answerMap[key] = mappedAnswer
       })

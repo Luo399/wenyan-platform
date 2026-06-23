@@ -76,7 +76,7 @@ interface Level1QuizItem {
   option_b: string
   option_c: string
   option_d: string
-  correct_answer: string
+  correct_answer: number
   correct_index?: number
   explanation: string
   difficulty: string
