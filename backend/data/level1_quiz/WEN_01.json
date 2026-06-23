@@ -7,9 +7,9 @@
     "option_b": "①②④⑤③⑥",
     "option_c": "②①④⑤③⑥",
     "option_d": "①②⑤④③⑥",
-    "correct_answer": "C",
-    "correct_index": 2,
+    "correct_answer": 2,
     "explanation": "文章先追忆②陈胜年少心怀大志；随后发生①大泽乡遇雨延误期限，面临死罪绝境；绝境下陈胜谋划④假借扶苏、项燕名义起事；接着用⑤鱼腹藏书、篝火狐鸣收拢人心；之后③吴广激怒并斩杀军官，陈胜动员众人；最后⑥筑坛结盟，正式发动起义。",
-    "difficulty": "L2"
+    "difficulty": "L2",
+    "question_type": "radio"
   }
 ]
