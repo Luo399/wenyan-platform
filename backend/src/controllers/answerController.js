@@ -4,6 +4,7 @@
  */
 
 const answerService = require('../services/answerService');
+const { info, error } = require('../utils/logger');
 
 /**
  * 提交答题记录
@@ -46,7 +47,11 @@ async function submitAnswers(req, res) {
       data: result,
     });
   } catch (err) {
-    console.error('数据库操作失败:', err);
+    error('答题提交失败', {
+      studentId: req.body?.studentId,
+      wenId: req.body?.wenId,
+      error: err.message,
+    });
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',
@@ -72,13 +77,14 @@ async function getAnswersByWenId(req, res) {
     }
 
     const result = await answerService.getAnswersByWenId(wenId);
+    info('查询文言文答题记录', { wenId, studentCount: result?.studentCount || 0 });
 
     res.status(200).json({
       success: true,
       data: result,
     });
   } catch (err) {
-    console.error('查询失败:', err);
+    error('查询文言文答题记录失败', { wenId, error: err.message });
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',
@@ -105,13 +111,14 @@ async function getAnswersByStudentId(req, res) {
     }
 
     const result = await answerService.getAnswersByStudentId(studentId);
+    info('查询学生答题记录', { studentId, wenCount: result?.totalWenCount || 0 });
 
     res.status(200).json({
       success: true,
       data: result,
     });
   } catch (err) {
-    console.error('查询失败:', err);
+    error('查询学生答题记录失败', { studentId, error: err.message });
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',

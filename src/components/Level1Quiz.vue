@@ -180,7 +180,11 @@ function getCorrectIndex(quiz: Level1QuizItem): number {
   if (quiz.correct_index !== undefined) {
     return quiz.correct_index
   }
-  return typeof quiz.correct_answer === 'number' ? quiz.correct_answer : 0
+  if (typeof quiz.correct_answer === 'number') {
+    return quiz.correct_answer
+  }
+  const parsed = parseInt(String(quiz.correct_answer), 10)
+  return isNaN(parsed) ? 0 : parsed
 }
 
 function selectOption(quizIndex: number, optIndex: number) {

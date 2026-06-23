@@ -66,9 +66,28 @@ function initStudentTables() {
 }
 
 /**
+ * 创建数据库索引（使用Promise确保索引创建完成）
+ */
+function createIndex(indexName, tableName, columns) {
+  return new Promise((resolve, reject) => {
+    answerDb.run(
+      `CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName}(${columns})`,
+      (err) => {
+        if (err) {
+          console.error(`创建索引 ${indexName} 失败:`, err.message);
+          return reject(err);
+        }
+        console.log(`索引 ${indexName} 创建完成`);
+        resolve();
+      }
+    );
+  });
+}
+
+/**
  * 初始化答题记录数据库表
  */
-function initAnswerTables() {
+async function initAnswerTables() {
   return new Promise((resolve, reject) => {
     answerDb.run(
       `CREATE TABLE IF NOT EXISTS answer_records (
@@ -78,24 +97,33 @@ function initAnswerTables() {
         question_id TEXT NOT NULL,
         user_answer TEXT NOT NULL,
         correct_answer TEXT,
-        is_correct INTEGER DEFAULT 0,
-        score INTEGER DEFAULT 0,
+        is_correct INTEGER DEFAULT 0 CHECK(is_correct IN (0, 1)),
+        score INTEGER DEFAULT 0 CHECK(score BETWEEN 0 AND 100),
         submitted_at TEXT NOT NULL,
         attempt_number INTEGER DEFAULT 1
       )`,
-      (err) => {
+      async (err) => {
         if (err) {
           console.error('创建答题情况表失败:', err.message);
           return reject(err);
         }
         
-        // 创建索引
-        answerDb.run(`CREATE INDEX IF NOT EXISTS idx_wen_id ON answer_records(wen_id)`);
-        answerDb.run(`CREATE INDEX IF NOT EXISTS idx_student_id ON answer_records(student_id)`);
-        answerDb.run(`CREATE INDEX IF NOT EXISTS idx_wen_student ON answer_records(wen_id, student_id)`);
-        
-        console.log('答题记录表初始化完成');
-        resolve();
+        try {
+          // 创建索引（按使用频率排序）
+          await createIndex('idx_wen_student', 'answer_records', 'wen_id, student_id');
+          await createIndex('idx_student_wen', 'answer_records', 'student_id, wen_id');
+          await createIndex('idx_wen_id', 'answer_records', 'wen_id');
+          await createIndex('idx_student_id', 'answer_records', 'student_id');
+          await createIndex('idx_submitted_at', 'answer_records', 'submitted_at');
+          await createIndex('idx_question_id', 'answer_records', 'question_id');
+          await createIndex('idx_is_correct', 'answer_records', 'is_correct');
+          
+          console.log('答题记录表初始化完成');
+          resolve();
+        } catch (indexErr) {
+          console.error('创建索引失败:', indexErr.message);
+          reject(indexErr);
+        }
       }
     );
   });

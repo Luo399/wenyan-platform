@@ -124,7 +124,9 @@ function compareAnswers(): boolean {
   const correct = props.question.correctAnswer
 
   if (props.question.type === 'radio') {
-    return userAnswer === correct
+    const stringUserAnswer = String(userAnswer ?? '')
+    const stringCorrect = String(correct ?? '')
+    return stringUserAnswer === stringCorrect
   } else {
     if (!Array.isArray(userAnswer) || !Array.isArray(correct)) {
       return false
@@ -132,7 +134,8 @@ function compareAnswers(): boolean {
     if (userAnswer.length !== correct.length) {
       return false
     }
-    return userAnswer.every((item) => correct.includes(item))
+    const stringCorrect = correct.map((item) => String(item))
+    return userAnswer.every((item) => stringCorrect.includes(String(item)))
   }
 }
 

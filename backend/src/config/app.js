@@ -34,12 +34,29 @@ const config = {
   // JWT配置
   jwt: {
     secret: process.env.JWT_SECRET || 'wenyan_platform_2026_secret_key',
-    expiresIn: process.env.JWT_EXPIRES_IN || 3600, // 1小时
+    expiresIn: process.env.JWT_EXPIRES_IN || 3600,
   },
 
   // 数据目录配置（题目数据在 backend/data/ 目录，与前端 public/data 结构一致）
   data: {
     basePath: process.env.DATA_BASE_PATH || path.join(__dirname, '../../data'),
+  },
+
+  // 日志配置
+  logger: {
+    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'INFO' : 'DEBUG'),
+    format: process.env.LOG_FORMAT || (process.env.NODE_ENV === 'production' ? 'json' : 'console'),
+    outputDir: process.env.LOG_DIR || path.join(__dirname, '../../logs'),
+    maxFileSize: process.env.LOG_MAX_FILE_SIZE || '10MB',
+    maxFiles: process.env.LOG_MAX_FILES || 30,
+  },
+
+  // 限流配置
+  rateLimit: {
+    submitRequests: process.env.RATE_LIMIT_SUBMIT || 10,
+    submitWindowMs: process.env.RATE_LIMIT_SUBMIT_WINDOW || 60000,
+    globalRequests: process.env.RATE_LIMIT_GLOBAL || 100,
+    globalWindowMs: process.env.RATE_LIMIT_GLOBAL_WINDOW || 60000,
   },
 
   // 测试模式

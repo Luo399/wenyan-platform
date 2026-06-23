@@ -50,16 +50,16 @@ function createTables() {
     
     // 创建答题记录表
     db.run(`CREATE TABLE IF NOT EXISTS answer_records (
-      wen_id TEXT,
-      student_id TEXT,
-      question_id TEXT,
-      user_answer TEXT,
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      wen_id TEXT NOT NULL,
+      student_id TEXT NOT NULL,
+      question_id TEXT NOT NULL,
+      user_answer TEXT NOT NULL,
       correct_answer TEXT,
       is_correct INTEGER DEFAULT 0,
       score INTEGER DEFAULT 0,
-      submitted_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      attempt_number INTEGER DEFAULT 1,
-      PRIMARY KEY (wen_id, student_id, question_id)
+      submitted_at TEXT NOT NULL,
+      attempt_number INTEGER DEFAULT 1
     )`, (err) => {
       if (err) {
         console.error('创建答题记录表失败:', err);

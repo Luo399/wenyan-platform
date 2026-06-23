@@ -87,7 +87,7 @@ export function validateStudentName(name: string): { valid: boolean; error?: str
     return { valid: false, error: '姓名长度不能超过50个字符' }
   }
   // 检查是否包含危险字符
-  if (/[<>\"\'&]/.test(name)) {
+  if (/[<>"'&]/.test(name)) {
     return { valid: false, error: '姓名不能包含特殊字符' }
   }
   return { valid: true }

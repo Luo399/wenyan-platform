@@ -5,6 +5,7 @@
 
 const { answerDb, studentDb } = require('../config/database');
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader');
+const { info, warn, logOperation } = require('../utils/logger');
 
 /**
  * 获取学生姓名（从学生数据库）
@@ -36,14 +37,22 @@ async function getStudentName(studentId) {
 async function submitAnswers(data) {
   const { studentId, studentName, wenId, submittedAt, answers, questions = [] } = data;
 
+  info('开始处理答题提交', {
+    studentId,
+    studentName,
+    wenId,
+    questionCount: questions.length,
+  });
+
   // 如果提供了学生姓名，自动注册或更新学生信息
   if (studentName) {
     try {
       // 动态导入避免循环依赖
       const { createOrUpdateStudent } = await import('./studentService');
       await createOrUpdateStudent(studentId, studentName);
+      info('学生信息更新成功', { studentId, studentName });
     } catch (err) {
-      console.warn('学生信息更新失败:', err);
+      warn('学生信息更新失败', { studentId, studentName, error: err.message });
     }
   }
 
@@ -58,71 +67,75 @@ async function submitAnswers(data) {
       let isCorrect = 0;
 
       if (Array.isArray(correctAnswer)) {
-        // 多选答案比较
+        // 多选答案比较（统一转换为字符串后比较）
         if (Array.isArray(userAnswer)) {
-          const sortedCorrect = [...correctAnswer].sort();
-          const sortedUser = [...userAnswer].sort();
+          const sortedCorrect = [...correctAnswer].map(String).sort();
+          const sortedUser = [...userAnswer].map(String).sort();
           if (JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser)) {
             score = 100;
             isCorrect = 1;
           }
         }
       } else {
-        // 单选答案比较
-        if (userAnswer === correctAnswer) {
+        // 单选答案比较（统一转换为字符串后比较，避免类型不匹配）
+        const stringCorrect = String(correctAnswer ?? '');
+        const stringUser = String(userAnswer ?? '');
+        if (stringCorrect === stringUser) {
           score = 100;
           isCorrect = 1;
         }
       }
 
-      // 查询当前题目已答题次数
-      answerDb.get(
-        `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
-        [wenId, studentId, question.id],
-        (countErr, countRow) => {
-          if (countErr) {
-            reject(countErr);
-            return;
-          }
-
-          const attemptNumber = (countRow?.count || 0) + 1;
-
-          // 插入新记录（不覆盖，保留每次答题记录）
-          const stmt = answerDb.prepare(`
-            INSERT INTO answer_records (
-              wen_id,
-              student_id,
-              question_id,
-              user_answer,
-              correct_answer,
-              is_correct,
-              score,
-              submitted_at,
-              attempt_number
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `);
-
-          stmt.run(
-            wenId,
-            studentId,
-            question.id,
-            JSON.stringify(userAnswer ?? null),
-            JSON.stringify(correctAnswer ?? null),
-            isCorrect,
-            score,
-            submittedAt,
-            attemptNumber,
-            (err) => {
-              stmt.finalize();
-              if (err) {
-                reject(err);
-              } else {
-                resolve({ questionId: question.id, score, isCorrect, attemptNumber });
-              }
+      // 使用事务保证原子性，避免并发写入时的竞态条件
+      answerDb.serialize(() => {
+        answerDb.get(
+          `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+          [wenId, studentId, question.id],
+          (countErr, countRow) => {
+            if (countErr) {
+              reject(countErr);
+              return;
             }
-          );
-        }
-      );
+
+            const attemptNumber = (countRow?.count || 0) + 1;
+
+            // 插入新记录（不覆盖，保留每次答题记录）
+            const stmt = answerDb.prepare(`
+              INSERT INTO answer_records (
+                wen_id,
+                student_id,
+                question_id,
+                user_answer,
+                correct_answer,
+                is_correct,
+                score,
+                submitted_at,
+                attempt_number
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            stmt.run(
+              wenId,
+              studentId,
+              question.id,
+              JSON.stringify(userAnswer ?? null),
+              JSON.stringify(correctAnswer ?? null),
+              isCorrect,
+              score,
+              submittedAt,
+              attemptNumber,
+              (err) => {
+                stmt.finalize();
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve({ questionId: question.id, score, isCorrect, attemptNumber });
+                }
+              }
+            );
+          }
+        );
+      });
     });
   });
 
@@ -132,7 +145,7 @@ async function submitAnswers(data) {
   const correctCount = results.filter((r) => r.isCorrect === 1).length;
   const avgScore = Math.round(totalScore / results.length);
 
-  return {
+  const result = {
     studentId,
     wenId,
     submittedAt,
@@ -143,6 +156,18 @@ async function submitAnswers(data) {
     avgScore,
     details: results,
   };
+
+  logOperation('答题提交完成', {
+    studentId,
+    wenId,
+    questionCount: results.length,
+    correctCount,
+    wrongCount: results.length - correctCount,
+    totalScore,
+    avgScore,
+  });
+
+  return result;
 }
 
 /**

@@ -222,15 +222,15 @@ export function useQuizProgress(
 
       // 构建题目数据（包含正确答案和题目ID）
       const questions = answers.value.map((ans) => ({
-        id: ans.questionId || `question_${ans.questionIndex}`,
-        correctAnswer: ans.correctAnswer ?? 'unknown',
+        id: ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`,
+        correctAnswer: ans.correctAnswer ?? 0,
       }))
 
-      // 构建答案映射（使用 questionId 或 questionIndex）
+      // 构建答案映射（使用 questionId 或 questionIndex，key格式与questions保持一致）
       const answerMap: Record<string, any> = {}
       const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
       answers.value.forEach((ans) => {
-        const key = ans.questionId || `question_${ans.questionIndex}`
+        const key = ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`
         let mappedAnswer: string | number = ans.answer
         if (typeof ans.answer === 'string') {
           const index = letterToIndex[ans.answer]
@@ -408,10 +408,10 @@ export function useQuizProgress(
       })
 
       // 初始化提交状态列表
-      submittedList.value = new Array(newVal).fill(false)
+      submittedList.value = Array.from({ length: newVal }, () => false)
 
-      // 当题目总数变为0或增加时，重置进度
-      if (newVal === 0 || (oldVal !== undefined && newVal > oldVal)) {
+      // 仅当题目总数变为0时重置进度，避免数据加载时误清除答案
+      if (newVal === 0) {
         resetProgress()
       }
     },

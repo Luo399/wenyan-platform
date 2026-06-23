@@ -47,13 +47,63 @@ export interface RequestConfig {
 }
 
 /**
- * 响应接口
+ * 统一响应接口
+ * 所有API响应必须遵循此格式
  */
 export interface ApiResponse<T = any> {
   success: boolean
   data?: T
   message?: string
   code?: number
+  timestamp?: number
+  requestId?: string
+}
+
+/**
+ * 标准化API响应
+ * 确保所有响应都符合统一格式
+ */
+export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
+  if (response === null || response === undefined) {
+    return {
+      success: false,
+      message: '响应为空',
+      code: 500,
+      timestamp: Date.now(),
+    }
+  }
+
+  // 如果已经是标准化格式，直接返回
+  if (typeof response === 'object' && 'success' in response) {
+    return {
+      success: response.success,
+      data: response.data,
+      message: response.message || (response.success ? '操作成功' : '操作失败'),
+      code: response.code ?? (response.success ? 200 : 500),
+      timestamp: response.timestamp ?? Date.now(),
+      requestId: response.requestId,
+    }
+  }
+
+  // 如果响应只有 data 字段，包装成标准化格式
+  if (typeof response === 'object' && 'data' in response) {
+    return {
+      success: true,
+      data: response.data,
+      message: '操作成功',
+      code: 200,
+      timestamp: Date.now(),
+    }
+  }
+
+  // 如果响应本身就是数据，包装成标准化格式
+  return {
+    success: true,
+    data: response as T,
+    message: '操作成功',
+    code: 200,
+    timestamp: Date.now(),
+  }
 }
 
 /**
@@ -121,7 +171,8 @@ export async function request<T = any>(
       throw new ApiError(errorData?.message || `请求失败: ${response.status}`, response.status)
     }
 
-    return await response.json()
+    const jsonResponse = await response.json()
+    return normalizeResponse<T>(jsonResponse)
   } catch (err) {
     clearTimeout(timeoutId)
     if (err instanceof Error && err.name === 'AbortError') {

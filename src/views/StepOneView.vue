@@ -158,7 +158,7 @@ async function submitAnswersToBackend(answers: Record<number, number>) {
 
     // 构建题目信息（包含正确答案和题目ID）
     const questions = quizData.value.map((quiz, index) => ({
-      id: `level1_q${quiz.question_number || index + 1}`,
+      id: `${wenId.value}_level1_q${quiz.question_number || index + 1}`,
       correctAnswer: quiz.correct_answer,
     }))
 
@@ -167,7 +167,7 @@ async function submitAnswersToBackend(answers: Record<number, number>) {
     Object.entries(answers).forEach(([index, answer]) => {
       const quiz = quizData.value[parseInt(index)]
       if (quiz) {
-        const key = `level1_q${quiz.question_number || parseInt(index) + 1}`
+        const key = `${wenId.value}_level1_q${quiz.question_number || parseInt(index) + 1}`
         answerMap[key] = answer
       }
     })

@@ -7,6 +7,8 @@ const studentController = require('../controllers/studentController')
 const textsController = require('../controllers/textsController')
 const answerController = require('../controllers/answerController')
 const authController = require('../controllers/authController')
+const { optionalAuthMiddleware } = require('../middleware/authMiddleware')
+const { submitRateLimit } = require('../middleware/rateLimitMiddleware')
 
 /**
  * 注册所有路由
@@ -71,20 +73,15 @@ function registerRoutes(app) {
   app.get('/api/texts/:textId/level3-adaptive-quiz', textsController.getLevel3AdaptiveQuiz)
 
   // ============================================================
-  // 答题接口
+  // 答题接口（需要认证和限流）
   // ============================================================
-  app.post('/api/submit', answerController.submitAnswers)
-  app.get('/api/answers/wen/:wenId', answerController.getAnswersByWenId)
-  app.get('/api/answers/student/:studentId', answerController.getAnswersByStudentId)
-
-  // ============================================================
-  // 学生接口
-  // ============================================================
-  app.get('/api/students', studentController.getStudentList)
-  app.get('/api/students/:studentId', studentController.getStudent)
-  app.post('/api/students', studentController.createStudent)
-  app.put('/api/students/:studentId', studentController.updateStudent)
-  app.delete('/api/students/:studentId', studentController.deleteStudent)
+  app.post('/api/submit', optionalAuthMiddleware, submitRateLimit, answerController.submitAnswers)
+  app.get('/api/answers/wen/:wenId', optionalAuthMiddleware, answerController.getAnswersByWenId)
+  app.get(
+    '/api/answers/student/:studentId',
+    optionalAuthMiddleware,
+    answerController.getAnswersByStudentId,
+  )
 
   // ============================================================
   // 认证接口

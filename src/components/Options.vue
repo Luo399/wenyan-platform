@@ -66,9 +66,10 @@ watch(
 
 function isSelected(id: string | number): boolean {
   if (props.type === 'radio') {
-    return selectedValue.value === id
+    return String(selectedValue.value) === String(id)
   } else {
-    return (selectedValue.value as (string | number)[]).includes(id)
+    const stringValues = (selectedValue.value as (string | number)[]).map((item) => String(item))
+    return stringValues.includes(String(id))
   }
 }
 
