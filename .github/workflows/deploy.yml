@@ -1,4 +1,4 @@
-name: Test & Deploy
+name: Deploy
 
 on:
   push:
@@ -11,26 +11,8 @@ on:
       - closed
 
 jobs:
-  test:
+  deploy-frontend:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Run frontend unit tests
-        run: npm run test:unit
-
-  build-and-upload:
-    runs-on: ubuntu-latest
-    needs: test
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
     steps:
       - uses: actions/checkout@v5
@@ -57,11 +39,6 @@ jobs:
           OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
           OSS_REGION: ${{ secrets.OSS_REGION }}
 
-      - name: Verify upload
-        run: |
-          echo "✅ 前端资源上传完成"
-          echo "📦 构建产物已上传至 OSS Bucket: ${{ secrets.OSS_BUCKET }}"
-
       - name: Upload failure notification
         if: failure()
         run: |
@@ -70,9 +47,9 @@ jobs:
 
   deploy-backend:
     runs-on: ubuntu-latest
-    needs: build-and-upload
+    needs: deploy-frontend
     steps:
-      - name: SSH into server and deploy
+      - name: SSH into server and deploy backend
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
