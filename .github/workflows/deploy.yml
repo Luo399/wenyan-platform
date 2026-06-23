@@ -30,6 +30,7 @@ jobs:
         run: npm run build
         env:
           VITE_APP_ENV: production
+          VITE_API_BASE: https://api.classicalab.cn
 
       - name: Upload build artifacts to OSS
         run: npm run upload:oss:dist
