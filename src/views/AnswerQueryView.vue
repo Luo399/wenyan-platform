@@ -325,6 +325,14 @@
             </div>
             <div class="answer-content">
               <div class="answer-row">
+                <span class="label">提交时间：</span>
+                <span class="value">{{ formatDate(answer.submittedAt) }}</span>
+              </div>
+              <div class="answer-row">
+                <span class="label">答题次数：</span>
+                <span class="value">第 {{ answer.attemptNumber }} 次</span>
+              </div>
+              <div class="answer-row">
                 <span class="label">你的答案：</span>
                 <span class="value">{{ formatAnswer(answer.userAnswer) }}</span>
               </div>
