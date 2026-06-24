@@ -351,7 +351,70 @@ async function getStudentName(): Promise<string> {
 }
 
 /**
- * 提交单题答题数据到后端
+ * 保存单题答题数据到本地存储
+ */
+function saveToLocal(
+  quiz: QuizItem,
+  userAnswer: string,
+  correctAnswer: string | number | (string | number)[] | null | undefined,
+  studentId: string,
+  studentName: string,
+) {
+  const now = new Date()
+  const submittedAt = now.toISOString()
+  const wenId = quiz.textId || props.textId
+  const questionId =
+    quiz.questionId ||
+    `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
+
+  const isCorrect = String(userAnswer) === String(correctAnswer ?? '')
+
+  const record = {
+    studentId,
+    studentName,
+    wenId,
+    questionId,
+    questionNumber: quiz.questionNumber || 1,
+    level: props.level,
+    userAnswer,
+    correctAnswer,
+    isCorrect,
+    score: isCorrect ? 100 : 0,
+    submittedAt,
+  }
+
+  // 保存到 localStorage
+  const storageKey = `quiz_records_${studentId}`
+  const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
+  existingRecords.push(record)
+  localStorage.setItem(storageKey, JSON.stringify(existingRecords))
+
+  console.log('[AdaptQuiz] 答题数据已保存到本地:', record)
+
+  // 自动下载报告
+  downloadSingleReport(record, studentId, studentName)
+
+  return record
+}
+
+/**
+ * 下载单题答题报告
+ */
+function downloadSingleReport(record: any, studentId: string, studentName: string) {
+  const wenId = record.wenId || props.textId
+  const filename = `答题记录_${studentId}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
+  const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+  console.log('[AdaptQuiz] 报告已下载:', filename)
+}
+
+/**
+ * 提交单题答题数据到后端（同时保存本地）
  */
 async function submitToBackend(
   quiz: QuizItem,
@@ -364,8 +427,12 @@ async function submitToBackend(
     return
   }
 
+  const studentName = await getStudentName()
+
+  // 先保存到本地（确保数据不丢失）
+  const localRecord = saveToLocal(quiz, userAnswer, correctAnswer, studentId, studentName)
+
   try {
-    const studentName = await getStudentName()
     const wenId = quiz.textId || props.textId
     const questionId =
       quiz.questionId ||
@@ -392,7 +459,8 @@ async function submitToBackend(
 
     console.log('[AdaptQuiz] 答题数据已成功提交到后端:', result)
   } catch (error) {
-    console.error('[AdaptQuiz] 答案提交失败:', error)
+    console.error('[AdaptQuiz] 后端提交失败，但本地已保存:', error)
+    console.log('[AdaptQuiz] 本地保存的记录:', localRecord)
   }
 }
 

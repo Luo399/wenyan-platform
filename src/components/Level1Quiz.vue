@@ -265,7 +265,76 @@ async function getStudentName(): Promise<string> {
 }
 
 /**
- * 提交答题数据到后端
+ * 保存答题数据到本地存储
+ */
+function saveToLocal(answers: Record<number, number>, studentId: string, studentName: string) {
+  if (!quizList.value?.length) return
+
+  const now = new Date()
+  const submittedAt = now.toISOString()
+
+  // 构建答题记录
+  const records = quizList.value.map((quiz, index) => {
+    const userAnswer = answers[index]
+    const correctAnswer = quiz.correct_answer
+    const isCorrect = String(userAnswer) === String(correctAnswer)
+    const questionId = `${props.wenId}_level1_q${quiz.question_number || index + 1}`
+
+    return {
+      questionId,
+      questionNumber: quiz.question_number || index + 1,
+      userAnswer,
+      correctAnswer,
+      isCorrect,
+      score: isCorrect ? 100 : 0,
+      submittedAt,
+    }
+  })
+
+  const report = {
+    studentId,
+    studentName,
+    wenId: props.wenId,
+    submittedAt,
+    totalQuestions: records.length,
+    correctCount: records.filter((r) => r.isCorrect).length,
+    wrongCount: records.filter((r) => !r.isCorrect).length,
+    totalScore: records.filter((r) => r.isCorrect).length * 100,
+    avgScore: Math.round((records.filter((r) => r.isCorrect).length / records.length) * 100),
+    records,
+  }
+
+  // 保存到 localStorage
+  const storageKey = `quiz_records_${studentId}`
+  const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
+  existingRecords.push(report)
+  localStorage.setItem(storageKey, JSON.stringify(existingRecords))
+
+  console.log('[Level1Quiz] 答题数据已保存到本地:', report)
+
+  // 自动下载报告
+  downloadReport(report, studentId, studentName)
+
+  return report
+}
+
+/**
+ * 下载答题报告
+ */
+function downloadReport(report: any, studentId: string, studentName: string) {
+  const filename = `答题报告_${studentId}_${studentName}_${props.wenId}_${new Date().toISOString().slice(0, 10)}.json`
+  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+  console.log('[Level1Quiz] 报告已下载:', filename)
+}
+
+/**
+ * 提交答题数据到后端（同时保存本地）
  */
 async function submitToBackend(answers: Record<number, number>) {
   const studentId = getStudentId()
@@ -278,6 +347,11 @@ async function submitToBackend(answers: Record<number, number>) {
     console.warn('[Level1Quiz] 无题目数据，跳过后端提交')
     return
   }
+
+  const studentName = await getStudentName()
+
+  // 先保存到本地（确保数据不丢失）
+  const localReport = saveToLocal(answers, studentId, studentName)
 
   try {
     // 构建题目信息（包含正确答案和题目ID）
@@ -296,8 +370,6 @@ async function submitToBackend(answers: Record<number, number>) {
       }
     })
 
-    const studentName = await getStudentName()
-
     console.log('[Level1Quiz] 提交答题数据到后端:', {
       answers: answerMap,
       questions,
@@ -315,7 +387,8 @@ async function submitToBackend(answers: Record<number, number>) {
 
     console.log('[Level1Quiz] 答题数据已成功提交到后端:', result)
   } catch (error) {
-    console.error('[Level1Quiz] 答案提交失败:', error)
+    console.error('[Level1Quiz] 后端提交失败，但本地已保存:', error)
+    console.log('[Level1Quiz] 本地保存的报告:', localReport)
   }
 }
 
