@@ -386,7 +386,7 @@ async function submitToBackend(
       wenId,
       questionId,
       userAnswer,
-      correctAnswer: correctAnswer ?? null,
+      correctAnswer: correctAnswer ?? undefined,
       submittedAt: new Date().toISOString(),
     })
 

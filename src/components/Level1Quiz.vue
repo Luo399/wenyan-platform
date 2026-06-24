@@ -89,7 +89,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { submitAnswers, get } from '@/utils/api'
+import { submitAnswers as submitAnswersApi, get } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentStore } from '@/stores/student'
 import BaseLoader from '@/components/common/BaseLoader.vue'
@@ -306,7 +306,7 @@ async function submitToBackend(answers: Record<number, number>) {
       studentName,
     })
 
-    const result = await submitAnswers(
+    const result = await submitAnswersApi(
       { answers: answerMap, questions },
       props.wenId,
       studentId,
