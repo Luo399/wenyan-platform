@@ -24,7 +24,7 @@
 import { ref, type Ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentStore } from '@/stores/student'
-import { post } from '@/utils/api'
+import { post, get } from '@/utils/api'
 
 /**
  * 单个答案记录（前端内部使用）
@@ -203,10 +203,21 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
   /**
    * 获取学生姓名
    */
-  function getStudentName(): string {
+  async function getStudentName(): Promise<string> {
     const authStore = useAuthStore()
     if (authStore.isLoggedIn && authStore.user) {
       return authStore.user.username
+    }
+    const studentId = getStudentId()
+    if (studentId) {
+      try {
+        const response = await get(`/api/students/${studentId}`)
+        if (response.success && response.data) {
+          return response.data.name || ''
+        }
+      } catch (error) {
+        console.warn('[useAnswerSubmitter] 获取学生姓名失败:', error)
+      }
     }
     return ''
   }
@@ -395,9 +406,6 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
       })
     }
 
-    // 获取学生姓名（用于自动注册）
-    const studentName = getStudentName()
-
     // 构建最终载荷
     const payload: SubmitPayload = {
       studentId,
@@ -405,11 +413,6 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
       submittedAt: TypeConverter.generateTimestamp(),
       answers: answersObject,
       questions: questionsArray,
-    }
-
-    // 添加可选的学生姓名
-    if (studentName && studentName.trim()) {
-      payload.studentName = studentName
     }
 
     console.log('[useAnswerSubmitter] 提交载荷已构建:', JSON.stringify(payload, null, 2))
@@ -426,6 +429,11 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     if (!payload) {
       throw new Error('无法构建提交载荷')
+    }
+
+    const studentName = await getStudentName()
+    if (studentName && studentName.trim()) {
+      payload.studentName = studentName
     }
 
     isSubmitting.value = true

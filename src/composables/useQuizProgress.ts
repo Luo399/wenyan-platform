@@ -23,7 +23,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers, submitSingleAnswer } from '@/utils/api'
+import { submitAnswers, submitSingleAnswer, get } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentStore } from '@/stores/student'
 
@@ -191,7 +191,7 @@ export function useQuizProgress(
   /**
    * 获取学生信息
    */
-  function getStudentInfo(): { studentId: string; studentName: string } {
+  async function getStudentInfo(): Promise<{ studentId: string; studentName: string }> {
     const authStore = useAuthStore()
     let studentId = ''
     let studentName = ''
@@ -202,6 +202,16 @@ export function useQuizProgress(
     } else {
       const studentStore = useStudentStore()
       studentId = studentStore.studentId
+      if (studentId) {
+        try {
+          const response = await get(`/api/students/${studentId}`)
+          if (response.success && response.data) {
+            studentName = response.data.name || ''
+          }
+        } catch (error) {
+          console.warn('[useQuizProgress] 获取学生姓名失败:', error)
+        }
+      }
     }
 
     return { studentId, studentName }
@@ -217,7 +227,7 @@ export function useQuizProgress(
     }
 
     try {
-      const { studentId, studentName } = getStudentInfo()
+      const { studentId, studentName } = await getStudentInfo()
 
       if (!studentId) {
         console.warn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
@@ -257,7 +267,7 @@ export function useQuizProgress(
     }
 
     try {
-      const { studentId, studentName } = getStudentInfo()
+      const { studentId, studentName } = await getStudentInfo()
 
       if (!studentId) {
         console.warn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')

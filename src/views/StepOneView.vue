@@ -130,10 +130,21 @@ function getStudentId(): string {
 /**
  * 获取学生姓名
  */
-function getStudentName(): string {
+async function getStudentName(): Promise<string> {
   const authStore = useAuthStore()
   if (authStore.isLoggedIn && authStore.user) {
     return authStore.user.username
+  }
+  const studentId = getStudentId()
+  if (studentId) {
+    try {
+      const response = await get(`/api/students/${studentId}`)
+      if (response.success && response.data) {
+        return response.data.name || ''
+      }
+    } catch (error) {
+      console.warn('[StepOneView] 获取学生姓名失败:', error)
+    }
   }
   return ''
 }
@@ -172,7 +183,7 @@ async function submitAnswersToBackend(answers: Record<number, number>) {
       }
     })
 
-    const studentName = getStudentName()
+    const studentName = await getStudentName()
 
     // 提交到后端
     await submitAnswers({ answers: answerMap, questions }, wenId.value, studentId, studentName)
