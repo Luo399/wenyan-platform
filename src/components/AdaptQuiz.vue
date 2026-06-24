@@ -92,6 +92,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { submitSingleAnswer, get } from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
 import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
 import type { ProcessedLevel2QuizItem, RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
 import type { ProcessedLevel3QuizItem, RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
@@ -308,6 +311,89 @@ function submitAnswer() {
     currentQuiz.value.correctAnswer ?? undefined,
   )
   emit('quiz-submitted')
+
+  // 自动提交到后端
+  submitToBackend(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer)
+}
+
+/**
+ * 获取学生ID
+ */
+function getStudentId(): string {
+  const authStore = useAuthStore()
+  if (authStore.isLoggedIn && authStore.user) {
+    return authStore.user.studentId
+  }
+  const studentStore = useStudentStore()
+  return studentStore.studentId
+}
+
+/**
+ * 异步获取学生姓名
+ */
+async function getStudentName(): Promise<string> {
+  const authStore = useAuthStore()
+  if (authStore.isLoggedIn && authStore.user) {
+    return authStore.user.username
+  }
+  const studentId = getStudentId()
+  if (studentId) {
+    try {
+      const response = await get(`/api/students/${studentId}`)
+      if (response.success && response.data) {
+        return response.data.name || ''
+      }
+    } catch (error) {
+      console.warn('[AdaptQuiz] 获取学生姓名失败:', error)
+    }
+  }
+  return ''
+}
+
+/**
+ * 提交单题答题数据到后端
+ */
+async function submitToBackend(
+  quiz: QuizItem,
+  userAnswer: string,
+  correctAnswer: string | number | (string | number)[] | null | undefined,
+) {
+  const studentId = getStudentId()
+  if (!studentId) {
+    console.warn('[AdaptQuiz] 未登录，跳过后端提交')
+    return
+  }
+
+  try {
+    const studentName = await getStudentName()
+    const wenId = quiz.textId || props.textId
+    const questionId =
+      quiz.questionId ||
+      `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
+
+    console.log('[AdaptQuiz] 提交答题数据到后端:', {
+      studentId,
+      studentName,
+      wenId,
+      questionId,
+      userAnswer,
+      correctAnswer,
+    })
+
+    const result = await submitSingleAnswer({
+      studentId,
+      studentName,
+      wenId,
+      questionId,
+      userAnswer,
+      correctAnswer: correctAnswer ?? null,
+      submittedAt: new Date().toISOString(),
+    })
+
+    console.log('[AdaptQuiz] 答题数据已成功提交到后端:', result)
+  } catch (error) {
+    console.error('[AdaptQuiz] 答案提交失败:', error)
+  }
 }
 
 function handleNext() {
