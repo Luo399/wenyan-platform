@@ -29,6 +29,7 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
+          NODE_ENV: production
           VITE_APP_ENV: production
 
       - name: Upload build artifacts to OSS
@@ -65,5 +66,5 @@ jobs:
             /www/server/nodejs/v24.16.0/bin/npm install --omit=dev --no-audit --no-fund
             /www/server/nodejs/v24.16.0/bin/node scripts/migrate.js
             /www/server/nodejs/v24.16.0/bin/node scripts/seed.js
-            /www/server/nodejs/v24.16.0/bin/pm2 restart backend
+            NODE_ENV=production /www/server/nodejs/v24.16.0/bin/pm2 restart backend --env production
             echo "Deploy completed at $(date)"

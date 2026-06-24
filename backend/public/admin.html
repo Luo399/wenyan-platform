@@ -213,7 +213,10 @@
 
   <script>
     // API 基础地址
-    const API_BASE = window.location.origin;
+    const origin = window.location.origin;
+    const API_BASE = origin.includes('localhost') || origin.includes('127.0.0.1')
+      ? origin
+      : origin.replace('www.', 'api.');
 
     /**
      * 查询学生答题记录

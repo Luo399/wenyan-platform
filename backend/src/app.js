@@ -28,11 +28,21 @@ function createApp() {
   // 中间件配置
   // ============================================================
   
-  // CORS配置
+  // CORS配置 - 支持动态origin以解决跨域问题
   app.use(cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+      const allowedOrigins = config.cors.origin === '*'
+        ? ['https://www.classicalab.cn', 'https://api.classicalab.cn']
+        : config.cors.origin.split(',');
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('不允许的跨域请求'));
+      }
+    },
     methods: config.cors.methods,
     allowedHeaders: config.cors.allowedHeaders,
+    credentials: config.cors.credentials,
   }));
 
   // JSON请求体解析，设置最大10MB
