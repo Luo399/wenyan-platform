@@ -153,6 +153,7 @@ async function getStudentName(): Promise<string> {
  * 提交答案到后端
  */
 async function submitAnswersToBackend(answers: Record<number, number>) {
+  console.log('[StepOneView] submitAnswersToBackend 收到 answers:', answers)
   const studentId = getStudentId()
   if (!studentId) {
     console.warn('[StepOneView] 未登录，跳过后端提交')
@@ -185,10 +186,23 @@ async function submitAnswersToBackend(answers: Record<number, number>) {
 
     const studentName = await getStudentName()
 
-    // 提交到后端
-    await submitAnswers({ answers: answerMap, questions }, wenId.value, studentId, studentName)
+    console.log('[StepOneView] 准备调用后端 submitAnswers, payload:', {
+      answers: answerMap,
+      questions,
+      wenId: wenId.value,
+      studentId,
+      studentName,
+    })
 
-    console.log('[StepOneView] 答题数据已成功提交到后端')
+    // 提交到后端
+    const result = await submitAnswers(
+      { answers: answerMap, questions },
+      wenId.value,
+      studentId,
+      studentName,
+    )
+
+    console.log('[StepOneView] 答题数据已成功提交到后端, 结果:', result)
   } catch (error) {
     console.error('[StepOneView] 答案提交失败:', error)
   } finally {

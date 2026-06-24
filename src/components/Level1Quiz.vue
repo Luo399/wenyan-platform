@@ -89,6 +89,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { submitAnswers, get } from '@/utils/api'
+import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
@@ -222,6 +225,98 @@ function submitAnswers() {
   })
   emit('submit', answersRecord)
   emit('complete', { correct: correctCount.value, total: quizList.value?.length || 0 })
+
+  // 自动提交到后端
+  submitToBackend(answersRecord)
+}
+
+/**
+ * 获取学生ID（优先从authStore，其次从studentStore）
+ */
+function getStudentId(): string {
+  const authStore = useAuthStore()
+  if (authStore.isLoggedIn && authStore.user) {
+    return authStore.user.studentId
+  }
+  const studentStore = useStudentStore()
+  return studentStore.studentId
+}
+
+/**
+ * 异步获取学生姓名
+ */
+async function getStudentName(): Promise<string> {
+  const authStore = useAuthStore()
+  if (authStore.isLoggedIn && authStore.user) {
+    return authStore.user.username
+  }
+  const studentId = getStudentId()
+  if (studentId) {
+    try {
+      const response = await get(`/api/students/${studentId}`)
+      if (response.success && response.data) {
+        return response.data.name || ''
+      }
+    } catch (error) {
+      console.warn('[Level1Quiz] 获取学生姓名失败:', error)
+    }
+  }
+  return ''
+}
+
+/**
+ * 提交答题数据到后端
+ */
+async function submitToBackend(answers: Record<number, number>) {
+  const studentId = getStudentId()
+  if (!studentId) {
+    console.warn('[Level1Quiz] 未登录，跳过后端提交')
+    return
+  }
+
+  if (!quizList.value?.length) {
+    console.warn('[Level1Quiz] 无题目数据，跳过后端提交')
+    return
+  }
+
+  try {
+    // 构建题目信息（包含正确答案和题目ID）
+    const questions = quizList.value.map((quiz, index) => ({
+      id: `${props.wenId}_level1_q${quiz.question_number || index + 1}`,
+      correctAnswer: quiz.correct_answer,
+    }))
+
+    // 构建答案映射
+    const answerMap: Record<string, number> = {}
+    Object.entries(answers).forEach(([index, answer]) => {
+      const quiz = quizList.value![parseInt(index)]
+      if (quiz) {
+        const key = `${props.wenId}_level1_q${quiz.question_number || parseInt(index) + 1}`
+        answerMap[key] = answer
+      }
+    })
+
+    const studentName = await getStudentName()
+
+    console.log('[Level1Quiz] 提交答题数据到后端:', {
+      answers: answerMap,
+      questions,
+      wenId: props.wenId,
+      studentId,
+      studentName,
+    })
+
+    const result = await submitAnswers(
+      { answers: answerMap, questions },
+      props.wenId,
+      studentId,
+      studentName,
+    )
+
+    console.log('[Level1Quiz] 答题数据已成功提交到后端:', result)
+  } catch (error) {
+    console.error('[Level1Quiz] 答案提交失败:', error)
+  }
 }
 
 function resetQuiz() {
