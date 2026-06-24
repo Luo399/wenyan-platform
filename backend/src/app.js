@@ -41,8 +41,11 @@ function createApp() {
       }
     },
     methods: config.cors.methods,
-    allowedHeaders: config.cors.allowedHeaders,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Authorization'],
     credentials: config.cors.credentials,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   }));
 
   // JSON请求体解析，设置最大10MB
