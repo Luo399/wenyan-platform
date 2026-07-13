@@ -2,11 +2,15 @@ name: Test Workflow
 
 on:
   push:
-    branches-ignore:
-      - main
+    branches:
+      - develop
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'refactor/**'
   pull_request:
     branches:
       - main
+      - develop
 
 jobs:
   frontend-tests:
