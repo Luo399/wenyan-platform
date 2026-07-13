@@ -42,11 +42,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import Options, { type Option, type OptionsType } from './Options.vue'
 import { submitAnswers, ApiError } from '@/utils/api'
-import { useStudentStore } from '@/stores/student'
-import { storeToRefs } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
 
 export interface QuestionData {
   id: string
@@ -70,8 +69,9 @@ const emit = defineEmits<{
   (e: 'answer-change', questionId: string, answer: string | number | (string | number)[]): void
 }>()
 
-const studentStore = useStudentStore()
-const { studentId, isLoggedIn } = storeToRefs(studentStore)
+const authStore = useAuthStore()
+const studentId = computed(() => authStore.user?.studentId || '')
+const isLoggedIn = computed(() => authStore.isLoggedIn)
 
 const getInitialValue = (): string | number | (string | number)[] => {
   if (props.question.type === 'radio') {

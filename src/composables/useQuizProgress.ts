@@ -8,28 +8,12 @@
  * - 答案记录管理
  * - 完成状态检测
  * - sessionStorage 完成记录（关闭标签页后清除）
- *
- * 使用方式：
- * const {
- *   currentIndex,
- *   completedCount,
- *   totalQuestions,
- *   progressPercent,
- *   isCompleted,
- *   hasCompletionRecord,
- *   handleSubmit,
- *   resetProgress
- * } = useQuizProgress(totalQuestionsRef, onSubmitCallback)
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers, submitSingleAnswer, get } from '@/utils/api'
+import { submitAnswers, submitSingleAnswer } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
-import { useStudentStore } from '@/stores/student'
 
-/**
- * 答案记录类型
- */
 export interface QuizAnswer {
   questionIndex: number
   questionId?: string
@@ -39,39 +23,14 @@ export interface QuizAnswer {
   correctAnswer?: string | number | (string | number)[]
 }
 
-/**
- * useQuizProgress 返回类型
- */
 export interface UseQuizProgressReturn {
-  /** 当前题目索引（从0开始） */
   currentIndex: Ref<number>
-
-  /** 已完成题目数量 */
   completedCount: Ref<number>
-
-  /** 总题目数量（Ref类型） */
   totalQuestions: Ref<number>
-
-  /** 完成百分比（0-100） */
   progressPercent: ComputedRef<number>
-
-  /** 是否已全部完成 */
   isCompleted: ComputedRef<boolean>
-
-  /** 是否存在完成记录（从 sessionStorage 获取） */
   hasCompletionRecord: ComputedRef<boolean>
-
-  /** 答案记录列表 */
   answers: Ref<QuizAnswer[]>
-
-  /**
-   * 提交当前题目
-   * @param answer 用户选择的答案（数字索引或字符串）
-   * @param isCorrect 是否正确（可选）
-   * @param questionId 题目ID（可选，用于后端提交）
-   * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
-   * @param correctAnswer 正确答案（可选，用于后端提交）
-   */
   handleSubmit: (
     answer: number | string,
     isCorrect?: boolean,
@@ -79,94 +38,47 @@ export interface UseQuizProgressReturn {
     module?: string,
     correctAnswer?: string | number | (string | number)[],
   ) => void
-
-  /**
-   * 重置进度到初始状态（同时清除完成记录）
-   */
   resetProgress: () => void
-
-  /**
-   * 跳转到指定题目（仅用于查看，不会标记为已完成）
-   * @param index 题目索引
-   */
   goToQuestion: (index: number) => void
-
-  /**
-   * 手动标记为已完成（用于特殊场景）
-   */
   markAsCompleted: () => void
 }
 
-/**
- * 生成唯一的 completionId
- */
 function generateCompletionId(): string {
   const timestamp = Date.now().toString(36)
   const random = Math.random().toString(36).substring(2, 9)
   return `quiz_${timestamp}_${random}`
 }
 
-/**
- * 获取 sessionStorage 中的完成记录键名
- * @param prefix 前缀标识（用于区分不同测验）
- */
 function getCompletionKey(prefix?: string): string {
   return `quiz_completion_${prefix || 'default'}`
 }
 
-/**
- * 逐题交互逻辑与进度管理 Composable
- *
- * @param totalQuestionsRef 题目总数（Ref类型，支持响应式更新）
- * @param onSubmit 提交事件回调（可选），每次提交时调用
- * @param completionKeyPrefix sessionStorage 完成记录的前缀（用于区分不同测验）
- * @returns 进度状态和控制方法
- */
 export function useQuizProgress(
   totalQuestionsRef: Ref<number>,
   onSubmit?: (questionIndex: number, answer: number | string, isCorrect?: boolean) => void,
   completionKeyPrefix?: string,
 ): UseQuizProgressReturn {
-  /** 当前题目索引（从0开始） */
   const currentIndex = ref(0)
-
-  /** 已完成题目数量 */
   const completedCount = ref(0)
-
-  /** 答案记录列表 */
   const answers = ref<QuizAnswer[]>([])
-
-  /** 提交状态列表（记录每个题目是否已提交） */
   const submittedList = ref<boolean[]>([])
 
-  /**
-   * 完成百分比（0-100）
-   */
   const progressPercent = computed(() => {
     if (totalQuestionsRef.value === 0) return 0
     const percent = (completedCount.value / totalQuestionsRef.value) * 100
     return Math.min(Math.round(percent), 100)
   })
 
-  /**
-   * 是否已全部完成
-   */
   const isCompleted = computed(() => {
     return completedCount.value >= totalQuestionsRef.value && totalQuestionsRef.value > 0
   })
 
-  /**
-   * 是否存在完成记录（从 sessionStorage 获取）
-   */
   const hasCompletionRecord = computed(() => {
     const key = getCompletionKey(completionKeyPrefix)
     const record = sessionStorage.getItem(key)
     return !!record
   })
 
-  /**
-   * 保存完成记录到 sessionStorage
-   */
   function saveCompletionRecord(): void {
     const key = getCompletionKey(completionKeyPrefix)
     const record = {
@@ -179,47 +91,25 @@ export function useQuizProgress(
     console.log(`[useQuizProgress] 完成记录已保存:`, record)
   }
 
-  /**
-   * 清除 sessionStorage 中的完成记录
-   */
   function clearCompletionRecord(): void {
     const key = getCompletionKey(completionKeyPrefix)
     sessionStorage.removeItem(key)
     console.log(`[useQuizProgress] 完成记录已清除`)
   }
 
-  /**
-   * 获取学生信息
-   */
-  async function getStudentInfo(): Promise<{ studentId: string; studentName: string }> {
+  function getStudentInfo(): { studentId: string; studentName: string } {
     const authStore = useAuthStore()
-    let studentId = ''
-    let studentName = ''
 
-    if (authStore.isLoggedIn && authStore.user) {
-      studentId = authStore.user.studentId
-      studentName = authStore.user.username
-    } else {
-      const studentStore = useStudentStore()
-      studentId = studentStore.studentId
-      if (studentId) {
-        try {
-          const response = await get(`/api/students/${studentId}`)
-          if (response.success && response.data) {
-            studentName = response.data.name || ''
-          }
-        } catch (error) {
-          console.warn('[useQuizProgress] 获取学生姓名失败:', error)
-        }
-      }
+    if (!authStore.isLoggedIn || !authStore.user) {
+      return { studentId: '', studentName: '' }
     }
 
-    return { studentId, studentName }
+    return {
+      studentId: authStore.user.studentId,
+      studentName: authStore.user.username,
+    }
   }
 
-  /**
-   * 提交单题答案到后端（每次答题后立即提交）
-   */
   async function submitSingleAnswerToBackend(answer: QuizAnswer): Promise<void> {
     if (!completionKeyPrefix) {
       console.log(`[useQuizProgress] submitSingleAnswerToBackend - 无需提交`)
@@ -227,7 +117,7 @@ export function useQuizProgress(
     }
 
     try {
-      const { studentId, studentName } = await getStudentInfo()
+      const { studentId, studentName } = getStudentInfo()
 
       if (!studentId) {
         console.warn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
@@ -257,9 +147,6 @@ export function useQuizProgress(
     }
   }
 
-  /**
-   * 提交全部答案到后端（兼容旧逻辑，全部完成后提交汇总）
-   */
   async function submitAnswersToBackend(): Promise<void> {
     if (!completionKeyPrefix || answers.value.length === 0) {
       console.log(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
@@ -267,7 +154,7 @@ export function useQuizProgress(
     }
 
     try {
-      const { studentId, studentName } = await getStudentInfo()
+      const { studentId, studentName } = getStudentInfo()
 
       if (!studentId) {
         console.warn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
@@ -306,15 +193,6 @@ export function useQuizProgress(
     }
   }
 
-  /**
-   * 提交当前题目
-   *
-   * @param answer 用户选择的答案（数字索引或字符串）
-   * @param isCorrect 是否正确（可选）
-   * @param questionId 题目ID（可选，用于后端提交）
-   * @param module 模块标识（可选，B表示steptwo，C表示stepthree）
-   * @param correctAnswer 正确答案（可选，用于后端提交）
-   */
   async function handleSubmit(
     answer: number | string,
     isCorrect?: boolean,
@@ -325,13 +203,11 @@ export function useQuizProgress(
     const prevCurrentIndex = currentIndex.value
     const prevCompletedCount = completedCount.value
 
-    // 检查是否已全部完成
     if (isCompleted.value) {
       console.log(`[useQuizProgress] handleSubmit - 已全部完成，跳过提交`)
       return
     }
 
-    // 记录答案（包含 questionId 和 module）
     const existingIndex = answers.value.findIndex((a) => a.questionIndex === currentIndex.value)
     const answerRecord: QuizAnswer = {
       questionIndex: currentIndex.value,
@@ -343,33 +219,26 @@ export function useQuizProgress(
     }
 
     if (existingIndex >= 0) {
-      // 更新已有答案
       answers.value[existingIndex] = answerRecord
     } else {
-      // 添加新答案
       answers.value.push(answerRecord)
     }
 
-    // 增加已完成计数（仅在首次提交时）
     if (!submittedList.value[currentIndex.value]) {
       submittedList.value[currentIndex.value] = true
       completedCount.value++
     }
 
-    // 调用外部回调
     if (onSubmit) {
       onSubmit(currentIndex.value, answer, isCorrect)
     }
 
-    // 每次答题后立即提交单题到后端（包含时间戳）
     await submitSingleAnswerToBackend(answerRecord)
 
-    // 检查是否全部完成，如果是则保存完成记录
     if (isCompleted.value) {
       saveCompletionRecord()
     }
 
-    // 自动解锁下一题（如果有下一题）
     if (currentIndex.value < totalQuestionsRef.value - 1) {
       currentIndex.value++
     }
@@ -388,26 +257,18 @@ export function useQuizProgress(
     })
   }
 
-  /**
-   * 手动标记为已完成（用于特殊场景）
-   */
   function markAsCompleted(): void {
     saveCompletionRecord()
     console.log(`[useQuizProgress] markAsCompleted - 手动标记完成`)
   }
 
-  /**
-   * 重置进度到初始状态（同时清除完成记录）
-   */
   function resetProgress(): void {
     const prevCurrentIndex = currentIndex.value
     const prevCompletedCount = completedCount.value
     const prevAnswerCount = answers.value.length
 
-    // 清除完成记录
     clearCompletionRecord()
 
-    // 重置状态
     currentIndex.value = 0
     completedCount.value = 0
     answers.value = []
@@ -424,11 +285,6 @@ export function useQuizProgress(
     })
   }
 
-  /**
-   * 跳转到指定题目（仅用于查看，不会标记为已完成）
-   *
-   * @param index 题目索引（0-based）
-   */
   function goToQuestion(index: number): void {
     const prevIndex = currentIndex.value
 
@@ -448,9 +304,6 @@ export function useQuizProgress(
     }
   }
 
-  /**
-   * 监听题目总数变化，自动初始化提交状态列表
-   */
   watch(
     totalQuestionsRef,
     (newVal, oldVal) => {
@@ -460,10 +313,8 @@ export function useQuizProgress(
         newValue: newVal,
       })
 
-      // 初始化提交状态列表
       submittedList.value = Array.from({ length: newVal }, () => false)
 
-      // 仅当题目总数变为0时重置进度，避免数据加载时误清除答案
       if (newVal === 0) {
         resetProgress()
       }

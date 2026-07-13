@@ -7,7 +7,7 @@
 <template>
   <div class="block-renderer" :class="`block-type-${block.type}`" v-if="show">
     <!-- 针对 quiz 类型，透传事件 -->
-    <AdaptQuiz
+    <BlockQuiz
       v-if="block.type === 'quiz'"
       v-bind="block.data"
       @quiz-submitted="$emit('quiz-submitted')"
@@ -27,7 +27,7 @@ import type { PageBlock } from '@/types/pageConfig'
 // 业务组件导入
 import DialogueCard from './DialogueCard.vue'
 import DialogText from './DialogText.vue'
-import AdaptQuiz from './AdaptQuiz.vue'
+import BlockQuiz from './BlockQuiz.vue'
 import WordList from './WordList.vue'
 import MultiRoleReading from './MultiRoleReading.vue'
 import VideoPlayer from './VideoPlayer.vue'
@@ -40,8 +40,8 @@ const componentMap: Record<string, any> = {
   // 对话文本块（旧版）- 使用DialogText组件
   dialog: DialogText,
 
-  // 测验块 - 使用AdaptQuiz组件
-  quiz: AdaptQuiz,
+  // 测验块 - 使用BlockQuiz组件
+  quiz: BlockQuiz,
 
   // 字词注释块 - 使用WordList组件
   wordlist: WordList,

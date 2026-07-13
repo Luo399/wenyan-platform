@@ -89,9 +89,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { submitAnswers as submitAnswersApi, get } from '@/utils/api'
-import { useAuthStore } from '@/stores/auth'
-import { useStudentStore } from '@/stores/student'
+import { useStudentInfo } from '@/composables/useStudentInfo'
+import { submitAnswers as submitAnswersApi } from '@/utils/api'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
@@ -153,6 +152,8 @@ const {
 const selectedAnswers = ref<(number | null)[]>([])
 const submitted = ref<boolean[]>([])
 const showResult = ref(false)
+
+const { studentId, getStudentName } = useStudentInfo()
 
 function initState() {
   const data = quizList.value
@@ -231,40 +232,6 @@ function submitAnswers() {
 }
 
 /**
- * 获取学生ID（优先从authStore，其次从studentStore）
- */
-function getStudentId(): string {
-  const authStore = useAuthStore()
-  if (authStore.isLoggedIn && authStore.user) {
-    return authStore.user.studentId
-  }
-  const studentStore = useStudentStore()
-  return studentStore.studentId
-}
-
-/**
- * 异步获取学生姓名
- */
-async function getStudentName(): Promise<string> {
-  const authStore = useAuthStore()
-  if (authStore.isLoggedIn && authStore.user) {
-    return authStore.user.username
-  }
-  const studentId = getStudentId()
-  if (studentId) {
-    try {
-      const response = await get(`/api/students/${studentId}`)
-      if (response.success && response.data) {
-        return response.data.name || ''
-      }
-    } catch (error) {
-      console.warn('[Level1Quiz] 获取学生姓名失败:', error)
-    }
-  }
-  return ''
-}
-
-/**
  * 保存答题数据到本地存储
  */
 function saveToLocal(answers: Record<number, number>, studentId: string, studentName: string) {
@@ -337,8 +304,8 @@ function downloadReport(report: any, studentId: string, studentName: string) {
  * 提交答题数据到后端（同时保存本地）
  */
 async function submitToBackend(answers: Record<number, number>) {
-  const studentId = getStudentId()
-  if (!studentId) {
+  const id = studentId.value
+  if (!id) {
     console.warn('[Level1Quiz] 未登录，跳过后端提交')
     return
   }
@@ -348,10 +315,10 @@ async function submitToBackend(answers: Record<number, number>) {
     return
   }
 
-  const studentName = await getStudentName()
+  const name = await getStudentName()
 
   // 先保存到本地（确保数据不丢失）
-  const localReport = saveToLocal(answers, studentId, studentName)
+  const localReport = saveToLocal(answers, id, name)
 
   try {
     // 构建题目信息（包含正确答案和题目ID）
@@ -374,16 +341,11 @@ async function submitToBackend(answers: Record<number, number>) {
       answers: answerMap,
       questions,
       wenId: props.wenId,
-      studentId,
-      studentName,
+      studentId: id,
+      studentName: name,
     })
 
-    const result = await submitAnswersApi(
-      { answers: answerMap, questions },
-      props.wenId,
-      studentId,
-      studentName,
-    )
+    const result = await submitAnswersApi({ answers: answerMap, questions }, props.wenId, id, name)
 
     console.log('[Level1Quiz] 答题数据已成功提交到后端:', result)
   } catch (error) {

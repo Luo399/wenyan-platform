@@ -92,9 +92,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { submitSingleAnswer, get } from '@/utils/api'
-import { useAuthStore } from '@/stores/auth'
-import { useStudentStore } from '@/stores/student'
+import { useStudentInfo } from '@/composables/useStudentInfo'
+import { submitSingleAnswer } from '@/utils/api'
+import type { QuizItem } from '@/adapters/quizAdapter'
 import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
 import type { ProcessedLevel2QuizItem, RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
 import type { ProcessedLevel3QuizItem, RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
@@ -102,25 +102,8 @@ import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapt
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
 
-type QuizItem = ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem
-
 interface Props {
-  text_id?: string
-  question_id?: string
-  module?: string
-  question_number?: number
-  question_text?: string
-  option_a?: string
-  option_b?: string
-  option_c?: string
-  option_d?: string
-  audio_file?: string
-  difficulty?: string
-  pre_dialog?: string
-  correct_answer?: number | string
-  explanation?: string
-  question_type?: string
-
+  quizzes?: QuizItem[]
   textId?: string
   level?: 'level1' | 'level2' | 'level3'
   questionNumber?: number
@@ -153,70 +136,24 @@ const emit = defineEmits<{
 
 const isLoading = ref(false)
 const error = ref<string | null>(null)
-const quizzes = ref<QuizItem[]>([])
+const quizzes = ref<QuizItem[]>(props.quizzes || [])
 const currentIndex = ref(0)
 const selectedAnswer = ref<string>('')
 const showResult = ref(false)
 const submitted = ref(false)
 const results = ref<{ quiz: QuizItem; answer: string; isCorrect: boolean }[]>([])
 
-// 检测是否为Block模式数据（通过下划线属性判断）
-const isBlockMode = computed(() => {
-  return props.question_text !== undefined || props.question_number !== undefined
-})
-
-// 从props转换为QuizItem格式
-const quizFromProps = computed<QuizItem | null>(() => {
-  if (!isBlockMode.value) return null
-
-  let correctAnswer: number | string | null = null
-  if (props.correct_answer !== undefined && props.correct_answer !== null) {
-    correctAnswer = props.correct_answer
-  }
-
-  return {
-    textId: props.text_id || props.textId || '',
-    questionId: props.question_id || '',
-    module: props.module || '',
-    questionNumber:
-      typeof props.question_number === 'number'
-        ? props.question_number
-        : parseInt(String(props.question_number)) || 1,
-    questionText: props.question_text || '',
-    options: [
-      { label: 'A', value: props.option_a || '' },
-      { label: 'B', value: props.option_b || '' },
-      { label: 'C', value: props.option_c || '' },
-      { label: 'D', value: props.option_d || '' },
-    ].filter((opt) => opt.value.trim() !== ''),
-    audioFile: props.audio_file || null,
-    difficulty: props.difficulty || 'L2',
-    correctAnswer,
-    explanation: props.explanation || '',
-    questionType: props.question_type || 'radio',
-  } as QuizItem
-})
-
 const hasContent = computed(() => {
-  // Block模式：直接使用props数据
-  if (isBlockMode.value && quizFromProps.value) {
-    return true
-  }
-  // 传统模式：从quizzes数组获取
   return quizzes.value.length > 0 && !error.value && !isLoading.value
 })
 
+const { studentId, getStudentName } = useStudentInfo()
+
 const currentQuiz = computed(() => {
-  // Block模式：直接返回props数据
-  if (isBlockMode.value && quizFromProps.value) {
-    return quizFromProps.value
-  }
-  // 传统模式：从数组获取
   return quizzes.value[currentIndex.value]
 })
 
 const hasNext = computed(() => {
-  if (isBlockMode.value) return false
   return currentIndex.value < quizzes.value.length - 1
 })
 
@@ -238,8 +175,7 @@ function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined
 }
 
 async function loadData() {
-  // Block模式：直接使用props数据，不需要加载
-  if (isBlockMode.value) {
+  if (props.quizzes && props.quizzes.length > 0) {
     return
   }
 
@@ -250,26 +186,70 @@ async function loadData() {
 
   try {
     const url = `/data/${props.level}_quiz/${props.textId}.json`
+    const loader = useDataLoader<RawLevel1QuizItem[] | RawLevel2QuizItem[] | RawLevel3QuizItem[]>(
+      () => url,
+    )
 
+    await new Promise<void>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('数据加载超时'))
+      }, 30000)
+
+      if (loader.data.value !== null) {
+        clearTimeout(timeoutId)
+        resolve()
+        return
+      }
+
+      if (loader.error.value !== null) {
+        clearTimeout(timeoutId)
+        resolve()
+        return
+      }
+
+      const unwatchData = watch(
+        () => loader.data.value,
+        (data) => {
+          if (data !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            resolve()
+          }
+        },
+      )
+
+      const unwatchError = watch(
+        () => loader.error.value,
+        (err) => {
+          if (err !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            resolve()
+          }
+        },
+      )
+    })
+
+    if (loader.error.value) throw new Error(`数据加载失败: ${loader.error.value}`)
+
+    let adaptedData: QuizItem[]
     if (props.level === 'level1') {
-      const { data: rawData, error: loadError } = useDataLoader<RawLevel1QuizItem[]>(() => url)
-      if (loadError.value) throw new Error(`数据加载失败: ${loadError.value}`)
-      if (rawData.value) {
-        quizzes.value = getAllLevel1Quizzes(adaptLevel1Quiz(rawData.value)) as QuizItem[]
-      }
+      adaptedData = getAllLevel1Quizzes(
+        adaptLevel1Quiz(loader.data.value as RawLevel1QuizItem[]),
+      ) as QuizItem[]
     } else if (props.level === 'level2') {
-      const { data: rawData, error: loadError } = useDataLoader<RawLevel2QuizItem[]>(() => url)
-      if (loadError.value) throw new Error(`数据加载失败: ${loadError.value}`)
-      if (rawData.value) {
-        quizzes.value = getAllLevel2Quizzes(adaptLevel2Quiz(rawData.value)) as QuizItem[]
-      }
+      adaptedData = getAllLevel2Quizzes(
+        adaptLevel2Quiz(loader.data.value as RawLevel2QuizItem[]),
+      ) as QuizItem[]
     } else {
-      const { data: rawData, error: loadError } = useDataLoader<RawLevel3QuizItem[]>(() => url)
-      if (loadError.value) throw new Error(`数据加载失败: ${loadError.value}`)
-      if (rawData.value) {
-        quizzes.value = getAllLevel3Quizzes(adaptLevel3Quiz(rawData.value)) as QuizItem[]
-      }
+      adaptedData = getAllLevel3Quizzes(
+        adaptLevel3Quiz(loader.data.value as RawLevel3QuizItem[]),
+      ) as QuizItem[]
     }
+
+    quizzes.value = adaptedData
 
     if (quizzes.value.length === 0) {
       error.value = '未找到题目数据'
@@ -312,47 +292,9 @@ function submitAnswer() {
   )
   emit('quiz-submitted')
 
-  // 自动提交到后端
   submitToBackend(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer)
 }
 
-/**
- * 获取学生ID
- */
-function getStudentId(): string {
-  const authStore = useAuthStore()
-  if (authStore.isLoggedIn && authStore.user) {
-    return authStore.user.studentId
-  }
-  const studentStore = useStudentStore()
-  return studentStore.studentId
-}
-
-/**
- * 异步获取学生姓名
- */
-async function getStudentName(): Promise<string> {
-  const authStore = useAuthStore()
-  if (authStore.isLoggedIn && authStore.user) {
-    return authStore.user.username
-  }
-  const studentId = getStudentId()
-  if (studentId) {
-    try {
-      const response = await get(`/api/students/${studentId}`)
-      if (response.success && response.data) {
-        return response.data.name || ''
-      }
-    } catch (error) {
-      console.warn('[AdaptQuiz] 获取学生姓名失败:', error)
-    }
-  }
-  return ''
-}
-
-/**
- * 保存单题答题数据到本地存储
- */
 function saveToLocal(
   quiz: QuizItem,
   userAnswer: string,
@@ -383,7 +325,6 @@ function saveToLocal(
     submittedAt,
   }
 
-  // 保存到 localStorage
   const storageKey = `quiz_records_${studentId}`
   const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
   existingRecords.push(record)
@@ -391,15 +332,11 @@ function saveToLocal(
 
   console.log('[AdaptQuiz] 答题数据已保存到本地:', record)
 
-  // 自动下载报告
   downloadSingleReport(record, studentId, studentName)
 
   return record
 }
 
-/**
- * 下载单题答题报告
- */
 function downloadSingleReport(record: any, studentId: string, studentName: string) {
   const wenId = record.wenId || props.textId
   const filename = `答题记录_${studentId}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
@@ -413,24 +350,20 @@ function downloadSingleReport(record: any, studentId: string, studentName: strin
   console.log('[AdaptQuiz] 报告已下载:', filename)
 }
 
-/**
- * 提交单题答题数据到后端（同时保存本地）
- */
 async function submitToBackend(
   quiz: QuizItem,
   userAnswer: string,
   correctAnswer: string | number | (string | number)[] | null | undefined,
 ) {
-  const studentId = getStudentId()
-  if (!studentId) {
+  const id = studentId.value
+  if (!id) {
     console.warn('[AdaptQuiz] 未登录，跳过后端提交')
     return
   }
 
-  const studentName = await getStudentName()
+  const name = await getStudentName()
 
-  // 先保存到本地（确保数据不丢失）
-  const localRecord = saveToLocal(quiz, userAnswer, correctAnswer, studentId, studentName)
+  const localRecord = saveToLocal(quiz, userAnswer, correctAnswer, id, name)
 
   try {
     const wenId = quiz.textId || props.textId
@@ -439,8 +372,8 @@ async function submitToBackend(
       `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
 
     console.log('[AdaptQuiz] 提交答题数据到后端:', {
-      studentId,
-      studentName,
+      studentId: id,
+      studentName: name,
       wenId,
       questionId,
       userAnswer,
@@ -448,8 +381,8 @@ async function submitToBackend(
     })
 
     const result = await submitSingleAnswer({
-      studentId,
-      studentName,
+      studentId: id,
+      studentName: name,
       wenId,
       questionId,
       userAnswer,

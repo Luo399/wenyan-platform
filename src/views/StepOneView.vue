@@ -63,9 +63,8 @@ import Level1Quiz from '@/components/Level1Quiz.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
-import { submitAnswers, get } from '@/utils/api'
-import { useAuthStore } from '@/stores/auth'
-import { useStudentStore } from '@/stores/student'
+import { useStudentInfo } from '@/composables/useStudentInfo'
+import { submitAnswers } from '@/utils/api'
 import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
 
 interface Level1QuizItem {
@@ -115,47 +114,15 @@ const isSubmitting = ref(false)
 // 使用导航composable（新版，需要传入router）
 const { goNext, goPrev } = useNavigation('stepone', poemId)
 
-/**
- * 获取学生ID（优先从authStore，其次从studentStore）
- */
-function getStudentId(): string {
-  const authStore = useAuthStore()
-  if (authStore.isLoggedIn && authStore.user) {
-    return authStore.user.studentId
-  }
-  const studentStore = useStudentStore()
-  return studentStore.studentId
-}
-
-/**
- * 获取学生姓名
- */
-async function getStudentName(): Promise<string> {
-  const authStore = useAuthStore()
-  if (authStore.isLoggedIn && authStore.user) {
-    return authStore.user.username
-  }
-  const studentId = getStudentId()
-  if (studentId) {
-    try {
-      const response = await get(`/api/students/${studentId}`)
-      if (response.success && response.data) {
-        return response.data.name || ''
-      }
-    } catch (error) {
-      console.warn('[StepOneView] 获取学生姓名失败:', error)
-    }
-  }
-  return ''
-}
+const { studentId, getStudentName } = useStudentInfo()
 
 /**
  * 提交答案到后端
  */
 async function submitAnswersToBackend(answers: Record<number, number>) {
   console.log('[StepOneView] submitAnswersToBackend 收到 answers:', answers)
-  const studentId = getStudentId()
-  if (!studentId) {
+  const id = studentId.value
+  if (!id) {
     console.warn('[StepOneView] 未登录，跳过后端提交')
     return
   }
@@ -184,23 +151,18 @@ async function submitAnswersToBackend(answers: Record<number, number>) {
       }
     })
 
-    const studentName = await getStudentName()
+    const name = await getStudentName()
 
     console.log('[StepOneView] 准备调用后端 submitAnswers, payload:', {
       answers: answerMap,
       questions,
       wenId: wenId.value,
-      studentId,
-      studentName,
+      studentId: id,
+      studentName: name,
     })
 
     // 提交到后端
-    const result = await submitAnswers(
-      { answers: answerMap, questions },
-      wenId.value,
-      studentId,
-      studentName,
-    )
+    const result = await submitAnswers({ answers: answerMap, questions }, wenId.value, id, name)
 
     console.log('[StepOneView] 答题数据已成功提交到后端, 结果:', result)
   } catch (error) {

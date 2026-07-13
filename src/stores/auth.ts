@@ -176,7 +176,6 @@ export const useAuthStore = defineStore('auth', () => {
   function clearAuthData(): void {
     user.value = null
     token.value = null
-    error.value = null
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
   }

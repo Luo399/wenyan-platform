@@ -24,6 +24,7 @@
   "dependencies": {
     "@videojs-player/vue": "^1.0.0",
     "@vitejs/plugin-legacy": "^8.0.2",
+    "docx": "^9.7.1",
     "dotenv": "^17.4.2",
     "pinia": "^3.0.4",
     "video.js": "^7.21.7",

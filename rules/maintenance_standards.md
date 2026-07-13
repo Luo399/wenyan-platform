@@ -200,6 +200,7 @@ python data_validator.py
 | **开发分支** | `develop` | 集成开发 | 永久 |
 | **功能分支** | `feature/xxx` | 新功能开发 | 临时 |
 | **修复分支** | `bugfix/xxx` | Bug修复 | 临时 |
+| **重构分支** | `refactor/xxx` | 代码重构 | 临时 |
 | **发布分支** | `release/xxx` | 发布准备 | 临时 |
 | **热修复分支** | `hotfix/xxx` | 线上紧急修复 | 临时 |
 
@@ -251,6 +252,24 @@ v<major>.<minor>.<patch>
 | **major** | 重大变更 | 不兼容升级 |
 | **minor** | 新功能 | 向后兼容的功能新增 |
 | **patch** | Bug修复 | 向后兼容的问题修复 |
+
+#### 4.4.5 重构分支管理规范
+
+**分支创建要求：**
+- 每次重构洞察的修改必须在当前分支基础上拉取新分支
+- 分支命名格式：`refactor/<重构标题-slug>`，使用小写字母和连字符
+- 示例：`refactor/student-info-unification`
+
+**单元测试要求：**
+- 每次重构必须配备相应单元测试，覆盖核心功能
+- 单元测试文件路径规范：
+  - Composables: `tests/composables/<composable-name>.spec.ts`
+  - Components: `tests/components/<component-name>.spec.ts`
+
+**合并前检查：**
+- 重构分支合并前必须通过所有现有测试
+- 运行 `npm test` 确保测试全部通过
+- 代码审查完成后才能合并
 
 ---
 

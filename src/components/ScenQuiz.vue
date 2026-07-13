@@ -79,6 +79,7 @@ import type { ProcessedScenarioText, RawScenarioText } from '@/adapters/scenario
 import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
 import type { ProcessedLevel2QuizItem, RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
 import type { ProcessedLevel3QuizItem, RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
+import type { QuizItem } from '@/adapters/quizAdapter'
 
 interface Props {
   textId?: string
@@ -158,53 +159,145 @@ async function loadData() {
   }
 }
 
-async function loadScenarios() {
+async function loadScenarios(): Promise<void> {
   const url = `/data/level3_scenario_text/${props.textId}.json`
-  const { data: rawData, error: loadError } = useDataLoader<RawScenarioText[]>(() => url)
+  const loader = useDataLoader<RawScenarioText[]>(() => url)
 
-  if (loadError.value) {
-    throw new Error(`情景数据加载失败: ${loadError.value}`)
-  }
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('情景数据加载超时'))
+    }, 30000)
 
-  if (rawData.value) {
-    scenarios.value = getAllScenarios(adaptScenarioText(rawData.value))
-  }
+    const unwatchData = watch(
+      () => loader.data.value,
+      (data) => {
+        if (data !== null) {
+          clearTimeout(timeoutId)
+          unwatchData()
+          unwatchError()
+          scenarios.value = getAllScenarios(adaptScenarioText(data))
+          resolve()
+        }
+      },
+    )
+
+    const unwatchError = watch(
+      () => loader.error.value,
+      (err) => {
+        if (err !== null) {
+          clearTimeout(timeoutId)
+          unwatchData()
+          unwatchError()
+          reject(new Error(`情景数据加载失败: ${err}`))
+        }
+      },
+    )
+  })
 }
 
-async function loadQuizzes() {
+async function loadQuizzes(): Promise<void> {
   const url = `/data/${props.quizLevel}_quiz/${props.textId}.json`
 
-  if (props.quizLevel === 'level1') {
-    const { data: rawData, error: loadError } = useDataLoader<RawLevel1QuizItem[]>(() => url)
-    if (loadError.value) throw new Error(`题目数据加载失败: ${loadError.value}`)
-    if (rawData.value) {
-      quizzes.value = getAllLevel1Quizzes(adaptLevel1Quiz(rawData.value)) as (
-        | ProcessedLevel1QuizItem
-        | ProcessedLevel2QuizItem
-        | ProcessedLevel3QuizItem
-      )[]
+  await new Promise<void>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error('题目数据加载超时'))
+    }, 30000)
+
+    if (props.quizLevel === 'level1') {
+      const loader = useDataLoader<RawLevel1QuizItem[]>(() => url)
+
+      const unwatchData = watch(
+        () => loader.data.value,
+        (data) => {
+          if (data !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            quizzes.value = getAllLevel1Quizzes(adaptLevel1Quiz(data)) as (
+              | ProcessedLevel1QuizItem
+              | ProcessedLevel2QuizItem
+              | ProcessedLevel3QuizItem
+            )[]
+            resolve()
+          }
+        },
+      )
+
+      const unwatchError = watch(
+        () => loader.error.value,
+        (err) => {
+          if (err !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            reject(new Error(`题目数据加载失败: ${err}`))
+          }
+        },
+      )
+    } else if (props.quizLevel === 'level2') {
+      const loader = useDataLoader<RawLevel2QuizItem[]>(() => url)
+
+      const unwatchData = watch(
+        () => loader.data.value,
+        (data) => {
+          if (data !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            quizzes.value = getAllLevel2Quizzes(adaptLevel2Quiz(data)) as (
+              | ProcessedLevel1QuizItem
+              | ProcessedLevel2QuizItem
+              | ProcessedLevel3QuizItem
+            )[]
+            resolve()
+          }
+        },
+      )
+
+      const unwatchError = watch(
+        () => loader.error.value,
+        (err) => {
+          if (err !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            reject(new Error(`题目数据加载失败: ${err}`))
+          }
+        },
+      )
+    } else {
+      const loader = useDataLoader<RawLevel3QuizItem[]>(() => url)
+
+      const unwatchData = watch(
+        () => loader.data.value,
+        (data) => {
+          if (data !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            quizzes.value = getAllLevel3Quizzes(adaptLevel3Quiz(data)) as (
+              | ProcessedLevel1QuizItem
+              | ProcessedLevel2QuizItem
+              | ProcessedLevel3QuizItem
+            )[]
+            resolve()
+          }
+        },
+      )
+
+      const unwatchError = watch(
+        () => loader.error.value,
+        (err) => {
+          if (err !== null) {
+            clearTimeout(timeoutId)
+            unwatchData()
+            unwatchError()
+            reject(new Error(`题目数据加载失败: ${err}`))
+          }
+        },
+      )
     }
-  } else if (props.quizLevel === 'level2') {
-    const { data: rawData, error: loadError } = useDataLoader<RawLevel2QuizItem[]>(() => url)
-    if (loadError.value) throw new Error(`题目数据加载失败: ${loadError.value}`)
-    if (rawData.value) {
-      quizzes.value = getAllLevel2Quizzes(adaptLevel2Quiz(rawData.value)) as (
-        | ProcessedLevel1QuizItem
-        | ProcessedLevel2QuizItem
-        | ProcessedLevel3QuizItem
-      )[]
-    }
-  } else {
-    const { data: rawData, error: loadError } = useDataLoader<RawLevel3QuizItem[]>(() => url)
-    if (loadError.value) throw new Error(`题目数据加载失败: ${loadError.value}`)
-    if (rawData.value) {
-      quizzes.value = getAllLevel3Quizzes(adaptLevel3Quiz(rawData.value)) as (
-        | ProcessedLevel1QuizItem
-        | ProcessedLevel2QuizItem
-        | ProcessedLevel3QuizItem
-      )[]
-    }
-  }
+  })
 }
 
 function selectQuestion(questionNumber: number) {
@@ -220,7 +313,7 @@ function handleScenarioError(err: string) {
 }
 
 function handleAnswer(
-  quiz: ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem,
+  quiz: QuizItem,
   answer: string,
   isCorrect: boolean,
 ) {
@@ -229,7 +322,7 @@ function handleAnswer(
 
 function handleComplete(
   results: {
-    quiz: ProcessedLevel1QuizItem | ProcessedLevel2QuizItem | ProcessedLevel3QuizItem
+    quiz: QuizItem
     answer: string
     isCorrect: boolean
   }[],

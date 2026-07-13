@@ -10,6 +10,7 @@
 | 开发分支 | `develop` | 集成开发 | 永久 | - |
 | 功能分支 | `feature/xxx` | 新功能开发 | 临时 | `feature/add-wordlist-cache` |
 | 修复分支 | `bugfix/xxx` | bug修复 | 临时 | `bugfix/fix-wordlist-encoding` |
+| 重构分支 | `refactor/xxx` | 代码重构 | 临时 | `refactor/student-info-unification` |
 | 发布分支 | `release/xxx` | 发布准备 | 临时 | `release/v1.0.0` |
 | 热修复分支 | `hotfix/xxx` | 线上紧急修复 | 临时 | `hotfix/emergency-audio-load` |
 
@@ -302,6 +303,32 @@ git merge --no-ff hotfix/emergency-audio-load
 git branch -d hotfix/emergency-audio-load
 git push origin develop
 ```
+
+### 6.4 代码重构
+
+```bash
+# 在当前分支基础上创建重构分支
+git checkout <当前分支>
+git pull origin <当前分支>
+git checkout -b refactor/<重构标题-slug>
+
+# 重构完成后，确保所有测试通过
+npm test
+
+# 合并到目标分支
+git checkout <目标分支>
+git merge --no-ff refactor/<重构标题-slug>
+git branch -d refactor/<重构标题-slug>
+git push origin <目标分支>
+```
+
+**重构分支要求：**
+- 分支命名格式：`refactor/<重构标题-slug>`，使用小写字母和连字符
+- 每次重构必须配备相应单元测试
+- 单元测试文件路径：
+  - Composables: `tests/composables/<composable-name>.spec.ts`
+  - Components: `tests/components/<component-name>.spec.ts`
+- 重构分支合并前必须通过所有现有测试
 
 ## 7. 项目特定规范
 

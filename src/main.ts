@@ -21,11 +21,6 @@ import { useAuthStore } from './stores/auth'
 const authStore = useAuthStore(pinia)
 authStore.initialize()
 
-// 从 localStorage 恢复学号（旧版，保持兼容）
-import { useStudentStore } from './stores/student'
-const studentStore = useStudentStore(pinia)
-studentStore.restoreFromStorage()
-
 // 启动 mock 服务（仅开发环境）
 import { startMockService } from './mock/setup'
 startMockService().catch(console.error)

@@ -2,9 +2,9 @@
   StudentLogin.vue - 学生学号输入组件
 
   功能说明：
-  - 提供学号输入框，要求4位数字
+  - 提供学号输入框，要求非空输入
   - 验证输入合法性
-  - 保存学号到 Pinia Store
+  - 调用登录API进行认证
 -->
 <template>
   <div class="student-login">
@@ -19,7 +19,10 @@
         @keyup.enter="handleSubmit"
         :class="{ error: hasError }"
       />
-      <button @click="handleSubmit" :disabled="!isValid">确认</button>
+      <button @click="handleSubmit" :disabled="!isValid || isLoading">
+        <span v-if="isLoading" class="spinner"></span>
+        {{ isLoading ? '登录中...' : '确认' }}
+      </button>
     </div>
 
     <p v-if="hasError" class="error-message">学号不能为空</p>
@@ -28,44 +31,36 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useStudentStore } from '@/stores/student'
+import { useAuthStore } from '@/stores/auth'
 
-const studentStore = useStudentStore()
+const authStore = useAuthStore()
 
-// 输入的学号
 const inputId = ref('')
-// 是否有错误
 const hasError = ref(false)
+const isLoading = ref(false)
 
-/**
- * 验证输入是否非空（新逻辑：支持任意格式的学号）
- *
- * 旧逻辑（已注释）：
- * - 要求4位数字：/^\d{4}$/.test(inputId.value)
- *
- * 新逻辑：
- * - 只要非空即可，具体验证由后端处理
- */
 const isValid = computed(() => {
-  // 新逻辑：学号非空即可
   return inputId.value.trim().length > 0
 })
 
-/**
- * 提交学号
- */
-function handleSubmit() {
-  // 验证格式
+async function handleSubmit() {
   if (!isValid.value) {
     hasError.value = true
     return
   }
 
   hasError.value = false
-  // 保存到 Store（新逻辑：直接保存，不限制格式）
-  studentStore.setStudentId(inputId.value.trim())
-  // 清空输入
-  inputId.value = ''
+  isLoading.value = true
+
+  try {
+    await authStore.login(inputId.value.trim())
+    inputId.value = ''
+  } catch (error) {
+    hasError.value = true
+    console.error('[StudentLogin] 登录失败:', error)
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -121,6 +116,9 @@ function handleSubmit() {
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .input-group button:hover:not(:disabled) {
@@ -136,5 +134,20 @@ function handleSubmit() {
   color: #ef4444;
   font-size: 0.875rem;
   margin-top: 0.5rem;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

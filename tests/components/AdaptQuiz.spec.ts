@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
+import BlockQuiz from '@/components/BlockQuiz.vue'
 import AdaptQuiz from '@/components/AdaptQuiz.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 
@@ -21,7 +22,7 @@ const blockProps = {
   question_type: 'radio',
 }
 
-describe('AdaptQuiz.vue', () => {
+describe('BlockQuiz.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useDataLoader).mockReturnValue({
@@ -36,18 +37,18 @@ describe('AdaptQuiz.vue', () => {
 
   describe('基础渲染测试', () => {
     it('应该正确渲染组件', () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
       expect(wrapper.exists()).toBe(true)
       expect(wrapper.find('.adapt-quiz').exists()).toBe(true)
     })
 
     it('应该显示题目内容', () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
       expect(wrapper.text()).toContain('测试题目1')
     })
 
     it('应该显示所有选项', () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
       const optionLabels = wrapper.findAll('.option-label')
       expect(optionLabels.length).toBe(4)
       expect(optionLabels[0].text()).toBe('A')
@@ -57,12 +58,12 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('应该显示难度标签', () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
       expect(wrapper.find('.quiz-difficulty').exists()).toBe(true)
     })
 
     it('应该显示选项文本内容', () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
       expect(wrapper.text()).toContain('选项A内容')
       expect(wrapper.text()).toContain('选项B内容')
       expect(wrapper.text()).toContain('选项C内容')
@@ -72,7 +73,7 @@ describe('AdaptQuiz.vue', () => {
 
   describe('选项选择测试', () => {
     it('应该允许选择选项', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       const optionB = optionBtns[1]
@@ -83,7 +84,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('选择选项后应该显示为已选择状态', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       const optionC = optionBtns[2]
@@ -94,7 +95,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('可以切换选择的选项', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       const optionA = optionBtns[0]
@@ -109,7 +110,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('已提交后应该不能修改选择', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -129,7 +130,7 @@ describe('AdaptQuiz.vue', () => {
 
   describe('答案正确性判断测试', () => {
     it('选择正确答案应该显示correct状态', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -144,7 +145,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('选择错误答案应该显示wrong状态', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[0].trigger('click')
@@ -166,7 +167,7 @@ describe('AdaptQuiz.vue', () => {
         question_text: '测试题目',
       }
 
-      const wrapper = mount(AdaptQuiz, { props: propsWithNumericAnswer })
+      const wrapper = mount(BlockQuiz, { props: propsWithNumericAnswer })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[1].trigger('click')
@@ -184,7 +185,7 @@ describe('AdaptQuiz.vue', () => {
 
   describe('提交功能测试', () => {
     it('选择选项后应该可以提交', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       const optionB = optionBtns[1]
@@ -200,14 +201,14 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('未选择选项时提交按钮应该禁用', () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const submitBtn = wrapper.find('.submit-btn')
       expect(submitBtn.element.disabled).toBe(true)
     })
 
     it('选择选项后提交按钮应该启用', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       const optionA = optionBtns[0]
@@ -221,7 +222,7 @@ describe('AdaptQuiz.vue', () => {
 
   describe('提交状态测试', () => {
     it('已提交状态下应该显示结果', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -236,7 +237,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('已提交状态下应该显示完成按钮', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -252,7 +253,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('点击完成按钮应该发射complete事件', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -273,7 +274,7 @@ describe('AdaptQuiz.vue', () => {
 
   describe('事件发射测试', () => {
     it('提交答案时应该发射answer事件', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -289,7 +290,7 @@ describe('AdaptQuiz.vue', () => {
     })
 
     it('完成所有题目时应该发射complete事件', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
+      const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -316,7 +317,7 @@ describe('AdaptQuiz.vue', () => {
         question_text: '数字答案测试题目',
       }
 
-      const wrapper = mount(AdaptQuiz, { props: propsWithNumericAnswer })
+      const wrapper = mount(BlockQuiz, { props: propsWithNumericAnswer })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[2].trigger('click')
@@ -337,7 +338,7 @@ describe('AdaptQuiz.vue', () => {
         question_text: '零答案测试题目',
       }
 
-      const wrapper = mount(AdaptQuiz, { props: propsWithZeroAnswer })
+      const wrapper = mount(BlockQuiz, { props: propsWithZeroAnswer })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[0].trigger('click')
@@ -358,7 +359,7 @@ describe('AdaptQuiz.vue', () => {
         question_text: '1答案测试题目',
       }
 
-      const wrapper = mount(AdaptQuiz, { props: propsWithOneAnswer })
+      const wrapper = mount(BlockQuiz, { props: propsWithOneAnswer })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[1].trigger('click')
@@ -379,7 +380,7 @@ describe('AdaptQuiz.vue', () => {
         question_text: '3答案测试题目',
       }
 
-      const wrapper = mount(AdaptQuiz, { props: propsWithThreeAnswer })
+      const wrapper = mount(BlockQuiz, { props: propsWithThreeAnswer })
 
       const optionBtns = wrapper.findAll('.option-btn')
       await optionBtns[3].trigger('click')
@@ -391,6 +392,72 @@ describe('AdaptQuiz.vue', () => {
 
       const emittedAnswer = wrapper.emitted('answer')
       expect(emittedAnswer![0][2]).toBe(true)
+    })
+  })
+
+  describe('难度标签测试', () => {
+    it('应该显示L1难度标签', () => {
+      const propsWithL1 = { ...blockProps, difficulty: 'L1' }
+      const wrapper = mount(BlockQuiz, { props: propsWithL1 })
+      expect(wrapper.find('.difficulty-l1').exists()).toBe(true)
+    })
+
+    it('应该显示L2难度标签', () => {
+      const propsWithL2 = { ...blockProps, difficulty: 'L2' }
+      const wrapper = mount(BlockQuiz, { props: propsWithL2 })
+      expect(wrapper.find('.difficulty-l2').exists()).toBe(true)
+    })
+
+    it('应该显示L3难度标签', () => {
+      const propsWithL3 = { ...blockProps, difficulty: 'L3' }
+      const wrapper = mount(BlockQuiz, { props: propsWithL3 })
+      expect(wrapper.find('.difficulty-l3').exists()).toBe(true)
+    })
+  })
+
+  describe('解析内容测试', () => {
+    it('应该显示解析内容', async () => {
+      const wrapper = mount(BlockQuiz, { props: blockProps })
+
+      const optionBtns = wrapper.findAll('.option-btn')
+      await optionBtns[2].trigger('click')
+      await flushPromises()
+
+      const submitBtn = wrapper.find('.submit-btn')
+      await submitBtn.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.explanation-text').exists()).toBe(true)
+      expect(wrapper.find('.explanation-text').text()).toBe('答案解析内容')
+    })
+
+    it('没有解析内容时不应该显示解析框', async () => {
+      const propsWithoutExplanation = { ...blockProps, explanation: '' }
+      const wrapper = mount(BlockQuiz, { props: propsWithoutExplanation })
+
+      const optionBtns = wrapper.findAll('.option-btn')
+      await optionBtns[2].trigger('click')
+      await flushPromises()
+
+      const submitBtn = wrapper.find('.submit-btn')
+      await submitBtn.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('.explanation-box').exists()).toBe(false)
+    })
+  })
+})
+
+describe('AdaptQuiz.vue (传统模式)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(useDataLoader).mockReturnValue({
+      loading: ref(false),
+      error: ref<string | null>(null),
+      isTimeout: ref(false),
+      data: ref<null>(null),
+      retry: vi.fn(),
+      load: vi.fn(),
     })
   })
 
@@ -434,55 +501,35 @@ describe('AdaptQuiz.vue', () => {
     })
   })
 
-  describe('难度标签测试', () => {
-    it('应该显示L1难度标签', () => {
-      const propsWithL1 = { ...blockProps, difficulty: 'L1' }
-      const wrapper = mount(AdaptQuiz, { props: propsWithL1 })
-      expect(wrapper.find('.difficulty-l1').exists()).toBe(true)
-    })
+  describe('直接传入quizzes数据', () => {
+    it('应该正确渲染传入的题目数据', () => {
+      const mockQuizzes = [
+        {
+          textId: 'WEN_01',
+          questionId: 'WEN_01_Q1',
+          module: 'A',
+          questionNumber: 1,
+          questionText: '测试题目',
+          options: [
+            { label: 'A', value: '选项A' },
+            { label: 'B', value: '选项B' },
+            { label: 'C', value: '选项C' },
+            { label: 'D', value: '选项D' },
+          ],
+          audioFile: null,
+          difficulty: 'L2',
+          correctAnswer: 'C',
+          explanation: '解析',
+          questionType: 'radio',
+        },
+      ]
 
-    it('应该显示L2难度标签', () => {
-      const propsWithL2 = { ...blockProps, difficulty: 'L2' }
-      const wrapper = mount(AdaptQuiz, { props: propsWithL2 })
-      expect(wrapper.find('.difficulty-l2').exists()).toBe(true)
-    })
+      const wrapper = mount(AdaptQuiz, {
+        props: { quizzes: mockQuizzes },
+      })
 
-    it('应该显示L3难度标签', () => {
-      const propsWithL3 = { ...blockProps, difficulty: 'L3' }
-      const wrapper = mount(AdaptQuiz, { props: propsWithL3 })
-      expect(wrapper.find('.difficulty-l3').exists()).toBe(true)
-    })
-  })
-
-  describe('解析内容测试', () => {
-    it('应该显示解析内容', async () => {
-      const wrapper = mount(AdaptQuiz, { props: blockProps })
-
-      const optionBtns = wrapper.findAll('.option-btn')
-      await optionBtns[2].trigger('click')
-      await flushPromises()
-
-      const submitBtn = wrapper.find('.submit-btn')
-      await submitBtn.trigger('click')
-      await flushPromises()
-
-      expect(wrapper.find('.explanation-text').exists()).toBe(true)
-      expect(wrapper.find('.explanation-text').text()).toBe('答案解析内容')
-    })
-
-    it('没有解析内容时不应该显示解析框', async () => {
-      const propsWithoutExplanation = { ...blockProps, explanation: '' }
-      const wrapper = mount(AdaptQuiz, { props: propsWithoutExplanation })
-
-      const optionBtns = wrapper.findAll('.option-btn')
-      await optionBtns[2].trigger('click')
-      await flushPromises()
-
-      const submitBtn = wrapper.find('.submit-btn')
-      await submitBtn.trigger('click')
-      await flushPromises()
-
-      expect(wrapper.find('.explanation-box').exists()).toBe(false)
+      expect(wrapper.text()).toContain('测试题目')
+      expect(wrapper.text()).toContain('选项A')
     })
   })
 })

@@ -20,13 +20,11 @@
 <script setup lang="ts">
 import PoetryMenu from '@/components/PoetryMenu.vue'
 import StudentLogin from '@/components/StudentLogin.vue'
-import { useStudentStore } from '@/stores/student'
-import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { computed } from 'vue'
 
-const studentStore = useStudentStore()
-const { isLoggedIn } = storeToRefs(studentStore)
-const router = useRouter()
+const authStore = useAuthStore()
+const isLoggedIn = computed(() => authStore.isLoggedIn)
 </script>
 
 <style scoped>

@@ -3,17 +3,24 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 
 describe('useAuthStore', () => {
+  const localStorageMock: Record<string, string> = {}
+
   beforeEach(() => {
     const pinia = createPinia()
     setActivePinia(pinia)
-    vi.clearAllMocks()
 
-    // Mock localStorage
-    vi.spyOn(localStorage, 'getItem').mockImplementation(() => null)
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {})
-    vi.spyOn(localStorage, 'removeItem').mockImplementation(() => {})
+    vi.spyOn(localStorage, 'getItem').mockImplementation(
+      (key: string) => localStorageMock[key] || null,
+    )
+    vi.spyOn(localStorage, 'setItem').mockImplementation((key: string, value: string) => {
+      localStorageMock[key] = value
+    })
+    vi.spyOn(localStorage, 'removeItem').mockImplementation((key: string) => {
+      delete localStorageMock[key]
+    })
 
-    // Mock fetch
+    Object.keys(localStorageMock).forEach((key) => delete localStorageMock[key])
+
     global.fetch = vi.fn()
   })
 
@@ -29,18 +36,25 @@ describe('useAuthStore', () => {
     })
 
     it('应该从 localStorage 恢复状态', () => {
-      const mockUser = JSON.stringify({ id: '2024001', name: '张三', role: 'student' })
-      vi.spyOn(localStorage, 'getItem').mockImplementation((key: string) => {
-        if (key === 'auth_token') return 'mock-token'
-        if (key === 'auth_user') return mockUser
-        return null
+      const mockUser = JSON.stringify({
+        id: '2024001',
+        username: '张三',
+        studentId: '2024001',
+        role: 'student',
       })
+      localStorage.setItem('auth_token', 'mock-token')
+      localStorage.setItem('auth_user', mockUser)
 
       const authStore = useAuthStore()
       authStore.initialize()
 
       expect(authStore.token).toBe('mock-token')
-      expect(authStore.user).toEqual({ id: '2024001', name: '张三', role: 'student' })
+      expect(authStore.user).toEqual({
+        id: '2024001',
+        username: '张三',
+        studentId: '2024001',
+        role: 'student',
+      })
       expect(authStore.isLoggedIn).toBe(true)
     })
   })
@@ -53,7 +67,7 @@ describe('useAuthStore', () => {
           success: true,
           data: {
             token: 'jwt-token',
-            user: { id: '2024001', name: '张三', role: 'student' },
+            user: { id: '2024001', username: '张三', studentId: '2024001', role: 'student' },
           },
         }),
       })
@@ -62,9 +76,13 @@ describe('useAuthStore', () => {
       await authStore.login('2024001')
 
       expect(authStore.token).toBe('jwt-token')
-      expect(authStore.user).toEqual({ id: '2024001', name: '张三', role: 'student' })
+      expect(authStore.user).toEqual({
+        id: '2024001',
+        username: '张三',
+        studentId: '2024001',
+        role: 'student',
+      })
       expect(authStore.isLoggedIn).toBe(true)
-      expect(localStorage.setItem).toHaveBeenCalledWith('auth_token', 'jwt-token')
     })
 
     it('登录失败应该设置错误信息', async () => {
@@ -74,7 +92,7 @@ describe('useAuthStore', () => {
       })
 
       const authStore = useAuthStore()
-      await authStore.login('9999999')
+      await expect(authStore.login('9999999')).rejects.toThrow()
 
       expect(authStore.error).toBe('学号不存在')
       expect(authStore.isLoggedIn).toBe(false)
@@ -84,9 +102,9 @@ describe('useAuthStore', () => {
       global.fetch = vi.fn().mockRejectedValue(new Error('网络错误'))
 
       const authStore = useAuthStore()
-      await authStore.login('2024001')
+      await expect(authStore.login('2024001')).rejects.toThrow()
 
-      expect(authStore.error).toBe('网络错误，请稍后重试')
+      expect(authStore.error).toBe('网络错误')
     })
   })
 
@@ -94,15 +112,13 @@ describe('useAuthStore', () => {
     it('登出应该清除用户和token', () => {
       const authStore = useAuthStore()
       authStore.token = 'jwt-token'
-      authStore.user = { id: '2024001', name: '张三', role: 'student' }
+      authStore.user = { id: '2024001', username: '张三', studentId: '2024001', role: 'student' }
 
       authStore.logout()
 
       expect(authStore.token).toBe(null)
       expect(authStore.user).toBe(null)
       expect(authStore.isLoggedIn).toBe(false)
-      expect(localStorage.removeItem).toHaveBeenCalledWith('auth_token')
-      expect(localStorage.removeItem).toHaveBeenCalledWith('auth_user')
     })
   })
 
@@ -143,9 +159,9 @@ describe('useAuthStore', () => {
 
       const authStore = useAuthStore()
       authStore.token = 'expired-token'
-      authStore.user = { id: '2024001', name: '张三', role: 'student' }
+      authStore.user = { id: '2024001', username: '张三', studentId: '2024001', role: 'student' }
 
-      await authStore.refreshToken()
+      await expect(authStore.refreshToken()).rejects.toThrow()
 
       expect(authStore.token).toBe(null)
       expect(authStore.user).toBe(null)

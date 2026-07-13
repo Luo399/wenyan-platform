@@ -22,9 +22,8 @@
  */
 
 import { ref, type Ref } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useStudentStore } from '@/stores/student'
-import { post, get } from '@/utils/api'
+import { useStudentInfo } from '@/composables/useStudentInfo'
+import { post } from '@/utils/api'
 
 /**
  * 单个答案记录（前端内部使用）
@@ -188,39 +187,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
   /** 提交错误信息 */
   const submitError = ref<string | null>(null)
 
-  /**
-   * 获取学生ID（优先从authStore，其次从studentStore）
-   */
-  function getStudentId(): string {
-    const authStore = useAuthStore()
-    if (authStore.isLoggedIn && authStore.user) {
-      return authStore.user.studentId
-    }
-    const studentStore = useStudentStore()
-    return studentStore.studentId
-  }
-
-  /**
-   * 获取学生姓名
-   */
-  async function getStudentName(): Promise<string> {
-    const authStore = useAuthStore()
-    if (authStore.isLoggedIn && authStore.user) {
-      return authStore.user.username
-    }
-    const studentId = getStudentId()
-    if (studentId) {
-      try {
-        const response = await get(`/api/students/${studentId}`)
-        if (response.success && response.data) {
-          return response.data.name || ''
-        }
-      } catch (error) {
-        console.warn('[useAnswerSubmitter] 获取学生姓名失败:', error)
-      }
-    }
-    return ''
-  }
+  const { studentId, getStudentName } = useStudentInfo()
 
   /**
    * 添加答案
@@ -354,16 +321,16 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
    * @returns 提交载荷或null（验证失败时）
    */
   function buildSubmitPayload(wenId: string): SubmitPayload | null {
-    const studentId = getStudentId()
+    const id = studentId.value
 
     // 验证学生ID
-    if (!studentId || studentId.trim() === '') {
+    if (!id || id.trim() === '') {
       console.error('[useAnswerSubmitter] 学生未登录或学号为空')
       return null
     }
 
     // 验证学号格式（数字）
-    if (!/^\d+$/.test(studentId)) {
+    if (!/^\d+$/.test(id)) {
       console.error('[useAnswerSubmitter] 学号格式不正确，应为纯数字')
       return null
     }
@@ -408,7 +375,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     // 构建最终载荷
     const payload: SubmitPayload = {
-      studentId,
+      studentId: id,
       wenId,
       submittedAt: TypeConverter.generateTimestamp(),
       answers: answersObject,

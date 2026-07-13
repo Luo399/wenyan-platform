@@ -4,10 +4,10 @@ import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import StudentLogin from '@/components/StudentLogin.vue'
 import Level1Quiz from '@/components/Level1Quiz.vue'
-import AdaptQuiz from '@/components/AdaptQuiz.vue'
+import BlockQuiz from '@/components/BlockQuiz.vue'
 import AnswerQueryView from '@/views/AnswerQueryView.vue'
 import { useAnswerSubmitter } from '@/composables/useAnswerSubmitter'
-import { useStudentStore } from '@/stores/student'
+import { useAuthStore } from '@/stores/auth'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { post, get } from '@/utils/api'
 
@@ -72,6 +72,14 @@ describe('题目组件全流程集成测试', () => {
 
   describe('学生登录流程', () => {
     it('学生应该能够输入学号并登录', async () => {
+      mockPost.mockResolvedValue({
+        success: true,
+        data: {
+          token: 'mock-token',
+          user: { id: '1', username: '张三', student_id: '2024001', role: 'student' },
+        },
+      })
+
       const wrapper = mount(StudentLogin)
       const input = wrapper.find('input')
       const submitBtn = wrapper.find('button')
@@ -83,10 +91,10 @@ describe('题目组件全流程集成测试', () => {
       await submitBtn.trigger('click')
       await flushPromises()
 
-      const studentStore = useStudentStore()
-      expect(studentStore.studentId).toBe('2024001')
-      expect(studentStore.isLoggedIn).toBe(true)
-      expect(localStorage.getItem('studentId')).toBe('2024001')
+      const authStore = useAuthStore()
+      expect(authStore.user?.studentId).toBe('2024001')
+      expect(authStore.isLoggedIn).toBe(true)
+      expect(localStorage.getItem('auth_token')).toBe('mock-token')
     })
 
     it('空学号应该显示错误', async () => {
@@ -130,8 +138,8 @@ describe('题目组件全流程集成测试', () => {
       expect(firstQuestionOptions.length).toBe(4)
     })
 
-    it('AdaptQuiz应该正确渲染题目', () => {
-      const wrapper = mount(AdaptQuiz, {
+    it('BlockQuiz应该正确渲染题目', () => {
+      const wrapper = mount(BlockQuiz, {
         props: {
           text_id: 'WEN_01',
           question_id: 'WEN_01_B1',
@@ -225,8 +233,14 @@ describe('题目组件全流程集成测试', () => {
 
   describe('答案提交流程', () => {
     beforeEach(() => {
-      const studentStore = useStudentStore()
-      studentStore.setStudentId('2024001')
+      const authStore = useAuthStore()
+      authStore.user = {
+        id: '1',
+        username: '张三',
+        studentId: '2024001',
+        role: 'student',
+      }
+      authStore.token = 'mock-token'
 
       mockPost.mockResolvedValue({
         success: true,
@@ -288,11 +302,14 @@ describe('题目组件全流程集成测试', () => {
 
       const result = await submitter.submitAnswers('WEN_01')
 
-      expect(mockPost).toHaveBeenCalledWith('/api/submit', expect.objectContaining({
-        studentId: '2024001',
-        wenId: 'WEN_01',
-        answers: { Q1: 2, Q2: 1 },
-      }))
+      expect(mockPost).toHaveBeenCalledWith(
+        '/api/submit',
+        expect.objectContaining({
+          studentId: '2024001',
+          wenId: 'WEN_01',
+          answers: { Q1: 2, Q2: 1 },
+        }),
+      )
 
       expect(result.success).toBe(true)
       expect(result.message).toBe('提交成功')
@@ -383,19 +400,6 @@ describe('题目组件全流程集成测试', () => {
         load: vi.fn(),
       })
 
-      mockPost.mockResolvedValue({
-        success: true,
-        message: '提交成功',
-        data: {
-          studentId: '2024001',
-          wenId: 'WEN_01',
-          questionCount: 2,
-          correctCount: 1,
-          avgScore: 50,
-          details: [],
-        },
-      })
-
       const mockStudents = [{ student_id: '2024001', name: '张三', class: 9 }]
       const mockWenAnswers = [
         {
@@ -410,13 +414,34 @@ describe('题目组件全流程集成测试', () => {
 
       mockGet.mockResolvedValue({ success: true, data: mockStudents })
 
+      mockPost.mockResolvedValue({
+        success: true,
+        data: {
+          token: 'mock-token',
+          user: { id: '1', username: '张三', student_id: '2024001', role: 'student' },
+        },
+      })
+
       const loginWrapper = mount(StudentLogin)
       await loginWrapper.find('input').setValue('2024001')
       await loginWrapper.find('button').trigger('click')
       await flushPromises()
 
-      const studentStore = useStudentStore()
-      expect(studentStore.studentId).toBe('2024001')
+      const authStore = useAuthStore()
+      expect(authStore.user?.studentId).toBe('2024001')
+
+      mockPost.mockResolvedValue({
+        success: true,
+        message: '提交成功',
+        data: {
+          studentId: '2024001',
+          wenId: 'WEN_01',
+          questionCount: 2,
+          correctCount: 1,
+          avgScore: 50,
+          details: [],
+        },
+      })
 
       const quizWrapper = mount(Level1Quiz, { props: { wenId: 'WEN_01' } })
 
