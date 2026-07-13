@@ -37,3 +37,26 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Media files
+public/audio/
+public/video/
+public/images/
+*.mp3
+*.mp4
+*.wav
+*.ogg
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+
+# Data files
+public/data/
+public/*.json
