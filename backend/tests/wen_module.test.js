@@ -516,8 +516,8 @@ describe('📊 测试报告', () => {
       const imgPath = path.join(RESOURCE_DIR, 'img');
       
       const hasAudio = fs.existsSync(audioPath);
-      const hasVideos = fs.readdirSync(videoPath).filter(f => f.startsWith(wenId)).length > 0;
-      const hasImages = fs.readdirSync(imgPath).filter(f => f.startsWith(wenId)).length > 0;
+      const hasVideos = fs.existsSync(videoPath) ? fs.readdirSync(videoPath).filter(f => f.startsWith(wenId)).length > 0 : false;
+      const hasImages = fs.existsSync(imgPath) ? fs.readdirSync(imgPath).filter(f => f.startsWith(wenId)).length > 0 : false;
       
       console.log(`${wenId}: 音频[${hasAudio ? '✓' : '✗'}] 视频[${hasVideos ? '✓' : '✗'}] 图片[${hasImages ? '✓' : '✗'}]`);
     });
