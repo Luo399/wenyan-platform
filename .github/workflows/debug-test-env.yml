@@ -15,44 +15,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: SSH to server and debug
+      - name: Fix test backend
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /tmp
-            rm -f fix-test-env.sh
-            echo "运行环境诊断..."
-            
-            echo "=== PM2 进程 ==="
-            pm2 status 2>&1
-            
+            PROJECT_PATH="/www/wwwroot/wenyan-platform-test"
+            BACKEND_PATH="$PROJECT_PATH/backend"
+
+            echo "=== 1. 创建 .env 文件 ==="
+            cat > "$BACKEND_PATH/.env" << 'ENVEOF'
+PORT=3001
+CORS_ORIGIN=https://test.classicalab.cn
+AUTH_SECRET=wenyan-test-secret-2024
+ENVEOF
+            cat "$BACKEND_PATH/.env"
+
             echo ""
-            echo "=== 3001 端口 ==="
-            ss -tlnp 2>&1 | grep 3001 || echo "未监听"
-            
+            echo "=== 2. 删除旧 PM2 进程 ==="
+            pm2 delete wenyan-backend-test 2>&1 || true
+
             echo ""
-            echo "=== 测试目录 ==="
-            ls -la /www/wwwroot/wenyan-platform-test/ 2>&1 || echo "目录不存在"
-            
+            echo "=== 3. 重新安装依赖 ==="
+            cd "$BACKEND_PATH"
+            npm ci --production 2>&1 | tail -5
+
             echo ""
-            echo "=== 后端目录 ==="
-            ls -la /www/wwwroot/wenyan-platform-test/backend/ 2>&1 || echo "目录不存在"
-            
+            echo "=== 4. 启动后端 ==="
+            cd "$PROJECT_PATH"
+            pm2 start backend/server.js --name wenyan-backend-test 2>&1
+            sleep 2
+
             echo ""
-            echo "=== .env 文件 ==="
-            cat /www/wwwroot/wenyan-platform-test/backend/.env 2>&1 || echo "不存在"
-            
+            echo "=== 5. PM2 状态 ==="
+            pm2 status
+
             echo ""
-            echo "=== Nginx 配置 ==="
-            cat /www/server/panel/vhost/nginx/test-api.classicalab.cn.conf 2>&1 || echo "不存在"
-            
-            echo ""
-            echo "=== Nginx error log (tail 10) ==="
-            tail -10 /www/wwwlogs/test-api.classicalab.cn.error.log 2>&1 || echo "无"
-            
-            echo ""
-            echo "=== 本地测试后端 ==="
+            echo "=== 6. 本地测试后端 ==="
             curl -s http://127.0.0.1:3001/api/health 2>&1 || echo "失败"
+
+            echo ""
+            echo "=== 7. PM2 错误日志 ==="
+            pm2 logs wenyan-backend-test --nostream --lines 20 2>&1 || true
+
