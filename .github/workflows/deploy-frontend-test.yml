@@ -39,7 +39,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.OSS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          aws-region: oss-cn-hangzhou
+          aws-region: cn-hangzhou
 
       - name: Deploy to Aliyun OSS test bucket
         run: |
