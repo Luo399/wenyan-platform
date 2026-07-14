@@ -141,6 +141,7 @@ export interface SubmitAnswersRequest {
     id: string
     correctAnswer: string | number | (string | number)[]
   }>
+  signature?: string
 }
 
 /** 提交答案响应类型 */
