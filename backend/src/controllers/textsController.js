@@ -128,7 +128,7 @@ function getLevel2Quiz(req, res) {
   const data = textsService.getLevel2Quiz(textId);
 
   if (data) {
-    res.json({ success: true, data });
+    res.json({ success: true, data: { pageId: textId, blocks: data } });
   } else {
     res.status(404).json({
       success: false,
@@ -166,7 +166,7 @@ function getLevel3AdaptiveQuiz(req, res) {
   const data = textsService.getLevel3AdaptiveQuiz(textId);
 
   if (data) {
-    res.json({ success: true, data });
+    res.json({ success: true, data: { ...data, pageId: textId } });
   } else {
     res.status(404).json({
       success: false,

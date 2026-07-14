@@ -41,10 +41,10 @@ function parseErrors(logs) {
     line.includes('error') || line.includes('Error') || line.includes('FAIL') || 
     line.includes('fail') || line.includes('Error:') || line.includes('exit code 1')
   );
-  return errorLines.slice(-30);
+  return errorLines.slice(-50);
 }
 
-async function waitForRunComplete(runId, timeout = 300) {
+async function waitForRunComplete(runId, timeout = 600) {
   const startTime = Date.now();
   while (Date.now() - startTime < timeout * 1000) {
     const res = await fetch(

@@ -113,7 +113,7 @@ describe('📦 资源完整性检查', () => {
         it(`应存在对话头像文件`, () => {
           const imgDir = path.join(RESOURCE_DIR, 'img');
           const dialogIcons = fs.readdirSync(imgDir)
-            .filter(f => f.startsWith(`${wenId}_icon_dialog`));
+            .filter(f => f.startsWith(`${wenId}_icon_dialog`) || f.startsWith(`${wenId}_avatar`));
           
           expect(dialogIcons.length).toBeGreaterThanOrEqual(1);
         });

@@ -1,0 +1,6400 @@
+﻿
+> wenyan-platform-backend@1.0.0 test
+> cross-env NODE_OPTIONS="--experimental-vm-modules" jest --testPathPatterns=tests/
+
+node.exe : PASS tests/answer-comparison.test.js
+At line:1 char:1
++ & "E:\nodejs/node.exe" "E:\nodejs/node_modules/npm/bin/npm-cli.js" te ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS tests/answer-comparison.test.js:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  ● Console
+
+    console.log
+      成功连接到学生数据库
+
+      at Database.log (src/config/database.js:31:11)
+
+    console.log
+      成功连接到答题记录数据库
+
+      at Database.log (src/config/database.js:41:11)
+
+    console.log
+      学生表初始化完成
+
+      at Statement.log (src/config/database.js:61:17)
+
+    console.log
+      索引 idx_wen_student 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_wen 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_wen_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_submitted_at 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_question_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_is_correct 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      答题记录表初始化完成
+
+      at Statement.log (src/config/database.js:121:19)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.197Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.197Z",
+        "timestampMs": 1784006549197,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90001",
+        "wenId": "WEN_COMPARE_TYPE_NUM_STR",
+        "questionCount": 3
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.247Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.247Z",
+        "timestampMs": 1784006549247,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90001",
+        "wenId": "WEN_COMPARE_TYPE_NUM_STR",
+        "questionCount": 3,
+        "correctCount": 3,
+        "wrongCount": 0,
+        "totalScore": 300,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.250Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.250Z",
+        "timestampMs": 1784006549250,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90002",
+        "wenId": "WEN_COMPARE_TYPE_STR_NUM",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.272Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.272Z",
+        "timestampMs": 1784006549272,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90002",
+        "wenId": "WEN_COMPARE_TYPE_STR_NUM",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.273Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.273Z",
+        "timestampMs": 1784006549273,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90003",
+        "wenId": "WEN_COMPARE_ZERO",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.285Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.285Z",
+        "timestampMs": 1784006549286,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90003",
+        "wenId": "WEN_COMPARE_ZERO",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.287Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.287Z",
+        "timestampMs": 1784006549287,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90004",
+        "wenId": "WEN_COMPARE_ONE",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.299Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.299Z",
+        "timestampMs": 1784006549299,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90004",
+        "wenId": "WEN_COMPARE_ONE",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.300Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.300Z",
+        "timestampMs": 1784006549300,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90005",
+        "wenId": "WEN_COMPARE_MULTI_TYPE",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.313Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.313Z",
+        "timestampMs": 1784006549313,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90005",
+        "wenId": "WEN_COMPARE_MULTI_TYPE",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.314Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.314Z",
+        "timestampMs": 1784006549314,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90006",
+        "wenId": "WEN_COMPARE_MULTI_ORDER",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.325Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.325Z",
+        "timestampMs": 1784006549325,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90006",
+        "wenId": "WEN_COMPARE_MULTI_ORDER",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.327Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.327Z",
+        "timestampMs": 1784006549327,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90007",
+        "wenId": "WEN_COMPARE_MULTI_DIFF",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.339Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.339Z",
+        "timestampMs": 1784006549339,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90007",
+        "wenId": "WEN_COMPARE_MULTI_DIFF",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.339Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.339Z",
+        "timestampMs": 1784006549339,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90008",
+        "wenId": "WEN_COMPARE_MULTI_COUNT",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.351Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.351Z",
+        "timestampMs": 1784006549351,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90008",
+        "wenId": "WEN_COMPARE_MULTI_COUNT",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.352Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.352Z",
+        "timestampMs": 1784006549352,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90009",
+        "wenId": "WEN_COMPARE_MULTI_EMPTY",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.363Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.363Z",
+        "timestampMs": 1784006549363,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90009",
+        "wenId": "WEN_COMPARE_MULTI_EMPTY",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.364Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.364Z",
+        "timestampMs": 1784006549364,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90010",
+        "wenId": "WEN_COMPARE_MULTI_MIXED",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.379Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.379Z",
+        "timestampMs": 1784006549379,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90010",
+        "wenId": "WEN_COMPARE_MULTI_MIXED",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.381Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.381Z",
+        "timestampMs": 1784006549381,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90011",
+        "wenId": "WEN_COMPARE_NULL",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.393Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.393Z",
+        "timestampMs": 1784006549393,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90011",
+        "wenId": "WEN_COMPARE_NULL",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.394Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.394Z",
+        "timestampMs": 1784006549394,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90012",
+        "wenId": "WEN_COMPARE_UNDEFINED",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.405Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.405Z",
+        "timestampMs": 1784006549405,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90012",
+        "wenId": "WEN_COMPARE_UNDEFINED",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.405Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.405Z",
+        "timestampMs": 1784006549405,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90013",
+        "wenId": "WEN_COMPARE_EMPTY_STR",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.416Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.416Z",
+        "timestampMs": 1784006549416,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90013",
+        "wenId": "WEN_COMPARE_EMPTY_STR",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.417Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.417Z",
+        "timestampMs": 1784006549417,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90014",
+        "wenId": "WEN_COMPARE_ZERO_EMPTY",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.429Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.429Z",
+        "timestampMs": 1784006549429,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90014",
+        "wenId": "WEN_COMPARE_ZERO_EMPTY",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.430Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.430Z",
+        "timestampMs": 1784006549430,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90015",
+        "wenId": "WEN_COMPARE_NAN",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.439Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.439Z",
+        "timestampMs": 1784006549439,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90015",
+        "wenId": "WEN_COMPARE_NAN",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.440Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.440Z",
+        "timestampMs": 1784006549440,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90016",
+        "wenId": "WEN_COMPARE_LEVEL1",
+        "questionCount": 3
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.472Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.472Z",
+        "timestampMs": 1784006549472,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90016",
+        "wenId": "WEN_COMPARE_LEVEL1",
+        "questionCount": 3,
+        "correctCount": 3,
+        "wrongCount": 0,
+        "totalScore": 300,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.473Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.473Z",
+        "timestampMs": 1784006549473,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90017",
+        "wenId": "WEN_COMPARE_LEVEL2",
+        "questionCount": 3
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.503Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.503Z",
+        "timestampMs": 1784006549503,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90017",
+        "wenId": "WEN_COMPARE_LEVEL2",
+        "questionCount": 3,
+        "correctCount": 3,
+        "wrongCount": 0,
+        "totalScore": 300,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.504Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.504Z",
+        "timestampMs": 1784006549504,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90018",
+        "wenId": "WEN_COMPARE_MIXED_TYPES",
+        "questionCount": 3
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.549Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:29.549Z",
+        "timestampMs": 1784006549549,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90018",
+        "wenId": "WEN_COMPARE_MIXED_TYPES",
+        "questionCount": 3,
+        "correctCount": 3,
+        "wrongCount": 0,
+        "totalScore": 300,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+PASS tests/api.test.js
+  ● Console
+
+    console.log
+      成功连接到学生数据库
+
+      at Database.log (src/config/database.js:31:11)
+
+    console.log
+      成功连接到答题记录数据库
+
+      at Database.log (src/config/database.js:41:11)
+
+    console.log
+      学生表初始化完成
+
+      at Statement.log (src/config/database.js:61:17)
+
+    console.log
+      索引 idx_wen_student 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_wen 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_wen_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_submitted_at 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_question_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_is_correct 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      答题记录表初始化完成
+
+      at Statement.log (src/config/database.js:121:19)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.929Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.929Z",
+        "timestampMs": 1784006549929,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 6,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.946Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.946Z",
+        "timestampMs": 1784006549946,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students/999999",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.952Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.952Z",
+        "timestampMs": 1784006549952,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students/12345678",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.973Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:29.973Z",
+        "timestampMs": 1784006549973,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "9999",
+        "wenId": "WEN_TEST",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.005Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.005Z",
+        "timestampMs": 1784006550005,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "9999",
+        "wenId": "WEN_TEST",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.008Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.008Z",
+        "timestampMs": 1784006550008,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "9999",
+          "wenId": "WEN_TEST",
+          "submittedAt": "2026-07-14T05:22:29.427Z",
+          "answers": {
+            "TEST_Q1_1784006549427": 1,
+            "TEST_Q2_1784006549427": 2
+          },
+          "questions": [
+            {
+              "id": "TEST_Q1_1784006549427",
+              "correctAnswer": 1
+            },
+            {
+              "id": "TEST_Q2_1784006549427",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 36,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.013Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.013Z",
+        "timestampMs": 1784006550013,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "1001"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.019Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.019Z",
+        "timestampMs": 1784006550019,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "abc",
+          "wenId": "WEN_TEST",
+          "submittedAt": "2026-07-14T05:22:29.427Z",
+          "answers": {
+            "TEST_Q1_1784006549427": 1,
+            "TEST_Q2_1784006549427": 2
+          },
+          "questions": [
+            {
+              "id": "TEST_Q1_1784006549427",
+              "correctAnswer": 1
+            },
+            {
+              "id": "TEST_Q2_1784006549427",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 400,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.023Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.023Z",
+        "timestampMs": 1784006550023,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "9998",
+        "wenId": "WEN_TEST2",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.036Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.036Z",
+        "timestampMs": 1784006550036,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "9998",
+        "wenId": "WEN_TEST2",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.037Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.037Z",
+        "timestampMs": 1784006550037,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "9998",
+          "wenId": "WEN_TEST2",
+          "submittedAt": "2026-07-14T05:22:30.020Z",
+          "answers": {
+            "TEST_Q3_1784006551020": 1
+          },
+          "questions": [
+            {
+              "id": "TEST_Q3_1784006551020",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 14,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.041Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.041Z",
+        "timestampMs": 1784006550041,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "9998",
+        "wenId": "WEN_TEST2",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.052Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.052Z",
+        "timestampMs": 1784006550052,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "9998",
+        "wenId": "WEN_TEST2",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.053Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.053Z",
+        "timestampMs": 1784006550053,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "9998",
+          "wenId": "WEN_TEST2",
+          "submittedAt": "2026-07-14T05:22:30.020Z",
+          "answers": {
+            "TEST_Q3_1784006551020": 1
+          },
+          "questions": [
+            {
+              "id": "TEST_Q3_1784006551020",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.059Z - 查询文言文答题记录 {
+        "timestamp": "2026-07-14T05:22:30.059Z",
+        "timestampMs": 1784006550059,
+        "level": "INFO",
+        "message": "查询文言文答题记录",
+        "wenId": "WEN_TEST",
+        "studentCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.060Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.060Z",
+        "timestampMs": 1784006550060,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/wen/WEN_TEST",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.067Z - 查询学生答题记录 {
+        "timestamp": "2026-07-14T05:22:30.067Z",
+        "timestampMs": 1784006550067,
+        "level": "INFO",
+        "message": "查询学生答题记录",
+        "studentId": "9999",
+        "wenCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.068Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.068Z",
+        "timestampMs": 1784006550068,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/9999",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.072Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.072Z",
+        "timestampMs": 1784006550072,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/xyz123",
+        "query": {},
+        "body": {},
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.077Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.077Z",
+        "timestampMs": 1784006550077,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "nonexistent123"
+        },
+        "statusCode": 400,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.081Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.081Z",
+        "timestampMs": 1784006550081,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {},
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+(node:21572) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL tests/wen_module.test.js
+  ● Console
+
+    console.log
+      成功连接到学生数据库
+
+      at Database.log (src/config/database.js:31:11)
+
+    console.log
+      成功连接到答题记录数据库
+
+      at Database.log (src/config/database.js:41:11)
+
+    console.log
+      学生表初始化完成
+
+      at Statement.log (src/config/database.js:61:17)
+
+    console.log
+      索引 idx_wen_student 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_wen 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_wen_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_submitted_at 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_question_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_is_correct 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      答题记录表初始化完成
+
+      at Statement.log (src/config/database.js:121:19)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.014Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.014Z",
+        "timestampMs": 1784006550014,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 5,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.031Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.031Z",
+        "timestampMs": 1784006550031,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/word-list",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 5,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.036Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.036Z",
+        "timestampMs": 1784006550036,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/multi-role-reading",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.042Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.042Z",
+        "timestampMs": 1784006550042,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/level2-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.049Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.049Z",
+        "timestampMs": 1784006550049,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/level3-adaptive-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.054Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.054Z",
+        "timestampMs": 1784006550054,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_02/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.059Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.059Z",
+        "timestampMs": 1784006550059,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_02/word-list",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.065Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.065Z",
+        "timestampMs": 1784006550065,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_02/multi-role-reading",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.069Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.069Z",
+        "timestampMs": 1784006550069,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_02/level2-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.075Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.075Z",
+        "timestampMs": 1784006550075,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_02/level3-adaptive-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.080Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.080Z",
+        "timestampMs": 1784006550080,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_03/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.084Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.084Z",
+        "timestampMs": 1784006550084,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_03/word-list",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.088Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.088Z",
+        "timestampMs": 1784006550088,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_03/multi-role-reading",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.092Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.092Z",
+        "timestampMs": 1784006550092,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_03/level2-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.096Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.096Z",
+        "timestampMs": 1784006550096,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_03/level3-adaptive-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.101Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.101Z",
+        "timestampMs": 1784006550101,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_04/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.106Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.106Z",
+        "timestampMs": 1784006550106,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_04/word-list",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.110Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.110Z",
+        "timestampMs": 1784006550110,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_04/multi-role-reading",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.115Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.115Z",
+        "timestampMs": 1784006550115,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_04/level2-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.118Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.118Z",
+        "timestampMs": 1784006550118,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_04/level3-adaptive-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.143Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.143Z",
+        "timestampMs": 1784006550143,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "WEN_01",
+            "WEN_02",
+            "WEN_03",
+            "WEN_04"
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 4,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.148Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.148Z",
+        "timestampMs": 1784006550148,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "WEN_01"
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.170Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.170Z",
+        "timestampMs": 1784006550170,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/audio/NONEXISTENT.mp3",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.174Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.174Z",
+        "timestampMs": 1784006550174,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/video/NONEXISTENT.mp4",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.178Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.178Z",
+        "timestampMs": 1784006550178,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/img/NONEXISTENT.png",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.182Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.182Z",
+        "timestampMs": 1784006550182,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/../../../etc/passwd/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.186Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.186Z",
+        "timestampMs": 1784006550186,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts//basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.191Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.191Z",
+        "timestampMs": 1784006550191,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxx/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.200Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.200Z",
+        "timestampMs": 1784006550200,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.201Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.201Z",
+        "timestampMs": 1784006550201,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_02/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.202Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.202Z",
+        "timestampMs": 1784006550202,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_03/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.203Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.203Z",
+        "timestampMs": 1784006550203,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_04/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 4,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.236Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.236Z",
+        "timestampMs": 1784006550236,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 6,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.240Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.240Z",
+        "timestampMs": 1784006550240,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 9,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.243Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.243Z",
+        "timestampMs": 1784006550243,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.246Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.246Z",
+        "timestampMs": 1784006550246,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 15,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.248Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.248Z",
+        "timestampMs": 1784006550248,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 17,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.250Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.250Z",
+        "timestampMs": 1784006550250,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 19,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.253Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.253Z",
+        "timestampMs": 1784006550253,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 22,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.255Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.255Z",
+        "timestampMs": 1784006550255,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 24,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.258Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.258Z",
+        "timestampMs": 1784006550258,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 26,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.260Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.260Z",
+        "timestampMs": 1784006550260,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 28,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.263Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.263Z",
+        "timestampMs": 1784006550263,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 31,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.265Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.265Z",
+        "timestampMs": 1784006550265,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 33,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.268Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.268Z",
+        "timestampMs": 1784006550268,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 36,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.270Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.270Z",
+        "timestampMs": 1784006550270,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 38,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.273Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.273Z",
+        "timestampMs": 1784006550273,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 41,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.275Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.275Z",
+        "timestampMs": 1784006550275,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 42,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.278Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.278Z",
+        "timestampMs": 1784006550278,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 45,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.281Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.281Z",
+        "timestampMs": 1784006550281,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 48,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.283Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.283Z",
+        "timestampMs": 1784006550283,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 50,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.287Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.287Z",
+        "timestampMs": 1784006550287,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 54,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.307Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.307Z",
+        "timestampMs": 1784006550307,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "WEN_01",
+            "NONEXISTENT_999"
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.312Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.312Z",
+        "timestampMs": 1784006550312,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90001",
+        "wenId": "WEN_01",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.331Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.331Z",
+        "timestampMs": 1784006550331,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90001",
+        "wenId": "WEN_01",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.331Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.331Z",
+        "timestampMs": 1784006550331,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90001",
+          "wenId": "WEN_01",
+          "submittedAt": "2026-07-14T05:22:30.310Z",
+          "answers": {
+            "WEN_01_Q1_1784006550309": 1
+          },
+          "questions": [
+            {
+              "id": "WEN_01_Q1_1784006550309",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 20,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.335Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.335Z",
+        "timestampMs": 1784006550335,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90002",
+        "wenId": "WEN_01",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.346Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.346Z",
+        "timestampMs": 1784006550346,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90002",
+        "wenId": "WEN_01",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.347Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.347Z",
+        "timestampMs": 1784006550347,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90002",
+          "wenId": "WEN_01",
+          "submittedAt": "2026-07-14T05:22:30.333Z",
+          "answers": {
+            "WEN_01_Q2_1784006551333": 2
+          },
+          "questions": [
+            {
+              "id": "WEN_01_Q2_1784006551333",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.350Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.350Z",
+        "timestampMs": 1784006550350,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90001",
+        "wenId": "WEN_02",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.361Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.361Z",
+        "timestampMs": 1784006550361,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90001",
+        "wenId": "WEN_02",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.362Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.362Z",
+        "timestampMs": 1784006550362,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90001",
+          "wenId": "WEN_02",
+          "submittedAt": "2026-07-14T05:22:30.349Z",
+          "answers": {
+            "WEN_02_Q1_1784006550348": 1
+          },
+          "questions": [
+            {
+              "id": "WEN_02_Q1_1784006550348",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.365Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.365Z",
+        "timestampMs": 1784006550365,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90002",
+        "wenId": "WEN_02",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.376Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.376Z",
+        "timestampMs": 1784006550376,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90002",
+        "wenId": "WEN_02",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.376Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.376Z",
+        "timestampMs": 1784006550376,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90002",
+          "wenId": "WEN_02",
+          "submittedAt": "2026-07-14T05:22:30.364Z",
+          "answers": {
+            "WEN_02_Q2_1784006551363": 2
+          },
+          "questions": [
+            {
+              "id": "WEN_02_Q2_1784006551363",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 11,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.380Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.380Z",
+        "timestampMs": 1784006550380,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90001",
+        "wenId": "WEN_03",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.393Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.393Z",
+        "timestampMs": 1784006550393,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90001",
+        "wenId": "WEN_03",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.393Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.393Z",
+        "timestampMs": 1784006550393,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90001",
+          "wenId": "WEN_03",
+          "submittedAt": "2026-07-14T05:22:30.378Z",
+          "answers": {
+            "WEN_03_Q1_1784006550378": 1
+          },
+          "questions": [
+            {
+              "id": "WEN_03_Q1_1784006550378",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 13,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.398Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.398Z",
+        "timestampMs": 1784006550398,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90002",
+        "wenId": "WEN_03",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.410Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.410Z",
+        "timestampMs": 1784006550410,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90002",
+        "wenId": "WEN_03",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.411Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.411Z",
+        "timestampMs": 1784006550411,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90002",
+          "wenId": "WEN_03",
+          "submittedAt": "2026-07-14T05:22:30.396Z",
+          "answers": {
+            "WEN_03_Q2_1784006551395": 2
+          },
+          "questions": [
+            {
+              "id": "WEN_03_Q2_1784006551395",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 13,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.414Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.414Z",
+        "timestampMs": 1784006550414,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90001",
+        "wenId": "WEN_04",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.425Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.425Z",
+        "timestampMs": 1784006550425,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90001",
+        "wenId": "WEN_04",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.426Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.426Z",
+        "timestampMs": 1784006550426,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90001",
+          "wenId": "WEN_04",
+          "submittedAt": "2026-07-14T05:22:30.413Z",
+          "answers": {
+            "WEN_04_Q1_1784006550412": 1
+          },
+          "questions": [
+            {
+              "id": "WEN_04_Q1_1784006550412",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.430Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.430Z",
+        "timestampMs": 1784006550430,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90002",
+        "wenId": "WEN_04",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.441Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.441Z",
+        "timestampMs": 1784006550441,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90002",
+        "wenId": "WEN_04",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.442Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.442Z",
+        "timestampMs": 1784006550442,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90002",
+          "wenId": "WEN_04",
+          "submittedAt": "2026-07-14T05:22:30.429Z",
+          "answers": {
+            "WEN_04_Q2_1784006551428": 2
+          },
+          "questions": [
+            {
+              "id": "WEN_04_Q2_1784006551428",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.446Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.446Z",
+        "timestampMs": 1784006550446,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90003",
+        "wenId": "WEN_01",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.459Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.459Z",
+        "timestampMs": 1784006550459,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90003",
+        "wenId": "WEN_01",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.460Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.460Z",
+        "timestampMs": 1784006550460,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90003",
+          "wenId": "WEN_01",
+          "submittedAt": "2026-07-14T05:22:30.444Z",
+          "answers": {
+            "WEN_01_Q_REPEAT_1784006550444": 1
+          },
+          "questions": [
+            {
+              "id": "WEN_01_Q_REPEAT_1784006550444",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 14,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.463Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.463Z",
+        "timestampMs": 1784006550463,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "90003",
+        "wenId": "WEN_01",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.475Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.475Z",
+        "timestampMs": 1784006550475,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "90003",
+        "wenId": "WEN_01",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.476Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.476Z",
+        "timestampMs": 1784006550476,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "90003",
+          "wenId": "WEN_01",
+          "submittedAt": "2026-07-14T05:22:30.444Z",
+          "answers": {
+            "WEN_01_Q_REPEAT_1784006550444": 1
+          },
+          "questions": [
+            {
+              "id": "WEN_01_Q_REPEAT_1784006550444",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 13,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      
+      ================================================================================
+
+      at Object.log (tests/wen_module.test.js:476:13)
+
+    console.log
+                          WEN_01-04 模块测试报告
+
+      at Object.log (tests/wen_module.test.js:477:13)
+
+    console.log
+      ================================================================================
+
+      at Object.log (tests/wen_module.test.js:478:13)
+
+    console.log
+      
+      📋 测试摘要
+
+      at Object.log (tests/wen_module.test.js:480:13)
+
+    console.log
+      ────────────────────────────────────────────────────────────
+
+      at Object.log (tests/wen_module.test.js:481:13)
+
+    console.log
+      测试模块: WEN_01, WEN_02, WEN_03, WEN_04
+
+      at Object.log (tests/wen_module.test.js:482:13)
+
+    console.log
+      测试时间: 2026-07-14T05:22:30.484Z
+
+      at Object.log (tests/wen_module.test.js:483:13)
+
+    console.log
+      测试环境: Node.js v24.15.0
+
+      at Object.log (tests/wen_module.test.js:484:13)
+
+    console.log
+      
+      📦 资源检查结果
+
+      at Object.log (tests/wen_module.test.js:486:13)
+
+    console.log
+      ────────────────────────────────────────────────────────────
+
+      at Object.log (tests/wen_module.test.js:487:13)
+
+    console.log
+      WEN_01: 音频[✓] 视频[✓] 图片[✓]
+
+      at log (tests/wen_module.test.js:497:15)
+          at Array.forEach (<anonymous>)
+
+    console.log
+      WEN_02: 音频[✓] 视频[✓] 图片[✓]
+
+      at log (tests/wen_module.test.js:497:15)
+          at Array.forEach (<anonymous>)
+
+    console.log
+      WEN_03: 音频[✓] 视频[✓] 图片[✓]
+
+      at log (tests/wen_module.test.js:497:15)
+          at Array.forEach (<anonymous>)
+
+    console.log
+      WEN_04: 音频[✓] 视频[✓] 图片[✓]
+
+      at log (tests/wen_module.test.js:497:15)
+          at Array.forEach (<anonymous>)
+
+    console.log
+      
+      🔌 API接口测试结果
+
+      at Object.log (tests/wen_module.test.js:500:13)
+
+    console.log
+      ────────────────────────────────────────────────────────────
+
+      at Object.log (tests/wen_module.test.js:501:13)
+
+    console.log
+      所有API接口测试通过 ✓
+
+      at Object.log (tests/wen_module.test.js:502:13)
+
+    console.log
+      
+      🔍 边界条件测试结果
+
+      at Object.log (tests/wen_module.test.js:504:13)
+
+    console.log
+      ────────────────────────────────────────────────────────────
+
+      at Object.log (tests/wen_module.test.js:505:13)
+
+    console.log
+      所有边界条件测试通过 ✓
+
+      at Object.log (tests/wen_module.test.js:506:13)
+
+    console.log
+      
+      ⚠️  已知问题
+
+      at Object.log (tests/wen_module.test.js:508:13)
+
+    console.log
+      ────────────────────────────────────────────────────────────
+
+      at Object.log (tests/wen_module.test.js:509:13)
+
+    console.log
+      1. WEN_04_multi_role.mp3 暂缺失
+
+      at Object.log (tests/wen_module.test.js:510:13)
+
+    console.log
+      2. 建议补充完整的测试覆盖率报告
+
+      at Object.log (tests/wen_module.test.js:511:13)
+
+    console.log
+      
+      ================================================================================
+
+      at Object.log (tests/wen_module.test.js:513:13)
+
+    console.log
+                          测试报告结束
+
+      at Object.log (tests/wen_module.test.js:514:13)
+
+    console.log
+      ================================================================================
+
+      at Object.log (tests/wen_module.test.js:515:13)
+
+  ● 📦 资源完整性检查 › 图片文件检查 › WEN_04 图片文件 › 应存在对话头像文件
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 1
+    Received:    0
+
+    [0m [90m 116 |[39m             [33m.[39mfilter(f [33m=>[39m f[33m.[39mstartsWith([32m`${wenId}_icon_dialo
+g`[39m))[33m;[39m
+     [90m 117 |[39m           
+    [31m[1m>[22m[39m[90m 118 |[39m           expect(dialogIcons[33m.[39mlength)[33m.[39mtoBeGreaterThanOrEqua
+l([35m1[39m)[33m;[39m
+     [90m     |[39m                                      [31m[1m^[22m[39m
+     [90m 119 |[39m         })[33m;[39m
+     [90m 120 |[39m
+     [90m 121 |[39m         it([32m`图片文件格式应正确`[39m[33m,[39m () [33m=>[39m {[0m
+
+      at Object.toBeGreaterThanOrEqual (tests/wen_module.test.js:118:38)
+
+  ● 🔌 API接口测试 › WEN_01 API接口 › GET /api/texts/WEN_01/level2-quiz 应返回二级测验
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    [0m [90m 209 |[39m           expect(res[33m.[39mbody[33m.[39msuccess)[33m.[39mtoBe([36mtrue[39m)[33m;[
+39m
+     [90m 210 |[39m           expect(res[33m.[39mbody[33m.[39mdata[33m.[39mpageId)[33m.[39mtoBe(wenId)[33m;
+[39m
+    [31m[1m>[22m[39m[90m 211 |[39m           expect([33mArray[39m[33m.[39misArray(res[33m.[39mbody[33m.[3
+9mdata[33m.[39mblocks))[33m.[39mtoBe([36mtrue[39m)[33m;[39m
+     [90m     |[39m                                                       [31m[1m^[22m[39m
+     [90m 212 |[39m         }
+     [90m 213 |[39m       })[33m;[39m
+     [90m 214 |[39m[0m
+
+      at Object.toBe (tests/wen_module.test.js:211:55)
+
+PASS tests/api.comprehensive.test.js
+  ● Console
+
+    console.log
+      成功连接到答题记录数据库
+
+      at Database.log (src/config/database.js:41:11)
+
+    console.log
+      成功连接到学生数据库
+
+      at Database.log (src/config/database.js:31:11)
+
+    console.log
+      学生表初始化完成
+
+      at Statement.log (src/config/database.js:61:17)
+
+    console.log
+      索引 idx_wen_student 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_wen 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_wen_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_student_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_submitted_at 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_question_id 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      索引 idx_is_correct 创建完成
+
+      at Statement.log (src/config/database.js:80:17)
+
+    console.log
+      答题记录表初始化完成
+
+      at Statement.log (src/config/database.js:121:19)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.834Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.834Z",
+        "timestampMs": 1784006549834,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 4,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.877Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.877Z",
+        "timestampMs": 1784006549877,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "10001",
+          "name": "张三"
+        },
+        "statusCode": 200,
+        "durationMs": 17,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.882Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.882Z",
+        "timestampMs": 1784006549882,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "name": "李四"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.887Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.887Z",
+        "timestampMs": 1784006549887,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "10002"
+        },
+        "statusCode": 400,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.900Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.900Z",
+        "timestampMs": 1784006549900,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "10003",
+          "name": "王五"
+        },
+        "statusCode": 200,
+        "durationMs": 9,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.914Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.914Z",
+        "timestampMs": 1784006549914,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "10003",
+          "name": "王五-更新"
+        },
+        "statusCode": 200,
+        "durationMs": 9,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.919Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.919Z",
+        "timestampMs": 1784006549919,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "",
+          "name": "测试"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.925Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.925Z",
+        "timestampMs": 1784006549925,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.939Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.939Z",
+        "timestampMs": 1784006549939,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "20001",
+          "name": "赵六"
+        },
+        "statusCode": 200,
+        "durationMs": 10,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.946Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.946Z",
+        "timestampMs": 1784006549946,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students/20001",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.951Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.951Z",
+        "timestampMs": 1784006549951,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students/999999",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.956Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.956Z",
+        "timestampMs": 1784006549956,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students/%20",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.970Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.970Z",
+        "timestampMs": 1784006549970,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/students",
+        "query": {},
+        "body": {
+          "studentId": "30001",
+          "name": "孙七"
+        },
+        "statusCode": 200,
+        "durationMs": 10,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.976Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.976Z",
+        "timestampMs": 1784006549976,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "30001"
+        },
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.982Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.982Z",
+        "timestampMs": 1784006549982,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "30002",
+          "student_name": "周八"
+        },
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.988Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.988Z",
+        "timestampMs": 1784006549988,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "99999999"
+        },
+        "statusCode": 401,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.992Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.992Z",
+        "timestampMs": 1784006549992,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": ""
+        },
+        "statusCode": 400,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:29.997Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:29.997Z",
+        "timestampMs": 1784006549997,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "abc123"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.002Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.002Z",
+        "timestampMs": 1784006550002,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "1234; DROP TABLE students;--"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.007Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.007Z",
+        "timestampMs": 1784006550007,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/auth/login",
+        "query": {},
+        "body": {
+          "student_id": "30003",
+          "student_name": "测试学生"
+        },
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.011Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.011Z",
+        "timestampMs": 1784006550011,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_success",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.043Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.043Z",
+        "timestampMs": 1784006550043,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_success",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.044Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.044Z",
+        "timestampMs": 1784006550044,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "40001",
+          "wenId": "WEN_TEST_success",
+          "submittedAt": "2026-07-14T05:22:30.009Z",
+          "answers": {
+            "Q1_1784006549459_success": 1,
+            "Q2_1784006549459_success": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_success",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_success",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 33,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.049Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.049Z",
+        "timestampMs": 1784006550049,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_wrong",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.071Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.071Z",
+        "timestampMs": 1784006550071,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_wrong",
+        "questionCount": 2,
+        "correctCount": 1,
+        "wrongCount": 1,
+        "totalScore": 100,
+        "avgScore": 50
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.072Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.072Z",
+        "timestampMs": 1784006550072,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "40001",
+          "wenId": "WEN_TEST_wrong",
+          "submittedAt": "2026-07-14T05:22:30.046Z",
+          "answers": {
+            "Q1_1784006549459_wrong": 3,
+            "Q2_1784006549459_wrong": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_wrong",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_wrong",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 23,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.076Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.076Z",
+        "timestampMs": 1784006550076,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "wenId": "WEN_01"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.079Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.079Z",
+        "timestampMs": 1784006550079,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "1001"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.083Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.083Z",
+        "timestampMs": 1784006550083,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "1001",
+          "wenId": "WEN_01"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.087Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.087Z",
+        "timestampMs": 1784006550087,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "1001",
+          "wenId": "WEN_01",
+          "submittedAt": "2026-07-14T05:22:30.085Z"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.091Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.091Z",
+        "timestampMs": 1784006550091,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "abc",
+          "wenId": "WEN_TEST_badid",
+          "submittedAt": "2026-07-14T05:22:30.089Z",
+          "answers": {
+            "Q1_1784006549459_badid": 1,
+            "Q2_1784006549459_badid": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_badid",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_badid",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.095Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.095Z",
+        "timestampMs": 1784006550095,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "1001' OR '1'='1",
+          "wenId": "WEN_TEST_sqli",
+          "submittedAt": "2026-07-14T05:22:30.093Z",
+          "answers": {
+            "Q1_1784006549459_sqli": 1,
+            "Q2_1784006549459_sqli": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_sqli",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_sqli",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 400,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.099Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.099Z",
+        "timestampMs": 1784006550099,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_repeat",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.121Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.121Z",
+        "timestampMs": 1784006550121,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_repeat",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.122Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.122Z",
+        "timestampMs": 1784006550122,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "40001",
+          "wenId": "WEN_TEST_repeat",
+          "submittedAt": "2026-07-14T05:22:30.097Z",
+          "answers": {
+            "Q1_1784006549459_repeat": 1,
+            "Q2_1784006549459_repeat": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_repeat",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_repeat",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 23,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.125Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.125Z",
+        "timestampMs": 1784006550125,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_repeat",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.146Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.146Z",
+        "timestampMs": 1784006550146,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_repeat",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.147Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.147Z",
+        "timestampMs": 1784006550147,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "40001",
+          "wenId": "WEN_TEST_repeat",
+          "submittedAt": "2026-07-14T05:22:30.097Z",
+          "answers": {
+            "Q1_1784006549459_repeat": 1,
+            "Q2_1784006549459_repeat": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_repeat",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_repeat",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 22,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.150Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.150Z",
+        "timestampMs": 1784006550150,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "99999",
+        "studentName": "自动注册学生",
+        "wenId": "WEN_TEST_autoreg",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.166Z - 学生信息更新成功 {
+        "timestamp": "2026-07-14T05:22:30.166Z",
+        "timestampMs": 1784006550166,
+        "level": "INFO",
+        "message": "学生信息更新成功",
+        "studentId": "99999",
+        "studentName": "自动注册学生"
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.188Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.188Z",
+        "timestampMs": 1784006550188,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "99999",
+        "wenId": "WEN_TEST_autoreg",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.189Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.189Z",
+        "timestampMs": 1784006550189,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "99999",
+          "wenId": "WEN_TEST_autoreg",
+          "submittedAt": "2026-07-14T05:22:30.148Z",
+          "answers": {
+            "Q1_1784006549459_autoreg": 1,
+            "Q2_1784006549459_autoreg": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_autoreg",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_autoreg",
+              "correctAnswer": 2
+            }
+          ],
+          "studentName": "自动注册学生"
+        },
+        "statusCode": 200,
+        "durationMs": 39,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.193Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.193Z",
+        "timestampMs": 1784006550193,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_empty",
+        "questionCount": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.193Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.193Z",
+        "timestampMs": 1784006550193,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "40001",
+        "wenId": "WEN_TEST_empty",
+        "questionCount": 0,
+        "correctCount": 0,
+        "wrongCount": 0,
+        "totalScore": 0,
+        "avgScore": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.194Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.194Z",
+        "timestampMs": 1784006550194,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "40001",
+          "wenId": "WEN_TEST_empty",
+          "submittedAt": "2026-07-14T05:22:30.191Z",
+          "answers": {},
+          "questions": []
+        },
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.197Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.197Z",
+        "timestampMs": 1784006550197,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "11111111111111111111111111111111111111111111111111",
+        "wenId": "WEN_TEST_long",
+        "questionCount": 2
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.218Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.218Z",
+        "timestampMs": 1784006550218,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "11111111111111111111111111111111111111111111111111",
+        "wenId": "WEN_TEST_long",
+        "questionCount": 2,
+        "correctCount": 2,
+        "wrongCount": 0,
+        "totalScore": 200,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.219Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.219Z",
+        "timestampMs": 1784006550219,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "11111111111111111111111111111111111111111111111111",
+          "wenId": "WEN_TEST_long",
+          "submittedAt": "2026-07-14T05:22:30.196Z",
+          "answers": {
+            "Q1_1784006549459_long": 1,
+            "Q2_1784006549459_long": 2
+          },
+          "questions": [
+            {
+              "id": "Q1_1784006549459_long",
+              "correctAnswer": 1
+            },
+            {
+              "id": "Q2_1784006549459_long",
+              "correctAnswer": 2
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 22,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.223Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.223Z",
+        "timestampMs": 1784006550223,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50001",
+        "wenId": "WEN_TEST_string",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.234Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.234Z",
+        "timestampMs": 1784006550234,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50001",
+        "wenId": "WEN_TEST_string",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.235Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.235Z",
+        "timestampMs": 1784006550235,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50001",
+          "wenId": "WEN_TEST_string",
+          "submittedAt": "2026-07-14T05:22:30.221Z",
+          "answers": {
+            "Q_str_1": "正确"
+          },
+          "questions": [
+            {
+              "id": "Q_str_1",
+              "correctAnswer": "正确"
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.239Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.239Z",
+        "timestampMs": 1784006550239,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50002",
+        "wenId": "WEN_TEST_array",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.252Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.252Z",
+        "timestampMs": 1784006550252,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50002",
+        "wenId": "WEN_TEST_array",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.253Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.253Z",
+        "timestampMs": 1784006550253,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50002",
+          "wenId": "WEN_TEST_array",
+          "submittedAt": "2026-07-14T05:22:30.237Z",
+          "answers": {
+            "Q_multi_1": [
+              "A",
+              "B"
+            ]
+          },
+          "questions": [
+            {
+              "id": "Q_multi_1",
+              "correctAnswer": [
+                "A",
+                "B"
+              ]
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 14,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.256Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.256Z",
+        "timestampMs": 1784006550256,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50003",
+        "wenId": "WEN_TEST_order",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.267Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.267Z",
+        "timestampMs": 1784006550267,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50003",
+        "wenId": "WEN_TEST_order",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.268Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.268Z",
+        "timestampMs": 1784006550268,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50003",
+          "wenId": "WEN_TEST_order",
+          "submittedAt": "2026-07-14T05:22:30.255Z",
+          "answers": {
+            "Q_order_1": [
+              "B",
+              "A"
+            ]
+          },
+          "questions": [
+            {
+              "id": "Q_order_1",
+              "correctAnswer": [
+                "A",
+                "B"
+              ]
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 11,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.271Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.271Z",
+        "timestampMs": 1784006550271,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50004",
+        "wenId": "WEN_TEST_diff",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.282Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.282Z",
+        "timestampMs": 1784006550282,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50004",
+        "wenId": "WEN_TEST_diff",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.283Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.283Z",
+        "timestampMs": 1784006550283,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50004",
+          "wenId": "WEN_TEST_diff",
+          "submittedAt": "2026-07-14T05:22:30.270Z",
+          "answers": {
+            "Q_diff_1": [
+              "A",
+              "C"
+            ]
+          },
+          "questions": [
+            {
+              "id": "Q_diff_1",
+              "correctAnswer": [
+                "A",
+                "B"
+              ]
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.286Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.286Z",
+        "timestampMs": 1784006550286,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50005",
+        "wenId": "WEN_TEST_noq",
+        "questionCount": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.287Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.287Z",
+        "timestampMs": 1784006550287,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50005",
+        "wenId": "WEN_TEST_noq",
+        "questionCount": 0,
+        "correctCount": 0,
+        "wrongCount": 0,
+        "totalScore": 0,
+        "avgScore": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.288Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.288Z",
+        "timestampMs": 1784006550288,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50005",
+          "wenId": "WEN_TEST_noq",
+          "submittedAt": "2026-07-14T05:22:30.285Z",
+          "answers": {
+            "Q_noq_1": 1
+          }
+        },
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.295Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.295Z",
+        "timestampMs": 1784006550295,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50006",
+        "wenId": "WEN_TEST_mismatch",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.307Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.307Z",
+        "timestampMs": 1784006550307,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50006",
+        "wenId": "WEN_TEST_mismatch",
+        "questionCount": 1,
+        "correctCount": 0,
+        "wrongCount": 1,
+        "totalScore": 0,
+        "avgScore": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.308Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.308Z",
+        "timestampMs": 1784006550308,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50006",
+          "wenId": "WEN_TEST_mismatch",
+          "submittedAt": "2026-07-14T05:22:30.293Z",
+          "answers": {
+            "Q_new_1": 1,
+            "Q_new_2": 2
+          },
+          "questions": [
+            {
+              "id": "Q_existing_1",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 13,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.311Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.311Z",
+        "timestampMs": 1784006550311,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50007",
+        "wenId": "WEN_TEST_future",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.322Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.322Z",
+        "timestampMs": 1784006550322,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50007",
+        "wenId": "WEN_TEST_future",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.322Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.322Z",
+        "timestampMs": 1784006550322,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50007",
+          "wenId": "WEN_TEST_future",
+          "submittedAt": "2027-07-14T05:22:30.309Z",
+          "answers": {
+            "Q_future_1": 1
+          },
+          "questions": [
+            {
+              "id": "Q_future_1",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 11,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.325Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.325Z",
+        "timestampMs": 1784006550325,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "50008",
+        "wenId": "WEN_TEST_timestamp",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.338Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.338Z",
+        "timestampMs": 1784006550338,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "50008",
+        "wenId": "WEN_TEST_timestamp",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.339Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.339Z",
+        "timestampMs": 1784006550339,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "50008",
+          "wenId": "WEN_TEST_timestamp",
+          "submittedAt": "2024-01-01 12:00:00",
+          "answers": {
+            "Q_ts_1": 1
+          },
+          "questions": [
+            {
+              "id": "Q_ts_1",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 14,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [31m[ERROR] 2026-07-14T05:22:30.411Z - request entity too large {
+        "timestamp": "2026-07-14T05:22:30.411Z",
+        "timestampMs": 1784006550411,
+        "level": "ERROR",
+        "message": "request entity too large",
+        "type": "ERROR",
+        "stack": "PayloadTooLargeError: request entity too large\n    at readStream (E:\\cpp_discipline\\wenyan-platfor
+m\\backend\\node_modules\\raw-body\\index.js:163:17)\n    at getRawBody (E:\\cpp_discipline\\wenyan-platform\\backend\\
+node_modules\\raw-body\\index.js:116:12)\n    at read (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\body
+-parser\\lib\\read.js:79:3)\n    at jsonParser (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\body-parser
+\\lib\\types\\json.js:138:5)\n    at Layer.handle [as handle_request] (E:\\cpp_discipline\\wenyan-platform\\backend\\no
+de_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_discipline\\wenyan-platform\\backend\\nod
+e_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\e
+xpress\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipline\\wenyan-platform\\backend\\node_m
+odules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules
+\\express\\lib\\router\\index.js:280:10)\n    at cors (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\cors
+\\lib\\index.js:188:7)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\cors\\lib\\index.js:224:17\n
+    at callback (E:\\cpp_discipline\\wenyan-platform\\backend\\src\\app.js:38:9)\n    at E:\\cpp_discipline\\wenyan-pla
+tform\\backend\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (E:\\cpp_discipline\\wenyan-platform\\
+backend\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (E:\\cpp_discipline\\wenyan-platform\\backend\
+\node_modules\\cors\\lib\\index.js:204:7)\n    at Layer.handle [as handle_request] (E:\\cpp_discipline\\wenyan-platform
+\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_discipline\\wenyan-platform\
+\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\no
+de_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipline\\wenyan-platform\\ba
+ckend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\wenyan-platform\\backend\
+\node_modules\\express\\lib\\router\\index.js:280:10)\n    at expressInit (E:\\cpp_discipline\\wenyan-platform\\backend
+\\node_modules\\express\\lib\\middleware\\init.js:40:5)\n    at Layer.handle [as handle_request] (E:\\cpp_discipline\\w
+enyan-platform\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_discipline\\we
+nyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenyan-platfor
+m\\backend\\node_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipline\\wenya
+n-platform\\backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\wenyan-plat
+form\\backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at query (E:\\cpp_discipline\\wenyan-platform\
+\backend\\node_modules\\express\\lib\\middleware\\query.js:45:5)\n    at Layer.handle [as handle_request] (E:\\cpp_disc
+ipline\\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_disci
+pline\\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenya
+n-platform\\backend\\node_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipli
+ne\\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\we
+nyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at router.handle (E:\\cpp_discipline\
+\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:175:3)\n    at app.handle (E:\\cpp_discipline\\
+wenyan-platform\\backend\\node_modules\\express\\lib\\application.js:181:10)\n    at Server.app (E:\\cpp_discipline\\we
+nyan-platform\\backend\\node_modules\\express\\lib\\express.js:39:9)\n    at Server.emit (node:events:509:28)\n    at p
+arserOnIncoming (node:_http_server:1213:12)\n    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)",
+        "name": "PayloadTooLargeError",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "userId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.429Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.429Z",
+        "timestampMs": 1784006550429,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 4,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.437Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.437Z",
+        "timestampMs": 1784006550437,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page": "1",
+          "page_size": "10"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.443Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.443Z",
+        "timestampMs": 1784006550443,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page": "0"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.450Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.450Z",
+        "timestampMs": 1784006550450,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page": "-1"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.455Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.455Z",
+        "timestampMs": 1784006550455,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page_size": "0"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.461Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.461Z",
+        "timestampMs": 1784006550461,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page_size": "-5"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.467Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.467Z",
+        "timestampMs": 1784006550467,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page": "abc"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.472Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.472Z",
+        "timestampMs": 1784006550472,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts",
+        "query": {
+          "page": "99999"
+        },
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.478Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.478Z",
+        "timestampMs": 1784006550478,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "WEN_01",
+            "WEN_02"
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.481Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.481Z",
+        "timestampMs": 1784006550481,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": []
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.484Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.484Z",
+        "timestampMs": 1784006550484,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": "WEN_01"
+        },
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.487Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.487Z",
+        "timestampMs": 1784006550487,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {},
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.491Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.491Z",
+        "timestampMs": 1784006550491,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "WEN_01",
+            ""
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.587Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.587Z",
+        "timestampMs": 1784006550587,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01",
+            "WEN_01"
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 93,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.603Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.603Z",
+        "timestampMs": 1784006550603,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/texts/batch",
+        "query": {},
+        "body": {
+          "text_ids": [
+            "NONEXISTENT_001"
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.609Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.609Z",
+        "timestampMs": 1784006550609,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.613Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.613Z",
+        "timestampMs": 1784006550613,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/NONEXISTENT/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.617Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.617Z",
+        "timestampMs": 1784006550617,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/../../../etc/passwd/basic-info",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.621Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.621Z",
+        "timestampMs": 1784006550621,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/word-list",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.626Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.626Z",
+        "timestampMs": 1784006550626,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/multi-role-reading",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.630Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.630Z",
+        "timestampMs": 1784006550630,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/level1-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.634Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.634Z",
+        "timestampMs": 1784006550634,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/level2-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.638Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.638Z",
+        "timestampMs": 1784006550638,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/level3-scenario-text",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.641Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.641Z",
+        "timestampMs": 1784006550641,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/texts/WEN_01/level3-adaptive-quiz",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.645Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.645Z",
+        "timestampMs": 1784006550645,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "60001",
+        "wenId": "WEN_QUERY",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.657Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.657Z",
+        "timestampMs": 1784006550657,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "60001",
+        "wenId": "WEN_QUERY",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.658Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.658Z",
+        "timestampMs": 1784006550658,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "60001",
+          "wenId": "WEN_QUERY",
+          "submittedAt": "2026-07-14T05:22:30.643Z",
+          "answers": {
+            "Q_query_1_1784006550643": 1
+          },
+          "questions": [
+            {
+              "id": "Q_query_1_1784006550643",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 13,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.663Z - 查询文言文答题记录 {
+        "timestamp": "2026-07-14T05:22:30.663Z",
+        "timestampMs": 1784006550663,
+        "level": "INFO",
+        "message": "查询文言文答题记录",
+        "wenId": "WEN_QUERY",
+        "studentCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.664Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.664Z",
+        "timestampMs": 1784006550664,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/wen/WEN_QUERY",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.667Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.667Z",
+        "timestampMs": 1784006550667,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/wen/",
+        "query": {},
+        "body": {},
+        "statusCode": 404,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.671Z - 查询文言文答题记录 {
+        "timestamp": "2026-07-14T05:22:30.671Z",
+        "timestampMs": 1784006550671,
+        "level": "INFO",
+        "message": "查询文言文答题记录",
+        "wenId": "NONEXISTENT_WEN",
+        "studentCount": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.671Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.671Z",
+        "timestampMs": 1784006550671,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/wen/NONEXISTENT_WEN",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.675Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.675Z",
+        "timestampMs": 1784006550675,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "70001",
+        "wenId": "WEN_STUDENT_TEST",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.687Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.687Z",
+        "timestampMs": 1784006550687,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "70001",
+        "wenId": "WEN_STUDENT_TEST",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.687Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.687Z",
+        "timestampMs": 1784006550688,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "70001",
+          "wenId": "WEN_STUDENT_TEST",
+          "submittedAt": "2026-07-14T05:22:30.674Z",
+          "answers": {
+            "Q_student_1784006550673": 1
+          },
+          "questions": [
+            {
+              "id": "Q_student_1784006550673",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 12,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.693Z - 查询学生答题记录 {
+        "timestamp": "2026-07-14T05:22:30.693Z",
+        "timestampMs": 1784006550693,
+        "level": "INFO",
+        "message": "查询学生答题记录",
+        "studentId": "70001",
+        "wenCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.694Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.694Z",
+        "timestampMs": 1784006550694,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/70001",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 3,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.697Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.697Z",
+        "timestampMs": 1784006550697,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/abc",
+        "query": {},
+        "body": {},
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.701Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.701Z",
+        "timestampMs": 1784006550701,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/%20",
+        "query": {},
+        "body": {},
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.705Z - 查询学生答题记录 {
+        "timestamp": "2026-07-14T05:22:30.705Z",
+        "timestampMs": 1784006550705,
+        "level": "INFO",
+        "message": "查询学生答题记录",
+        "studentId": "99999999",
+        "wenCount": 0
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.706Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.706Z",
+        "timestampMs": 1784006550706,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/99999999",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 2,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.710Z - 查询学生答题记录 {
+        "timestamp": "2026-07-14T05:22:30.710Z",
+        "timestampMs": 1784006550710,
+        "level": "INFO",
+        "message": "查询学生答题记录",
+        "studentId": "70001",
+        "wenCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.710Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.710Z",
+        "timestampMs": 1784006550710,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/answers/student/70001",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 1,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.714Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.714Z",
+        "timestampMs": 1784006550714,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {},
+        "statusCode": 400,
+        "durationMs": 0,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [31m[ERROR] 2026-07-14T05:22:30.719Z - Expected property name or '}' in JSON at position 1 (line 1 column 2) {
+        "timestamp": "2026-07-14T05:22:30.719Z",
+        "timestampMs": 1784006550719,
+        "level": "ERROR",
+        "message": "Expected property name or '}' in JSON at position 1 (line 1 column 2)",
+        "type": "ERROR",
+        "stack": "SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)\n    at JSON.parse
+ (<anonymous>)\n    at parse (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\body-parser\\lib\\types\\json
+.js:92:19)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\body-parser\\lib\\read.js:128:18\n    at
+ AsyncResource.runInAsyncScope (node:async_hooks:227:14)\n    at invokeCallback (E:\\cpp_discipline\\wenyan-platform\\b
+ackend\\node_modules\\raw-body\\index.js:238:16)\n    at done (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modul
+es\\raw-body\\index.js:227:7)\n    at IncomingMessage.onEnd (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules
+\\raw-body\\index.js:287:7)\n    at IncomingMessage.emit (node:events:509:28)\n    at endReadableNT (node:internal/stre
+ams/readable:1729:12)\n    at processTicksAndRejections (node:internal/process/task_queues:90:21)",
+        "name": "SyntaxError",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "userId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [31m[ERROR] 2026-07-14T05:22:30.785Z - request entity too large {
+        "timestamp": "2026-07-14T05:22:30.785Z",
+        "timestampMs": 1784006550785,
+        "level": "ERROR",
+        "message": "request entity too large",
+        "type": "ERROR",
+        "stack": "PayloadTooLargeError: request entity too large\n    at readStream (E:\\cpp_discipline\\wenyan-platfor
+m\\backend\\node_modules\\raw-body\\index.js:163:17)\n    at getRawBody (E:\\cpp_discipline\\wenyan-platform\\backend\\
+node_modules\\raw-body\\index.js:116:12)\n    at read (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\body
+-parser\\lib\\read.js:79:3)\n    at jsonParser (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\body-parser
+\\lib\\types\\json.js:138:5)\n    at Layer.handle [as handle_request] (E:\\cpp_discipline\\wenyan-platform\\backend\\no
+de_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_discipline\\wenyan-platform\\backend\\nod
+e_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\e
+xpress\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipline\\wenyan-platform\\backend\\node_m
+odules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules
+\\express\\lib\\router\\index.js:280:10)\n    at cors (E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\cors
+\\lib\\index.js:188:7)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\node_modules\\cors\\lib\\index.js:224:17\n
+    at callback (E:\\cpp_discipline\\wenyan-platform\\backend\\src\\app.js:38:9)\n    at E:\\cpp_discipline\\wenyan-pla
+tform\\backend\\node_modules\\cors\\lib\\index.js:219:13\n    at optionsCallback (E:\\cpp_discipline\\wenyan-platform\\
+backend\\node_modules\\cors\\lib\\index.js:199:9)\n    at corsMiddleware (E:\\cpp_discipline\\wenyan-platform\\backend\
+\node_modules\\cors\\lib\\index.js:204:7)\n    at Layer.handle [as handle_request] (E:\\cpp_discipline\\wenyan-platform
+\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_discipline\\wenyan-platform\
+\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenyan-platform\\backend\\no
+de_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipline\\wenyan-platform\\ba
+ckend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\wenyan-platform\\backend\
+\node_modules\\express\\lib\\router\\index.js:280:10)\n    at expressInit (E:\\cpp_discipline\\wenyan-platform\\backend
+\\node_modules\\express\\lib\\middleware\\init.js:40:5)\n    at Layer.handle [as handle_request] (E:\\cpp_discipline\\w
+enyan-platform\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_discipline\\we
+nyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenyan-platfor
+m\\backend\\node_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipline\\wenya
+n-platform\\backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\wenyan-plat
+form\\backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at query (E:\\cpp_discipline\\wenyan-platform\
+\backend\\node_modules\\express\\lib\\middleware\\query.js:45:5)\n    at Layer.handle [as handle_request] (E:\\cpp_disc
+ipline\\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\layer.js:95:5)\n    at trim_prefix (E:\\cpp_disci
+pline\\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:328:13)\n    at E:\\cpp_discipline\\wenya
+n-platform\\backend\\node_modules\\express\\lib\\router\\index.js:286:9\n    at router.process_params (E:\\cpp_discipli
+ne\\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:346:12)\n    at next (E:\\cpp_discipline\\we
+nyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:280:10)\n    at router.handle (E:\\cpp_discipline\
+\wenyan-platform\\backend\\node_modules\\express\\lib\\router\\index.js:175:3)\n    at app.handle (E:\\cpp_discipline\\
+wenyan-platform\\backend\\node_modules\\express\\lib\\application.js:181:10)\n    at Server.app (E:\\cpp_discipline\\we
+nyan-platform\\backend\\node_modules\\express\\lib\\express.js:39:9)\n    at Server.emit (node:events:509:28)\n    at p
+arserOnIncoming (node:_http_server:1213:12)\n    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)",
+        "name": "PayloadTooLargeError",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "userId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.797Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.797Z",
+        "timestampMs": 1784006550797,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "80000",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.798Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.798Z",
+        "timestampMs": 1784006550798,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "80001",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.799Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.799Z",
+        "timestampMs": 1784006550799,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "80002",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.800Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.800Z",
+        "timestampMs": 1784006550800,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "80003",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.801Z - 开始处理答题提交 {
+        "timestamp": "2026-07-14T05:22:30.801Z",
+        "timestampMs": 1784006550801,
+        "level": "INFO",
+        "message": "开始处理答题提交",
+        "studentId": "80004",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.812Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.812Z",
+        "timestampMs": 1784006550812,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "80000",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.813Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.813Z",
+        "timestampMs": 1784006550813,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "80000",
+          "wenId": "WEN_CONCURRENT",
+          "submittedAt": "2026-07-14T05:22:30.790Z",
+          "answers": {
+            "Q_concurrent_1784006550790": 1
+          },
+          "questions": [
+            {
+              "id": "Q_concurrent_1784006550790",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 17,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.836Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.836Z",
+        "timestampMs": 1784006550836,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "80001",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.837Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.837Z",
+        "timestampMs": 1784006550837,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "80001",
+          "wenId": "WEN_CONCURRENT",
+          "submittedAt": "2026-07-14T05:22:30.791Z",
+          "answers": {
+            "Q_concurrent_1784006550791": 1
+          },
+          "questions": [
+            {
+              "id": "Q_concurrent_1784006550791",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 39,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.857Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.857Z",
+        "timestampMs": 1784006550857,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "80004",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.857Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.857Z",
+        "timestampMs": 1784006550857,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "80004",
+          "wenId": "WEN_CONCURRENT",
+          "submittedAt": "2026-07-14T05:22:30.793Z",
+          "answers": {
+            "Q_concurrent_1784006550796": 1
+          },
+          "questions": [
+            {
+              "id": "Q_concurrent_1784006550796",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 56,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.858Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.858Z",
+        "timestampMs": 1784006550858,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "80002",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.859Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.859Z",
+        "timestampMs": 1784006550859,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "80002",
+          "wenId": "WEN_CONCURRENT",
+          "submittedAt": "2026-07-14T05:22:30.792Z",
+          "answers": {
+            "Q_concurrent_1784006550793": 1
+          },
+          "questions": [
+            {
+              "id": "Q_concurrent_1784006550793",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 60,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.859Z - 答题提交完成 {
+        "timestamp": "2026-07-14T05:22:30.859Z",
+        "timestampMs": 1784006550859,
+        "level": "INFO",
+        "message": "答题提交完成",
+        "type": "OPERATION",
+        "studentId": "80003",
+        "wenId": "WEN_CONCURRENT",
+        "questionCount": 1,
+        "correctCount": 1,
+        "wrongCount": 0,
+        "totalScore": 100,
+        "avgScore": 100
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.859Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.859Z",
+        "timestampMs": 1784006550859,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "POST",
+        "path": "/api/submit",
+        "query": {},
+        "body": {
+          "studentId": "80003",
+          "wenId": "WEN_CONCURRENT",
+          "submittedAt": "2026-07-14T05:22:30.792Z",
+          "answers": {
+            "Q_concurrent_1784006550795": 1
+          },
+          "questions": [
+            {
+              "id": "Q_concurrent_1784006550795",
+              "correctAnswer": 1
+            }
+          ]
+        },
+        "statusCode": 200,
+        "durationMs": 59,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.878Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.878Z",
+        "timestampMs": 1784006550878,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 6,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.879Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.879Z",
+        "timestampMs": 1784006550879,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 6,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.879Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.879Z",
+        "timestampMs": 1784006550879,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 6,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.880Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.880Z",
+        "timestampMs": 1784006550880,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 7,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.880Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.880Z",
+        "timestampMs": 1784006550880,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 7,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.881Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.881Z",
+        "timestampMs": 1784006550881,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 8,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.881Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.881Z",
+        "timestampMs": 1784006550881,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 8,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.882Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.882Z",
+        "timestampMs": 1784006550882,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 9,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.882Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.882Z",
+        "timestampMs": 1784006550882,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 10,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+    console.log
+      [32m[INFO] 2026-07-14T05:22:30.883Z - HTTP请求 {
+        "timestamp": "2026-07-14T05:22:30.883Z",
+        "timestampMs": 1784006550883,
+        "level": "INFO",
+        "message": "HTTP请求",
+        "type": "REQUEST",
+        "method": "GET",
+        "path": "/api/students",
+        "query": {},
+        "body": {},
+        "statusCode": 200,
+        "durationMs": 10,
+        "ip": "::ffff:127.0.0.1",
+        "userId": null,
+        "studentId": null
+      }[0m
+
+      at log (src/utils/logger.js:109:13)
+
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       2 failed, 230 passed, 232 total
+Snapshots:   0 total
+Time:        3.41 s
+Ran all test suites.
