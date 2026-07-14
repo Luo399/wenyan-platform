@@ -27,5 +27,5 @@ jobs:
             git pull origin main
             cd backend
             npm ci --production
-            pm2 restart wenyan-backend || pm2 start server.js --name wenyan-backend
+            pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
           EOF

@@ -30,6 +30,8 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+        env:
+          VITE_AUTH_SECRET: ${{ secrets.VITE_AUTH_SECRET }}
 
       - name: Configure AWS CLI for Aliyun OSS
         uses: aws-actions/configure-aws-credentials@v4
