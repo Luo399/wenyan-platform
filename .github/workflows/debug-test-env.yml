@@ -7,6 +7,7 @@ on:
     paths:
       - 'scripts/fix-test-env.sh'
       - '.github/workflows/debug-test-env.yml'
+  workflow_dispatch:
 
 jobs:
   debug:
