@@ -34,11 +34,11 @@ export function getWenId(id: string): string {
  * @param poemId - 篇目 ID（支持数字格式 '1' 或 WEN_xx 格式 'WEN_01'）
  * @returns 篇目标题，如果不存在则返回 '未知篇目'
  */
-export function getPoemTitle(poemId: string): string {
-  // 如果是 WEN_xx 格式，提取数字部分
+export function getPoemTitle(poemId?: string): string {
+  if (!poemId) return '未知篇目'
+
   const id = poemId.startsWith('WEN_') ? poemId.replace('WEN_', '') : poemId
 
-  // 如果提取后是 '01' 格式，去掉前导零
   const normalizedId = parseInt(id, 10).toString()
 
   return poemMap[normalizedId]?.title || '未知篇目'

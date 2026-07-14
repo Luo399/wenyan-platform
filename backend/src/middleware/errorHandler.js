@@ -20,12 +20,19 @@ function errorHandler(err, req, res, _next) {
     userId: req.user?.userId || null,
   });
   
-  const statusCode = err.statusCode || 500;
-  const message = err.message || '服务器内部错误';
+  let statusCode = err.statusCode || 500;
+  let message = err.message || '服务器内部错误';
+  let errorCode = err.error || 'INTERNAL_ERROR';
+  
+  if (err.name === 'PayloadTooLargeError') {
+    statusCode = 413;
+    message = '请求体超过大小限制';
+    errorCode = 'PAYLOAD_TOO_LARGE';
+  }
   
   res.status(statusCode).json({
     success: false,
-    error: err.error || 'INTERNAL_ERROR',
+    error: errorCode,
     message: message,
     timestamp: new Date().toISOString()
   });

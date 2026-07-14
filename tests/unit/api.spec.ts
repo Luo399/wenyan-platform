@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getWenId, getAssetUrl } from '@/utils/wenUtils'
+import { getWenId } from '@/utils/wenUtils'
+import { getAssetUrl } from '@/utils/asset'
 
 describe('wenUtils', () => {
   describe('getWenId', () => {
@@ -26,16 +27,19 @@ describe('wenUtils', () => {
     })
 
     it('should return correct audio path', () => {
-      expect(getAssetUrl('audio', 'WEN_01_multi_role.mp3')).toBe('/audio/WEN_01_multi_role.mp3')
+      expect(getAssetUrl('audio/WEN_01_multi_role.mp3')).toBe('/audio/WEN_01_multi_role.mp3')
     })
 
     it('should return correct video path', () => {
-      expect(getAssetUrl('video', 'WEN_01_rule_1.mp4')).toBe('/video/WEN_01_rule_1.mp4')
+      expect(getAssetUrl('video/WEN_01_rule_1.mp4')).toBe('/video/WEN_01_rule_1.mp4')
     })
 
     it('should return correct image path', () => {
-      expect(getAssetUrl('img', 'WEN_01_illus_1.png')).toBe('/img/WEN_01_illus_1.png')
+      expect(getAssetUrl('img/WEN_01_illus_1.png')).toBe('/img/WEN_01_illus_1.png')
     })
 
-    it('should handle unknown type', () => {
-      expect(getAssetUrl('unknown', 'test.png')).toBe('/unknown/test.png')
+    it('should handle leading slashes', () => {
+      expect(getAssetUrl('/audio/test.mp3')).toBe('/audio/test.mp3')
+    })
+  })
+})

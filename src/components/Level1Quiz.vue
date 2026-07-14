@@ -291,13 +291,18 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
 function downloadReport(report: any, studentId: string, studentName: string) {
   const filename = `答题报告_${studentId}_${studentName}_${props.wenId}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-  console.log('[Level1Quiz] 报告已下载:', filename)
+
+  if (typeof URL.createObjectURL === 'function') {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+    console.log('[Level1Quiz] 报告已下载:', filename)
+  } else {
+    console.log('[Level1Quiz] 报告生成成功（非浏览器环境跳过下载）:', filename)
+  }
 }
 
 /**

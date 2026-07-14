@@ -174,7 +174,7 @@ async function submitAnswers(data) {
   const correctCount = results.filter((r) => r.isCorrect === 1).length
   const avgScore = Math.round(totalScore / results.length)
 
-  const result = {
+  const resultData = {
     studentId,
     wenId,
     submittedAt,
@@ -196,7 +196,7 @@ async function submitAnswers(data) {
     avgScore,
   })
 
-  return result
+  return { success: true, data: resultData }
 }
 
 /**

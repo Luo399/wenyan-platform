@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 
 describe('useQuizProgress', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
   })
 
@@ -34,55 +36,55 @@ describe('useQuizProgress', () => {
   })
 
   describe('答题进度测试', () => {
-    it('提交答案应该增加完成计数', () => {
+    it('提交答案应该增加完成计数', async () => {
       const totalQuestions = ref(5)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
+      await progress.handleSubmit(0)
 
       expect(progress.completedCount.value).toBe(1)
     })
 
-    it('提交答案应该更新当前题目索引', () => {
+    it('提交答案应该更新当前题目索引', async () => {
       const totalQuestions = ref(5)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
+      await progress.handleSubmit(0)
 
       expect(progress.currentIndex.value).toBe(1)
     })
 
-    it('连续提交应该正确更新进度', () => {
+    it('连续提交应该正确更新进度', async () => {
       const totalQuestions = ref(5)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
-      progress.handleSubmit(2)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
+      await progress.handleSubmit(2)
 
       expect(progress.completedCount.value).toBe(3)
       expect(progress.currentIndex.value).toBe(3)
     })
 
-    it('所有题目完成后应该标记为已完成', () => {
+    it('所有题目完成后应该标记为已完成', async () => {
       const totalQuestions = ref(3)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
-      progress.handleSubmit(2)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
+      await progress.handleSubmit(2)
 
       expect(progress.isCompleted.value).toBe(true)
     })
   })
 
   describe('进度重置测试', () => {
-    it('重置进度应该恢复初始状态', () => {
+    it('重置进度应该恢复初始状态', async () => {
       const totalQuestions = ref(5)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
       progress.resetProgress()
 
       expect(progress.currentIndex.value).toBe(0)
@@ -101,11 +103,11 @@ describe('useQuizProgress', () => {
       expect(progress.totalQuestions.value).toBe(10)
     })
 
-    it('题目总数减少时不应该重置进度', () => {
+    it('题目总数减少时不应该重置进度', async () => {
       const totalQuestions = ref(10)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
+      await progress.handleSubmit(0)
       totalQuestions.value = 5
 
       expect(progress.currentIndex.value).toBe(1)
@@ -114,12 +116,12 @@ describe('useQuizProgress', () => {
   })
 
   describe('答案记录测试', () => {
-    it('应该记录用户的答案', () => {
+    it('应该记录用户的答案', async () => {
       const totalQuestions = ref(3)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
 
       expect(progress.answers.value[0].answer).toBe(0)
       expect(progress.answers.value[1].answer).toBe(1)
@@ -127,22 +129,22 @@ describe('useQuizProgress', () => {
       expect(progress.answers.value[1].questionIndex).toBe(1)
     })
 
-    it('应该记录字母格式的答案', () => {
+    it('应该记录字母格式的答案', async () => {
       const totalQuestions = ref(3)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit('A')
-      progress.handleSubmit('B')
+      await progress.handleSubmit('A')
+      await progress.handleSubmit('B')
 
       expect(progress.answers.value[0].answer).toBe('A')
       expect(progress.answers.value[1].answer).toBe('B')
     })
 
-    it('答案记录应该包含完整的信息', () => {
+    it('答案记录应该包含完整的信息', async () => {
       const totalQuestions = ref(3)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(2, true, 'Q1', 'module1', 2)
+      await progress.handleSubmit(2, true, 'Q1', 'module1', 2)
 
       const answer = progress.answers.value[0]
       expect(answer.questionIndex).toBe(0)
@@ -155,13 +157,13 @@ describe('useQuizProgress', () => {
   })
 
   describe('答案格式转换测试', () => {
-    it('应该将字母答案转换为数字索引', () => {
+    it('应该将字母答案转换为数字索引', async () => {
       const totalQuestions = ref(2)
       const wenId = 'WEN_01'
       const progress = useQuizProgress(totalQuestions, undefined, wenId)
 
-      progress.handleSubmit('A')
-      progress.handleSubmit('C')
+      await progress.handleSubmit('A')
+      await progress.handleSubmit('C')
 
       const answerMap: Record<string, any> = {}
       const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
@@ -200,24 +202,24 @@ describe('useQuizProgress', () => {
   })
 
   describe('完成百分比测试', () => {
-    it('应该正确计算完成百分比', () => {
+    it('应该正确计算完成百分比', async () => {
       const totalQuestions = ref(10)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
-      progress.handleSubmit(2)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
+      await progress.handleSubmit(2)
 
       expect(progress.progressPercent.value).toBe(30)
     })
 
-    it('全部完成时百分比应该是100', () => {
+    it('全部完成时百分比应该是100', async () => {
       const totalQuestions = ref(3)
       const progress = useQuizProgress(totalQuestions)
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
-      progress.handleSubmit(2)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
+      await progress.handleSubmit(2)
 
       expect(progress.progressPercent.value).toBe(100)
     })
@@ -253,23 +255,23 @@ describe('useQuizProgress', () => {
   })
 
   describe('完成记录测试', () => {
-    it('应该在完成所有题目后保存完成记录', () => {
+    it('应该在完成所有题目后保存完成记录', async () => {
       const totalQuestions = ref(2)
       const progress = useQuizProgress(totalQuestions, undefined, 'test_key')
 
-      progress.handleSubmit(0)
+      await progress.handleSubmit(0)
       expect(progress.isCompleted.value).toBe(false)
 
-      progress.handleSubmit(1)
+      await progress.handleSubmit(1)
       expect(progress.isCompleted.value).toBe(true)
     })
 
-    it('应该在重置进度时清除完成状态', () => {
+    it('应该在重置进度时清除完成状态', async () => {
       const totalQuestions = ref(2)
       const progress = useQuizProgress(totalQuestions, undefined, 'test_key')
 
-      progress.handleSubmit(0)
-      progress.handleSubmit(1)
+      await progress.handleSubmit(0)
+      await progress.handleSubmit(1)
       expect(progress.isCompleted.value).toBe(true)
 
       progress.resetProgress()

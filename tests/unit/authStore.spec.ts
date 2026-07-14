@@ -2,19 +2,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 
+const mockStorage: Record<string, string> = {}
+
+vi.stubGlobal('localStorage', {
+  getItem: (key: string) => mockStorage[key] || null,
+  setItem: (key: string, value: string) => { mockStorage[key] = value },
+  removeItem: (key: string) => { delete mockStorage[key] },
+  clear: () => { Object.keys(mockStorage).forEach(k => delete mockStorage[k]) },
+})
+
 describe('authStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    vi.spyOn(localStorage, 'getItem').mockReturnValue(null)
-    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {})
-    vi.spyOn(localStorage, 'removeItem').mockImplementation(() => {})
+    Object.keys(mockStorage).forEach(k => delete mockStorage[k])
   })
 
   it('should initialize with empty state', () => {
     const store = useAuthStore()
     
-    expect(store.token).toBe('')
+    expect(store.token).toBe(null)
     expect(store.user).toBe(null)
     expect(store.error).toBe(null)
     expect(store.isLoggedIn).toBe(false)
@@ -39,36 +46,30 @@ describe('authStore', () => {
     
     store.clearAuthData()
     
-    expect(store.token).toBe('')
+    expect(store.token).toBe(null)
     expect(store.user).toBe(null)
     expect(store.error).toBe(null)
   })
 
   it('should restore from storage', () => {
-    vi.spyOn(localStorage, 'getItem').mockImplementation((key: string) => {
-      if (key === 'auth_token') return 'stored-token'
-      if (key === 'auth_user') return JSON.stringify({ id: '1001', name: '张三' })
-      return null
-    })
+    mockStorage['auth_token'] = 'stored-token'
+    mockStorage['auth_user'] = JSON.stringify({ id: '1001', name: '张三' })
     
     const store = useAuthStore()
-    store.restoreFromStorage()
+    store.initialize()
     
     expect(store.token).toBe('stored-token')
     expect(store.user).toEqual({ id: '1001', name: '张三' })
   })
 
   it('should handle invalid JSON in storage', () => {
-    vi.spyOn(localStorage, 'getItem').mockImplementation((key: string) => {
-      if (key === 'auth_token') return 'stored-token'
-      if (key === 'auth_user') return 'invalid-json'
-      return null
-    })
+    mockStorage['auth_token'] = 'stored-token'
+    mockStorage['auth_user'] = 'invalid-json'
     
     const store = useAuthStore()
-    store.restoreFromStorage()
+    store.initialize()
     
-    expect(store.token).toBe('')
+    expect(store.token).toBe(null)
     expect(store.user).toBe(null)
     expect(store.error).toBe('登录状态已过期，请重新登录')
   })

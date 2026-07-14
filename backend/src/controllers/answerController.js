@@ -42,9 +42,9 @@ async function submitAnswers(req, res) {
     });
 
     res.status(200).json({
-      success: true,
+      success: result.success,
       message: '答案提交成功',
-      data: result,
+      data: result.data,
     });
   } catch (err) {
     error('答题提交失败', {
