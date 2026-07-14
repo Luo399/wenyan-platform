@@ -22,16 +22,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            PROJECT_PATH="/www/wwwroot/wenyan-platform-test"
-            BACKEND_PATH="$PROJECT_PATH/backend"
+            BACKEND_PATH=/www/wwwroot/wenyan-platform-test/backend
+            cd /www/wwwroot/wenyan-platform-test
 
             echo "=== 1. 创建 .env 文件 ==="
-            cat > "$BACKEND_PATH/.env" << 'ENVEOF'
-PORT=3001
-CORS_ORIGIN=https://test.classicalab.cn
-AUTH_SECRET=wenyan-test-secret-2024
-ENVEOF
-            cat "$BACKEND_PATH/.env"
+            echo "PORT=3001" > $BACKEND_PATH/.env
+            echo "CORS_ORIGIN=https://test.classicalab.cn" >> $BACKEND_PATH/.env
+            echo "AUTH_SECRET=wenyan-test-secret-2024" >> $BACKEND_PATH/.env
+            cat $BACKEND_PATH/.env
 
             echo ""
             echo "=== 2. 删除旧 PM2 进程 ==="
@@ -39,12 +37,12 @@ ENVEOF
 
             echo ""
             echo "=== 3. 重新安装依赖 ==="
-            cd "$BACKEND_PATH"
+            cd $BACKEND_PATH
             npm ci --production 2>&1 | tail -5
 
             echo ""
             echo "=== 4. 启动后端 ==="
-            cd "$PROJECT_PATH"
+            cd /www/wwwroot/wenyan-platform-test
             pm2 start backend/server.js --name wenyan-backend-test 2>&1
             sleep 2
 
@@ -54,7 +52,7 @@ ENVEOF
 
             echo ""
             echo "=== 6. 本地测试后端 ==="
-            curl -s http://127.0.0.1:3001/api/health 2>&1 || echo "失败"
+            curl -s http://127.0.0.1:3001/api/health 2>&1 || echo "failed"
 
             echo ""
             echo "=== 7. PM2 错误日志 ==="
