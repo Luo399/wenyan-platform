@@ -35,12 +35,16 @@ export function parseTimeToSeconds(timeStr: string): number {
 
   const parts = timeStr.split(':').map(Number)
 
-  if (parts.length !== 2 || isNaN(parts[0] ?? NaN) || isNaN(parts[1] ?? NaN)) {
+  if (parts.length < 2 || parts.length > 3 || parts.some(isNaN)) {
     console.warn(`[adapterUtils] 无效的时间格式: ${timeStr}`)
     return 0
   }
 
-  return (parts[0] ?? 0) * 60 + (parts[1] ?? 0)
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  }
+
+  return parts[0] * 60 + parts[1]
 }
 
 /**
