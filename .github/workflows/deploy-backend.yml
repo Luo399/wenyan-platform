@@ -18,12 +18,12 @@ jobs:
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to server
         run: |
           BRANCH=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << EOF
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << EOF
             cd ${{ secrets.SERVER_PROJECT_PATH }}
             git fetch origin "$BRANCH"
             git checkout "$BRANCH"
