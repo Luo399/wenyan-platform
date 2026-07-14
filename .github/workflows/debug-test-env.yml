@@ -1,0 +1,58 @@
+name: Debug Test Environment
+
+on:
+  push:
+    branches:
+      - feature-1
+    paths:
+      - 'scripts/fix-test-env.sh'
+      - '.github/workflows/debug-test-env.yml'
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH to server and debug
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /tmp
+            rm -f fix-test-env.sh
+            echo "运行环境诊断..."
+            
+            echo "=== PM2 进程 ==="
+            pm2 status 2>&1
+            
+            echo ""
+            echo "=== 3001 端口 ==="
+            ss -tlnp 2>&1 | grep 3001 || echo "未监听"
+            
+            echo ""
+            echo "=== 测试目录 ==="
+            ls -la /www/wwwroot/wenyan-platform-test/ 2>&1 || echo "目录不存在"
+            
+            echo ""
+            echo "=== 后端目录 ==="
+            ls -la /www/wwwroot/wenyan-platform-test/backend/ 2>&1 || echo "目录不存在"
+            
+            echo ""
+            echo "=== .env 文件 ==="
+            cat /www/wwwroot/wenyan-platform-test/backend/.env 2>&1 || echo "不存在"
+            
+            echo ""
+            echo "=== Nginx 配置 ==="
+            cat /www/server/panel/vhost/nginx/test-api.classicalab.cn.conf 2>&1 || echo "不存在"
+            
+            echo ""
+            echo "=== Nginx error log (tail 10) ==="
+            tail -10 /www/wwwlogs/test-api.classicalab.cn.error.log 2>&1 || echo "无"
+            
+            echo ""
+            echo "=== 本地测试后端 ==="
+            curl -s http://127.0.0.1:3001/api/health 2>&1 || echo "失败"
