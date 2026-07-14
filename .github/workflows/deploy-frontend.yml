@@ -33,18 +33,15 @@ jobs:
         env:
           VITE_AUTH_SECRET: ${{ secrets.VITE_AUTH_SECRET }}
 
-      - name: Configure AWS CLI for Aliyun OSS
+      - name: Install ossutil
         run: |
-          aws configure set aws_access_key_id ${{ secrets.OSS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          aws configure set default.region cn-guangzhou
-          aws configure set default.s3.disable_chunked_encoding true
+          wget https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
+          chmod +x ossutil64
+          ./ossutil64 config -i ${{ secrets.OSS_ACCESS_KEY_ID }} -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} -e oss-cn-guangzhou.aliyuncs.com -L CH
 
       - name: Deploy to Aliyun OSS
         run: |
-          AWS_S3_DISABLE_CHUNKED_ENCODING=true aws s3 cp ./dist s3://${{ secrets.OSS_BUCKET }} \
-            --endpoint-url https://${{ secrets.OSS_BUCKET }}.oss-cn-guangzhou.aliyuncs.com \
-            --recursive \
+          ./ossutil64 cp -r ./dist oss://${{ secrets.OSS_BUCKET }}/ \
             --cache-control "public, max-age=31536000"
 
       - name: Purge CDN cache
