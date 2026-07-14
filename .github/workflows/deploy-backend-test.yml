@@ -6,11 +6,11 @@ on:
       - feature-1
     paths:
       - 'backend/**'
+      - '.github/workflows/deploy-backend-test.yml'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: test
 
     steps:
       - name: Checkout code

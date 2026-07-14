@@ -10,11 +10,11 @@ on:
       - 'package.json'
       - 'vite.config.ts'
       - '.env.production'
+      - '.github/workflows/deploy-frontend-test.yml'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: test
 
     steps:
       - name: Checkout code
