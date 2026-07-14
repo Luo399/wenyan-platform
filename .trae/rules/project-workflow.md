@@ -27,9 +27,22 @@ scene: git_push
 ## 4. 工作流（必须按此顺序）
 1. 在功能分支 `trae/agent-XXXX` 开发并自测。
 2. 合并到 `origin/feature-1`（特性集成分支），推送到远端。
-3. feature-1 测试通过后，**单独创建一次 PR** 将 `feature-1` 合并到 `main`，触发 Actions。
-4. 等待并轮询 Actions 运行结果，失败则回到步骤 1 修复后重走流程。
-5. 部署成功后，对生产域名 `https://classicalab.cn` 做冒烟测试。
+3. 推送 `feature-1` 自动触发测试环境部署（OSS test 桶 + 后端 3001 端口）。
+4. 在测试环境验证通过后，**单独创建一次 PR** 将 `feature-1` 合并到 `main`，触发生产部署。
+5. 等待并轮询 Actions 运行结果，失败则回到步骤 1 修复后重走流程。
+6. 部署成功后，对生产域名 `https://classicalab.cn` 做冒烟测试。
+
+### 分支-环境映射表
+
+| 分支 | 触发 Workflow | 部署目标 | 后端端口 |
+|------|--------------|---------|---------|
+| `trae/agent-XXXX` | 不部署 | — | — |
+| `feature-1` | `deploy-backend-test.yml`<br>`deploy-frontend-test.yml` | OSS test 桶<br>服务器 `-test` 目录 | 3001 |
+| `main` | `deploy-backend.yml`<br>`deploy-frontend.yml` | OSS prod 桶<br>服务器主目录 | 3000 |
+
+### Actions 监控要求
+- 推送 `feature-1` 后：监控 `Deploy Backend to Test Server` 和 `Deploy Frontend to Test OSS`
+- 推送/合并 `main` 后：监控 `Deploy Backend to Aliyun Server` 和 `Deploy Frontend to Aliyun OSS`
 
 ## 5. 数据流与组件分层（禁止违规）
 - 数据来源分层：JSON 数据（OSS）→ `utils/` 解析封装 → `composables/` 行为封装 → `views/` 页面 → `components/` 视图组件。

@@ -10,6 +10,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout code
@@ -22,9 +23,12 @@ jobs:
 
       - name: Deploy to server
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          BRANCH=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << EOF
             cd ${{ secrets.SERVER_PROJECT_PATH }}
-            git pull origin main
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
             cd backend
             npm ci --production
             pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend

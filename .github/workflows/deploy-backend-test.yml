@@ -1,0 +1,48 @@
+name: Deploy Backend to Test Server
+
+on:
+  push:
+    branches:
+      - feature-1
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: Deploy to test server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            TEST_PATH="${{ secrets.SERVER_PROJECT_PATH }}-test"
+            BRANCH="feature-1"
+
+            if [ ! -d "$TEST_PATH" ]; then
+              git clone https://github.com/Luo399/wenyan-platform.git "$TEST_PATH"
+            fi
+
+            cd "$TEST_PATH"
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            cd backend
+            npm ci --production
+
+            if pm2 describe wenyan-backend-test > /dev/null 2>&1; then
+              pm2 reload wenyan-backend-test --update-env
+            else
+              cd ..
+              pm2 start backend/server.js --name wenyan-backend-test -- --port 3001
+            fi
+          EOF

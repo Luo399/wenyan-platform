@@ -1,0 +1,49 @@
+name: Deploy Frontend to Test OSS
+
+on:
+  push:
+    branches:
+      - feature-1
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.env.production'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_AUTH_SECRET: ${{ secrets.VITE_AUTH_SECRET }}
+
+      - name: Configure AWS CLI for Aliyun OSS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+          aws-region: oss-cn-hangzhou
+
+      - name: Deploy to Aliyun OSS test bucket
+        run: |
+          aws s3 sync ./dist s3://${{ secrets.ALIYUN_OSS_TEST_BUCKET }} \
+            --endpoint-url https://oss-cn-hangzhou.aliyuncs.com \
+            --delete \
+            --cache-control "public, max-age=31536000"
