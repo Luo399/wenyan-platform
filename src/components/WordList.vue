@@ -35,6 +35,8 @@
         ref="contentRef"
         class="article-content"
         v-html="adaptedData.basicInfo.contentHtml"
+        @mousemove="handleMouseMove"
+        @mouseleave="showTooltip = false"
       ></div>
 
       <!-- Tooltip -->
@@ -50,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import {
   adaptWordList,
@@ -151,13 +153,7 @@ function handleMouseMove(e: MouseEvent) {
 }
 
 // 生命周期钩子
-onMounted(() => {
-  document.addEventListener('mousemove', handleMouseMove)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('mousemove', handleMouseMove)
-})
+// 事件已改为通过 Vue 模板绑定在 .article-content 容器上，无需全局监听
 </script>
 
 <style scoped>

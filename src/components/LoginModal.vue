@@ -74,7 +74,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { get } from '@/utils/api'
+import { useStudentQuery } from '@/composables/useStudentQuery'
 
 // Props
 interface Props {
@@ -94,10 +94,12 @@ const modalRef = ref<HTMLElement | null>(null)
 
 // State
 const studentId = ref('')
-const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 const isSubmitting = ref(false)
+
+// Composable
+const { studentName, queryStudentName } = useStudentQuery()
 
 // Store
 const authStore = useAuthStore()
@@ -138,23 +140,8 @@ async function handleStudentIdInput(): Promise<void> {
 
   // 当学号长度 >= 1 时查询学生姓名
   if (studentId.value.trim().length >= 1) {
-    await fetchStudentName()
+    await queryStudentName(studentId.value.trim())
   } else {
-    studentName.value = ''
-  }
-}
-
-// 查询学生姓名
-async function fetchStudentName(): Promise<void> {
-  try {
-    const response = await get(`/api/students/${studentId.value.trim()}`)
-    if (response.success && response.data) {
-      studentName.value = response.data.name || ''
-    } else {
-      studentName.value = ''
-    }
-  } catch (err) {
-    console.error('查询学生信息失败:', err)
     studentName.value = ''
   }
 }

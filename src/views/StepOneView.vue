@@ -64,7 +64,7 @@ import BackContinue from '@/components/BackContinue.vue'
 import SectionDivider from '@/components/common/SectionDivider.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useStudentInfo } from '@/composables/useStudentInfo'
-import { submitAnswers } from '@/utils/api'
+import { submitAnswers } from '@/services/apiService'
 import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
 
 interface Level1QuizItem {

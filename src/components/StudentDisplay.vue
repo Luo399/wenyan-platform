@@ -39,9 +39,9 @@
         </div>
 
         <!-- 学生姓名显示 -->
-        <div v-if="searchedName" class="name-display">
+        <div v-if="studentName" class="name-display">
           <span class="name-label">查询到：</span>
-          <span class="name-value">{{ searchedName }}</span>
+          <span class="name-value">{{ studentName }}</span>
         </div>
 
         <p v-if="hasError" class="error-message">{{ errorMessage }}</p>
@@ -67,7 +67,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
-import { get } from '@/utils/api'
+import { useStudentQuery } from '@/composables/useStudentQuery'
 
 // 使用新的 auth store
 const authStore = useAuthStore()
@@ -81,10 +81,11 @@ const inputId = ref('')
 const hasError = ref(false)
 // 错误消息
 const errorMessage = ref('')
-// 查询到的学生姓名
-const searchedName = ref('')
 // 当前加载状态
 const isLoading = ref(false)
+
+// Composable
+const { studentName, queryStudentName } = useStudentQuery()
 
 // 计算属性：学号
 const studentId = computed(() => user.value?.studentId || '')
@@ -117,26 +118,9 @@ async function handleInput() {
   clearError()
 
   if (inputId.value.trim()) {
-    await fetchStudentName()
+    await queryStudentName(inputId.value.trim())
   } else {
-    searchedName.value = ''
-  }
-}
-
-/**
- * 查询学生姓名
- */
-async function fetchStudentName() {
-  try {
-    const response = await get(`/api/students/${inputId.value.trim()}`)
-    if (response.success && response.data) {
-      searchedName.value = response.data.name || ''
-    } else {
-      searchedName.value = ''
-    }
-  } catch (err) {
-    console.error('查询学生信息失败:', err)
-    searchedName.value = ''
+    studentName.value = ''
   }
 }
 
@@ -169,10 +153,10 @@ async function handleSave() {
     }
 
     // 登录
-    await authStore.login(inputId.value.trim(), searchedName.value)
+    await authStore.login(inputId.value.trim(), studentName.value)
     showEditModal.value = false
     inputId.value = ''
-    searchedName.value = ''
+    studentName.value = ''
   } catch (err) {
     hasError.value = true
     errorMessage.value = authError.value || '操作失败，请重试'
@@ -188,7 +172,7 @@ async function handleSave() {
 function handleClose() {
   showEditModal.value = false
   inputId.value = ''
-  searchedName.value = ''
+  studentName.value = ''
   clearError()
 }
 
@@ -199,7 +183,7 @@ function handleLogout() {
   authStore.logout()
   showEditModal.value = false
   inputId.value = ''
-  searchedName.value = ''
+  studentName.value = ''
   clearError()
 }
 

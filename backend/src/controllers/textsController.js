@@ -6,175 +6,37 @@
 const textsService = require('../services/textsService');
 
 /**
- * 获取课文基础信息
- * GET /api/texts/:textId/basic-info
+ * 创建标准文本 getter 处理函数
+ * @param {Function} serviceMethod - textsService 上的方法
+ * @param {string} resourceName - 资源名称（用于 404 错误消息）
+ * @returns {Function} Express handler
  */
-function getBasicInfo(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getBasicInfo(textId);
+function createTextHandler(serviceMethod, resourceName) {
+  return function (req, res) {
+    const { textId } = req.params;
+    const data = serviceMethod(textId);
 
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `文本基础信息不存在: ${textId}`,
-    });
-  }
+    if (data) {
+      res.json({ success: true, data });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'NOT_FOUND',
+        message: `${resourceName}不存在: ${textId}`,
+      });
+    }
+  };
 }
 
-/**
- * 获取字词注释
- * GET /api/texts/:textId/word-list
- */
-function getWordList(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getWordList(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `字词注释不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取多角色朗读数据
- * GET /api/texts/:textId/multi-role-reading
- */
-function getMultiRoleReading(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getMultiRoleReading(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `多角色朗读数据不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取一级测验数据
- * GET /api/texts/:textId/level1-quiz
- */
-function getLevel1Quiz(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel1Quiz(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `一级测验数据不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取文化卡片数据
- * GET /api/texts/:textId/culture-cards
- */
-function getCultureCards(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getCultureCards(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `文化卡片数据不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取二级对话数据
- * GET /api/texts/:textId/level2-dialog
- */
-function getLevel2Dialog(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel2Dialog(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `二级对话数据不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取二级测验数据
- * GET /api/texts/:textId/level2-quiz
- */
-function getLevel2Quiz(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel2Quiz(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `二级测验数据不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取三级情景文本数据
- * GET /api/texts/:textId/level3-scenario-text
- */
-function getLevel3ScenarioText(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel3ScenarioText(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `三级情景文本不存在: ${textId}`,
-    });
-  }
-}
-
-/**
- * 获取三级自适应测验数据
- * GET /api/texts/:textId/level3-adaptive-quiz
- */
-function getLevel3AdaptiveQuiz(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel3AdaptiveQuiz(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `三级自适应测验数据不存在: ${textId}`,
-    });
-  }
-}
+const getBasicInfo = createTextHandler(textsService.getBasicInfo, '文本基础信息');
+const getWordList = createTextHandler(textsService.getWordList, '字词注释');
+const getMultiRoleReading = createTextHandler(textsService.getMultiRoleReading, '多角色朗读数据');
+const getLevel1Quiz = createTextHandler(textsService.getLevel1Quiz, '一级测验数据');
+const getCultureCards = createTextHandler(textsService.getCultureCards, '文化卡片数据');
+const getLevel2Dialog = createTextHandler(textsService.getLevel2Dialog, '二级对话数据');
+const getLevel2Quiz = createTextHandler(textsService.getLevel2Quiz, '二级测验数据');
+const getLevel3ScenarioText = createTextHandler(textsService.getLevel3ScenarioText, '三级情景文本');
+const getLevel3AdaptiveQuiz = createTextHandler(textsService.getLevel3AdaptiveQuiz, '三级自适应测验数据');
 
 /**
  * 获取课文列表（支持分页）

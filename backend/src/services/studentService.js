@@ -4,25 +4,20 @@
  */
 
 const { studentDb, answerDb } = require('../config/database');
+const { dbRun, dbGet, dbAll, dbPrepareRun } = require('../utils/dbPromise');
 
 /**
  * 获取学生信息
  * @param {string} studentId - 学生ID
  * @returns {Promise<object|null>} - 学生信息
  */
-function getStudentById(studentId) {
-  return new Promise((resolve, reject) => {
-    studentDb.get(
-      'SELECT student_id, name, class, created_at FROM students WHERE student_id = ?',
-      [studentId],
-      (err, row) => {
-        if (err) {
-          return reject(err);
-        }
-        resolve(row || null);
-      }
-    );
-  });
+async function getStudentById(studentId) {
+  const row = await dbGet(
+    studentDb,
+    'SELECT student_id, name, class, created_at FROM students WHERE student_id = ?',
+    [studentId]
+  );
+  return row || null;
 }
 
 /**
@@ -32,20 +27,13 @@ function getStudentById(studentId) {
  * @param {number} [studentClass=9] - 班级号
  * @returns {Promise<object>} - 操作结果
  */
-function createOrUpdateStudent(studentId, name, studentClass = 9) {
-  return new Promise((resolve, reject) => {
-    const stmt = studentDb.prepare(
-      'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)'
-    );
-
-    stmt.run(studentId, name, studentClass, (err) => {
-      stmt.finalize();
-      if (err) {
-        return reject(err);
-      }
-      resolve({ studentId, name, class: studentClass });
-    });
-  });
+async function createOrUpdateStudent(studentId, name, studentClass = 9) {
+  await dbPrepareRun(
+    studentDb,
+    'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)',
+    [studentId, name, studentClass]
+  );
+  return { studentId, name, class: studentClass };
 }
 
 /**
@@ -53,25 +41,18 @@ function createOrUpdateStudent(studentId, name, studentClass = 9) {
  * @param {number} [classNum] - 班级号（可选）
  * @returns {Promise<Array>} - 学生列表
  */
-function getStudentList(classNum) {
-  return new Promise((resolve, reject) => {
-    let query = 'SELECT * FROM students';
-    let params = [];
+async function getStudentList(classNum) {
+  let query = 'SELECT * FROM students';
+  let params = [];
 
-    if (classNum && /^\d+$/.test(String(classNum))) {
-      query += ' WHERE class = ?';
-      params.push(parseInt(classNum));
-    }
+  if (classNum && /^\d+$/.test(String(classNum))) {
+    query += ' WHERE class = ?';
+    params.push(parseInt(classNum));
+  }
 
-    query += ' ORDER BY student_id ASC';
+  query += ' ORDER BY student_id ASC';
 
-    studentDb.all(query, params, (err, rows) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(rows);
-    });
-  });
+  return dbAll(studentDb, query, params);
 }
 
 /**
@@ -81,35 +62,29 @@ function getStudentList(classNum) {
  * @param {number} [studentClass] - 班级号（可选）
  * @returns {Promise<object>} - 更新结果
  */
-function updateStudent(studentId, name, studentClass) {
-  return new Promise((resolve, reject) => {
-    let updateSql = 'UPDATE students SET name = ?';
-    let params = [name.trim()];
+async function updateStudent(studentId, name, studentClass) {
+  let updateSql = 'UPDATE students SET name = ?';
+  let params = [name.trim()];
 
-    if (studentClass !== undefined) {
-      updateSql += ', class = ?';
-      params.push(studentClass);
-    }
+  if (studentClass !== undefined) {
+    updateSql += ', class = ?';
+    params.push(studentClass);
+  }
 
-    updateSql += ' WHERE student_id = ?';
-    params.push(studentId);
+  updateSql += ' WHERE student_id = ?';
+  params.push(studentId);
 
-    studentDb.run(updateSql, params, function (err) {
-      if (err) {
-        return reject(err);
-      }
+  const { changes } = await dbRun(studentDb, updateSql, params);
 
-      if (this.changes === 0) {
-        return resolve({ success: false, message: '未找到该学生' });
-      }
+  if (changes === 0) {
+    return { success: false, message: '未找到该学生' };
+  }
 
-      resolve({
-        success: true,
-        message: '学生信息修改成功',
-        data: { studentId, name: name.trim(), class: studentClass }
-      });
-    });
-  });
+  return {
+    success: true,
+    message: '学生信息修改成功',
+    data: { studentId, name: name.trim(), class: studentClass }
+  };
 }
 
 /**
@@ -117,43 +92,28 @@ function updateStudent(studentId, name, studentClass) {
  * @param {string} studentId - 学生ID
  * @returns {Promise<object>} - 删除结果
  */
-function deleteStudent(studentId) {
-  return new Promise((resolve, reject) => {
-    studentDb.serialize(() => {
-      let deletedRecordsCount = 0;
+async function deleteStudent(studentId) {
+  const { changes: deletedRecordsCount } = await dbRun(
+    answerDb,
+    'DELETE FROM answer_records WHERE student_id = ?',
+    [studentId]
+  );
 
-      answerDb.run(
-        'DELETE FROM answer_records WHERE student_id = ?',
-        [studentId],
-        function (err) {
-          if (err) {
-            return reject(err);
-          }
-          deletedRecordsCount = this.changes || 0;
+  const { changes } = await dbRun(
+    studentDb,
+    'DELETE FROM students WHERE student_id = ?',
+    [studentId]
+  );
 
-          studentDb.run(
-            'DELETE FROM students WHERE student_id = ?',
-            [studentId],
-            function (err) {
-              if (err) {
-                return reject(err);
-              }
+  if (changes === 0) {
+    return { success: false, message: '未找到该学生' };
+  }
 
-              if (this.changes === 0) {
-                return resolve({ success: false, message: '未找到该学生' });
-              }
-
-              resolve({
-                success: true,
-                message: `学生删除成功，同时删除了 ${deletedRecordsCount} 条答题记录`,
-                data: { studentId, deletedRecordsCount }
-              });
-            }
-          );
-        }
-      );
-    });
-  });
+  return {
+    success: true,
+    message: `学生删除成功，同时删除了 ${deletedRecordsCount || 0} 条答题记录`,
+    data: { studentId, deletedRecordsCount: deletedRecordsCount || 0 }
+  };
 }
 
 module.exports = {

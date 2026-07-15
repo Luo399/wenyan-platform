@@ -9,8 +9,40 @@ function diagLog(...args: unknown[]) {
 // Worker 超时时间（毫秒）
 const WORKER_TIMEOUT = 5000
 
+// 缓存最大条目数
+const MAX_CACHE_SIZE = 100
+
 // Worker 实例缓存
 let jsonParserWorker: Worker | null = null
+
+interface CacheEntry<T = unknown> {
+  data: T
+  timestamp: number
+}
+
+// 模块级共享缓存，所有 useDataLoader 调用共享
+const cache = new Map<string, CacheEntry>()
+
+function setCacheEntry<T>(url: string, entry: CacheEntry<T>) {
+  if (cache.has(url)) {
+    cache.delete(url)
+  } else if (cache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value
+    if (oldestKey !== undefined) {
+      cache.delete(oldestKey)
+    }
+  }
+  cache.set(url, entry)
+}
+
+function deleteCacheEntry(url: string) {
+  cache.delete(url)
+}
+
+export function clearDataCache() {
+  cache.clear()
+  debugLog('[useDataLoader] 数据缓存已清空')
+}
 
 /**
  * 获取共享的 JSON 解析 Worker
@@ -99,11 +131,6 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
   let abortController: AbortController | null = null
   let retryAttempts = 0
-  interface CacheEntry {
-    data: T
-    timestamp: number
-  }
-  const cache = new Map<string, CacheEntry>()
 
   async function load() {
     const url = urlGetter()
@@ -118,19 +145,24 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     }
 
     // 检查缓存
-    if (cacheEnabled && cache.has(url)) {
-      const cachedEntry = cache.get(url)!
-      // 检查缓存是否过期
-      if (Date.now() - cachedEntry.timestamp < cacheTTL) {
-        data.value = cachedEntry.data
-        loading.value = false
-        diagLog('📦 从缓存获取数据')
-        onLoadSuccess?.(data.value)
-        return
+    if (cacheEnabled) {
+      const cachedEntry = cache.get(url) as CacheEntry<T> | undefined
+      if (cachedEntry) {
+        // 检查缓存是否过期
+        if (Date.now() - cachedEntry.timestamp < cacheTTL) {
+          // 更新 LRU 顺序
+          cache.delete(url)
+          cache.set(url, cachedEntry)
+          data.value = cachedEntry.data
+          loading.value = false
+          diagLog('📦 从缓存获取数据')
+          onLoadSuccess?.(data.value)
+          return
+        }
+        // 缓存过期，删除
+        deleteCacheEntry(url)
+        diagLog('⏰ 缓存已过期，重新获取')
       }
-      // 缓存过期，删除
-      cache.delete(url)
-      diagLog('⏰ 缓存已过期，重新获取')
     }
 
     // 取消之前的请求
@@ -192,7 +224,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
       // 存入缓存
       if (cacheEnabled) {
-        cache.set(url, { data: data.value, timestamp: Date.now() })
+        setCacheEntry(url, { data: data.value as T, timestamp: Date.now() })
       }
 
       const duration = Date.now() - startTime

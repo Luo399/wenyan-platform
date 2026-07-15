@@ -1,15 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/HomeView.vue'
-import DetailView from '@/views/DetailView.vue'
-import RuleView from '@/views/RuleView.vue'
-import RuleView1 from '@/views/RuleView1.vue'
-import RuleView2 from '@/views/RuleView2.vue'
-import RuleView3 from '@/views/RuleView3.vue'
-import StepOneView from '@/views/StepOneView.vue'
-import StepThreeView from '@/views/StepThreeView.vue'
-import StepTwoView from '@/views/StepTwoView.vue'
-import BlockDemoView from '@/views/BlockDemoView.vue'
-import AnswerQueryView from '@/views/AnswerQueryView.vue'
 
 export const routes = [
   {
@@ -20,55 +10,55 @@ export const routes = [
   {
     path: '/rules/:id',
     name: 'rules',
-    component: RuleView,
+    component: () => import('@/views/RuleView.vue'),
   },
   {
     path: '/stepone/:id',
     name: 'stepone',
-    component: StepOneView,
+    component: () => import('@/views/StepOneView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/rule1/:id',
     name: 'rule1',
-    component: RuleView1,
+    component: () => import('@/views/RuleView1.vue'),
   },
   {
     path: '/rule2/:id',
     name: 'rule2',
-    component: RuleView2,
+    component: () => import('@/views/RuleView2.vue'),
   },
   {
     path: '/rule3/:id',
     name: 'rule3',
-    component: RuleView3,
+    component: () => import('@/views/RuleView3.vue'),
   },
   {
     path: '/stepthree/:id',
     name: 'stepthree',
-    component: StepThreeView,
+    component: () => import('@/views/StepThreeView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/steptwo/:id',
     name: 'steptwo',
-    component: StepTwoView,
+    component: () => import('@/views/StepTwoView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/block-demo',
     name: 'block-demo',
-    component: BlockDemoView,
+    component: () => import('@/views/BlockDemoView.vue'),
   },
   {
     path: '/detail/:id',
     name: 'detail',
-    component: DetailView,
+    component: () => import('@/views/DetailView.vue'),
   },
   {
     path: '/answer-query',
     name: 'answer-query',
-    component: AnswerQueryView,
+    component: () => import('@/views/AnswerQueryView.vue'),
     meta: { requiresAuth: true },
   },
   {

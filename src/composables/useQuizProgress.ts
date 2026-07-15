@@ -11,7 +11,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers, submitSingleAnswer } from '@/utils/api'
+import { submitAnswers, submitSingleAnswer } from '@/services/apiService'
 import { useAuthStore } from '@/stores/auth'
 
 export interface QuizAnswer {

@@ -7,6 +7,7 @@
  * - 获取多角色朗读数据
  * - 获取各级测验数据
  * - 支持缓存机制
+ * - 用户登录与答题提交
  *
  * 使用示例：
  * import { getTextBasicInfo, getWordList } from '@/services/apiService'
@@ -42,6 +43,83 @@ export interface WordItem {
   basic_meaning: string
   synonym_analysis?: string
   follow_up_questions?: string[]
+}
+
+/**
+ * 登录响应
+ */
+export interface LoginResponse {
+  token: string
+  user: {
+    id: string
+    username: string
+    student_id: string
+    role: 'student' | 'teacher' | 'admin'
+  }
+}
+
+/**
+ * 答题数据接口
+ */
+export interface QuestionForSubmit {
+  id: string
+  correctAnswer: string | number | (string | number)[]
+}
+
+export interface SubmitAnswersParams {
+  studentId: string
+  studentName?: string
+  wenId: string
+  submittedAt: string
+  answers: Record<string, string | number | (string | number)[]>
+  questions: QuestionForSubmit[]
+}
+
+export interface SubmitAnswersResponse {
+  success: boolean
+  message: string
+  data?: {
+    studentId: string
+    wenId: string
+    submittedAt: string
+    questionCount: number
+    correctCount: number
+    wrongCount: number
+    totalScore: number
+    avgScore: number
+    details: Array<{
+      questionId: string
+      score: number
+      isCorrect: number
+      attemptNumber: number
+    }>
+  }
+}
+
+export interface SubmitSingleAnswerParams {
+  studentId: string
+  studentName?: string
+  wenId: string
+  questionId: string
+  userAnswer: string | number | (string | number)[]
+  correctAnswer?: string | number | (string | number)[]
+  submittedAt?: string
+}
+
+export interface SubmitSingleAnswerResponse {
+  success: boolean
+  message: string
+  data?: {
+    studentId: string
+    wenId: string
+    questionId: string
+    userAnswer: string | number | (string | number)[]
+    correctAnswer?: string | number | (string | number)[]
+    isCorrect: number
+    score: number
+    submittedAt: string
+    attemptNumber: number
+  }
 }
 
 /**
@@ -173,6 +251,60 @@ export async function getTextBasicInfo(textId: string): Promise<ApiResponse<Text
  */
 export async function getWordList(textId: string): Promise<ApiResponse<WordItem[]>> {
   return get<WordItem[]>(`/api/texts/${textId}/word-list`)
+}
+
+/**
+ * 登录
+ *
+ * @param studentId - 学号
+ * @returns 用户信息和 token
+ */
+export async function login(studentId: string): Promise<LoginResponse> {
+  const response = await post<LoginResponse>('/api/auth/login', { student_id: studentId })
+  return response.data!
+}
+
+/**
+ * 提交答题结果
+ *
+ * @param submitData - 答题数据（包含answers和questions）
+ * @param wenId - 课文ID
+ * @param studentId - 学生ID
+ * @param studentName - 学生姓名（可选）
+ * @param timeout - 超时时间
+ * @returns 提交结果
+ */
+export async function submitAnswers(
+  submitData: { answers: Record<string, any>; questions: QuestionForSubmit[] },
+  wenId: string,
+  studentId: string,
+  studentName?: string,
+  timeout?: number,
+): Promise<SubmitAnswersResponse> {
+  const params: SubmitAnswersParams = {
+    studentId,
+    studentName,
+    wenId,
+    submittedAt: new Date().toISOString(),
+    answers: submitData.answers,
+    questions: submitData.questions,
+  }
+
+  const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
+  return response.data!
+}
+
+/**
+ * 提交单题答案
+ */
+export async function submitSingleAnswer(
+  params: SubmitSingleAnswerParams,
+): Promise<SubmitSingleAnswerResponse> {
+  const response = await post<SubmitSingleAnswerResponse>('/api/submit/single', {
+    ...params,
+    submittedAt: params.submittedAt || new Date().toISOString(),
+  })
+  return response.data!
 }
 
 /**

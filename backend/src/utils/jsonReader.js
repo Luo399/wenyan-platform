@@ -47,158 +47,133 @@ function getDataFilePath(dirName, fileName) {
 }
 
 /**
+ * 从对象中提取正确答案
+ * @param {object} obj - 包含答案字段的对象
+ * @returns {any|undefined} - 正确答案，不存在则返回 undefined
+ */
+function extractAnswer(obj) {
+  if (obj.correctAnswer !== undefined) return obj.correctAnswer;
+  if (obj.correct_answer !== undefined) return obj.correct_answer;
+  return undefined;
+}
+
+/**
+ * 匹配题目ID（支持多种ID字段）
+ * @param {object} obj - 对象
+ * @param {string} questionId - 题目ID
+ * @returns {boolean} - 是否匹配
+ */
+function matchesQuestionId(obj, questionId) {
+  return obj.id === questionId || obj.question_id === questionId || obj.questionId === questionId;
+}
+
+/**
+ * 在题目数组中查找（用于 questions/quiz 数组）
+ * @param {Array} arr - 数组
+ * @param {string} questionId - 题目ID
+ * @returns {any|undefined} - 找到的答案或 undefined
+ */
+function findAnswerInQuestionArray(arr, questionId) {
+  if (!Array.isArray(arr)) return undefined;
+  const item = arr.find((q) => q.id === questionId || q.questionId === questionId);
+  if (item) {
+    const answer = extractAnswer(item);
+    if (answer !== undefined) return answer;
+  }
+  return undefined;
+}
+
+/**
+ * 在 blocks 中查找 quiz 块
+ * @param {Array} blocks - blocks 数组
+ * @param {string} questionId - 题目ID
+ * @returns {any|undefined} - 找到的答案或 undefined
+ */
+function findAnswerInBlocks(blocks, questionId) {
+  if (!Array.isArray(blocks)) return undefined;
+  for (const block of blocks) {
+    if (block.type === 'quiz' && block.data) {
+      const blockData = block.data;
+      const answer = findAnswerInQuestionArray(blockData.questions, questionId);
+      if (answer !== undefined) return answer;
+
+      if (matchesQuestionId(blockData, questionId)) {
+        const blockAnswer = extractAnswer(blockData);
+        if (blockAnswer !== undefined) return blockAnswer;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * 在 items 数组中查找（level3 adaptive quiz 结构）
+ * @param {Array} items - items 数组
+ * @param {string} questionId - 题目ID
+ * @returns {any|undefined} - 找到的答案或 undefined
+ */
+function findAnswerInItems(items, questionId) {
+  if (!Array.isArray(items)) return undefined;
+  for (const item of items) {
+    if (item.quiz && matchesQuestionId(item.quiz, questionId)) {
+      const answer = extractAnswer(item.quiz);
+      if (answer !== undefined) return answer;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * 在扁平数组中查找
+ * @param {Array} data - 数组
+ * @param {string} questionId - 题目ID
+ * @returns {any|undefined} - 找到的答案或 undefined
+ */
+function findAnswerInFlatArray(data, questionId) {
+  if (!Array.isArray(data)) return undefined;
+  for (const item of data) {
+    if (matchesQuestionId(item, questionId)) {
+      const answer = extractAnswer(item);
+      if (answer !== undefined) return answer;
+    }
+  }
+  return undefined;
+}
+
+/**
  * 根据题目ID和课文ID从JSON文件获取正确答案
  * @param {string} questionId - 题目ID
  * @param {string} wenId - 课文ID
  * @returns {any|null} - 正确答案，找不到返回null
  */
 function getCorrectAnswerFromJson(questionId, wenId) {
-  const possibleDirs = ['level1_quiz', 'level2_quiz', 'level3_adaptive_quiz'];
-
-  for (const dir of possibleDirs) {
-    const filePath = getDataFilePath(dir, `${wenId}.json`);
-    const data = readJsonFile(filePath);
-
-    if (data) {
-      // 尝试在 questions 数组中查找
-      if (data.questions && Array.isArray(data.questions)) {
-        const question = data.questions.find(
-          (q) => q.id === questionId || q.questionId === questionId
-        );
-        if (
-          question &&
-          (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-        ) {
-          return question.correctAnswer ?? question.correct_answer;
-        }
-      }
-
-      // 尝试在 blocks 中查找 quiz 块（level2 dialog quiz 结构）
-      if (data.blocks && Array.isArray(data.blocks)) {
-        for (const block of data.blocks) {
-          if (block.type === 'quiz' && block.data) {
-            const blockData = block.data;
-            if (blockData.questions && Array.isArray(blockData.questions)) {
-              const question = blockData.questions.find(
-                (q) => q.id === questionId || q.questionId === questionId
-              );
-              if (
-                question &&
-                (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-              ) {
-                return question.correctAnswer ?? question.correct_answer;
-              }
-            } else if (
-              (blockData.id === questionId ||
-                blockData.question_id === questionId ||
-                blockData.questionId === questionId) &&
-              (blockData.correctAnswer !== undefined ||
-                blockData.correct_answer !== undefined)
-            ) {
-              return blockData.correctAnswer ?? blockData.correct_answer;
-            }
-          }
-        }
-      }
-
-      // 尝试在 quiz 数组中查找（扁平结构）
-      if (data.quiz && Array.isArray(data.quiz)) {
-        const question = data.quiz.find((q) => q.id === questionId || q.questionId === questionId);
-        if (
-          question &&
-          (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-        ) {
-          return question.correctAnswer ?? question.correct_answer;
-        }
-      }
-
-      // 尝试在 items 数组中查找（level3 adaptive quiz 结构）
-      if (data.items && Array.isArray(data.items)) {
-        for (const item of data.items) {
-          if (item.quiz) {
-            const quiz = item.quiz;
-            if (
-              (quiz.id === questionId ||
-                quiz.question_id === questionId ||
-                quiz.questionId === questionId) &&
-              (quiz.correctAnswer !== undefined || quiz.correct_answer !== undefined)
-            ) {
-              return quiz.correctAnswer ?? quiz.correct_answer;
-            }
-          }
-        }
-      }
-
-      // 尝试直接在数组中查找（level1 quiz 是数组结构）
-      if (Array.isArray(data)) {
-        for (const item of data) {
-          if (
-            (item.id === questionId ||
-              item.question_id === questionId ||
-              item.questionId === questionId) &&
-            (item.correctAnswer !== undefined || item.correct_answer !== undefined)
-          ) {
-            return item.correctAnswer ?? item.correct_answer;
-          }
-        }
-      }
-    }
-  }
-
-  // 如果在测验文件中找不到，尝试从页面配置文件中查找
-  const pageConfigs = [
-    getDataFilePath('pages_level2_dialog_quiz', `${wenId}.json`),
-    getDataFilePath('pages_level3_adaptive_quiz', `${wenId}.json`),
-    getDataFilePath('text-quiz', `${wenId}.json`),
+  // 搜索策略数组，按优先级排列
+  const searchStrategies = [
+    (data) => findAnswerInQuestionArray(data.questions, questionId),
+    (data) => findAnswerInBlocks(data.blocks, questionId),
+    (data) => findAnswerInQuestionArray(data.quiz, questionId),
+    (data) => findAnswerInItems(data.items, questionId),
+    (data) => findAnswerInFlatArray(data, questionId),
   ];
 
-  for (const filePath of pageConfigs) {
-    const data = readJsonFile(filePath);
-    if (data) {
-      // 尝试在 blocks 中查找
-      if (data.blocks && Array.isArray(data.blocks)) {
-        for (const block of data.blocks) {
-          if (block.type === 'quiz' && block.data) {
-            const blockData = block.data;
-            if (blockData.questions && Array.isArray(blockData.questions)) {
-              const question = blockData.questions.find(
-                (q) => q.id === questionId || q.questionId === questionId
-              );
-              if (
-                question &&
-                (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-              ) {
-                return question.correctAnswer ?? question.correct_answer;
-              }
-            } else if (
-              (blockData.id === questionId ||
-                blockData.question_id === questionId ||
-                blockData.questionId === questionId) &&
-              (blockData.correctAnswer !== undefined ||
-                blockData.correct_answer !== undefined)
-            ) {
-              return blockData.correctAnswer ?? blockData.correct_answer;
-            }
-          }
-        }
-      }
+  // 数据来源配置，按优先级排列
+  const dataSources = [
+    'level1_quiz',
+    'level2_quiz',
+    'level3_adaptive_quiz',
+    'pages_level2_dialog_quiz',
+    'pages_level3_adaptive_quiz',
+    'text-quiz',
+  ];
 
-      // 尝试在 items 数组中查找
-      if (data.items && Array.isArray(data.items)) {
-        for (const item of data.items) {
-          if (item.quiz) {
-            const quiz = item.quiz;
-            if (
-              (quiz.id === questionId ||
-                quiz.question_id === questionId ||
-                quiz.questionId === questionId) &&
-              (quiz.correctAnswer !== undefined || quiz.correct_answer !== undefined)
-            ) {
-              return quiz.correctAnswer ?? quiz.correct_answer;
-            }
-          }
-        }
-      }
+  for (const dir of dataSources) {
+    const filePath = getDataFilePath(dir, `${wenId}.json`);
+    const data = readJsonFile(filePath);
+    if (!data) continue;
+
+    for (const strategy of searchStrategies) {
+      const answer = strategy(data);
+      if (answer !== undefined) return answer;
     }
   }
 

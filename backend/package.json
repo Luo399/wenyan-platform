@@ -13,15 +13,16 @@
     "test:coverage": "jest --coverage --testPathPatterns=tests/"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.3",
     "sqlite3": "^5.1.6"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "supertest": "^6.3.4",
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.4"
   },
   "jest": {
     "testEnvironment": "node",
