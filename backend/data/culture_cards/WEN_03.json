@@ -1,0 +1,37 @@
+{
+  "text_id": "WEN_03",
+  "cards": [
+    {
+      "text_id": "WEN_03",
+      "card_id": 1,
+      "card_name": "诗词岳阳",
+      "image_file": "文字",
+      "knowledge_text": "“气蒸云梦泽，波撼岳阳城。”——孟浩然《望洞庭湖赠张丞相》",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_03",
+      "card_id": 2,
+      "card_name": "诗词岳阳",
+      "image_file": "文字",
+      "knowledge_text": "“楼观岳阳尽，川迥洞庭开。”——李白《与夏十二登岳阳楼》",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_03",
+      "card_id": 3,
+      "card_name": "诗词岳阳",
+      "image_file": "文字",
+      "knowledge_text": "“吴楚东南坼，乾坤日夜浮。”——杜甫《登岳阳楼》",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮“我已完成”，点击“我已完成”"
+    },
+    {
+      "text_id": "WEN_03",
+      "card_id": 4,
+      "card_name": "诗词岳阳",
+      "image_file": "文字",
+      "knowledge_text": "“洞庭秋月生湖心，层波万顷如熔金。”——刘禹锡《洞庭秋月行》",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮“我已完成”，点击“我已完成”"
+    }
+  ]
+}

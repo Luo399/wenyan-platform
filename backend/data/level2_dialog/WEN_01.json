@@ -1,0 +1,32 @@
+[
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "陈胜：苟富贵，无相忘。",
+    "audio_file": "WEN_01_multi_dialog1",
+    "icon_dialog": "WEN_01_icon_dialog1.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "佣者：若为佣耕，何富贵也？",
+    "audio_file": "WEN_01_multi_dialog2",
+    "icon_dialog": "WEN_01_icon_dialog2.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "陈胜：嗟乎！燕雀安知鸿鹄之志哉！",
+    "audio_file": "WEN_01_multi_dialog3",
+    "icon_dialog": "WEN_01_icon_dialog3.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "吴广：今亡亦死，举大计亦死；等死，死国可乎？",
+    "audio_file": "WEN_01_multi_dialog4",
+    "icon_dialog": "WEN_01_icon_dialog4.png"
+  },
+  {
+    "text_id": "WEN_01",
+    "pre_dialog": "陈胜：王侯将相宁有种乎！",
+    "audio_file": "WEN_01_multi_dialog5",
+    "icon_dialog": "WEN_01_icon_dialog5.png"
+  }
+]

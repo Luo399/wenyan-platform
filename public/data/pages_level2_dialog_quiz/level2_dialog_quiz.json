@@ -1,0 +1,252 @@
+[
+  {
+    "pageId": "WEN_01",
+    "blocks": [
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_01",
+          "pre_dialog": "戍卒：二位屯长，冒昧来访，听完你们的话我才知道许多事情不是天意而是人为，我实在佩服你们的计谋。",
+          "audio_file": "WEN_01_multi_dialog1",
+          "icon_dialog": "WEN_01_icon_dialog1.png"
+        }
+      },
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_01",
+          "question_id": "WEN_01_B1",
+          "module": "B",
+          "question_number": 1,
+          "question_text": "下列对陈胜、吴广起义前一系列安排的分析，最能体现二人处事智慧的一项是（）",
+          "option_a": "假借扶苏、项燕名号起义，核心目的是吸引官兵注意力，方便起义军突围",
+          "option_b": "计“鱼腹藏书”“篝火狐鸣”，是利用鬼神之说威服众人，树立陈胜威信，凝聚起义人心",
+          "option_c": "吴广故意趁将尉醉酒扬言逃跑，是为了让将尉放松对起义的警惕",
+          "option_d": "杀尉后“祭以尉首”，只是为了报复将尉的欺压，没有战略意义",
+          "audio_file": "WEN_01_multi_dialog2",
+          "difficulty": "L3",
+          "pre_dialog": "陈胜：既然如此，你觉得我们起义前的一系列安排中，哪项最能体现我们二人的处事智慧？",
+          "correct_answer": 1,
+          "explanation": "我们这些戍卒，年年服役，最信鬼神。帛书从鱼肚子里剖出来，狐狸在夜里叫"陈胜王"，谁不怕？谁不信？这不是装神弄鬼，是借人心所畏，聚人心所向。A项"借名号"的真实目的是利用扶苏、项燕在民间的声望号召天下响应；C项吴广扬言逃跑的目的是激怒将尉；D项"祭以尉首"是筑坛盟誓的仪式，具有凝聚军心的战略意义。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_01",
+          "pre_dialog": "吴广：答案是B。我们这些戍卒，年年服役，最信鬼神。帛书从鱼肚子里剖出来，狐狸在夜里叫“陈胜王”，谁不怕？谁不信？这不是装神弄鬼，是借人心所畏，聚人心所向。",
+          "audio_file": "WEN_01_multi_dialog3",
+          "icon_dialog": "WEN_01_icon_dialog3.png"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_01",
+          "pre_dialog": "陈胜：没错，A项“借名号”的真实目的是利用扶苏、项燕在民间的声望号召天下响应，而非吸引官兵注意力；C项吴广扬言逃跑的目的是激怒将尉，使其当众鞭打自己，从而激怒众戍卒，而非让将尉放松警惕；D项“祭以尉首”是筑坛盟誓的仪式，象征起义的庄严与决心，具有凝聚军心的重要战略意义，绝非单纯报复。",
+          "audio_file": "WEN_01_multi_dialog4",
+          "icon_dialog": "WEN_01_icon_dialog2.png"
+        }
+      },
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_01",
+          "question_id": "WEN_01_B2",
+          "module": "B",
+          "question_number": 2,
+          "question_text": "杀死将尉后，陈胜对全体戍卒做起义动员，哪一句话最能体现他不甘宿命、敢于反抗的超凡胆识？（）",
+          "option_a": "燕雀安知鸿鹄之志哉",
+          "option_b": "天下苦秦久矣",
+          "option_c": "王侯将相宁有种乎",
+          "option_d": "等死，死国可乎",
+          "audio_file": "WEN_01_multi_dialog5",
+          "difficulty": "L2",
+          "pre_dialog": "吴广：但你可知，光有"天意"还不够。那日我故意在将尉面前说要逃，让他当众鞭我，羞辱我，就是要激怒众戍卒，你知道当天陈胜说的哪句话最能体现我们不甘宿命、敢于反抗的超凡胆识吗？",
+          "correct_answer": 2,
+          "explanation": "雨下了三十天，期限已误，按律我们全都要斩首。可我偏不信——王侯将相，难道生来就是王侯将相？他们的命是命，我们的命就不是命？A项是陈胜少时抒发志向的话语，B项是对天下形势的判断，D项是谋划起义时对利害的权衡，只有C项在生死关头当众喊出，直接挑战血统尊卑秩序，最能体现不甘宿命、敢于反抗的超凡胆识。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_01",
+          "pre_dialog": "陈胜：答案是C。雨下了三十天，期限已误，按律我们全都要斩首。可我偏不信——王侯将相，难道生来就是王侯将相？他们的命是命，我们的命就不是命？",
+          "audio_file": "WEN_01_multi_dialog6",
+          "icon_dialog": "WEN_01_icon_dialog2.png"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_01",
+          "pre_dialog": "吴广：至于A项则是陈胜少时抒发志向的话语，B项是对天下形势的判断，属于分析层面的智慧，D项是谋划起义时对利害的权衡，体现的是理性的抉择。只有C项在生死关头当众喊出，直接挑战血统尊卑秩序，所以最能体现不甘宿命、敢于反抗的超凡胆识。",
+          "audio_file": "WEN_01_multi_dialog7",
+          "icon_dialog": "WEN_01_icon_dialog3.png"
+        }
+      }
+    ]
+  },
+  {
+    "pageId": "WEN_04",
+    "blocks": [
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_04",
+          "question_id": "WEN_04_B1",
+          "module": "B",
+          "question_number": 1,
+          "question_text": "庄子曰：\"子非鱼，安知我不知鱼之乐？\" 这句话运用了下列哪种辩论技巧？（ ）",
+          "option_a": "以子之矛，攻子之盾",
+          "option_b": "以退为进，反守为攻",
+          "option_c": "类比推理",
+          "option_d": "举例论证",
+          "audio_file": "WEN_04_multi_dialog1",
+          "difficulty": "L2",
+          "pre_dialog": "学生：二位先生，刚才路过听完了二位的辩论，感觉颇有启迪。\n庄子：既然如此，你觉得我在刚才的论辩中运用了什么技巧？",
+          "correct_answer": 0,
+          "explanation": "惠子先提出 \"子非鱼，安知鱼之乐\" 的观点，认为不是鱼就不知道鱼的快乐。而我巧妙地借用惠子的逻辑，反问 \"子非我，安知我不知鱼之乐\"，用惠子自己的论证方法来反驳惠子，这就是 \"以子之矛，攻子之盾\" 的辩论技巧。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_04",
+          "question_id": "WEN_04_B2",
+          "module": "B",
+          "question_number": 2,
+          "question_text": "惠子曰：\"我非子，固不知子矣；子固非鱼也，子之不知鱼之乐，全矣。\" 这句话运用了下列哪种辩论技巧？（ ）",
+          "option_a": "以子之矛，攻子之盾",
+          "option_b": "以退为进，反守为攻",
+          "option_c": "归谬法",
+          "option_d": "举例论证",
+          "audio_file": "WEN_04_multi_dialog2",
+          "difficulty": "L2",
+          "pre_dialog": "庄子：答案是A。惠子先提出 \"子非鱼，安知鱼之乐\" 的观点，认为不是鱼就不知道鱼的快乐。而我巧妙地借用惠子的逻辑，反问 \"子非我，安知我不知鱼之乐\"，用惠子自己的论证方法来反驳惠子，这就是 \"以子之矛，攻子之盾\" 的辩论技巧。\n惠子：但你可知，我采用了什么论辩技巧吗？",
+          "correct_answer": 1,
+          "explanation": "我先主动退一步，承认 \"我不是你，本来就不知道你\"，顺着庄子之前的逻辑承认了 \"不是对方就不知道对方的想法\" 这一前提。然后我立刻调转方向，用这个我们双方都认可的前提反过来攻击庄子：既然你承认 \"不是对方就不知道对方\"，那你本来就不是鱼，所以你不知道鱼的快乐，这个结论是完全成立的。这种先退让一步、再趁机反击的技巧，就是 \"以退为进，反守为攻\"。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_04",
+          "pre_dialog": "惠子：答案是B。我先主动退一步，承认 \"我不是你，本来就不知道你\"，顺着庄子之前的逻辑承认了 \"不是对方就不知道对方的想法\" 这一前提。然后我立刻调转方向，用这个我们双方都认可的前提反过来攻击庄子：既然你承认 \"不是对方就不知道对方\"，那你本来就不是鱼，所以你不知道鱼的快乐，这个结论是完全成立的。这种先退让一步、再趁机反击的技巧，就是 \"以退为进，反守为攻\"",
+          "audio_file": "WEN_04_multi_dialog3",
+          "icon_dialog": "WEN_04_avatar_huizi.png"
+        }
+      }
+    ]
+  },
+  {
+    "pageId": "WEN_03",
+    "blocks": [
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_03",
+          "pre_dialog": "书生：先生，您请范公写《岳阳楼记》，可我细读文章，几乎没细致写岳阳楼的楼宇模样，这是为何呀？",
+          "audio_file": "WEN_03_muti_dialog1",
+          "icon_dialog": "WEN_03_icon_dialog1.png"
+        }
+      },
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_03",
+          "question_id": "WEN_03_B1",
+          "module": "B",
+          "question_number": 1,
+          "question_text": "本文题为《岳阳楼记》，却并未具体描写岳阳楼本身，下列对这一写作特点的理解错误的一项是（）",
+          "option_a": "因为“前人之述备矣”，前人对岳阳楼的描述已经十分详尽，无需重复",
+          "option_b": "范仲淹意在借岳阳楼抒发 “先天下之忧而忧，后天下之乐而乐” 的政治抱负，而非介绍建筑",
+          "option_c": "范仲淹从未登临岳阳楼，无法描写楼的具体样貌，只能借洞庭湖景色抒情",
+          "option_d": "范仲淹将笔墨放在洞庭湖景色与迁客骚人的情感上，为引出“古仁人之心”做铺垫",
+          "audio_file": "WEN_03_muti_dialog2",
+          "difficulty": "L2",
+          "pre_dialog": "滕子京：此言问到了关键之处，你来分辨一下，以下说法哪一项理解有误？",
+          "correct_answer": 2,
+          "explanation": "前人对其形貌描写已然用尽笔墨，再重复前人旧调，毫无新意可言，所以希文兄虽未亲临巴陵，但其所写的，是心中的洞庭湖，心中的岳阳楼，是比楼更为高远的胸怀抱负。C项错误在于认为范仲淹无法描写楼的样貌，实际上是他有意借楼抒怀而非无法描写。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_03",
+          "pre_dialog": "滕子京：答案是C。前人对其形貌描写已然用尽笔墨，再重复前人旧调，毫无新意可言，所以希文兄虽未亲临巴陵，但其所写的，是心中的洞庭湖，心中的岳阳楼，是比楼更为高远的胸怀抱负。",
+          "audio_file": "WEN_03_muti_dialog3",
+          "icon_dialog": "WEN_03_icon_dialog3.png"
+        }
+      }
+    ]
+  },
+  {
+    "pageId": "WEN_02",
+    "blocks": [
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_02",
+          "question_id": "WEN_02_B1",
+          "module": "B",
+          "question_number": 1,
+          "question_text": "下列对千里马被埋没的原因分析，最准确的一项是（）",
+          "option_a": "千里马食量过大，难以供给",
+          "option_b": "千里马缺少驰骋的场地与机会",
+          "option_c": "食马者不识人才，喂养、驱使等皆不得其法",
+          "option_d": "千里马甘愿平庸，不愿展露才华",
+          "audio_file": "WEN_01_multi_dialog1",
+          "difficulty": "L2",
+          "pre_dialog": "学徒：我看厩中千里马身姿矫健、气度不凡，却始终无法驰骋千里，实在太过可惜。千里马啊，你身怀奇才，为何最终落得"才美不外见"的境地？",
+          "correct_answer": 2,
+          "explanation": "我本有日行千里的能力，可喂养我的人不懂我的需求，吃不饱、力气不足，才华自然无法施展。他们驱使我不讲方法，听不懂我的嘶鸣，却张口便说"天下无马"。真正的问题在于食马者不识人才，喂养、驱使等皆不得其法。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_02",
+          "pre_dialog": "千里马：答案是C。我本有日行千里的能力，可喂养我的人不懂我的需求，吃不饱、力气不足，才华自然无法施展。他们驱使我不讲方法，听不懂我的嘶鸣，却张口便说“天下无马”。",
+          "audio_file": "WEN_01_multi_dialog2",
+          "icon_dialog": "WEN_01_icon_dialog2"
+        }
+      },
+      {
+        "type": "quiz",
+        "data": {
+          "text_id": "WEN_02",
+          "question_id": "WEN_02_B2",
+          "module": "B",
+          "question_number": 2,
+          "question_text": "结合全文主旨，对“世有伯乐，然后有千里马”理解最深刻、最准确的一项是（）",
+          "option_a": "伯乐出现之后，世间才会诞生千里马",
+          "option_b": "识才者的赏识与重用对人才来说极为重要",
+          "option_c": "伯乐的地位和价值远超千里马",
+          "option_d": "世间千里马众多，有无伯乐无关紧要",
+          "audio_file": "WEN_01_multi_dialog3",
+          "difficulty": "L3",
+          "pre_dialog": "学徒：原来如此！不是良马无用，而是识马者稀缺。那韩愈先生开篇便说"世有伯乐，然后有千里马"，这句话究竟藏着怎样的深意？",
+          "correct_answer": 1,
+          "explanation": "世间从不缺少有才华的人，缺少的是慧眼识才、用心育才、真心惜才的人。没有伯乐的赏识与善待，再出众的才华也可能被埋没、被辜负。韩愈写马，实则写人，感叹的是天下有才之士，难遇知己、难逢良机的无奈。",
+          "question_type": "radio"
+        }
+      },
+      {
+        "type": "dialogue",
+        "data": {
+          "text_id": "WEN_02",
+          "pre_dialog": "千里马：答案是B。世间从不缺少有才华的人，缺少的是慧眼识才、用心育才、真心惜才的人。没有伯乐的赏识与善待，再出众的才华也可能被埋没、被辜负。韩愈写马，实则写人，感叹的是天下有才之士，难遇知己、难逢良机的无奈。",
+          "audio_file": "WEN_01_multi_dialog4",
+          "icon_dialog": "WEN_01_icon_dialog2"
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,78 @@
+name: Test Workflow
+
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'refactor/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      - name: Install frontend dependencies
+        run: npm ci
+      
+      - name: Run frontend unit tests
+        run: npm run test:unit
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+      
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+  data-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      
+      - name: Validate JSON data files
+        run: |
+          cd backend/data
+          for dir in */; do
+            for file in "$dir"*.json; do
+              if [ -f "$file" ]; then
+                if ! cat "$file" | node -e "JSON.parse(require('fs').readFileSync(0, 'utf-8'))"; then
+                  echo "Invalid JSON: $file"
+                  exit 1
+                fi
+                size=$(cat "$file" | node -e "console.log(JSON.parse(require('fs').readFileSync(0, 'utf-8')).length || 'object')")
+                echo "Valid JSON: $file (size: $size)"
+              fi
+            done
+          done

@@ -1,0 +1,15 @@
+[
+  {
+    "text_id": "WEN_03",
+    "question_number": 1,
+    "question_text": "本文运用了多种表达方式，试按文章内容依次排列\n①描写②说明③记叙④抒情⑤议论",
+    "option_a": "②③①⑤",
+    "option_b": "②⑤③④",
+    "option_c": "③②①④",
+    "option_d": "③①④⑤",
+    "correct_answer": 3,
+    "explanation": "本文开篇记叙重修岳阳楼、作记缘由；再以两段描写阴晴两种洞庭盛景，抒发迁客骚人悲喜之情；文末引出“不以物喜，不以己悲”“先忧后乐”，则是全文的议论升华。由事及景，由景生情，由情入理，层层递进。",
+    "difficulty": "L1",
+    "question_type": "radio"
+  }
+]

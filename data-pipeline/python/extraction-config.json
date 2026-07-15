@@ -1,0 +1,102 @@
+{
+  "version": "1.0",
+  "input": {
+    "excel_file": "../source/开发需求填写.dbt.xlsx",
+    "student_file": "../source/学生名单.xlsx"
+  },
+  "output": {
+    "temp_dir": "../temp",
+    "backend_dir": "../../backend/data",
+    "public_dir": "../../public/data"
+  },
+  "sheets": [
+    {
+      "name": "level1_quiz",
+      "output_file": "level1_quiz.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    },
+    {
+      "name": "level2_dialog_quiz",
+      "output_file": "level2_dialog_quiz.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    },
+    {
+      "name": "level3_adaptive_quiz",
+      "output_file": "level3_adaptive_quiz.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    },
+    {
+      "name": "WordList",
+      "output_file": "word_list.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    },
+    {
+      "name": "TextBasicInfo",
+      "output_file": "text_basic_info.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    },
+    {
+      "name": "MultiRoleReading",
+      "output_file": "multi_role_reading.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    },
+    {
+      "name": "CultureCards",
+      "output_file": "culture_cards.json",
+      "header_row": 1,
+      "property_row": 2,
+      "data_start_row": 3,
+      "filter_column": "text_id",
+      "filter_value": "WEN_01"
+    }
+  ],
+  "validation": {
+    "required_fields": {
+      "level1_quiz": ["text_id", "question_number", "question_text", "correct_answer"],
+      "level2_dialog_quiz": ["text_id", "question_number", "question_text", "correct_answer"],
+      "level3_adaptive_quiz": ["text_id", "question_number", "question_text", "correct_answer"],
+      "word_list": ["text_id", "word", "basic_meaning"],
+      "text_basic_info": ["text_id", "title", "original_text"],
+      "multi_role_reading": ["text_id", "sentence_index", "dialogue"],
+      "culture_cards": ["text_id", "card_id", "content"]
+    },
+    "value_constraints": {
+      "difficulty": ["L1", "L2", "L3"],
+      "correct_answer": ["A", "B", "C", "D"],
+      "question_type": ["radio", "checkbox"]
+    }
+  },
+  "transform": {
+    "empty_value_markers": ["", "none", "null", "nan", "n/a", "-", "—"],
+    "number_fields": ["question_number", "sentence_index", "correct_index"],
+    "trim_strings": true
+  },
+  "logging": {
+    "level": "INFO",
+    "output_file": "../temp/pipeline.log"
+  }
+}

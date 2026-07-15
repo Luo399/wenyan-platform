@@ -1,0 +1,30 @@
+[
+  {
+    "text_id": "WEN_01",
+    "question_number": 1,
+    "question_text": "下列对陈胜、吴广起义前一系列安排的分析，最能体现二人处事智慧的一项是（）",
+    "option_a": "假借扶苏、项燕名号起义，核心目的是吸引官兵注意力，方便起义军突围",
+    "option_b": "计“鱼腹藏书”“篝火狐鸣”，是利用鬼神之说威服众人，树立陈胜威信，凝聚起义人心",
+    "option_c": "吴广故意趁将尉醉酒扬言逃跑，是为了让将尉放松对起义的警惕",
+    "option_d": "杀尉后“祭以尉首”，只是为了报复将尉的欺压，没有战略意义",
+    "audio_file": "WEN_01_multi_dialog2",
+    "difficulty": "L3",
+    "correct_answer": 1,
+    "explanation": "正确答案是B。鱼腹藏书、篝火狐鸣是陈胜吴广利用当时人们迷信鬼神的心理，制造舆论，树立威信，这是他们智慧的体现。A错，假借名号是为了争取民心；C错，吴广是为了激怒将尉；D错，祭尉首有凝聚人心的战略意义。",
+    "question_type": "radio"
+  },
+  {
+    "text_id": "WEN_01",
+    "question_number": 2,
+    "question_text": "杀死将尉后，陈胜对全体戍卒做起义动员，哪一句话最能体现他不甘宿命、敢于反抗的超凡胆识？（）",
+    "option_a": "燕雀安知鸿鹄之志哉",
+    "option_b": "天下苦秦久矣",
+    "option_c": "王侯将相宁有种乎",
+    "option_d": "等死，死国可乎",
+    "audio_file": "WEN_01_multi_dialog5",
+    "difficulty": "L2",
+    "correct_answer": 2,
+    "explanation": "正确答案是C。“王侯将相宁有种乎”直接挑战了封建等级制度，表达了陈胜不甘于命运、敢于反抗的精神。A是早期感叹，B是分析形势，D是讨论生死选择。",
+    "question_type": "radio"
+  }
+]

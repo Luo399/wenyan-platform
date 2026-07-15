@@ -1,0 +1,42 @@
+{
+  "text_id": "WEN_02",
+  "audio_file": "WEN_02_multi_role.mp3",
+  "segments": [
+    {
+      "sentence_index": 1,
+      "time_range": "00:00-00:05",
+      "role_name": "旁白📖",
+      "dialogue": "世有伯乐，然后有千里马。千里马常有，而伯乐不常有。"
+    },
+    {
+      "sentence_index": 2,
+      "time_range": "00:05-00:12",
+      "role_name": "千里马🐎",
+      "dialogue": "故虽有名马，只辱于奴隶人之手，骈死于槽枥之间，不以千里称也。"
+    },
+    {
+      "sentence_index": 3,
+      "time_range": "00:12-00:18",
+      "role_name": "旁白📖",
+      "dialogue": "马之千里者，一食或尽粟一石。食马者不知其能千里而食也。"
+    },
+    {
+      "sentence_index": 4,
+      "time_range": "00:18-00:30",
+      "role_name": "千里马🐎",
+      "dialogue": "是马也，虽有千里之能，食不饱，力不足，才美不外见，且欲与常马等不可得，安求其能千里也？"
+    },
+    {
+      "sentence_index": 5,
+      "time_range": "00:30-00:40",
+      "role_name": "食马者👨",
+      "dialogue": "策之不以其道，食之不能尽其材，鸣之而不能通其意，执策而临之，曰：“天下无马！”"
+    },
+    {
+      "sentence_index": 6,
+      "time_range": "00:40-00:43",
+      "role_name": "旁白📖",
+      "dialogue": "呜呼！其真无马邪？其真不知马也！"
+    }
+  ]
+}
