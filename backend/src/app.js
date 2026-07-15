@@ -1,36 +1,24 @@
-/**
- * Express应用主模块
- * 配置和初始化Express应用
- */
-
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const helmet = require('helmet');
 
-// 导入配置
 const config = require('./config/app');
 const { initAllTables } = require('./config/database');
-
-// 导入路由
 const { registerRoutes } = require('./routes');
-
-// 导入中间件
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler');
+const { globalLimiter } = require('./middleware/rateLimitMiddleware');
 
-/**
- * 创建Express应用实例
- * @returns {object} - Express应用实例
- */
 function createApp() {
   const app = express();
 
-  // ============================================================
-  // 中间件配置
-  // ============================================================
-  
-  // CORS配置 - 支持动态origin以解决跨域问题
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }));
+
   app.use(cors({
-    origin: (origin, callback) => {
+    origin: function (origin, callback) {
       const allowedOrigins = config.cors.origin === '*'
         ? ['https://www.classicalab.cn', 'https://api.classicalab.cn']
         : config.cors.origin.split(',');
@@ -46,59 +34,54 @@ function createApp() {
     credentials: config.cors.credentials,
     preflightContinue: false,
     optionsSuccessStatus: 204,
+    maxAge: 86400,
   }));
 
-  // JSON请求体解析，设置最大10MB
+  app.use(globalLimiter);
+
   app.use(express.json({ limit: config.jsonParser.limit }));
 
-  // 设置UTF-8响应头，解决中文乱码问题
   app.use((req, res, next) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     next();
   });
 
-  // 请求日志
   app.use(requestLogger);
 
-  // 静态文件服务
   app.use(express.static(path.join(__dirname, '../public')));
 
-  // ============================================================
-  // 路由注册
-  // ============================================================
   registerRoutes(app);
 
-  // ============================================================
-  // 错误处理
-  // ============================================================
-  
-  // 404处理
+  app.use('/api/health', (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'OK',
+      timestamp: new Date().toISOString(),
+      authEnabled: config.auth.secret.length > 0,
+    });
+  });
+
   app.use(notFoundHandler);
-  
-  // 全局错误处理
+
   app.use(errorHandler);
 
   return app;
 }
 
-/**
- * 启动服务器
- */
 async function startServer() {
   try {
-    // 初始化数据库表
     await initAllTables();
-    
+
     const app = createApp();
     const { port, host } = config.server;
 
-    // 仅在非测试模式下启动服务器
     if (!config.testMode) {
       const server = app.listen(port, host, () => {
         console.log(`服务器运行在 http://${host}:${port}`);
+        console.log(`CORS 白名单: ${config.cors.origin}`);
+        console.log(`鉴权状态: ${config.auth.secret.length > 0 ? '已启用' : '未启用'}`);
       });
 
-      // 优雅关闭
       process.on('SIGINT', () => {
         server.close(() => {
           console.log('服务器已关闭');
@@ -114,12 +97,10 @@ async function startServer() {
   }
 }
 
-// 如果直接运行此文件，则启动服务器
 if (require.main === module) {
   startServer();
 }
 
-// 导出应用实例用于测试
 module.exports = {
   createApp,
   startServer

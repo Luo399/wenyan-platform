@@ -1,23 +1,11 @@
-/**
- * 路由注册模块
- * 集中管理所有API路由
- */
-
 const studentController = require('../controllers/studentController')
 const textsController = require('../controllers/textsController')
 const answerController = require('../controllers/answerController')
 const authController = require('../controllers/authController')
 const { optionalAuthMiddleware } = require('../middleware/authMiddleware')
-const { submitRateLimit } = require('../middleware/rateLimitMiddleware')
+const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
 
-/**
- * 注册所有路由
- * @param {object} app - Express应用实例
- */
 function registerRoutes(app) {
-  // ============================================================
-  // 健康检查接口
-  // ============================================================
   app.get('/', (req, res) => {
     res.status(200).json({
       success: true,
@@ -48,18 +36,12 @@ function registerRoutes(app) {
     })
   })
 
-  // ============================================================
-  // 学生管理接口
-  // ============================================================
   app.get('/api/students', studentController.getStudentList)
   app.get('/api/students/:studentId', studentController.getStudent)
   app.post('/api/students', studentController.createStudent)
   app.put('/api/students/:studentId', studentController.updateStudent)
   app.delete('/api/students/:studentId', studentController.deleteStudent)
 
-  // ============================================================
-  // 课文数据接口
-  // ============================================================
   app.get('/api/texts', textsController.getTextList)
   app.post('/api/texts/batch', textsController.getTextsBatch)
   app.get('/api/texts/:textId/basic-info', textsController.getBasicInfo)
@@ -72,9 +54,6 @@ function registerRoutes(app) {
   app.get('/api/texts/:textId/level3-scenario-text', textsController.getLevel3ScenarioText)
   app.get('/api/texts/:textId/level3-adaptive-quiz', textsController.getLevel3AdaptiveQuiz)
 
-  // ============================================================
-  // 答题接口（需要认证和限流）
-  // ============================================================
   app.post('/api/submit', optionalAuthMiddleware, submitRateLimit, answerController.submitAnswers)
   app.post(
     '/api/submit/single',
@@ -82,19 +61,17 @@ function registerRoutes(app) {
     submitRateLimit,
     answerController.submitSingleAnswer,
   )
-  app.get('/api/answers/wen/:wenId', optionalAuthMiddleware, answerController.getAnswersByWenId)
+  app.get('/api/answers/wen/:wenId', optionalAuthMiddleware, queryRateLimit, answerController.getAnswersByWenId)
   app.get(
     '/api/answers/student/:studentId',
     optionalAuthMiddleware,
+    queryRateLimit,
     answerController.getAnswersByStudentId,
   )
 
-  // ============================================================
-  // 认证接口
-  // ============================================================
   app.post('/api/auth/login', authController.login)
 }
 
 module.exports = {
   registerRoutes,
-}
+};

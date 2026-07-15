@@ -1,14 +1,5 @@
-/**
- * 课文数据控制器模块
- * 处理课文相关的HTTP请求
- */
-
 const textsService = require('../services/textsService');
 
-/**
- * 获取课文基础信息
- * GET /api/texts/:textId/basic-info
- */
 function getBasicInfo(req, res) {
   const { textId } = req.params;
   const data = textsService.getBasicInfo(textId);
@@ -24,10 +15,6 @@ function getBasicInfo(req, res) {
   }
 }
 
-/**
- * 获取字词注释
- * GET /api/texts/:textId/word-list
- */
 function getWordList(req, res) {
   const { textId } = req.params;
   const data = textsService.getWordList(textId);
@@ -43,10 +30,6 @@ function getWordList(req, res) {
   }
 }
 
-/**
- * 获取多角色朗读数据
- * GET /api/texts/:textId/multi-role-reading
- */
 function getMultiRoleReading(req, res) {
   const { textId } = req.params;
   const data = textsService.getMultiRoleReading(textId);
@@ -62,10 +45,6 @@ function getMultiRoleReading(req, res) {
   }
 }
 
-/**
- * 获取一级测验数据
- * GET /api/texts/:textId/level1-quiz
- */
 function getLevel1Quiz(req, res) {
   const { textId } = req.params;
   const data = textsService.getLevel1Quiz(textId);
@@ -81,10 +60,6 @@ function getLevel1Quiz(req, res) {
   }
 }
 
-/**
- * 获取文化卡片数据
- * GET /api/texts/:textId/culture-cards
- */
 function getCultureCards(req, res) {
   const { textId } = req.params;
   const data = textsService.getCultureCards(textId);
@@ -100,10 +75,6 @@ function getCultureCards(req, res) {
   }
 }
 
-/**
- * 获取二级对话数据
- * GET /api/texts/:textId/level2-dialog
- */
 function getLevel2Dialog(req, res) {
   const { textId } = req.params;
   const data = textsService.getLevel2Dialog(textId);
@@ -119,10 +90,6 @@ function getLevel2Dialog(req, res) {
   }
 }
 
-/**
- * 获取二级测验数据
- * GET /api/texts/:textId/level2-quiz
- */
 function getLevel2Quiz(req, res) {
   const { textId } = req.params;
   const data = textsService.getLevel2Quiz(textId);
@@ -138,10 +105,6 @@ function getLevel2Quiz(req, res) {
   }
 }
 
-/**
- * 获取三级情景文本数据
- * GET /api/texts/:textId/level3-scenario-text
- */
 function getLevel3ScenarioText(req, res) {
   const { textId } = req.params;
   const data = textsService.getLevel3ScenarioText(textId);
@@ -157,10 +120,6 @@ function getLevel3ScenarioText(req, res) {
   }
 }
 
-/**
- * 获取三级自适应测验数据
- * GET /api/texts/:textId/level3-adaptive-quiz
- */
 function getLevel3AdaptiveQuiz(req, res) {
   const { textId } = req.params;
   const data = textsService.getLevel3AdaptiveQuiz(textId);
@@ -176,15 +135,11 @@ function getLevel3AdaptiveQuiz(req, res) {
   }
 }
 
-/**
- * 获取课文列表（支持分页）
- * GET /api/texts
- */
 function getTextList(req, res) {
-  const page = isNaN(parseInt(req.query.page)) 
-    ? 1 
+  const page = isNaN(parseInt(req.query.page))
+    ? 1
     : Math.max(1, Math.abs(parseInt(req.query.page)));
-  
+
   const pageSize = isNaN(parseInt(req.query.page_size))
     ? 20
     : Math.min(100, Math.max(1, Math.abs(parseInt(req.query.page_size))));
@@ -197,10 +152,6 @@ function getTextList(req, res) {
   });
 }
 
-/**
- * 批量获取课文数据
- * POST /api/texts/batch
- */
 function getTextsBatch(req, res) {
   try {
     const { text_ids } = req.body;

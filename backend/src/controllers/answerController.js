@@ -1,189 +1,329 @@
-/**
- * 答题控制器模块
- * 处理答题相关的HTTP请求
- */
+const { db } = require('../config/database');
+const { getCorrectAnswerFromJson } = require('../utils/jsonReader');
+const crypto = require('crypto');
+const config = require('../config/app');
 
-const answerService = require('../services/answerService');
-const { info, error } = require('../utils/logger');
+const AUTH_SECRET = config.auth.secret;
+const AUTH_ENABLED = AUTH_SECRET.length > 0;
 
-/**
- * 提交答题记录
- * POST /api/submit
- */
-async function submitAnswers(req, res) {
+function generateHmacSignature(studentId, timestamp) {
+  const payload = `${studentId}:${timestamp}`;
+  return crypto
+    .createHmac('sha256', AUTH_SECRET)
+    .update(payload)
+    .digest('hex');
+}
+
+function verifyHmacSignature(studentId, timestamp, signature, toleranceMs = 5 * 60 * 1000) {
+  if (!AUTH_ENABLED) {
+    return { valid: true };
+  }
+
+  if (!signature) {
+    return { valid: false, error: '缺少签名' };
+  }
+
+  const requestTime = new Date(timestamp).getTime();
+  const now = Date.now();
+  if (isNaN(requestTime) || Math.abs(now - requestTime) > toleranceMs) {
+    return { valid: false, error: '签名已过期' };
+  }
+
+  const expectedSignature = generateHmacSignature(studentId, timestamp);
+  
+  if (signature !== expectedSignature) {
+    return { valid: false, error: '签名无效' };
+  }
+
+  return { valid: true };
+}
+
+function compareAnswers(userAnswer, correctAnswer) {
+  if (Array.isArray(correctAnswer)) {
+    if (Array.isArray(userAnswer)) {
+      const sortedCorrect = [...correctAnswer].sort();
+      const sortedUser = [...userAnswer].sort();
+      return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser);
+    }
+    return false;
+  } else {
+    return userAnswer === correctAnswer;
+  }
+}
+
+function submitAnswers(req, res) {
   try {
-    const { studentId, studentName, wenId, submittedAt, answers, questions = [] } = req.body;
+    const { studentId, wenId, submittedAt, answers, questions, signature } = req.body;
 
-    // 验证必填字段
-    if (!studentId || !wenId || !submittedAt || !answers) {
+    if (!studentId || !wenId || !submittedAt || !answers || !questions) {
       return res.status(400).json({
         success: false,
-        error: 'INVALID_REQUEST',
+        error: 'VALIDATION_ERROR',
         message: '缺少必填字段',
       });
     }
 
-    // 验证学号（非空且仅包含数字）
-    if (!studentId.trim() || !/^\d+$/.test(studentId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_STUDENT_ID',
-        message: '学号格式不正确，请输入有效的数字学号',
-      });
+    if (AUTH_ENABLED) {
+      const verifyResult = verifyHmacSignature(studentId, submittedAt, signature);
+      if (!verifyResult.valid) {
+        return res.status(401).json({
+          success: false,
+          error: 'AUTH_FAILED',
+          message: verifyResult.error,
+        });
+      }
     }
 
-    const result = await answerService.submitAnswers({
-      studentId,
-      studentName,
-      wenId,
-      submittedAt,
-      answers,
-      questions,
+    const insertPromises = questions.map((question) => {
+      return new Promise((resolve, reject) => {
+        const userAnswer = answers[question.id];
+        const correctAnswer = question.correctAnswer ?? getCorrectAnswerFromJson(question.id, wenId);
+
+        let score = 0;
+        let isCorrect = 0;
+
+        if (correctAnswer !== null) {
+          if (compareAnswers(userAnswer, correctAnswer)) {
+            score = 100;
+            isCorrect = 1;
+          }
+        }
+
+        db.get(
+          'SELECT attempt_number FROM answers WHERE student_id = ? AND question_id = ?',
+          [studentId, question.id],
+          (err, row) => {
+            const attemptNumber = row ? row.attempt_number + 1 : 1;
+
+            const stmt = db.prepare(`
+              INSERT OR REPLACE INTO answers (
+                student_id,
+                wen_id,
+                question_id,
+                user_answer,
+                correct_answer,
+                submitted_at,
+                score,
+                is_correct,
+                attempt_number
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            stmt.run(
+              studentId,
+              wenId,
+              question.id,
+              JSON.stringify(userAnswer),
+              correctAnswer !== null ? JSON.stringify(correctAnswer) : null,
+              submittedAt,
+              score,
+              isCorrect,
+              attemptNumber,
+              (err) => {
+                stmt.finalize();
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve({ questionId: question.id, score, isCorrect, attemptNumber });
+                }
+              },
+            );
+          }
+        );
+      });
     });
 
-    res.status(200).json({
-      success: true,
-      message: '答案提交成功',
-      data: result,
-    });
+    Promise.all(insertPromises)
+      .then((results) => {
+        const totalScore = results.reduce((sum, r) => sum + r.score, 0);
+        const correctCount = results.filter((r) => r.isCorrect === 1).length;
+        const avgScore = Math.round(totalScore / results.length);
+
+        res.status(200).json({
+          success: true,
+          message: '答案提交成功',
+          data: {
+            studentId,
+            wenId,
+            submittedAt,
+            questionCount: results.length,
+            correctCount,
+            wrongCount: results.length - correctCount,
+            totalScore,
+            avgScore,
+            details: results,
+          },
+        });
+      })
+      .catch((err) => {
+        console.error('数据库操作失败:', err);
+        res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '数据库操作失败: ' + err.message,
+        });
+      });
   } catch (err) {
-    error('答题提交失败', {
-      studentId: req.body?.studentId,
-      wenId: req.body?.wenId,
-      error: err.message,
-    });
+    console.error('处理请求失败:', err);
     res.status(500).json({
       success: false,
-      error: 'DATABASE_ERROR',
-      message: '数据库操作失败: ' + err.message,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
     });
   }
 }
 
-/**
- * 按文言文ID查询答题情况
- * GET /api/answers/wen/:wenId
- */
-async function getAnswersByWenId(req, res) {
+function submitSingleAnswer(req, res) {
   try {
-    const { wenId } = req.params;
+    const { studentId, wenId, questionId, userAnswer, correctAnswer, submittedAt } = req.body;
 
-    if (!wenId) {
+    if (!studentId || !wenId || !questionId || userAnswer === undefined) {
       return res.status(400).json({
         success: false,
-        error: 'INVALID_WEN_ID',
-        message: '缺少文言文ID',
-      });
-    }
-
-    const result = await answerService.getAnswersByWenId(wenId);
-    info('查询文言文答题记录', { wenId, studentCount: result?.studentCount || 0 });
-
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    error('查询文言文答题记录失败', { wenId, error: err.message });
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
-    });
-  }
-}
-
-/**
- * 按学生ID查询答题情况
- * GET /api/answers/student/:studentId
- */
-async function getAnswersByStudentId(req, res) {
-  try {
-    const { studentId } = req.params;
-
-    // 验证学号格式（非空且仅包含数字）
-    if (!studentId.trim() || !/^\d+$/.test(studentId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_STUDENT_ID',
-        message: '学号格式不正确，请输入有效的数字学号',
-      });
-    }
-
-    const result = await answerService.getAnswersByStudentId(studentId);
-    info('查询学生答题记录', { studentId, wenCount: result?.totalWenCount || 0 });
-
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    error('查询学生答题记录失败', { studentId, error: err.message });
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
-    });
-  }
-}
-
-/**
- * 提交单题答题记录
- * POST /api/submit/single
- */
-async function submitSingleAnswer(req, res) {
-  try {
-    const { studentId, studentName, wenId, questionId, userAnswer, correctAnswer, submittedAt } = req.body;
-
-    if (!studentId || !wenId || !questionId || userAnswer === undefined || userAnswer === null) {
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_REQUEST',
+        error: 'VALIDATION_ERROR',
         message: '缺少必填字段',
       });
     }
 
-    if (!studentId.trim() || !/^\d+$/.test(studentId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_STUDENT_ID',
-        message: '学号格式不正确，请输入有效的数字学号',
-      });
+    const finalCorrectAnswer = correctAnswer ?? getCorrectAnswerFromJson(questionId, wenId);
+
+    let score = 0;
+    let isCorrect = 0;
+
+    if (finalCorrectAnswer !== null) {
+      if (compareAnswers(userAnswer, finalCorrectAnswer)) {
+        score = 100;
+        isCorrect = 1;
+      }
     }
 
-    const result = await answerService.submitSingleAnswer({
-      studentId,
-      studentName,
-      wenId,
-      questionId,
-      userAnswer,
-      correctAnswer,
-      submittedAt: submittedAt || new Date().toISOString(),
-    });
+    db.get(
+      'SELECT attempt_number FROM answers WHERE student_id = ? AND question_id = ?',
+      [studentId, questionId],
+      (err, row) => {
+        const attemptNumber = row ? row.attempt_number + 1 : 1;
 
-    res.status(200).json({
-      success: true,
-      message: '单题答案提交成功',
-      data: result,
-    });
+        const stmt = db.prepare(`
+          INSERT OR REPLACE INTO answers (
+            student_id,
+            wen_id,
+            question_id,
+            user_answer,
+            correct_answer,
+            submitted_at,
+            score,
+            is_correct,
+            attempt_number
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        stmt.run(
+          studentId,
+          wenId,
+          questionId,
+          JSON.stringify(userAnswer),
+          finalCorrectAnswer !== null ? JSON.stringify(finalCorrectAnswer) : null,
+          submittedAt || new Date().toISOString(),
+          score,
+          isCorrect,
+          attemptNumber,
+          (err) => {
+            stmt.finalize();
+            if (err) {
+              console.error('数据库操作失败:', err);
+              return res.status(500).json({
+                success: false,
+                error: 'DATABASE_ERROR',
+                message: '数据库操作失败: ' + err.message,
+              });
+            }
+
+            res.status(200).json({
+              success: true,
+              message: '答案提交成功',
+              data: {
+                studentId,
+                wenId,
+                questionId,
+                userAnswer,
+                correctAnswer: finalCorrectAnswer,
+                isCorrect,
+                score,
+                submittedAt: submittedAt || new Date().toISOString(),
+                attemptNumber,
+              },
+            });
+          },
+        );
+      }
+    );
   } catch (err) {
-    error('单题答题提交失败', {
-      studentId: req.body?.studentId,
-      wenId: req.body?.wenId,
-      questionId: req.body?.questionId,
-      error: err.message,
-    });
+    console.error('处理请求失败:', err);
     res.status(500).json({
       success: false,
-      error: 'DATABASE_ERROR',
-      message: '数据库操作失败: ' + err.message,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
     });
   }
+}
+
+function getAnswersByWenId(req, res) {
+  const { wenId } = req.params;
+
+  db.all(
+    'SELECT * FROM answers WHERE wen_id = ? ORDER BY submitted_at DESC',
+    [wenId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '查询失败: ' + err.message,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: rows.map((row) => ({
+          ...row,
+          user_answer: JSON.parse(row.user_answer),
+          correct_answer: row.correct_answer ? JSON.parse(row.correct_answer) : null,
+        })),
+      });
+    },
+  );
+}
+
+function getAnswersByStudentId(req, res) {
+  const { studentId } = req.params;
+
+  db.all(
+    'SELECT * FROM answers WHERE student_id = ? ORDER BY submitted_at DESC',
+    [studentId],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '查询失败: ' + err.message,
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: rows.map((row) => ({
+          ...row,
+          user_answer: JSON.parse(row.user_answer),
+          correct_answer: row.correct_answer ? JSON.parse(row.correct_answer) : null,
+        })),
+      });
+    },
+  );
 }
 
 module.exports = {
   submitAnswers,
   submitSingleAnswer,
   getAnswersByWenId,
-  getAnswersByStudentId
+  getAnswersByStudentId,
 };
