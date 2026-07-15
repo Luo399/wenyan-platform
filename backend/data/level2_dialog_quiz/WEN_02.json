@@ -1,0 +1,32 @@
+[
+  {
+    "text_id": "WEN_02",
+    "question_number": 1,
+    "question_text": "下列对千里马被埋没的原因分析，最准确的一项是（）",
+    "option_a": "千里马食量过大，难以供给",
+    "option_b": "千里马缺少驰骋的场地与机会",
+    "option_c": "食马者不识人才，喂养、驱使等皆不得其法",
+    "option_d": "千里马甘愿平庸，不愿展露才华",
+    "audio_file": "WEN_02_multi_dialog1",
+    "difficulty": "L2",
+    "correct_answer": "C",
+    "correct_index": 2,
+    "pre_dialog": "学徒：我看厩中千里马身姿矫健、气度不凡，却始终无法驰骋千里，实在太过可惜。千里马啊，你身怀奇才，为何最终落得“才美不外见”的境地？",
+    "icon_dialog": "WEN_02_icon_dialog1"
+  },
+  {
+    "text_id": "WEN_02",
+    "question_number": 2,
+    "question_text": "结合全文主旨，对“世有伯乐，然后有千里马”理解最深刻、最准确的一项是（）",
+    "option_a": "伯乐出现之后，世间才会诞生千里马",
+    "option_b": "识才者的赏识与重用对人才来说极为重要",
+    "option_c": "伯乐的地位和价值远超千里马",
+    "option_d": "世间千里马众多，有无伯乐无关紧要",
+    "audio_file": "WEN_02_multi_dialog3",
+    "difficulty": "L3",
+    "correct_answer": "B",
+    "correct_index": 1,
+    "pre_dialog": "学徒：原来如此！不是良马无用，而是识马者稀缺。那韩愈先生开篇便说“世有伯乐，然后有千里马”，这句话究竟藏着怎样的深意？",
+    "icon_dialog": "WEN_02_icon_dialog1"
+  }
+]

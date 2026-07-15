@@ -101,6 +101,7 @@ class DataProcessor:
             'output_file': sheet_config.output_file,
             'total_rows': 0,
             'processed_rows': 0,
+            'output_files': [],
             'errors': [],
             'warnings': [],
             'success': False
@@ -134,26 +135,57 @@ class DataProcessor:
                 # 转换数据
                 processed_row = self._process_row(row_data, sheet_config.field_mappings)
                 
-                # 应用后处理函数
-                if sheet_config.post_process_func:
+                # 应用行级后处理函数
+                if sheet_config.post_process_func and not sheet_config.group_by_column:
                     try:
                         processed_row = sheet_config.post_process_func(processed_row)
                     except Exception as e:
                         result['warnings'].append({
                             'row': row_idx + sheet_config.data_start_row,
-                            'warning': f"后处理失败: {str(e)}"
+                            'warning': f"行后处理失败: {str(e)}"
                         })
                 
                 processed_data.append(processed_row)
             
             result['processed_rows'] = len(processed_data)
             
-            # 保存JSON文件
-            output_path = os.path.join(self.config.output_dir, sheet_config.output_file)
-            self._save_json(processed_data, output_path)
+            # 按分组列输出多个文件
+            if sheet_config.group_by_column:
+                groups = {}
+                for row in processed_data:
+                    group_key = str(row.get(sheet_config.group_by_column, 'unknown'))
+                    if group_key not in groups:
+                        groups[group_key] = []
+                    groups[group_key].append(row)
+                
+                for group_key, group_rows in groups.items():
+                    # 应用整表后处理函数（如果有）
+                    output_data = group_rows
+                    if sheet_config.post_process_func:
+                        try:
+                            output_data = sheet_config.post_process_func(group_rows)
+                        except Exception as e:
+                            result['warnings'].append({
+                                'row': f'group_{group_key}',
+                                'warning': f"组后处理失败: {str(e)}"
+                            })
+                    
+                    # 生成输出文件名
+                    base_name = sheet_config.output_file.replace('.json', '')
+                    group_output_file = f'{group_key}.json'
+                    output_path = os.path.join(self.config.output_dir, base_name, group_output_file)
+                    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                    self._save_json(output_data, output_path)
+                    result['output_files'].append(output_path)
+                    logger.info(f"  分组 '{group_key}' 输出到: {output_path}")
+            else:
+                # 保存单个JSON文件
+                output_path = os.path.join(self.config.output_dir, sheet_config.output_file)
+                self._save_json(processed_data, output_path)
+                result['output_files'].append(output_path)
+                logger.info(f"工作表 '{sheet_config.sheet_name}' 处理完成，输出到: {output_path}")
             
             result['success'] = True
-            logger.info(f"工作表 '{sheet_config.sheet_name}' 处理完成，输出到: {output_path}")
         
         except Exception as e:
             result['errors'].append(f"处理失败: {str(e)}")
@@ -269,24 +301,40 @@ class DataProcessor:
             f"- 处理时间: {self._get_current_time()}",
             "",
             "## 处理结果",
-            "| 工作表 | 输出文件 | 原始行数 | 处理行数 | 状态 |",
-            "|--------|----------|----------|----------|------|"
+            "| 工作表 | 输出文件 | 原始行数 | 处理行数 | 输出文件数 | 状态 |",
+            "|--------|----------|----------|----------|-----------|------|"
         ]
         
         total_rows = 0
         processed_rows = 0
+        total_output_files = 0
         
         for result in self.process_results:
             status = "✅ 成功" if result['success'] else "❌ 失败"
+            output_files_count = len(result.get('output_files', []))
+            total_output_files += output_files_count
             report_lines.append(
-                f"| {result['sheet_name']} | {result['output_file']} | {result['total_rows']} | {result['processed_rows']} | {status} |"
+                f"| {result['sheet_name']} | {result['output_file']} | {result['total_rows']} | {result['processed_rows']} | {output_files_count} | {status} |"
             )
             total_rows += result['total_rows']
             processed_rows += result['processed_rows']
         
         report_lines.extend([
             "",
-            f"**总计**: {processed_rows}/{total_rows} 行",
+            f"**总计**: {processed_rows}/{total_rows} 行, {total_output_files} 个输出文件",
+            "",
+            "## 输出文件清单"
+        ])
+        
+        for result in self.process_results:
+            if result.get('output_files'):
+                report_lines.append(f"### {result['sheet_name']}")
+                for f in result['output_files']:
+                    rel_path = os.path.relpath(f, self.config.output_dir)
+                    report_lines.append(f"- `{rel_path}`")
+                report_lines.append("")
+        
+        report_lines.extend([
             "",
             "## 错误详情"
         ])

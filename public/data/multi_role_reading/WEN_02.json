@@ -1,6 +1,6 @@
 {
   "text_id": "WEN_02",
-  "audio_file": "WEN_02_multi_role.mp3",
+  "audio_file": "WEN_02_muti_role.mp3",
   "segments": [
     {
       "sentence_index": 1,
@@ -28,13 +28,13 @@
     },
     {
       "sentence_index": 5,
-      "time_range": "00:30-00:40",
+      "time_range": "00:30-00:41",
       "role_name": "食马者👨",
       "dialogue": "策之不以其道，食之不能尽其材，鸣之而不能通其意，执策而临之，曰：“天下无马！”"
     },
     {
       "sentence_index": 6,
-      "time_range": "00:40-00:43",
+      "time_range": "00:41-00:45",
       "role_name": "旁白📖",
       "dialogue": "呜呼！其真无马邪？其真不知马也！"
     }

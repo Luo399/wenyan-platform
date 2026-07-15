@@ -7,9 +7,9 @@
     "option_b": "惠子是否知道鱼的快乐",
     "option_c": "庄子是否理解惠子的逻辑",
     "option_d": "惠子是否理解庄子的哲学",
-    "correct_answer": 0,
+    "correct_answer": "A",
+    "correct_index": 0,
     "explanation": "文章中原文庄子曰：“鲦鱼出游从容，是鱼之乐也。”惠子曰：“子非鱼，安知鱼之乐？”可得知二者争论的焦点是庄子是否知道鱼的快乐",
-    "difficulty": "L1",
-    "question_type": "radio"
+    "difficulty": "L1"
   }
 ]

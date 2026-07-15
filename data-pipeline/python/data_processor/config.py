@@ -203,6 +203,74 @@ def filter_not_empty_question(data: Dict) -> bool:
     return bool(question_text and str(question_text).strip())
 
 
+def transform_follow_up_questions(value: Any) -> Optional[List[str]]:
+    """转换追问问题列表为数组"""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        parts = [p.strip() for p in value.replace('\n', ';').replace('；', ';').split(';') if p.strip()]
+        return parts if parts else []
+    return []
+
+
+def post_process_multi_role_reading(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    多角色朗读数据后处理函数
+    将扁平行数据转换为嵌套结构: {text_id, audio_file, segments: [...]}
+    """
+    if not rows:
+        return {}
+    
+    text_id = rows[0].get('text_id', '')
+    
+    # 顶层 audio_file: 从第一行获取，或使用默认命名
+    audio_file = None
+    for row in rows:
+        if row.get('audio_file') and row.get('audio_file') != text_id + '_multi_role.mp3':
+            # 检查是否是整段音频文件名（不是分段的）
+            val = str(row.get('audio_file', ''))
+            if 'multi_role' in val or val.endswith('.mp3') and not val.startswith('seg'):
+                audio_file = val
+                break
+    
+    if not audio_file:
+        audio_file = f'{text_id}_multi_role.mp3'
+    
+    segments = []
+    for row in rows:
+        segment = {
+            'sentence_index': row.get('sentence_index', 0),
+            'time_range': row.get('time_range', ''),
+            'role_name': row.get('role_name', ''),
+            'dialogue': row.get('dialogue', ''),
+        }
+        # 只有当行级 audio_file 与顶层不同时，才保留在 segment 中（分段音频情况）
+        row_audio = row.get('audio_file')
+        if row_audio and row_audio != audio_file and row_audio != f'{text_id}_multi_role.mp3':
+            segment['audio_file'] = row_audio
+        segments.append(segment)
+    
+    segments.sort(key=lambda s: s['sentence_index'])
+    
+    return {
+        'text_id': text_id,
+        'audio_file': audio_file,
+        'segments': segments
+    }
+
+
+def post_process_text_basic_info(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    课文基础信息后处理函数
+    取第一行数据作为对象返回
+    """
+    if not rows:
+        return {}
+    return rows[0]
+
+
 # level1_quiz 字段映射
 LEVEL1_QUIZ_MAPPINGS = [
     FieldMapping('text_id', 'text_id', required=True),
@@ -263,47 +331,10 @@ LEVEL3_ADAPTIVE_QUIZ_MAPPINGS = [
 def create_default_config(input_file: str, output_dir: str) -> DataProcessorConfig:
     """创建默认配置"""
     sheet_configs = [
-        # level1_quiz
+        # text_basic_info - 课文基础信息（按text_id分文件，单对象结构）
         SheetConfig(
-            sheet_name='level1_quiz',
-            output_file='level1_quiz.json',
-            field_mappings=LEVEL1_QUIZ_MAPPINGS,
-            filter_func=filter_wen01,
-            post_process_func=post_process_quiz
-        ),
-        # level2_dialog_quiz
-        SheetConfig(
-            sheet_name='level2_dialog_quiz',
-            output_file='level2_dialog_quiz.json',
-            field_mappings=LEVEL2_DIALOG_QUIZ_MAPPINGS,
-            filter_func=lambda d: filter_wen01(d) and filter_not_empty_question(d),
-            post_process_func=post_process_level2_quiz
-        ),
-        # level3_adaptive_quiz
-        SheetConfig(
-            sheet_name='level3_adaptive_quiz',
-            output_file='level3_adaptive_quiz.json',
-            field_mappings=LEVEL3_ADAPTIVE_QUIZ_MAPPINGS,
-            filter_func=lambda d: filter_wen01(d) and filter_not_empty_question(d),
-            post_process_func=post_process_quiz
-        ),
-        # word_list
-        SheetConfig(
-            sheet_name='WordList',
-            output_file='word_list.json',
-            field_mappings=[
-                FieldMapping('text_id', 'text_id', required=True),
-                FieldMapping('word', 'word', required=True),
-                FieldMapping('basic_meaning', 'basic_meaning', required=True),
-                FieldMapping('synonym_analysis', 'synonym_analysis'),
-                FieldMapping('follow_up_questions', 'follow_up_questions')
-            ],
-            filter_func=filter_wen01
-        ),
-        # text_basic_info
-        SheetConfig(
-            sheet_name='TextBasicInfo',
-            output_file='text_basic_info.json',
+            sheet_name='text_basic_info',
+            output_file='text_basic_info',
             field_mappings=[
                 FieldMapping('text_id', 'text_id', required=True),
                 FieldMapping('title', 'title', required=True),
@@ -313,12 +344,26 @@ def create_default_config(input_file: str, output_dir: str) -> DataProcessorConf
                 FieldMapping('illustration', 'illustration'),
                 FieldMapping('bgm', 'bgm')
             ],
-            filter_func=filter_wen01
+            group_by_column='text_id',
+            post_process_func=post_process_text_basic_info
         ),
-        # multi_role_reading
+        # level1_word_list - 字词注释（按text_id分文件，数组结构）
         SheetConfig(
-            sheet_name='MultiRoleReading',
-            output_file='multi_role_reading.json',
+            sheet_name='level1_word_list',
+            output_file='word_list',
+            field_mappings=[
+                FieldMapping('text_id', 'text_id', required=True),
+                FieldMapping('word', 'word', required=True),
+                FieldMapping('basic_meaning', 'basic_meaning', required=True),
+                FieldMapping('synonym_analysis', 'synonym_analysis', default_value=''),
+                FieldMapping('follow_up_questions', 'follow_up_questions', transform_follow_up_questions, default_value=[])
+            ],
+            group_by_column='text_id'
+        ),
+        # level1_multi_role_reading - 多角色朗读（按text_id分文件，嵌套结构）
+        SheetConfig(
+            sheet_name='level1_multi_role_reading',
+            output_file='multi_role_reading',
             field_mappings=[
                 FieldMapping('text_id', 'text_id', required=True),
                 FieldMapping('sentence_index', 'sentence_index', transform_question_number),
@@ -327,7 +372,48 @@ def create_default_config(input_file: str, output_dir: str) -> DataProcessorConf
                 FieldMapping('dialogue', 'dialogue'),
                 FieldMapping('audio_file', 'audio_file')
             ],
-            filter_func=filter_wen01
+            group_by_column='text_id',
+            post_process_func=post_process_multi_role_reading
+        ),
+        # level1_quiz - 一级测验（按text_id分文件，数组结构）
+        SheetConfig(
+            sheet_name='level1_quiz',
+            output_file='level1_quiz',
+            field_mappings=LEVEL1_QUIZ_MAPPINGS,
+            filter_func=filter_not_empty_question,
+            group_by_column='text_id',
+            post_process_func=lambda rows: [post_process_quiz(r) for r in rows]
+        ),
+        # level2_dialog_quiz - 二级对话测验（按text_id分文件，数组结构）
+        SheetConfig(
+            sheet_name='level2_dialog_quiz',
+            output_file='level2_dialog_quiz',
+            field_mappings=LEVEL2_DIALOG_QUIZ_MAPPINGS,
+            filter_func=filter_not_empty_question,
+            group_by_column='text_id',
+            post_process_func=lambda rows: [post_process_level2_quiz(r) for r in rows]
+        ),
+        # level3_adaptive_quiz - 三级自适应测验（按text_id分文件，数组结构）
+        SheetConfig(
+            sheet_name='level3_adaptive_quiz',
+            output_file='level3_adaptive_quiz',
+            field_mappings=LEVEL3_ADAPTIVE_QUIZ_MAPPINGS,
+            filter_func=filter_not_empty_question,
+            group_by_column='text_id',
+            post_process_func=lambda rows: [post_process_quiz(r) for r in rows]
+        ),
+        # culture_cards - 文化卡片（按text_id分文件，数组结构）
+        SheetConfig(
+            sheet_name='culture_cards',
+            output_file='culture_cards',
+            field_mappings=[
+                FieldMapping('text_id', 'text_id', required=True),
+                FieldMapping('card_id', 'card_id'),
+                FieldMapping('card_name', 'card_name'),
+                FieldMapping('image_file', 'image_file'),
+                FieldMapping('knowledge_text', 'knowledge_text')
+            ],
+            group_by_column='text_id'
         )
     ]
     
