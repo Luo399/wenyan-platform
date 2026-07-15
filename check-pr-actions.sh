@@ -6,6 +6,14 @@ LOG_FILE="/workspace/pr_actions_monitor.log"
 
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') 检查 PR Actions ===" | tee -a "$LOG_FILE"
 
+# 检查 gh CLI 是否已认证
+GH_AUTH_STATUS=$(gh auth status 2>&1 || true)
+if echo "$GH_AUTH_STATUS" | grep -q "not logged in\|To use GitHub CLI in automation"; then
+    echo "错误: gh CLI 未认证，请设置 GH_TOKEN 环境变量或运行 gh auth login。" | tee -a "$LOG_FILE"
+    echo "认证状态: $GH_AUTH_STATUS" | tee -a "$LOG_FILE"
+    exit 1
+fi
+
 # 获取最近的 open PR
 PR_JSON=$(gh pr list --repo "$REPO" --state open --limit 1 --json number,headRefName,title || true)
 if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "[]" ]; then
