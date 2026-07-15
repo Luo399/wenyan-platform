@@ -213,11 +213,11 @@ const { goNext, goPrev } = useNavigation('steptwo', poemId.value)
 
 // 导航函数包装
 function handleGoNext() {
-  goNext(router)
+  goNext()
 }
 
 function handleGoPrev() {
-  goPrev(router)
+  goPrev()
 }
 
 // 监听 wenId 变化，重置进度

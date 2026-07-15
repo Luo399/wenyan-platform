@@ -249,7 +249,7 @@ function toggleAudio() {
     audioRef.value?.pause()
     isPlaying.value = false
   } else {
-    const audioUrl = getAssetUrl(`audio/${dialog.audioFile}.mp3`)
+    const audioUrl = getAssetUrl('audio', `${dialog.audioFile}.mp3`)
     audioRef.value = new Audio(audioUrl)
     audioRef.value.onended = () => {
       isPlaying.value = false

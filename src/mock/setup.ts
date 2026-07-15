@@ -10,7 +10,7 @@ import { handleLogin, handleRefresh, handleGetUser } from './auth'
  * 启动 mock 服务
  */
 export async function startMockService(): Promise<void> {
-  if (process.env.NODE_ENV !== 'development') {
+  if (import.meta.env.DEV === false) {
     return
   }
 

@@ -42,7 +42,7 @@
  */
 
 // 页面路由名称定义
-export type RouteName = 'home' | 'rules' | 'stepone' | 'rule1' | 'rule2' | 'rule3' | 'detail'
+export type RouteName = 'home' | 'rules' | 'stepone' | 'steptwo' | 'stepthree' | 'rule1' | 'rule2' | 'rule3' | 'detail'
 
 // 页面配置接口
 export interface PageConfig {
@@ -66,6 +66,14 @@ export const pageSequence: PageConfig[] = [
   {
     name: 'stepone',
     getPath: (id) => `/stepone/${id || '1'}`,
+  },
+  {
+    name: 'steptwo',
+    getPath: (id) => `/steptwo/${id || '1'}`,
+  },
+  {
+    name: 'stepthree',
+    getPath: (id) => `/stepthree/${id || '1'}`,
   },
   {
     name: 'rule1',
@@ -127,27 +135,27 @@ export function getPrevPage(currentName: RouteName): PageConfig | null {
 export const idTransformMap: Record<RouteName, (id: string) => string | null> = {
   home: () => null,
   rules: (id) => {
-    // stepone/rule1/rule2/rule3/detail -> rules: poemId 不变
     return id || null
   },
   stepone: (id) => {
-    // poemId 不变
+    return id || null
+  },
+  steptwo: (id) => {
+    return id || null
+  },
+  stepthree: (id) => {
     return id || null
   },
   rule1: (id) => {
-    // poemId 不变
     return id || null
   },
   rule2: (id) => {
-    // poemId 不变
     return id || null
   },
   rule3: (id) => {
-    // poemId 不变
     return id || null
   },
   detail: (id) => {
-    // 所有页面 -> detail: poemId 不变
     return id || null
   },
 }

@@ -249,11 +249,11 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
 
 // 导航函数包装
 function handleGoNext() {
-  goNext(router)
+  goNext()
 }
 
 function handleGoPrev() {
-  goPrev(router)
+  goPrev()
 }
 
 function handleCultureCardsLoad(data: unknown) {

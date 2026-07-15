@@ -6,9 +6,16 @@ scene: git_push
 # 项目级规则（必须遵守）
 
 ## 1. 推送与 Actions 闭环
-- 每次 `git push` 之后，必须主动读取 GitHub Actions 推送结果。
-- 若 Actions 失败，必须在本地继续修复 → 提交 → 推送 → 再次读取结果，直到所有触发的 workflow 都显示 success 为止，**不得在失败状态下继续其他任务**。
-- 读取方式：使用 `gh run list --branch <branch> --limit 1` / `gh run view <run-id> --log`，或直接 fetch Actions API。
+- 每次 `git push` 之后，**必须等待并轮询 GitHub Actions 运行结果**，直到所有触发的 workflow 都显示 `success` 或 `failure` 为止，不得在 Actions 仍在 `in_progress` 时继续其他任务。
+- 若 Actions 失败，**必须在本地继续修复 → 提交 → 推送 → 再次等待并轮询结果**，直到所有触发的 workflow 都显示 `success`，**不得在失败状态下继续其他任务**。
+- 轮询方式：
+  1. 推送后等待 30 秒
+  2. 使用 `curl -s "https://api.github.com/repos/Luo399/wenyan-platform/actions/runs?branch=<branch>&per_page=5"` 查询运行状态
+  3. 若状态为 `in_progress`，继续等待 30 秒后再次查询
+  4. 若状态为 `completed` + `conclusion: failure`，读取失败 job 日志定位错误，修复后重新推送
+  5. 若状态为 `completed` + `conclusion: success`，流程结束
+- 也可使用 `gh run list --branch <branch> --limit 1` / `gh run view <run-id> --log`（需配置 GH_TOKEN）。
+- **绝对禁止推送后不检查 Actions 结果就继续其他工作。**
 
 ### Actions 监控要求
 | 推送目标 | 监控的 Workflow |
