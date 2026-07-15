@@ -1,25 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import Question, { type QuestionData } from '../components/Question.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 
 const route = useRoute()
-const router = useRouter()
 const articleId = route.params.id as string
 
-// 使用导航composable（stepthree 是最后一页，detail 已移除）
-const { goPrev } = useNavigation('stepthree', articleId)
-
-// 导航函数包装 - 点击继续返回首页
-function handleGoNext() {
-  router.push('/')
-}
-
-function handleGoPrev() {
-  goPrev(router)
-}
+// 使用导航composable
+const { goNext, goPrev } = useNavigation('detail', articleId)
 
 // 收集答案（用于可能的批量操作）
 const answers = ref<Record<string, string | number | (string | number)[]>>({})
@@ -98,12 +88,7 @@ function handleAnswerChange(questionId: string, answer: string | number | (strin
     </div>
 
     <!-- 底部导航按钮 -->
-    <BackContinue
-      back-text="返回"
-      continue-text="继续"
-      @back="handleGoPrev"
-      @continue="handleGoNext"
-    />
+    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
   </div>
 </template>
 

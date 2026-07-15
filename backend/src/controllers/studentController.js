@@ -1,188 +1,135 @@
-/**
- * 学生控制器模块
- * 处理学生相关的HTTP请求
- */
+const { db } = require('../config/database');
 
-const studentService = require('../services/studentService');
-
-/**
- * 获取单个学生信息
- * GET /api/students/:studentId
- */
-async function getStudent(req, res) {
-  try {
-    const { studentId } = req.params;
-
-    if (!studentId) {
-      return res.status(400).json({
+function getStudentList(req, res) {
+  db.all('SELECT * FROM students ORDER BY created_at DESC', (err, rows) => {
+    if (err) {
+      return res.status(500).json({
         success: false,
-        error: 'INVALID_REQUEST',
-        message: '学生ID不能为空',
+        error: 'DATABASE_ERROR',
+        message: '查询失败: ' + err.message,
       });
     }
-
-    const student = await studentService.getStudentById(studentId);
-
-    if (student) {
-      res.json({
-        success: true,
-        data: {
-          student_id: student.student_id,
-          name: student.name,
-          created_at: student.created_at,
-        },
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        error: 'STUDENT_NOT_FOUND',
-        message: `未找到学号为 ${studentId} 的学生`,
-      });
-    }
-  } catch (err) {
-    console.error('查询学生信息失败:', err);
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '查询学生信息失败',
-    });
-  }
-}
-
-/**
- * 获取学生列表
- * GET /api/students
- */
-async function getStudentList(req, res) {
-  try {
-    const { class: classNum } = req.query;
-    const students = await studentService.getStudentList(classNum);
-    res.status(200).json({
-      success: true,
-      data: students,
-    });
-  } catch (err) {
-    console.error('查询学生列表失败:', err);
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
-    });
-  }
-}
-
-/**
- * 学生注册
- * POST /api/students
- */
-async function createStudent(req, res) {
-  try {
-    const { studentId, name, class: studentClass = 9 } = req.body;
-
-    if (!studentId || !name) {
-      return res.status(400).json({
-        success: false,
-        error: 'INVALID_REQUEST',
-        message: '缺少必填字段',
-      });
-    }
-
-    const result = await studentService.createOrUpdateStudent(studentId, name, studentClass);
 
     res.status(200).json({
       success: true,
-      message: '学生注册成功',
-      data: result,
+      data: rows,
     });
-  } catch (err) {
-    console.error('学生注册失败:', err);
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '学生注册失败',
-    });
-  }
+  });
 }
 
-/**
- * 更新学生信息
- * PUT /api/students/:studentId
- */
-async function updateStudent(req, res) {
-  try {
-    const { studentId } = req.params;
-    const { name, class: studentClass } = req.body;
+function getStudent(req, res) {
+  const { studentId } = req.params;
 
-    if (!studentId) {
-      return res.status(400).json({
+  db.get('SELECT * FROM students WHERE student_id = ?', [studentId], (err, row) => {
+    if (err) {
+      return res.status(500).json({
         success: false,
-        error: 'INVALID_REQUEST',
-        message: '学生ID不能为空',
+        error: 'DATABASE_ERROR',
+        message: '查询失败: ' + err.message,
       });
     }
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({
+    if (!row) {
+      return res.status(404).json({
         success: false,
-        error: 'INVALID_REQUEST',
-        message: '学生姓名不能为空',
+        error: 'NOT_FOUND',
+        message: '学生不存在',
       });
     }
 
-    const result = await studentService.updateStudent(studentId, name, studentClass);
-
-    if (result.success) {
-      res.status(200).json(result);
-    } else {
-      res.status(404).json(result);
-    }
-  } catch (err) {
-    console.error('修改学生信息失败:', err);
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '修改学生信息失败',
+    res.status(200).json({
+      success: true,
+      data: row,
     });
-  }
+  });
 }
 
-/**
- * 删除学生
- * DELETE /api/students/:studentId
- */
-async function deleteStudent(req, res) {
-  try {
-    const { studentId } = req.params;
+function createStudent(req, res) {
+  const { student_id, student_name } = req.body;
 
-    if (!studentId) {
-      return res.status(400).json({
+  if (!student_id) {
+    return res.status(400).json({
+      success: false,
+      error: 'INVALID_REQUEST',
+      message: 'student_id 是必填字段',
+    });
+  }
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO students (student_id, student_name, created_at, updated_at)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  const now = new Date().toISOString();
+
+  stmt.run(student_id, student_name || null, now, now, (err) => {
+    stmt.finalize();
+    if (err) {
+      return res.status(500).json({
         success: false,
-        error: 'INVALID_REQUEST',
-        message: '学生ID不能为空',
+        error: 'DATABASE_ERROR',
+        message: '创建失败: ' + err.message,
       });
     }
 
-    const result = await studentService.deleteStudent(studentId);
-
-    if (result.success) {
-      res.status(200).json(result);
-    } else {
-      res.status(404).json(result);
-    }
-  } catch (err) {
-    console.error('删除学生失败:', err);
-    res.status(500).json({
-      success: false,
-      error: 'DATABASE_ERROR',
-      message: '删除学生失败',
+    res.status(201).json({
+      success: true,
+      message: '学生创建成功',
     });
-  }
+  });
+}
+
+function updateStudent(req, res) {
+  const { studentId } = req.params;
+  const { student_name } = req.body;
+
+  const stmt = db.prepare(`
+    UPDATE students SET student_name = ?, updated_at = ? WHERE student_id = ?
+  `);
+
+  stmt.run(student_name || null, new Date().toISOString(), studentId, (err) => {
+    stmt.finalize();
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        error: 'DATABASE_ERROR',
+        message: '更新失败: ' + err.message,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: '学生信息更新成功',
+    });
+  });
+}
+
+function deleteStudent(req, res) {
+  const { studentId } = req.params;
+
+  const stmt = db.prepare('DELETE FROM students WHERE student_id = ?');
+
+  stmt.run(studentId, (err) => {
+    stmt.finalize();
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        error: 'DATABASE_ERROR',
+        message: '删除失败: ' + err.message,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: '学生删除成功',
+    });
+  });
 }
 
 module.exports = {
-  getStudent,
   getStudentList,
+  getStudent,
   createStudent,
   updateStudent,
-  deleteStudent
+  deleteStudent,
 };

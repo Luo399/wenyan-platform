@@ -42,15 +42,7 @@
  */
 
 // 页面路由名称定义
-export type RouteName =
-  | 'home'
-  | 'rules'
-  | 'stepone'
-  | 'rule1'
-  | 'rule2'
-  | 'rule3'
-  | 'steptwo'
-  | 'stepthree'
+export type RouteName = 'home' | 'rules' | 'stepone' | 'steptwo' | 'stepthree' | 'rule1' | 'rule2' | 'rule3' | 'detail'
 
 // 页面配置接口
 export interface PageConfig {
@@ -61,9 +53,6 @@ export interface PageConfig {
 /**
  * 页面配置列表（按导航顺序排列）
  * 修改顺序只需调整此数组
- *
- * 当前顺序：rule -> rule1 -> stepone -> rule2 -> steptwo -> rule3 -> stepthree
- * stepthree 是最后一页，完成后返回 home
  */
 export const pageSequence: PageConfig[] = [
   {
@@ -75,28 +64,32 @@ export const pageSequence: PageConfig[] = [
     getPath: (id) => `/rules/${id || '1'}`,
   },
   {
-    name: 'rule1',
-    getPath: (id) => `/rule1/${id || '1'}`,
-  },
-  {
     name: 'stepone',
     getPath: (id) => `/stepone/${id || '1'}`,
-  },
-  {
-    name: 'rule2',
-    getPath: (id) => `/rule2/${id || '1'}`,
   },
   {
     name: 'steptwo',
     getPath: (id) => `/steptwo/${id || '1'}`,
   },
   {
+    name: 'stepthree',
+    getPath: (id) => `/stepthree/${id || '1'}`,
+  },
+  {
+    name: 'rule1',
+    getPath: (id) => `/rule1/${id || '1'}`,
+  },
+  {
+    name: 'rule2',
+    getPath: (id) => `/rule2/${id || '1'}`,
+  },
+  {
     name: 'rule3',
     getPath: (id) => `/rule3/${id || '1'}`,
   },
   {
-    name: 'stepthree',
-    getPath: (id) => `/stepthree/${id || '1'}`,
+    name: 'detail',
+    getPath: (id) => `/detail/${id || '1'}`,
   },
 ]
 
@@ -142,31 +135,27 @@ export function getPrevPage(currentName: RouteName): PageConfig | null {
 export const idTransformMap: Record<RouteName, (id: string) => string | null> = {
   home: () => null,
   rules: (id) => {
-    // stepone/rule1/rule2/rule3/steptwo/stepthree -> rules: poemId 不变
     return id || null
   },
   stepone: (id) => {
-    // poemId 不变
-    return id || null
-  },
-  rule1: (id) => {
-    // poemId 不变
-    return id || null
-  },
-  rule2: (id) => {
-    // poemId 不变
-    return id || null
-  },
-  rule3: (id) => {
-    // poemId 不变
     return id || null
   },
   steptwo: (id) => {
-    // poemId 不变
     return id || null
   },
   stepthree: (id) => {
-    // poemId 不变
+    return id || null
+  },
+  rule1: (id) => {
+    return id || null
+  },
+  rule2: (id) => {
+    return id || null
+  },
+  rule3: (id) => {
+    return id || null
+  },
+  detail: (id) => {
     return id || null
   },
 }

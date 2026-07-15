@@ -11,7 +11,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers, submitSingleAnswer } from '@/utils/api'
+import { submitAnswers as submitAnswersApi, submitSingleAnswer } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
 
 export interface QuizAnswer {
@@ -180,12 +180,13 @@ export function useQuizProgress(
         answerMap[key] = mappedAnswer
       })
 
-      await submitAnswers(
-        { answers: answerMap, questions },
-        completionKeyPrefix,
+      await submitAnswersApi({
         studentId,
-        studentName,
-      )
+        wenId: completionKeyPrefix,
+        submittedAt: new Date().toISOString(),
+        answers: answerMap,
+        questions,
+      })
 
       console.log(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
     } catch (error) {

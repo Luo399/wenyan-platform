@@ -345,7 +345,13 @@ async function submitToBackend(answers: Record<number, number>) {
       studentName: name,
     })
 
-    const result = await submitAnswersApi({ answers: answerMap, questions }, props.wenId, id, name)
+    const result = await submitAnswersApi({
+      studentId: id,
+      wenId: props.wenId,
+      submittedAt: new Date().toISOString(),
+      answers: answerMap,
+      questions,
+    })
 
     console.log('[Level1Quiz] 答题数据已成功提交到后端:', result)
   } catch (error) {

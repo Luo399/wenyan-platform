@@ -42,10 +42,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch } from 'vue'
 import Options, { type Option, type OptionsType } from './Options.vue'
 import { submitAnswers, ApiError } from '@/utils/api'
-import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
+import { storeToRefs } from 'pinia'
 
 export interface QuestionData {
   id: string
@@ -69,9 +70,8 @@ const emit = defineEmits<{
   (e: 'answer-change', questionId: string, answer: string | number | (string | number)[]): void
 }>()
 
-const authStore = useAuthStore()
-const studentId = computed(() => authStore.user?.studentId || '')
-const isLoggedIn = computed(() => authStore.isLoggedIn)
+const studentStore = useStudentStore()
+const { studentId, isLoggedIn } = storeToRefs(studentStore)
 
 const getInitialValue = (): string | number | (string | number)[] => {
   if (props.question.type === 'radio') {
@@ -124,9 +124,7 @@ function compareAnswers(): boolean {
   const correct = props.question.correctAnswer
 
   if (props.question.type === 'radio') {
-    const stringUserAnswer = String(userAnswer ?? '')
-    const stringCorrect = String(correct ?? '')
-    return stringUserAnswer === stringCorrect
+    return userAnswer === correct
   } else {
     if (!Array.isArray(userAnswer) || !Array.isArray(correct)) {
       return false
@@ -134,8 +132,7 @@ function compareAnswers(): boolean {
     if (userAnswer.length !== correct.length) {
       return false
     }
-    const stringCorrect = correct.map((item) => String(item))
-    return userAnswer.every((item) => stringCorrect.includes(String(item)))
+    return userAnswer.every((item) => correct.includes(item))
   }
 }
 
@@ -157,18 +154,19 @@ async function submitAnswer() {
 
   try {
     const submitData = {
+      studentId: studentId.value,
+      wenId: props.question.wenId,
+      submittedAt: new Date().toISOString(),
       answers: { [props.question.id]: selectedAnswer.value },
       questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }],
     }
 
-    await submitAnswers(submitData, props.question.wenId, studentId.value, undefined, 30000)
+    await submitAnswers(submitData, 30000)
 
     isCorrect.value = compareAnswers()
     isSubmitted.value = true
-  } catch (error: unknown) {
+  } catch (error) {
     if (error instanceof ApiError) {
-      submitError.value = error.message
-    } else if (error instanceof Error) {
       submitError.value = error.message
     } else {
       submitError.value = '提交失败'

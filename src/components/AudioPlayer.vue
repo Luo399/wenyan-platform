@@ -52,11 +52,7 @@
       </div>
 
       <!-- 音量控制按钮 -->
-      <button
-        class="control-btn volume-btn"
-        @click="toggleMute"
-        :title="isMuted ? '取消静音' : '静音'"
-      >
+      <button class="control-btn volume-btn" @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
         <!-- 根据静音状态显示不同图标 -->
         <i v-if="isMuted" class="fas fa-volume-mute"></i>
         <i v-else class="fas fa-volume-up"></i>
@@ -66,8 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
-import { debugWarn } from '@/utils/debug'
+import { ref, computed } from 'vue'
 
 // ============================================================
 // 组件 Props 定义
@@ -120,7 +115,7 @@ function togglePlay() {
     audioRef.value.pause()
   } else {
     audioRef.value.play().catch((err) => {
-      debugWarn('播放失败:', err)
+      console.warn('播放失败:', err)
       isPlaying.value = false
     })
   }
@@ -193,16 +188,6 @@ function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60)
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
-
-/**
- * 组件卸载时清理音频资源
- */
-onUnmounted(() => {
-  if (audioRef.value) {
-    audioRef.value.pause()
-    audioRef.value.src = ''
-  }
-})
 </script>
 
 <style scoped>

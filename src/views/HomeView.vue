@@ -11,20 +11,17 @@
         <StudentLogin />
       </div>
     </div>
-
-    <!-- 教师登录按钮 -->
-    <router-link to="/answer-query" class="teacher-login-btn"> 教师登录 </router-link>
   </div>
 </template>
 
 <script setup lang="ts">
 import PoetryMenu from '@/components/PoetryMenu.vue'
 import StudentLogin from '@/components/StudentLogin.vue'
-import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
+import { useStudentStore } from '@/stores/student'
+import { storeToRefs } from 'pinia'
 
-const authStore = useAuthStore()
-const isLoggedIn = computed(() => authStore.isLoggedIn)
+const studentStore = useStudentStore()
+const { isLoggedIn } = storeToRefs(studentStore)
 </script>
 
 <style scoped>
@@ -54,31 +51,5 @@ const isLoggedIn = computed(() => authStore.isLoggedIn)
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   max-width: 400px;
-}
-
-/* 教师登录按钮 */
-.teacher-login-btn {
-  position: fixed;
-  right: 2rem;
-  bottom: 2rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.teacher-login-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.5);
-}
-
-.teacher-login-btn:active {
-  transform: translateY(0);
 }
 </style>

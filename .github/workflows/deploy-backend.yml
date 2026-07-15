@@ -1,0 +1,61 @@
+name: Deploy Backend to Aliyun Server
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e
+            PROD_PATH="${{ secrets.SERVER_PROJECT_PATH }}"
+            BRANCH="main"
+            BACKEND_PATH="$PROD_PATH/backend"
+
+            echo "=== [1/6] Pull latest code ==="
+            cd "$PROD_PATH"
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            echo "=== [2/6] Create .env file ==="
+            printf 'PORT=3000\nCORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn\nAUTH_SECRET=${{ secrets.AUTH_SECRET }}\n' > "$BACKEND_PATH/.env"
+            cat "$BACKEND_PATH/.env"
+
+            echo "=== [3/6] Install dependencies ==="
+            cd "$BACKEND_PATH"
+            rm -rf node_modules package-lock.json
+            npm install --production
+
+            echo "=== [4/6] Reload PM2 process ==="
+            pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
+
+            echo "=== [5/6] Wait for startup ==="
+            sleep 3
+
+            echo "=== [6/6] Health check ==="
+            pm2 status
+            curl -s http://127.0.0.1:3000/api/health || echo "HEALTH_CHECK_FAILED"
+          EOF

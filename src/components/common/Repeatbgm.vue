@@ -64,7 +64,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseLoader from './BaseLoader.vue'
 import BaseError from './BaseError.vue'
-import { getAudioUrl } from '@/utils/asset'
+import { getAssetUrl } from '@/utils/asset'
 import { useBgmStore } from '@/stores/bgm'
 import { getWenId } from '@/utils/wenUtils'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
@@ -99,7 +99,7 @@ const isMuted = computed(() => {
 // BGM URL
 const bgmUrl = computed(() => {
   if (!currentBgmFile.value) return ''
-  return getAudioUrl(currentBgmFile.value)
+  return getAssetUrl('audio', currentBgmFile.value)
 })
 
 // 监听路由变化，自动更新wenId

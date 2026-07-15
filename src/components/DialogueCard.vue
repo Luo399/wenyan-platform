@@ -158,7 +158,7 @@ function playAudio() {
     audio.pause()
   }
 
-  audio = new Audio(getAssetUrl(`audio/${audioFile.value}.mp3`))
+  audio = new Audio(getAssetUrl('audio', `${audioFile.value}.mp3`))
   audio.onended = () => {
     isPlaying.value = false
     emit('audio-pause')

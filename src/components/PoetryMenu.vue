@@ -26,7 +26,7 @@ import { useRouter } from 'vue-router'
 // 响应式：控制下拉菜单显示/隐藏
 const showDropdown = ref(false)
 // 延时定时器
-let hideTimer: ReturnType<typeof setTimeout> | null = null
+let hideTimer: number | null = null
 
 function clearTimer() {
   if (hideTimer) {

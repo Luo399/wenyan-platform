@@ -2,65 +2,68 @@
   StudentLogin.vue - 学生学号输入组件
 
   功能说明：
-  - 提供学号输入框，要求非空输入
+  - 提供学号输入框，要求4位数字
   - 验证输入合法性
-  - 调用登录API进行认证
+  - 保存学号到 Pinia Store
 -->
 <template>
   <div class="student-login">
     <h2>请输入您的学号</h2>
-    <p class="subtitle">请输入您的学号</p>
+    <p class="subtitle">学号为4位数字</p>
 
     <div class="input-group">
       <input
         v-model="inputId"
         type="text"
-        placeholder="请输入学号"
+        maxlength="4"
+        placeholder="请输入4位学号"
         @keyup.enter="handleSubmit"
-        :class="{ error: hasError }"
+        :class="{ 'error': hasError }"
       />
-      <button @click="handleSubmit" :disabled="!isValid || isLoading">
-        <span v-if="isLoading" class="spinner"></span>
-        {{ isLoading ? '登录中...' : '确认' }}
+      <button @click="handleSubmit" :disabled="!isValid">
+        确认
       </button>
     </div>
 
-    <p v-if="hasError" class="error-message">学号不能为空</p>
+    <p v-if="hasError" class="error-message">
+      学号必须为4位数字
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
 
-const authStore = useAuthStore()
+const studentStore = useStudentStore()
 
+// 输入的学号
 const inputId = ref('')
+// 是否有错误
 const hasError = ref(false)
-const isLoading = ref(false)
 
+/**
+ * 验证输入是否为4位数字
+ */
 const isValid = computed(() => {
-  return inputId.value.trim().length > 0
+  return /^\d{4}$/.test(inputId.value)
 })
 
-async function handleSubmit() {
+/**
+ * 提交学号
+ */
+function handleSubmit() {
+  // 验证格式
   if (!isValid.value) {
     hasError.value = true
     return
   }
 
   hasError.value = false
-  isLoading.value = true
-
-  try {
-    await authStore.login(inputId.value.trim())
-    inputId.value = ''
-  } catch (error) {
-    hasError.value = true
-    console.error('[StudentLogin] 登录失败:', error)
-  } finally {
-    isLoading.value = false
-  }
+  // 保存到 Store
+  studentStore.setStudentId(inputId.value)
+  // 清空输入
+  inputId.value = ''
 }
 </script>
 
@@ -116,9 +119,6 @@ async function handleSubmit() {
   font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 .input-group button:hover:not(:disabled) {
@@ -134,20 +134,5 @@ async function handleSubmit() {
   color: #ef4444;
   font-size: 0.875rem;
   margin-top: 0.5rem;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #fff;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

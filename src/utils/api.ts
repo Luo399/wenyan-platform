@@ -1,33 +1,40 @@
-/**
- * API 请求封装
- *
- * 功能：
- * - 自动在请求头中携带 JWT token（动态获取）
- * - 统一错误处理（非2xx响应抛出错误）
- * - 环境变量控制后端地址
- * - 业务接口集中管理
- */
-
 import { useAuthStore } from '@/stores/auth'
 
-/**
- * 获取后端 API 基础地址
- * 开发环境返回空字符串，让请求使用相对路径（通过 Vite 代理转发）
- * 生产环境配置 .env.production 中的 VITE_API_BASE
- */
+const apiBase = import.meta.env.VITE_API_BASE_URL as string
+const authSecret = import.meta.env.VITE_AUTH_SECRET as string | undefined
+const authEnabled = !!authSecret && authSecret.length > 0
+
+async function generateHmacSignature(studentId: string, timestamp: string): Promise<string> {
+  if (!authSecret) {
+    throw new Error('AUTH_SECRET 未配置')
+  }
+  
+  const payload = `${studentId}:${timestamp}`
+  const encoder = new TextEncoder()
+  const keyData = encoder.encode(authSecret)
+  const messageData = encoder.encode(payload)
+  
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  
+  const signature = await crypto.subtle.sign('HMAC', key, messageData)
+  const hashArray = Array.from(new Uint8Array(signature))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 function getBaseUrl(): string {
-  const baseUrl = import.meta.env.VITE_API_BASE
-  // 开发环境（无配置或本地地址）使用相对路径
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
   if (!baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
     return ''
   }
   return baseUrl
 }
 
-/**
- * 获取认证请求头
- * 每次请求时动态调用 useAuthStore() 获取最新状态，token 不会过期残留
- */
 function getAuthHeaders(): Record<string, string> {
   const authStore = useAuthStore()
   if (!authStore.token) {
@@ -36,9 +43,6 @@ function getAuthHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${authStore.token}` }
 }
 
-/**
- * 请求配置接口
- */
 export interface RequestConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   headers?: Record<string, string>
@@ -46,10 +50,6 @@ export interface RequestConfig {
   timeout?: number
 }
 
-/**
- * 统一响应接口
- * 所有API响应必须遵循此格式
- */
 export interface ApiResponse<T = any> {
   success: boolean
   data?: T
@@ -59,10 +59,6 @@ export interface ApiResponse<T = any> {
   requestId?: string
 }
 
-/**
- * 标准化API响应
- * 确保所有响应都符合统一格式
- */
 export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
   if (response === null || response === undefined) {
     return {
@@ -73,7 +69,6 @@ export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
     }
   }
 
-  // 如果已经是标准化格式，直接返回
   if (typeof response === 'object' && 'success' in response) {
     return {
       success: response.success,
@@ -85,7 +80,6 @@ export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
     }
   }
 
-  // 如果响应只有 data 字段，包装成标准化格式
   if (typeof response === 'object' && 'data' in response) {
     return {
       success: true,
@@ -96,7 +90,6 @@ export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
     }
   }
 
-  // 如果响应本身就是数据，包装成标准化格式
   return {
     success: true,
     data: response as T,
@@ -106,40 +99,31 @@ export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
   }
 }
 
-/**
- * API 错误类
- */
 export class ApiError extends Error {
   constructor(
-    message: string,
-    public code?: number,
+    public status: number,
+    public errorCode: string,
+    message: string
   ) {
     super(message)
     this.name = 'ApiError'
   }
 }
 
-/**
- * 基础请求函数
- * 非 2xx 响应会抛出错误，调用方用 try/catch 包裹即可
- */
 export async function request<T = any>(
   url: string,
   config: RequestConfig = {},
 ): Promise<ApiResponse<T>> {
   const { method = 'GET', headers = {}, body, timeout = 30000 } = config
 
-  // 构建完整 URL
   const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
 
-  // 构建请求头（包含认证信息）
   const requestHeaders = new Headers({
     'Content-Type': 'application/json',
     ...getAuthHeaders(),
     ...headers,
   })
 
-  // 创建取消控制器
   const controller = new AbortController()
   const timeoutId = setTimeout(() => {
     controller.abort()
@@ -155,20 +139,17 @@ export async function request<T = any>(
 
     clearTimeout(timeoutId)
 
-    // 处理 token 过期
     if (response.status === 401) {
       const authStore = useAuthStore()
-      // 只在用户已登录状态且token无效时才登出
       if (authStore.isLoggedIn) {
         authStore.logout()
       }
-      throw new ApiError('登录已过期，请重新登录', 401)
+      throw new ApiError(401, 'AUTH_EXPIRED', '登录已过期，请重新登录')
     }
 
-    // 统一错误处理：非 2xx 响应抛出错误
     if (!response.ok) {
       const errorData = await response.json().catch(() => null)
-      throw new ApiError(errorData?.message || `请求失败: ${response.status}`, response.status)
+      throw new ApiError(response.status, errorData?.error || 'REQUEST_FAILED', errorData?.message || `请求失败: ${response.status}`)
     }
 
     const jsonResponse = await response.json()
@@ -176,15 +157,12 @@ export async function request<T = any>(
   } catch (err) {
     clearTimeout(timeoutId)
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new ApiError('请求超时')
+      throw new ApiError(0, 'TIMEOUT', '请求超时')
     }
     throw err
   }
 }
 
-/**
- * GET 请求
- */
 export async function get<T = any>(
   url: string,
   params?: Record<string, string | number>,
@@ -199,9 +177,6 @@ export async function get<T = any>(
   return request<T>(url + queryString, config)
 }
 
-/**
- * POST 请求
- */
 export async function post<T = any>(
   url: string,
   body?: any,
@@ -210,9 +185,6 @@ export async function post<T = any>(
   return request<T>(url, { ...config, method: 'POST', body })
 }
 
-/**
- * PUT 请求
- */
 export async function put<T = any>(
   url: string,
   body?: any,
@@ -221,9 +193,6 @@ export async function put<T = any>(
   return request<T>(url, { ...config, method: 'PUT', body })
 }
 
-/**
- * DELETE 请求
- */
 export async function del<T = any>(
   url: string,
   config: Omit<RequestConfig, 'method'> = {},
@@ -231,16 +200,6 @@ export async function del<T = any>(
   return request<T>(url, { ...config, method: 'DELETE' })
 }
 
-// ============================================================
-// 业务接口封装
-// ============================================================
-
-/**
- * 登录请求
- *
- * @param studentId - 学号
- * @returns 用户信息和 token
- */
 export interface LoginResponse {
   token: string
   user: {
@@ -256,21 +215,21 @@ export async function login(studentId: string): Promise<LoginResponse> {
   return response.data!
 }
 
-/**
- * 答题数据接口
- */
 export interface QuestionForSubmit {
   id: string
   correctAnswer: string | number | (string | number)[]
 }
 
-export interface SubmitAnswersParams {
+export interface SubmitAnswersRequest {
   studentId: string
-  studentName?: string
   wenId: string
   submittedAt: string
   answers: Record<string, string | number | (string | number)[]>
-  questions: QuestionForSubmit[]
+  questions: Array<{
+    id: string
+    correctAnswer: string | number | (string | number)[]
+  }>
+  signature?: string
 }
 
 export interface SubmitAnswersResponse {
@@ -281,47 +240,70 @@ export interface SubmitAnswersResponse {
     wenId: string
     submittedAt: string
     questionCount: number
-    correctCount: number
-    wrongCount: number
     totalScore: number
     avgScore: number
     details: Array<{
       questionId: string
       score: number
-      isCorrect: number
-      attemptNumber: number
     }>
   }
+  error?: string
 }
 
-/**
- * 提交答题结果
- *
- * @param submitData - 答题数据（包含answers和questions）
- * @param wenId - 课文ID
- * @param studentId - 学生ID
- * @param studentName - 学生姓名（可选）
- * @param timeout - 超时时间
- * @returns 提交结果
- */
 export async function submitAnswers(
-  submitData: { answers: Record<string, any>; questions: QuestionForSubmit[] },
-  wenId: string,
-  studentId: string,
-  studentName?: string,
-  timeout?: number,
+  data: SubmitAnswersRequest,
+  timeout: number = 30000
 ): Promise<SubmitAnswersResponse> {
-  const params: SubmitAnswersParams = {
-    studentId,
-    studentName,
-    wenId,
-    submittedAt: new Date().toISOString(),
-    answers: submitData.answers,
-    questions: submitData.questions,
-  }
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-  const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
-  return response.data!
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+    
+    let requestBody = data
+    
+    if (authEnabled) {
+      const signature = await generateHmacSignature(data.studentId, data.submittedAt)
+      requestBody = {
+        ...data,
+        signature
+      }
+    }
+
+    const response = await fetch(`${apiBase}/api/submit`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null)
+      throw new ApiError(
+        response.status,
+        errorData?.error || 'UNKNOWN_ERROR',
+        errorData?.message || '请求失败'
+      )
+    }
+
+    return await response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+    
+    if (error instanceof ApiError) {
+      throw error
+    }
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(0, 'TIMEOUT', '请求超时')
+    }
+
+    throw new ApiError(0, 'NETWORK_ERROR', '网络连接失败')
+  }
 }
 
 export interface SubmitSingleAnswerParams {
@@ -360,11 +342,6 @@ export async function submitSingleAnswer(
   return response.data!
 }
 
-/**
- * 获取文本基础信息
- *
- * @param textId - 课文ID
- */
 export interface TextBasicInfo {
   text_id: string
   title: string
@@ -380,11 +357,6 @@ export async function getTextBasicInfo(textId: string): Promise<TextBasicInfo> {
   return response.data!
 }
 
-/**
- * 获取字词注释数据
- *
- * @param textId - 课文ID
- */
 export interface WordItem {
   text_id: string
   word: string

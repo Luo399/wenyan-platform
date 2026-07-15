@@ -1,3 +1,24 @@
+<!--
+  MultiRoleReadingItem.vue - 多角色朗读分段项组件
+
+  功能说明：
+  - 渲染单个段落：角色头像、角色名、文本内容
+  - 根据 isActive prop 改变背景高亮样式
+  - 包含独立播放按钮，点击后从该段落的 startTime 开始播放
+
+  使用方式：
+  <MultiRoleReadingItem
+    :segment="segment"
+    :is-active="isActive"
+    @play="handlePlay"
+    @click="handleClick"
+  />
+
+  Props:
+  - segment: 段落数据
+  - isActive: 是否为当前播放段落
+-->
+
 <template>
   <div class="segment-item" :class="{ active: isActive }" @click="handleClick">
     <div class="avatar">{{ emoji }}</div>
@@ -5,50 +26,53 @@
       <div class="role-name">{{ roleName }}</div>
       <div class="text">{{ segment.dialogue }}</div>
     </div>
-    <button class="play-btn" @click.stop="handleToggle">
-      <i class="fas" :class="isActive && isCurrentlyPlaying ? 'fa-pause' : 'fa-play'"></i>
+    <button class="play-btn" @click.stop="handlePlay">
+      <i class="fas fa-play"></i>
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ProcessedMultiRoleSegment } from './MultiRoleReading.vue'
+import type { MultiRoleSegment } from './MultiRoleReading.vue'
 
 interface Props {
-  segment: ProcessedMultiRoleSegment
+  segment: MultiRoleSegment
   isActive: boolean
-  isCurrentlyPlaying: boolean
 }
 
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  // toggle: 切换播放状态（如果是当前活动段落，则切换；否则跳转到该段落并播放）
-  (e: 'toggle', startTime: number): void
+  (e: 'play'): void
   (e: 'click'): void
 }>()
 
+/**
+ * 从 role_name 中提取角色名称（去掉emoji）
+ */
 const roleName = computed(() => {
-  return props.segment.role_name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
+  const name = props.segment.role_name
+  // 移除 emoji 字符
+  return name.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim()
 })
 
+/**
+ * 从 role_name 中提取 emoji
+ */
 const emoji = computed(() => {
-  const match = props.segment.role_name.match(/[\u{1F300}-\u{1F9FF}]/gu)
-  return match ? match[match.length - 1] : '📖'
+  const name = props.segment.role_name
+  // 匹配 emoji 字符
+  const match = name.match(/[\u{1F300}-\u{1F9FF}]/gu)
+  return match ? match[match.length - 1] : '📖' // 默认使用书本emoji
 })
 
 function handleClick() {
   emit('click')
 }
 
-/**
- * 切换播放状态
- * 如果点击的是当前正在播放的段落，则暂停
- * 如果点击的是其他段落，则跳转到该段落并播放
- */
-function handleToggle() {
-  emit('toggle', props.segment.startTime)
+function handlePlay() {
+  emit('play')
 }
 </script>
 
@@ -107,11 +131,7 @@ function handleToggle() {
 
 .play-btn {
   flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0.5rem;
   border: none;
   border-radius: 50%;
   background-color: #3b82f6;
