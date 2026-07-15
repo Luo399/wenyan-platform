@@ -26,6 +26,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             TEST_PATH="${{ secrets.SERVER_PROJECT_PATH }}-test"
             BRANCH="feature-1"
+            BACKEND_PATH="$TEST_PATH/backend"
 
             if [ ! -d "$TEST_PATH" ]; then
               git clone https://github.com/Luo399/wenyan-platform.git "$TEST_PATH"
@@ -36,15 +37,21 @@ jobs:
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            cd backend
-            npm ci --production
+            cat > "$BACKEND_PATH/.env" << 'ENVEOF'
+PORT=3001
+CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn
+AUTH_SECRET=wenyan-test-secret-2024
+ENVEOF
 
-            if pm2 describe wenyan-backend-test > /dev/null 2>&1; then
-              pm2 reload wenyan-backend-test --update-env
-            else
-              cd ..
-              pm2 start backend/server.js --name wenyan-backend-test -- --port 3001
-            fi
+            cd "$BACKEND_PATH"
+            rm -rf node_modules package-lock.json
+            npm install --production
+
+            pm2 delete wenyan-backend-test 2>&1 || true
+            pm2 start server.js --name wenyan-backend-test
+
+            sleep 2
+            pm2 status
           EOF
 
       - name: Configure Nginx reverse proxy for test
