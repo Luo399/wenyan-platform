@@ -93,7 +93,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useStudentInfo } from '@/composables/useStudentInfo'
-import { submitSingleAnswer } from '@/utils/api'
+import { submitSingleAnswer } from '@/services/apiService'
 import type { QuizItem } from '@/adapters/quizAdapter'
 import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
 import type { ProcessedLevel2QuizItem, RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'

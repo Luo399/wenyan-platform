@@ -15,6 +15,7 @@
 
 import { get, post } from '@/utils/api'
 import type { ApiResponse } from '@/utils/api'
+import { generateHmacSignature, apiBase, authEnabled, ApiError } from '@/utils/api'
 
 // ============================================================
 // 类型定义
@@ -153,6 +154,95 @@ export interface Level3AdaptiveQuiz {
   }>
 }
 
+/**
+ * 登录响应
+ */
+export interface LoginResponse {
+  token: string
+  user: {
+    id: string
+    username: string
+    student_id: string
+    role: 'student' | 'teacher' | 'admin'
+  }
+}
+
+/**
+ * 提交答案中的题目信息
+ */
+export interface QuestionForSubmit {
+  id: string
+  correctAnswer: string | number | (string | number)[]
+}
+
+/**
+ * 提交答案请求
+ */
+export interface SubmitAnswersRequest {
+  studentId: string
+  wenId: string
+  submittedAt: string
+  answers: Record<string, string | number | (string | number)[]>
+  questions: Array<{
+    id: string
+    correctAnswer: string | number | (string | number)[]
+  }>
+  signature?: string
+}
+
+/**
+ * 提交答案响应
+ */
+export interface SubmitAnswersResponse {
+  success: boolean
+  message: string
+  data?: {
+    studentId: string
+    wenId: string
+    submittedAt: string
+    questionCount: number
+    totalScore: number
+    avgScore: number
+    details: Array<{
+      questionId: string
+      score: number
+    }>
+  }
+  error?: string
+}
+
+/**
+ * 单题提交参数
+ */
+export interface SubmitSingleAnswerParams {
+  studentId: string
+  studentName?: string
+  wenId: string
+  questionId: string
+  userAnswer: string | number | (string | number)[]
+  correctAnswer?: string | number | (string | number)[]
+  submittedAt?: string
+}
+
+/**
+ * 单题提交响应
+ */
+export interface SubmitSingleAnswerResponse {
+  success: boolean
+  message: string
+  data?: {
+    studentId: string
+    wenId: string
+    questionId: string
+    userAnswer: string | number | (string | number)[]
+    correctAnswer?: string | number | (string | number)[]
+    isCorrect: number
+    score: number
+    submittedAt: string
+    attemptNumber: number
+  }
+}
+
 // ============================================================
 // API 服务函数
 // ============================================================
@@ -286,6 +376,93 @@ export async function getTextList(
   }>
 > {
   return get('/api/texts', toQueryParams({ page, page_size: pageSize }))
+}
+
+/**
+ * 登录
+ *
+ * @param studentId 学号
+ */
+export async function login(studentId: string): Promise<LoginResponse> {
+  const response = await post<LoginResponse>('/api/auth/login', { student_id: studentId })
+  return response.data!
+}
+
+/**
+ * 提交全部答案
+ *
+ * @param data 提交数据
+ * @param timeout 超时时间（毫秒），默认30000
+ */
+export async function submitAnswers(
+  data: SubmitAnswersRequest,
+  timeout: number = 30000,
+): Promise<SubmitAnswersResponse> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    let requestBody = data
+
+    if (authEnabled) {
+      const signature = await generateHmacSignature(data.studentId, data.submittedAt)
+      requestBody = {
+        ...data,
+        signature,
+      }
+    }
+
+    const response = await fetch(`${apiBase}/api/submit`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null)
+      throw new ApiError(
+        response.status,
+        errorData?.error || 'UNKNOWN_ERROR',
+        errorData?.message || '请求失败',
+      )
+    }
+
+    return await response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+
+    if (error instanceof ApiError) {
+      throw error
+    }
+
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError(0, 'TIMEOUT', '请求超时')
+    }
+
+    throw new ApiError(0, 'NETWORK_ERROR', '网络连接失败')
+  }
+}
+
+/**
+ * 提交单题答案
+ *
+ * @param params 单题提交参数
+ */
+export async function submitSingleAnswer(
+  params: SubmitSingleAnswerParams,
+): Promise<SubmitSingleAnswerResponse> {
+  const response = await post<SubmitSingleAnswerResponse>('/api/submit/single', {
+    ...params,
+    submittedAt: params.submittedAt || new Date().toISOString(),
+  })
+  return response.data!
 }
 
 // ============================================================
