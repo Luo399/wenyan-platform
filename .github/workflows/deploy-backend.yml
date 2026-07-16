@@ -7,6 +7,7 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -34,28 +35,35 @@ jobs:
             BRANCH="main"
             BACKEND_PATH="$PROD_PATH/backend"
 
-            echo "=== [1/6] Pull latest code ==="
+            echo "=== [1/7] Clone or update repo ==="
+            if [ ! -d "$PROD_PATH" ]; then
+              git clone https://github.com/Luo399/wenyan-platform.git "$PROD_PATH"
+            fi
             cd "$PROD_PATH"
             git fetch origin "$BRANCH"
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            echo "=== [2/6] Create .env file ==="
+            echo "=== [2/7] Create .env file ==="
             printf 'PORT=3000\nCORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn\nAUTH_SECRET=${{ secrets.AUTH_SECRET }}\n' > "$BACKEND_PATH/.env"
             cat "$BACKEND_PATH/.env"
 
-            echo "=== [3/6] Install dependencies ==="
+            echo "=== [3/7] Install dependencies ==="
             cd "$BACKEND_PATH"
             rm -rf node_modules package-lock.json
             npm install --production
 
-            echo "=== [4/6] Reload PM2 process ==="
-            pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
+            echo "=== [4/7] Stop old process ==="
+            pm2 delete wenyan-backend 2>&1 || true
 
-            echo "=== [5/6] Wait for startup ==="
+            echo "=== [5/7] Start backend ==="
+            cd "$BACKEND_PATH"
+            pm2 start server.js --name wenyan-backend
+
+            echo "=== [6/7] Wait for startup ==="
             sleep 3
 
-            echo "=== [6/6] Health check ==="
+            echo "=== [7/7] Health check ==="
             pm2 status
             curl -s http://127.0.0.1:3000/api/health || echo "HEALTH_CHECK_FAILED"
           EOF
