@@ -44,7 +44,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import Options, { type Option, type OptionsType } from './Options.vue'
-import { submitAnswers, ApiError } from '@/utils/api'
+import { submitAnswers } from '@/services/apiService'
+import { ApiError } from '@/utils/api'
 import { useStudentStore } from '@/stores/student'
 import { storeToRefs } from 'pinia'
 

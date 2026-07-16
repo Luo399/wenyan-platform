@@ -90,7 +90,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useStudentInfo } from '@/composables/useStudentInfo'
-import { submitAnswers as submitAnswersApi } from '@/utils/api'
+import { submitAnswers as submitAnswersApi } from '@/services/apiService'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
