@@ -9,6 +9,16 @@ function diagLog(...args: unknown[]) {
 // Worker 超时时间（毫秒）
 const WORKER_TIMEOUT = 5000
 
+// 模块级共享缓存（跨组件实例共享）
+const MAX_CACHE_SIZE = 100
+
+interface CacheEntry<T = unknown> {
+  data: T
+  timestamp: number
+}
+
+const dataCache = new Map<string, CacheEntry>()
+
 // Worker 实例缓存
 let jsonParserWorker: Worker | null = null
 
@@ -99,11 +109,6 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
   let abortController: AbortController | null = null
   let retryAttempts = 0
-  interface CacheEntry {
-    data: T
-    timestamp: number
-  }
-  const cache = new Map<string, CacheEntry>()
 
   async function load() {
     const url = urlGetter()
@@ -117,19 +122,19 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
       return
     }
 
-    // 检查缓存
-    if (cacheEnabled && cache.has(url)) {
-      const cachedEntry = cache.get(url)!
+    // 检查模块级共享缓存
+    if (cacheEnabled && dataCache.has(url)) {
+      const cachedEntry = dataCache.get(url)!
       // 检查缓存是否过期
       if (Date.now() - cachedEntry.timestamp < cacheTTL) {
-        data.value = cachedEntry.data
+        data.value = cachedEntry.data as T
         loading.value = false
         diagLog('📦 从缓存获取数据')
         onLoadSuccess?.(data.value)
         return
       }
       // 缓存过期，删除
-      cache.delete(url)
+      dataCache.delete(url)
       diagLog('⏰ 缓存已过期，重新获取')
     }
 
@@ -190,9 +195,16 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
         )
       }
 
-      // 存入缓存
+      // 存入模块级共享缓存
       if (cacheEnabled) {
-        cache.set(url, { data: data.value, timestamp: Date.now() })
+        // LRU: 超过上限时删除最早的条目
+        if (dataCache.size >= MAX_CACHE_SIZE) {
+          const oldestKey = dataCache.keys().next().value
+          if (oldestKey !== undefined) {
+            dataCache.delete(oldestKey)
+          }
+        }
+        dataCache.set(url, { data: data.value, timestamp: Date.now() })
       }
 
       const duration = Date.now() - startTime
@@ -275,4 +287,12 @@ export function terminateJsonParserWorker() {
     jsonParserWorker = null
     debugLog('[useDataLoader] JSON Parser Worker 已终止')
   }
+}
+
+/**
+ * 清理模块级共享数据缓存（供外部调用）
+ */
+export function clearDataCache() {
+  dataCache.clear()
+  debugLog('[useDataLoader] 数据缓存已清理')
 }

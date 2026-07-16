@@ -60,3 +60,26 @@ public/images/
 # Data files
 public/data/
 public/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# JAR files
+*.jar
+
+# Temporary scripts and generated files
+fix-json*.js
+gen_docx.js
+generate_docx.*
+generate-wordlist.cjs
+generate_design_doc.*
+read_excel.js
+project_structure.txt
+
+# OSS tool output
+ossutil_output/
+
+# Personal config files
+config
