@@ -1,139 +1,37 @@
 const textsService = require('../services/textsService');
 
-function getBasicInfo(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getBasicInfo(textId);
+/**
+ * 高阶函数：创建基于 textId 的文本数据处理器
+ * @param {string} serviceMethod - textsService 上的方法名
+ * @param {string} errorMessage - 404 时的错误描述（如 "文本基础信息"）
+ * @returns {function} Express route handler
+ */
+function createTextHandler(serviceMethod, errorMessage) {
+  return function (req, res) {
+    const { textId } = req.params;
+    const data = textsService[serviceMethod](textId);
 
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `文本基础信息不存在: ${textId}`,
-    });
-  }
+    if (data) {
+      res.json({ success: true, data });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'NOT_FOUND',
+        message: `${errorMessage}不存在: ${textId}`,
+      });
+    }
+  };
 }
 
-function getWordList(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getWordList(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `字词注释不存在: ${textId}`,
-    });
-  }
-}
-
-function getMultiRoleReading(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getMultiRoleReading(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `多角色朗读数据不存在: ${textId}`,
-    });
-  }
-}
-
-function getLevel1Quiz(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel1Quiz(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `一级测验数据不存在: ${textId}`,
-    });
-  }
-}
-
-function getCultureCards(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getCultureCards(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `文化卡片数据不存在: ${textId}`,
-    });
-  }
-}
-
-function getLevel2Dialog(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel2Dialog(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `二级对话数据不存在: ${textId}`,
-    });
-  }
-}
-
-function getLevel2Quiz(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel2Quiz(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `二级测验数据不存在: ${textId}`,
-    });
-  }
-}
-
-function getLevel3ScenarioText(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel3ScenarioText(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `三级情景文本不存在: ${textId}`,
-    });
-  }
-}
-
-function getLevel3AdaptiveQuiz(req, res) {
-  const { textId } = req.params;
-  const data = textsService.getLevel3AdaptiveQuiz(textId);
-
-  if (data) {
-    res.json({ success: true, data });
-  } else {
-    res.status(404).json({
-      success: false,
-      error: 'NOT_FOUND',
-      message: `三级自适应测验数据不存在: ${textId}`,
-    });
-  }
-}
+const getBasicInfo = createTextHandler('getBasicInfo', '文本基础信息');
+const getWordList = createTextHandler('getWordList', '字词注释');
+const getMultiRoleReading = createTextHandler('getMultiRoleReading', '多角色朗读数据');
+const getLevel1Quiz = createTextHandler('getLevel1Quiz', '一级测验数据');
+const getCultureCards = createTextHandler('getCultureCards', '文化卡片数据');
+const getLevel2Dialog = createTextHandler('getLevel2Dialog', '二级对话数据');
+const getLevel2Quiz = createTextHandler('getLevel2Quiz', '二级测验数据');
+const getLevel3ScenarioText = createTextHandler('getLevel3ScenarioText', '三级情景文本');
+const getLevel3AdaptiveQuiz = createTextHandler('getLevel3AdaptiveQuiz', '三级自适应测验数据');
 
 function getTextList(req, res) {
   const page = isNaN(parseInt(req.query.page))

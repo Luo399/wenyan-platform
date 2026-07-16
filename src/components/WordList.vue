@@ -51,6 +51,7 @@
     <div v-else class="content-wrapper">
       <h1 class="article-title">{{ articleTitle }}</h1>
       <div
+        ref="contentRef"
         class="article-content"
         v-html="sanitizedContent"
         @mouseover="handleMouseOver"
@@ -68,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 /**
  * 字词数据类型定义
@@ -118,6 +119,7 @@ const basicInfo = ref<TextBasicInfo | null>(null)
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
+const contentRef = ref<HTMLElement | null>(null)
 
 // AbortController 用于取消请求
 let abortController: AbortController | null = null
@@ -385,14 +387,19 @@ onMounted(() => {
   if (props.autoLoad) {
     loadData()
   }
-  document.addEventListener('mousemove', handleMouseMove)
+})
+
+// 当 contentRef 元素出现/消失时绑定/解绑 mousemove 事件
+watch(contentRef, (el, prevEl) => {
+  prevEl?.removeEventListener('mousemove', handleMouseMove)
+  el?.addEventListener('mousemove', handleMouseMove)
 })
 
 onUnmounted(() => {
   if (abortController) {
     abortController.abort()
   }
-  document.removeEventListener('mousemove', handleMouseMove)
+  contentRef.value?.removeEventListener('mousemove', handleMouseMove)
 })
 </script>
 
