@@ -27,146 +27,86 @@ function getDataFilePath(dirName, fileName) {
   return path.join(config.data.basePath, dirName, fileName);
 }
 
-function getCorrectAnswerFromJson(questionId, wenId) {
-  const possibleDirs = ['level1_quiz', 'level2_quiz', 'level3_adaptive_quiz'];
+function extractAnswer(obj) {
+  if (obj && (obj.correctAnswer !== undefined || obj.correct_answer !== undefined)) {
+    return obj.correctAnswer ?? obj.correct_answer;
+  }
+  return undefined;
+}
 
-  for (const dir of possibleDirs) {
-    const filePath = getDataFilePath(dir, `${wenId}.json`);
-    const data = readJsonFile(filePath);
+function matchesId(obj, questionId) {
+  return obj.id === questionId || obj.question_id === questionId || obj.questionId === questionId;
+}
 
-    if (data) {
-      if (data.questions && Array.isArray(data.questions)) {
-        const question = data.questions.find(
-          (q) => q.id === questionId || q.questionId === questionId
-        );
-        if (
-          question &&
-          (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-        ) {
-          return question.correctAnswer ?? question.correct_answer;
-        }
-      }
+function findAnswerInData(data, questionId) {
+  if (!data) return undefined;
 
-      if (data.blocks && Array.isArray(data.blocks)) {
-        for (const block of data.blocks) {
-          if (block.type === 'quiz' && block.data) {
-            const blockData = block.data;
-            if (blockData.questions && Array.isArray(blockData.questions)) {
-              const question = blockData.questions.find(
-                (q) => q.id === questionId || q.questionId === questionId
-              );
-              if (
-                question &&
-                (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-              ) {
-                return question.correctAnswer ?? question.correct_answer;
-              }
-            } else if (
-              (blockData.id === questionId ||
-                blockData.question_id === questionId ||
-                blockData.questionId === questionId) &&
-              (blockData.correctAnswer !== undefined ||
-                blockData.correct_answer !== undefined)
-            ) {
-              return blockData.correctAnswer ?? blockData.correct_answer;
-            }
-          }
-        }
-      }
+  // data.questions 数组
+  if (data.questions && Array.isArray(data.questions)) {
+    const found = data.questions.find((q) => matchesId(q, questionId));
+    const answer = extractAnswer(found);
+    if (answer !== undefined) return answer;
+  }
 
-      if (data.quiz && Array.isArray(data.quiz)) {
-        const question = data.quiz.find((q) => q.id === questionId || q.questionId === questionId);
-        if (
-          question &&
-          (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-        ) {
-          return question.correctAnswer ?? question.correct_answer;
-        }
-      }
-
-      if (data.items && Array.isArray(data.items)) {
-        for (const item of data.items) {
-          if (item.quiz) {
-            const quiz = item.quiz;
-            if (
-              (quiz.id === questionId ||
-                quiz.question_id === questionId ||
-                quiz.questionId === questionId) &&
-              (quiz.correctAnswer !== undefined || quiz.correct_answer !== undefined)
-            ) {
-              return quiz.correctAnswer ?? quiz.correct_answer;
-            }
-          }
-        }
-      }
-
-      if (Array.isArray(data)) {
-        for (const item of data) {
-          if (
-            (item.id === questionId ||
-              item.question_id === questionId ||
-              item.questionId === questionId) &&
-            (item.correctAnswer !== undefined || item.correct_answer !== undefined)
-          ) {
-            return item.correctAnswer ?? item.correct_answer;
-          }
+  // data.blocks 数组（含 block.type === 'quiz' 的块）
+  if (data.blocks && Array.isArray(data.blocks)) {
+    for (const block of data.blocks) {
+      if (block.type === 'quiz' && block.data) {
+        const blockData = block.data;
+        if (blockData.questions && Array.isArray(blockData.questions)) {
+          const found = blockData.questions.find((q) => matchesId(q, questionId));
+          const answer = extractAnswer(found);
+          if (answer !== undefined) return answer;
+        } else {
+          const answer = matchesId(blockData, questionId) ? extractAnswer(blockData) : undefined;
+          if (answer !== undefined) return answer;
         }
       }
     }
   }
 
-  const pageConfigs = [
+  // data.quiz 数组
+  if (data.quiz && Array.isArray(data.quiz)) {
+    const found = data.quiz.find((q) => matchesId(q, questionId));
+    const answer = extractAnswer(found);
+    if (answer !== undefined) return answer;
+  }
+
+  // data.items 数组（含 item.quiz）
+  if (data.items && Array.isArray(data.items)) {
+    for (const item of data.items) {
+      if (item.quiz) {
+        const answer = matchesId(item.quiz, questionId) ? extractAnswer(item.quiz) : undefined;
+        if (answer !== undefined) return answer;
+      }
+    }
+  }
+
+  // 顶层是数组的情况
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const answer = matchesId(item, questionId) ? extractAnswer(item) : undefined;
+      if (answer !== undefined) return answer;
+    }
+  }
+
+  return undefined;
+}
+
+function getCorrectAnswerFromJson(questionId, wenId) {
+  const searchPaths = [
+    ...['level1_quiz', 'level2_quiz', 'level3_adaptive_quiz'].map(
+      (dir) => getDataFilePath(dir, `${wenId}.json`)
+    ),
     getDataFilePath('pages_level2_dialog_quiz', `${wenId}.json`),
     getDataFilePath('pages_level3_adaptive_quiz', `${wenId}.json`),
     getDataFilePath('text-quiz', `${wenId}.json`),
   ];
 
-  for (const filePath of pageConfigs) {
+  for (const filePath of searchPaths) {
     const data = readJsonFile(filePath);
-    if (data) {
-      if (data.blocks && Array.isArray(data.blocks)) {
-        for (const block of data.blocks) {
-          if (block.type === 'quiz' && block.data) {
-            const blockData = block.data;
-            if (blockData.questions && Array.isArray(blockData.questions)) {
-              const question = blockData.questions.find(
-                (q) => q.id === questionId || q.questionId === questionId
-              );
-              if (
-                question &&
-                (question.correctAnswer !== undefined || question.correct_answer !== undefined)
-              ) {
-                return question.correctAnswer ?? question.correct_answer;
-              }
-            } else if (
-              (blockData.id === questionId ||
-                blockData.question_id === questionId ||
-                blockData.questionId === questionId) &&
-              (blockData.correctAnswer !== undefined ||
-                blockData.correct_answer !== undefined)
-            ) {
-              return blockData.correctAnswer ?? blockData.correct_answer;
-            }
-          }
-        }
-      }
-
-      if (data.items && Array.isArray(data.items)) {
-        for (const item of data.items) {
-          if (item.quiz) {
-            const quiz = item.quiz;
-            if (
-              (quiz.id === questionId ||
-                quiz.question_id === questionId ||
-                quiz.questionId === questionId) &&
-              (quiz.correctAnswer !== undefined || quiz.correct_answer !== undefined)
-            ) {
-              return quiz.correctAnswer ?? quiz.correct_answer;
-            }
-          }
-        }
-      }
-    }
+    const answer = findAnswerInData(data, questionId);
+    if (answer !== undefined) return answer;
   }
 
   return null;

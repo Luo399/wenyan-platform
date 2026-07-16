@@ -3,7 +3,7 @@
  * 提供令牌生成和验证功能
  */
 
-const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const config = require('../config/app');
 
 /**
@@ -16,19 +16,12 @@ function generateToken(studentId, username) {
   const payload = {
     sub: studentId,
     username: username,
-    exp: Math.floor(Date.now() / 1000) + config.jwt.expiresIn,
     role: 'student',
   };
 
-  const secret = config.jwt.secret;
-
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-
-  const data = `${header}.${encodedPayload}`;
-  const signature = crypto.createHmac('sha256', secret).update(data).digest('base64url');
-
-  return `${header}.${encodedPayload}.${signature}`;
+  return jwt.sign(payload, config.jwt.secret, {
+    expiresIn: config.jwt.expiresIn,
+  });
 }
 
 /**
@@ -38,33 +31,8 @@ function generateToken(studentId, username) {
  */
 function verifyToken(token) {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return null;
-    }
-
-    const [header, payload, signature] = parts;
-    const secret = config.jwt.secret;
-
-    // 验证签名
-    const data = `${header}.${payload}`;
-    const expectedSignature = crypto.createHmac('sha256', secret).update(data).digest('base64url');
-
-    if (signature !== expectedSignature) {
-      return null;
-    }
-
-    // 解码payload
-    const decodedPayload = JSON.parse(Buffer.from(payload, 'base64url').toString());
-
-    // 检查过期时间
-    if (decodedPayload.exp && decodedPayload.exp < Date.now() / 1000) {
-      return null;
-    }
-
-    return decodedPayload;
+    return jwt.verify(token, config.jwt.secret);
   } catch (err) {
-    console.error('Token验证失败:', err);
     return null;
   }
 }
