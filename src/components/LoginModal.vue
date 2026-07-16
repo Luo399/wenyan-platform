@@ -163,7 +163,7 @@ async function handleSubmit(): Promise<void> {
   isSubmitting.value = true
 
   try {
-    await authStore.login(studentId.value.trim(), studentName.value)
+    await authStore.studentLogin(studentId.value.trim(), '123456')
     emit('login-success')
     handleClose()
   } catch (err) {

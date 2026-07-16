@@ -2,39 +2,37 @@
  * 用户认证状态管理
  *
  * 功能：
- * - 管理用户登录状态
+ * - 管理学生/教师/管理员登录状态
  * - 处理 JWT token 的存储和验证
- * - 提供登录、登出、刷新令牌等方法
- * - 支持从 localStorage 恢复登录状态
+ * - 提供登录、登出等方法
  */
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { post } from '@/utils/api'
+import { post, get } from '@/utils/api'
 
-/**
- * 用户信息接口
- */
-export interface User {
-  id: string
-  username: string
-  studentId: string
-  role: 'student' | 'teacher' | 'admin'
+export interface StudentUser {
+  id: number
+  student_id: string
+  name: string | null
+  role: 'student'
+  password_changed: boolean
 }
 
-/**
- * 认证状态接口
- */
-export interface AuthState {
-  user: User | null
-  token: string | null
-  isLoggedIn: boolean
-  isLoading: boolean
-  error: string | null
+export interface TeacherUser {
+  id: number
+  phone: string
+  name: string
+  school: string | null
+  classes: string[]
+  role: 'teacher' | 'admin'
+  password_changed: boolean
 }
+
+export type User = StudentUser | TeacherUser
 
 export const useAuthStore = defineStore('auth', () => {
-  // 状态定义
+  // 状态
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
   const isLoading = ref(false)
@@ -42,10 +40,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 计算属性
   const isLoggedIn = computed(() => !!token.value && !!user.value)
+  const isStudent = computed(() => user.value?.role === 'student')
+  const isTeacher = computed(() => user.value?.role === 'teacher')
+  const isAdmin = computed(() => user.value?.role === 'admin')
 
   /**
    * 初始化认证状态
-   * 从 localStorage 恢复用户信息和 token
    */
   function initialize() {
     const savedToken = localStorage.getItem('auth_token')
@@ -56,60 +56,137 @@ export const useAuthStore = defineStore('auth', () => {
         token.value = savedToken
         user.value = JSON.parse(savedUser)
         error.value = null
-        console.log('[AuthStore] 从 localStorage 恢复登录状态')
       } catch (e) {
-        console.error('[AuthStore] 解析保存的用户信息失败:', e)
-        error.value = '登录状态已过期，请重新登录'
+        console.error('[AuthStore] 解析用户信息失败:', e)
         clearAuthData()
       }
     }
   }
 
   /**
-   * 登录
-   * @param studentId 学号
-   * @param studentName 学生姓名（可选，用于显示）
-   * @returns Promise
+   * 学生登录
    */
-  async function login(studentId: string, studentName?: string): Promise<void> {
+  async function studentLogin(studentId: string, password: string): Promise<void> {
     isLoading.value = true
     error.value = null
 
     try {
-      // 使用统一的API封装函数，确保正确使用 VITE_API_BASE 配置
-      const response = await post('/api/auth/login', {
-        student_id: studentId,
-        student_name: studentName,
-      })
+      const response = await post('/api/auth/student/login', { student_id: studentId, password })
 
       if (!response.success) {
         throw new Error(response.message || '登录失败')
       }
 
-      // 保存 token 和用户信息
       const result = response.data!
       token.value = result.token
-      const userData = result.user
+      const userData = result.user as StudentUser
+      user.value = { ...userData, role: 'student' }
 
-      if (!userData) {
-        throw new Error('登录成功但未返回用户信息')
-      }
-
-      user.value = {
-        id: userData.id,
-        username: userData.username || userData.name || studentName || studentId,
-        studentId: userData.student_id || userData.studentId || studentId,
-        role: userData.role || 'student',
-      }
-
-      // 持久化到 localStorage
       localStorage.setItem('auth_token', token.value!)
       localStorage.setItem('auth_user', JSON.stringify(user.value))
-
-      console.log('[AuthStore] 登录成功:', user.value)
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '登录失败，请重试'
+      error.value = err instanceof Error ? err.message : '登录失败'
       clearAuthData()
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 教师登录
+   */
+  async function teacherLogin(phone: string, password: string): Promise<void> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await post('/api/auth/teacher/login', { phone, password })
+
+      if (!response.success) {
+        throw new Error(response.message || '登录失败')
+      }
+
+      const result = response.data!
+      token.value = result.token
+      const userData = result.user as TeacherUser
+      user.value = { ...userData, role: userData.role }
+
+      localStorage.setItem('auth_token', token.value!)
+      localStorage.setItem('auth_user', JSON.stringify(user.value))
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '登录失败'
+      clearAuthData()
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 教师注册
+   */
+  async function teacherRegister(data: {
+    name: string
+    phone: string
+    school: string
+    classes: string[]
+    password: string
+  }): Promise<void> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await post('/api/auth/teacher/register', {
+        ...data,
+        classes: JSON.stringify(data.classes),
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || '注册失败')
+      }
+
+      const result = response.data!
+      token.value = result.token
+      const userData = result.user as TeacherUser
+      user.value = { ...userData, role: 'teacher' }
+
+      localStorage.setItem('auth_token', token.value!)
+      localStorage.setItem('auth_user', JSON.stringify(user.value))
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '注册失败'
+      clearAuthData()
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 修改密码
+   */
+  async function changePassword(oldPassword: string, newPassword: string, confirmPassword: string): Promise<void> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const response = await post('/api/auth/change-password', {
+        old_password: oldPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      })
+
+      if (!response.success) {
+        throw new Error(response.message || '修改密码失败')
+      }
+
+      // 更新密码已修改状态
+      if (user.value) {
+        user.value.password_changed = true
+        localStorage.setItem('auth_user', JSON.stringify(user.value))
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : '修改密码失败'
       throw err
     } finally {
       isLoading.value = false
@@ -121,53 +198,6 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function logout(): void {
     clearAuthData()
-    console.log('[AuthStore] 已登出')
-  }
-
-  /**
-   * 刷新令牌
-   */
-  async function refreshToken(): Promise<void> {
-    if (!token.value) {
-      throw new Error('没有可用的令牌')
-    }
-
-    try {
-      // 使用统一的API封装函数，Authorization header 会自动添加
-      const response = await post('/api/auth/refresh')
-
-      if (!response.success) {
-        throw new Error(response.message || '刷新令牌失败')
-      }
-
-      // 更新 token
-      token.value = response.data!.token
-      localStorage.setItem('auth_token', token.value!)
-
-      console.log('[AuthStore] 令牌已刷新')
-    } catch (err) {
-      console.error('[AuthStore] 刷新令牌失败:', err)
-      logout()
-      throw err
-    }
-  }
-
-  /**
-   * 验证 token 是否过期
-   */
-  function isTokenExpired(): boolean {
-    if (!token.value) return true
-
-    try {
-      // 解码 JWT payload
-      const tokenParts = token.value!.split('.')
-      if (tokenParts.length < 2) return true
-      const payload = JSON.parse(atob(tokenParts[1] as string))
-      const expiry = payload.exp * 1000 // 转换为毫秒
-      return Date.now() > expiry
-    } catch {
-      return true
-    }
   }
 
   /**
@@ -187,42 +217,21 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
   }
 
-  /**
-   * 设置用户信息
-   * @param userData - 用户数据
-   */
-  function setUser(userData: {
-    id: string
-    username: string
-    student_id: string
-    role: 'student' | 'teacher' | 'admin'
-  }): void {
-    user.value = {
-      id: userData.id,
-      username: userData.username,
-      studentId: userData.student_id,
-      role: userData.role,
-    }
-    // 持久化到 localStorage
-    localStorage.setItem('auth_user', JSON.stringify(user.value))
-    console.log('[AuthStore] 用户信息已更新:', user.value)
-  }
-
   return {
-    // 状态
     user,
     token,
     isLoading,
     error,
     isLoggedIn,
-
-    // 方法
+    isStudent,
+    isTeacher,
+    isAdmin,
     initialize,
-    login,
+    studentLogin,
+    teacherLogin,
+    teacherRegister,
+    changePassword,
     logout,
-    refreshToken,
-    isTokenExpired,
     clearError,
-    setUser,
   }
 })

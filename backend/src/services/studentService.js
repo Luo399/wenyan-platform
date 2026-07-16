@@ -1,80 +1,62 @@
 /**
- * 学生服务模块
- * 提供学生相关的业务逻辑
+ * 学生服务模块（兼容层）
+ * 注意：新的教师学生管理请使用 teacherStudentController
  */
 
-const { studentDb, answerDb } = require('../config/database');
+const { db } = require('../config/database');
 const { dbGet, dbAll, dbRun, dbPrepareRun, dbSerialize } = require('../utils/dbPromise');
+const { hashDefaultPassword } = require('../utils/password');
 
-/**
- * 获取学生信息
- * @param {string} studentId - 学生ID
- * @returns {Promise<object|null>} - 学生信息
- */
 async function getStudentById(studentId) {
   const row = await dbGet(
-    studentDb,
-    'SELECT student_id, name, class, created_at FROM students WHERE student_id = ?',
+    db,
+    'SELECT student_id, student_name, created_at, updated_at FROM students WHERE student_id = ?',
     [studentId]
   );
   return row || null;
 }
 
-/**
- * 创建或更新学生
- * @param {string} studentId - 学生ID
- * @param {string} name - 学生姓名
- * @param {number} [studentClass=9] - 班级号
- * @returns {Promise<object>} - 操作结果
- */
-async function createOrUpdateStudent(studentId, name, studentClass = 9) {
-  await dbPrepareRun(
-    studentDb,
-    'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)',
-    [studentId, name, studentClass]
-  );
-  return { studentId, name, class: studentClass };
+async function createOrUpdateStudent(studentId, name) {
+  const existing = await dbGet(db, 'SELECT id FROM students WHERE student_id = ?', [studentId]);
+  const defaultHash = await hashDefaultPassword();
+
+  if (existing) {
+    await dbRun(
+      db,
+      'UPDATE students SET student_name = ?, updated_at = ? WHERE student_id = ?',
+      [name, new Date().toISOString(), studentId]
+    );
+  } else {
+    await dbRun(
+      db,
+      'INSERT INTO students (student_id, student_name, password_hash, password_changed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [studentId, name, defaultHash, 0, new Date().toISOString(), new Date().toISOString()]
+    );
+  }
+
+  return { studentId, name };
 }
 
-/**
- * 获取学生列表
- * @param {number} [classNum] - 班级号（可选）
- * @returns {Promise<Array>} - 学生列表
- */
-async function getStudentList(classNum) {
-  let query = 'SELECT * FROM students';
+async function getStudentList(classPrefix) {
+  let query = 'SELECT id, student_id, student_name, created_at, updated_at FROM students';
   let params = [];
 
-  if (classNum && /^\d+$/.test(String(classNum))) {
-    query += ' WHERE class = ?';
-    params.push(parseInt(classNum));
+  if (classPrefix && /^\d{6}$/.test(String(classPrefix))) {
+    query += ' WHERE student_id LIKE ?';
+    params.push(`${classPrefix}%`);
   }
 
   query += ' ORDER BY student_id ASC';
 
-  return dbAll(studentDb, query, params);
+  return dbAll(db, query, params);
 }
 
-/**
- * 更新学生信息
- * @param {string} studentId - 学生ID
- * @param {string} name - 学生姓名
- * @param {number} [studentClass] - 班级号（可选）
- * @returns {Promise<object>} - 更新结果
- */
-async function updateStudent(studentId, name, studentClass) {
-  let updateSql = 'UPDATE students SET name = ?';
-  let params = [name.trim()];
-
-  if (studentClass !== undefined) {
-    updateSql += ', class = ?';
-    params.push(studentClass);
-  }
-
-  updateSql += ' WHERE student_id = ?';
-  params.push(studentId);
-
-  const { changes } = await dbRun(studentDb, updateSql, params);
+async function updateStudent(studentId, name) {
+  const { changes } = await dbRun(
+    db,
+    'UPDATE students SET student_name = ?, updated_at = ? WHERE student_id = ?',
+    [name.trim(), new Date().toISOString(), studentId]
+  );
 
   if (changes === 0) {
     return { success: false, message: '未找到该学生' };
@@ -83,25 +65,20 @@ async function updateStudent(studentId, name, studentClass) {
   return {
     success: true,
     message: '学生信息修改成功',
-    data: { studentId, name: name.trim(), class: studentClass }
+    data: { studentId, name: name.trim() }
   };
 }
 
-/**
- * 删除学生（级联删除答题记录）
- * @param {string} studentId - 学生ID
- * @returns {Promise<object>} - 删除结果
- */
 async function deleteStudent(studentId) {
-  return dbSerialize(studentDb, async () => {
+  return dbSerialize(db, async () => {
     const { changes: deletedRecordsCount } = await dbRun(
-      answerDb,
-      'DELETE FROM answer_records WHERE student_id = ?',
+      db,
+      'DELETE FROM answers WHERE student_id = ?',
       [studentId]
     );
 
     const { changes } = await dbRun(
-      studentDb,
+      db,
       'DELETE FROM students WHERE student_id = ?',
       [studentId]
     );

@@ -1,4 +1,4 @@
-import { computed, watch, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 interface StudentInfo {
@@ -15,14 +15,17 @@ export function useStudentInfo() {
     if (!authStore.isLoggedIn || !authStore.user) {
       return ''
     }
-    return authStore.user.studentId
+    // 兼容学生和教师角色（学生返回 student_id，其他返回空）
+    const user = authStore.user as Record<string, any>
+    return user.student_id || ''
   })
 
   function getStudentName(): string {
     if (!authStore.isLoggedIn || !authStore.user) {
       return ''
     }
-    return authStore.user.username
+    const user = authStore.user as Record<string, any>
+    return user.name || user.student_name || ''
   }
 
   function getStudentInfo(): StudentInfo {
@@ -45,17 +48,6 @@ export function useStudentInfo() {
   }
 
   function clearCache() {}
-
-  watch(
-    () => authStore.isLoggedIn,
-    () => {
-      clearCache()
-    },
-  )
-
-  onMounted(() => {
-    authStore.initialize()
-  })
 
   return {
     studentId,

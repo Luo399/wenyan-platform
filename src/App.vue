@@ -1,8 +1,7 @@
 <template>
   <div id="app">
-    <!-- 右上角显示学号 -->
     <div class="top-bar">
-      <StudentDisplay />
+      <UserDisplay />
     </div>
 
     <router-view />
@@ -10,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import StudentDisplay from '@/components/StudentDisplay.vue'
+import UserDisplay from '@/components/UserDisplay.vue'
 </script>
 
 <style>

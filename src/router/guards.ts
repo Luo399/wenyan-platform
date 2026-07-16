@@ -55,8 +55,9 @@ export function useAuthGuard() {
   return {
     isLoggedIn: authStore.isLoggedIn,
     user: authStore.user,
-    login: authStore.login,
     logout: authStore.logout,
+    studentLogin: authStore.studentLogin,
+    teacherLogin: authStore.teacherLogin,
     hasError: authStore.error !== null,
     error: authStore.error,
   }

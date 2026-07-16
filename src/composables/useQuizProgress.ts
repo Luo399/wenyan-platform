@@ -104,9 +104,10 @@ export function useQuizProgress(
       return { studentId: '', studentName: '' }
     }
 
+    const user = authStore.user as Record<string, any>
     return {
-      studentId: authStore.user.studentId,
-      studentName: authStore.user.username,
+      studentId: user.student_id || '',
+      studentName: user.name || user.student_name || '',
     }
   }
 

@@ -9,9 +9,9 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// 从 localStorage 恢复学号
-import { useStudentStore } from './stores/student'
-const studentStore = useStudentStore(pinia)
-studentStore.restoreFromStorage()
+// 从 localStorage 恢复认证状态
+import { useAuthStore } from './stores/auth'
+const authStore = useAuthStore(pinia)
+authStore.initialize()
 
 app.mount('#app')

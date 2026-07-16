@@ -1,7 +1,8 @@
 const { db } = require('../config/database');
+const { hashDefaultPassword } = require('../utils/password');
 
 function getStudentList(req, res) {
-  db.all('SELECT * FROM students ORDER BY created_at DESC', (err, rows) => {
+  db.all('SELECT id, student_id, student_name, password_changed, created_at, updated_at FROM students ORDER BY created_at DESC', (err, rows) => {
     if (err) {
       return res.status(500).json({
         success: false,
@@ -20,7 +21,7 @@ function getStudentList(req, res) {
 function getStudent(req, res) {
   const { studentId } = req.params;
 
-  db.get('SELECT * FROM students WHERE student_id = ?', [studentId], (err, row) => {
+  db.get('SELECT id, student_id, student_name, password_changed, created_at, updated_at FROM students WHERE student_id = ?', [studentId], (err, row) => {
     if (err) {
       return res.status(500).json({
         success: false,
@@ -55,27 +56,54 @@ function createStudent(req, res) {
     });
   }
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO students (student_id, student_name, created_at, updated_at)
-    VALUES (?, ?, ?, ?)
-  `);
-
   const now = new Date().toISOString();
 
-  stmt.run(student_id, student_name || null, now, now, (err) => {
-    stmt.finalize();
+  db.get('SELECT id FROM students WHERE student_id = ?', [student_id], async (err, row) => {
     if (err) {
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '创建失败: ' + err.message,
+        message: '查询失败: ' + err.message,
       });
     }
 
-    res.status(201).json({
-      success: true,
-      message: '学生创建成功',
-    });
+    if (row) {
+      return res.status(409).json({
+        success: false,
+        error: 'DUPLICATE',
+        message: '该学号已存在',
+      });
+    }
+
+    try {
+      const defaultHash = await hashDefaultPassword();
+      const stmt = db.prepare(`
+        INSERT INTO students (student_id, student_name, password_hash, password_changed, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+
+      stmt.run(student_id, student_name || null, defaultHash, 0, now, now, (err) => {
+        stmt.finalize();
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            error: 'DATABASE_ERROR',
+            message: '创建失败: ' + err.message,
+          });
+        }
+
+        res.status(201).json({
+          success: true,
+          message: '学生创建成功',
+        });
+      });
+    } catch (e) {
+      res.status(500).json({
+        success: false,
+        error: 'INTERNAL_ERROR',
+        message: '创建失败',
+      });
+    }
   });
 }
 
