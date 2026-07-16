@@ -29,6 +29,13 @@
 | 9 | 路由懒加载 | `src/router/index.ts` | 非首屏 6 个页面组件改为 `() => import()` 异步加载 |
 | 10 | 临时文件和依赖清理 | 删除 18 个临时文件 + `.gitignore` + `package.json` | 移除 bfg.jar、调试脚本、生成脚本等，补充忽略规则，修正依赖分类 |
 
+### 工程化（续）
+
+| # | 重构内容 | 修改文件 | 效果 |
+|---|---------|---------|------|
+| 11 | 删除冗余 Workflow | `.github/workflows/deploy.yml` | 删除在 PR 合并时触发的旧部署流程，避免与独立部署 workflow 冲突 |
+| 12 | 强化 Actions 闭环规则 | `.trae/rules/project-workflow.md` | 明确规定每次 push 后必须等待所有相关 workflow 完成才能继续 |
+
 ### 已知遗留问题（未处理）
 
 - 后端 `logger.js` 输出逻辑重复
