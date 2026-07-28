@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import BlockQuiz from '@/components/BlockQuiz.vue'
 import AdaptQuiz from '@/components/AdaptQuiz.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
@@ -24,6 +25,7 @@ const blockProps = {
 
 describe('BlockQuiz.vue', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.mocked(useDataLoader).mockReturnValue({
       loading: ref(false),
@@ -450,6 +452,7 @@ describe('BlockQuiz.vue', () => {
 
 describe('AdaptQuiz.vue (传统模式)', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     vi.mocked(useDataLoader).mockReturnValue({
       loading: ref(false),

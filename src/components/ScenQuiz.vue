@@ -312,11 +312,7 @@ function handleScenarioError(err: string) {
   console.error('Scenario error:', err)
 }
 
-function handleAnswer(
-  quiz: QuizItem,
-  answer: string,
-  isCorrect: boolean,
-) {
+function handleAnswer(quiz: QuizItem, answer: string, isCorrect: boolean) {
   emit('answer', quiz.questionNumber, answer, isCorrect)
 }
 

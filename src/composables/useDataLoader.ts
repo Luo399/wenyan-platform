@@ -9,15 +9,78 @@ function diagLog(...args: unknown[]) {
 // Worker 超时时间（毫秒）
 const WORKER_TIMEOUT = 5000
 
-// 模块级共享缓存（跨组件实例共享）
+// 模块级 LRU 缓存配置
 const MAX_CACHE_SIZE = 100
+const DEFAULT_CACHE_TTL = 5 * 60 * 1000 // 默认5分钟
 
-interface CacheEntry<T = unknown> {
+interface CacheEntry<T = any> {
   data: T
   timestamp: number
 }
 
-const dataCache = new Map<string, CacheEntry>()
+// 模块级共享缓存
+const cacheMap = new Map<string, CacheEntry>()
+const cacheAccessOrder: string[] = []
+
+/**
+ * 清理最旧的缓存条目（LRU策略）
+ */
+function evictOldestIfNeeded(): void {
+  while (cacheMap.size > MAX_CACHE_SIZE && cacheAccessOrder.length > 0) {
+    const oldestKey = cacheAccessOrder.shift()
+    if (oldestKey) {
+      cacheMap.delete(oldestKey)
+    }
+  }
+}
+
+/**
+ * 更新访问顺序（LRU）
+ */
+function updateAccessOrder(key: string): void {
+  const index = cacheAccessOrder.indexOf(key)
+  if (index > -1) {
+    cacheAccessOrder.splice(index, 1)
+  }
+  cacheAccessOrder.push(key)
+}
+
+/**
+ * 获取缓存数据
+ */
+function getCachedData<T>(key: string, ttl: number): T | null {
+  const entry = cacheMap.get(key)
+  if (!entry) return null
+
+  // 检查是否过期
+  if (Date.now() - entry.timestamp > ttl) {
+    cacheMap.delete(key)
+    const index = cacheAccessOrder.indexOf(key)
+    if (index > -1) cacheAccessOrder.splice(index, 1)
+    return null
+  }
+
+  updateAccessOrder(key)
+  return entry.data as T
+}
+
+/**
+ * 设置缓存数据
+ */
+function setCachedData<T>(key: string, data: T): void {
+  evictOldestIfNeeded()
+  cacheMap.set(key, { data, timestamp: Date.now() })
+  updateAccessOrder(key)
+}
+
+/**
+ * 清空数据缓存
+ */
+export function clearDataCache(): void {
+  cacheMap.clear()
+  cacheAccessOrder.length = 0
+  debugLog('[useDataLoader] 数据缓存已清空')
+}
 
 // Worker 实例缓存
 let jsonParserWorker: Worker | null = null
@@ -123,19 +186,15 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     }
 
     // 检查模块级共享缓存
-    if (cacheEnabled && dataCache.has(url)) {
-      const cachedEntry = dataCache.get(url)!
-      // 检查缓存是否过期
-      if (Date.now() - cachedEntry.timestamp < cacheTTL) {
-        data.value = cachedEntry.data as T
+    if (cacheEnabled) {
+      const cachedData = getCachedData<T>(url, cacheTTL)
+      if (cachedData !== null) {
+        data.value = cachedData
         loading.value = false
-        diagLog('📦 从缓存获取数据')
+        diagLog('📦 从模块级缓存获取数据')
         onLoadSuccess?.(data.value)
         return
       }
-      // 缓存过期，删除
-      dataCache.delete(url)
-      diagLog('⏰ 缓存已过期，重新获取')
     }
 
     // 取消之前的请求
@@ -197,14 +256,7 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
 
       // 存入模块级共享缓存
       if (cacheEnabled) {
-        // LRU: 超过上限时删除最早的条目
-        if (dataCache.size >= MAX_CACHE_SIZE) {
-          const oldestKey = dataCache.keys().next().value
-          if (oldestKey !== undefined) {
-            dataCache.delete(oldestKey)
-          }
-        }
-        dataCache.set(url, { data: data.value, timestamp: Date.now() })
+        setCachedData(url, data.value)
       }
 
       const duration = Date.now() - startTime
@@ -287,12 +339,4 @@ export function terminateJsonParserWorker() {
     jsonParserWorker = null
     debugLog('[useDataLoader] JSON Parser Worker 已终止')
   }
-}
-
-/**
- * 清理模块级共享数据缓存（供外部调用）
- */
-export function clearDataCache() {
-  dataCache.clear()
-  debugLog('[useDataLoader] 数据缓存已清理')
 }

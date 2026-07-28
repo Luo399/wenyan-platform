@@ -43,11 +43,11 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import Options, { type Option, type OptionsType } from './Options.vue'
 import { submitAnswers } from '@/services/apiService'
 import { ApiError } from '@/utils/api'
 import { useStudentStore } from '@/stores/student'
-import { storeToRefs } from 'pinia'
 
 export interface QuestionData {
   id: string
@@ -162,7 +162,16 @@ async function submitAnswer() {
       questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }],
     }
 
-    await submitAnswers(submitData, 30000)
+    await submitAnswers(
+      {
+        answers: { [props.question.id]: selectedAnswer.value },
+        questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }],
+      },
+      props.question.wenId,
+      studentId.value,
+      undefined,
+      30000,
+    )
 
     isCorrect.value = compareAnswers()
     isSubmitted.value = true

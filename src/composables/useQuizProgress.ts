@@ -180,13 +180,12 @@ export function useQuizProgress(
         answerMap[key] = mappedAnswer
       })
 
-      await submitAnswersApi({
+      await submitAnswersApi(
+        { answers: answerMap, questions },
+        completionKeyPrefix,
         studentId,
-        wenId: completionKeyPrefix,
-        submittedAt: new Date().toISOString(),
-        answers: answerMap,
-        questions,
-      })
+        studentName,
+      )
 
       console.log(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
     } catch (error) {

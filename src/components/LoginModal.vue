@@ -94,6 +94,7 @@ const modalRef = ref<HTMLElement | null>(null)
 
 // State
 const studentId = ref('')
+const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 const isSubmitting = ref(false)
@@ -101,8 +102,8 @@ const isSubmitting = ref(false)
 // Store
 const authStore = useAuthStore()
 
-// 学生姓名查询
-const { studentName, fetchName: fetchStudentName } = useStudentQuery(studentId)
+// 学生查询
+const { queryStudentName } = useStudentQuery()
 
 // 计算属性
 const isLoading = authStore.isLoading
@@ -140,7 +141,7 @@ async function handleStudentIdInput(): Promise<void> {
 
   // 当学号长度 >= 1 时查询学生姓名
   if (studentId.value.trim().length >= 1) {
-    await fetchStudentName()
+    studentName.value = await queryStudentName(studentId.value)
   } else {
     studentName.value = ''
   }

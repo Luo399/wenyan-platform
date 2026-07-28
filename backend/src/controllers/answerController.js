@@ -51,7 +51,7 @@ function compareAnswers(userAnswer, correctAnswer) {
   }
 }
 
-function submitAnswers(req, res) {
+async function submitAnswers(req, res) {
   try {
     const { studentId, wenId, submittedAt, answers, questions, signature } = req.body;
 
@@ -74,95 +74,95 @@ function submitAnswers(req, res) {
       }
     }
 
-    const insertPromises = questions.map((question) => {
-      return new Promise((resolve, reject) => {
-        const userAnswer = answers[question.id];
-        const correctAnswer = question.correctAnswer ?? getCorrectAnswerFromJson(question.id, wenId);
+    // 等待所有题目的写入完成
+    const results = await Promise.all(
+      questions.map((question) => {
+        return new Promise((resolve, reject) => {
+          const userAnswer = answers[question.id];
+          const correctAnswer = question.correctAnswer ?? getCorrectAnswerFromJson(question.id, wenId);
 
-        let score = 0;
-        let isCorrect = 0;
+          let score = 0;
+          let isCorrect = 0;
 
-        if (correctAnswer !== null) {
-          if (compareAnswers(userAnswer, correctAnswer)) {
-            score = 100;
-            isCorrect = 1;
+          if (correctAnswer !== null) {
+            if (compareAnswers(userAnswer, correctAnswer)) {
+              score = 100;
+              isCorrect = 1;
+            }
           }
-        }
 
-        db.get(
-          'SELECT attempt_number FROM answers WHERE student_id = ? AND question_id = ?',
-          [studentId, question.id],
-          (err, row) => {
-            const attemptNumber = row ? row.attempt_number + 1 : 1;
+          db.get(
+            'SELECT attempt_number FROM answers WHERE student_id = ? AND question_id = ?',
+            [studentId, question.id],
+            (err, row) => {
+              if (err) {
+                reject(err);
+                return;
+              }
+              const attemptNumber = row ? row.attempt_number + 1 : 1;
 
-            const stmt = db.prepare(`
-              INSERT OR REPLACE INTO answers (
-                student_id,
-                wen_id,
-                question_id,
-                user_answer,
-                correct_answer,
-                submitted_at,
+              const stmt = db.prepare(`
+                INSERT OR REPLACE INTO answers (
+                  student_id,
+                  wen_id,
+                  question_id,
+                  user_answer,
+                  correct_answer,
+                  submitted_at,
+                  score,
+                  is_correct,
+                  attempt_number
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `);
+
+              stmt.run(
+                studentId,
+                wenId,
+                question.id,
+                JSON.stringify(userAnswer),
+                correctAnswer !== null ? JSON.stringify(correctAnswer) : null,
+                submittedAt,
                 score,
-                is_correct,
-                attempt_number
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `);
+                isCorrect,
+                attemptNumber,
+                (runErr) => {
+                  stmt.finalize();
+                  if (runErr) {
+                    reject(runErr);
+                  } else {
+                    resolve({ questionId: question.id, score, isCorrect, attemptNumber });
+                  }
+                },
+              );
+            },
+          );
+        });
+      }),
+    );
 
-            stmt.run(
-              studentId,
-              wenId,
-              question.id,
-              JSON.stringify(userAnswer),
-              correctAnswer !== null ? JSON.stringify(correctAnswer) : null,
-              submittedAt,
-              score,
-              isCorrect,
-              attemptNumber,
-              (err) => {
-                stmt.finalize();
-                if (err) {
-                  reject(err);
-                } else {
-                  resolve({ questionId: question.id, score, isCorrect, attemptNumber });
-                }
-              },
-            );
-          }
-        );
-      });
+    // 构造汇总结果
+    const totalScore = results.reduce((sum, r) => sum + r.score, 0);
+    const correctCount = results.filter((r) => r.isCorrect === 1).length;
+    const result = {
+      success: true,
+      data: {
+        studentId,
+        wenId,
+        submittedAt,
+        questionCount: results.length,
+        correctCount,
+        wrongCount: results.length - correctCount,
+        totalScore,
+        avgScore: results.length ? Math.round(totalScore / results.length) : 0,
+        details: results,
+      },
+    };
+
+    res.status(200).json({
+      success: result.success,
+      message: '答案提交成功',
+      data: result.data,
     });
-
-    Promise.all(insertPromises)
-      .then((results) => {
-        const totalScore = results.reduce((sum, r) => sum + r.score, 0);
-        const correctCount = results.filter((r) => r.isCorrect === 1).length;
-        const avgScore = Math.round(totalScore / results.length);
-
-        res.status(200).json({
-          success: true,
-          message: '答案提交成功',
-          data: {
-            studentId,
-            wenId,
-            submittedAt,
-            questionCount: results.length,
-            correctCount,
-            wrongCount: results.length - correctCount,
-            totalScore,
-            avgScore,
-            details: results,
-          },
-        });
-      })
-      .catch((err) => {
-        console.error('数据库操作失败:', err);
-        res.status(500).json({
-          success: false,
-          error: 'DATABASE_ERROR',
-          message: '数据库操作失败: ' + err.message,
-        });
-      });
   } catch (err) {
     console.error('处理请求失败:', err);
     res.status(500).json({

@@ -9,23 +9,23 @@ export async function generateHmacSignature(studentId: string, timestamp: string
   if (!authSecret) {
     throw new Error('AUTH_SECRET 未配置')
   }
-  
+
   const payload = `${studentId}:${timestamp}`
   const encoder = new TextEncoder()
   const keyData = encoder.encode(authSecret)
   const messageData = encoder.encode(payload)
-  
+
   const key = await crypto.subtle.importKey(
     'raw',
     keyData,
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['sign'],
   )
-  
+
   const signature = await crypto.subtle.sign('HMAC', key, messageData)
   const hashArray = Array.from(new Uint8Array(signature))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
 function getBaseUrl(): string {
@@ -104,7 +104,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public errorCode: string,
-    message: string
+    message: string,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -150,7 +150,11 @@ export async function request<T = any>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => null)
-      throw new ApiError(response.status, errorData?.error || 'REQUEST_FAILED', errorData?.message || `请求失败: ${response.status}`)
+      throw new ApiError(
+        response.status,
+        errorData?.error || 'REQUEST_FAILED',
+        errorData?.message || `请求失败: ${response.status}`,
+      )
     }
 
     const jsonResponse = await response.json()
@@ -200,3 +204,7 @@ export async function del<T = any>(
 ): Promise<ApiResponse<T>> {
   return request<T>(url, { ...config, method: 'DELETE' })
 }
+
+// ============================================================
+// 文件结束
+// ============================================================

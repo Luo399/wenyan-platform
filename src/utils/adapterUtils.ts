@@ -35,9 +35,13 @@ export function parseTimeToSeconds(timeStr: string): number {
 
   const parts = timeStr.split(':').map(Number)
 
-  if (parts.length !== 2 || isNaN(parts[0] ?? NaN) || isNaN(parts[1] ?? NaN)) {
+  if (parts.length < 2 || parts.length > 3 || parts.some(isNaN)) {
     console.warn(`[adapterUtils] 无效的时间格式: ${timeStr}`)
     return 0
+  }
+
+  if (parts.length === 3) {
+    return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0)
   }
 
   return (parts[0] ?? 0) * 60 + (parts[1] ?? 0)
@@ -90,16 +94,22 @@ export function buildContentHtmlWithAnnotations(
     return escapeHtml(content || '')
   }
 
-  let result = content
-
   const sortedAnnotations = [...annotations].sort((a, b) => b.word.length - a.word.length)
 
+  const placeholderMap = new Map<string, { word: string; meaning: string }>()
+  let result = content
+
   for (const item of sortedAnnotations) {
-    const escapedRegex = escapeRegex(item.word)
+    const placeholder = `__ANNOTATION_${placeholderMap.size}__`
+    placeholderMap.set(placeholder, item)
+    result = result.split(item.word).join(placeholder)
+  }
+
+  for (const [placeholder, item] of placeholderMap) {
     const escapedWord = escapeHtml(item.word)
     const escapedMeaning = escapeHtml(item.meaning)
     const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
-    result = result.replace(new RegExp(escapedRegex, 'g'), replacement)
+    result = result.split(placeholder).join(replacement)
   }
 
   return result
