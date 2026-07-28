@@ -120,6 +120,7 @@ import CultureCards from '@/components/CultureCards.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
+import { debugLog } from '@/utils/debug'
 
 // 数据类型定义
 interface QuizItem {
@@ -179,7 +180,7 @@ watch(
   (data) => {
     const count = data?.items.length || 0
     totalQuizCount.value = count
-    console.log(`[StepThreeView] 题目数量更新: ${count}`)
+    debugLog(`[StepThreeView] 题目数量更新: ${count}`)
   },
   { immediate: true, deep: true },
 )
@@ -199,9 +200,7 @@ const {
 } = useQuizProgress(
   totalQuizCount,
   (questionIndex, answer, isCorrect) => {
-    console.log(
-      `[StepThreeView] 第 ${questionIndex + 1} 题提交，答案: ${answer}，正确: ${isCorrect}`,
-    )
+    debugLog(`[StepThreeView] 第 ${questionIndex + 1} 题提交，答案: ${answer}，正确: ${isCorrect}`)
   },
   textId.value,
 )
@@ -228,7 +227,7 @@ const { goNext, goPrev } = useNavigation('stepthree', poemId)
 
 // 处理提交
 async function handleSubmit(quizIndex: number, selectedOption: number) {
-  console.log(`[StepThreeView] handleSubmit - 题目索引: ${quizIndex}，选择: ${selectedOption}`)
+  debugLog(`[StepThreeView] handleSubmit - 题目索引: ${quizIndex}，选择: ${selectedOption}`)
 
   // 判断答案是否正确
   const item = pageData.value?.items[quizIndex]
@@ -242,7 +241,7 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   // 调用 useQuizProgress 的 handleSubmit，传递 questionId、module 和 correctAnswer
   await handleQuizSubmit(selectedOption, isCorrect, questionId, module, correctAnswer)
 
-  console.log(
+  debugLog(
     `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}，questionId: ${questionId}，module: ${module}`,
   )
 }
@@ -257,22 +256,22 @@ function handleGoPrev() {
 }
 
 function handleCultureCardsLoad(data: unknown) {
-  console.log('[StepThreeView] 文化卡片加载成功:', data)
+  debugLog('[StepThreeView] 文化卡片加载成功:', data)
 }
 
 function handleCultureCardClick(card: { card_id: number; card_name: string }) {
-  console.log('[StepThreeView] 文化卡片点击:', card)
+  debugLog('[StepThreeView] 文化卡片点击:', card)
 }
 
 // 监听 textId 变化，重置进度
 watch(textId, () => {
-  console.log(`[StepThreeView] textId 变化，重置进度`)
+  debugLog(`[StepThreeView] textId 变化，重置进度`)
   resetProgress()
 })
 
 // 组件挂载时初始化
 onMounted(() => {
-  console.log('[StepThreeView] 页面加载:', textId.value)
+  debugLog('[StepThreeView] 页面加载:', textId.value)
 })
 </script>
 

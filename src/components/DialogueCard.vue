@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { getAssetUrl } from '@/utils/asset'
+import { debugError } from '@/utils/debug'
 
 interface Props {
   // Block模式数据（下划线命名）
@@ -171,7 +172,7 @@ function playAudio() {
       emit('audio-play', audioFile.value as string)
     })
     .catch((e) => {
-      console.error('音频播放失败:', e)
+      debugError('音频播放失败:', e)
     })
 }
 

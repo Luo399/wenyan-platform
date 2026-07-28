@@ -101,6 +101,7 @@ import type { ProcessedLevel3QuizItem, RawLevel3QuizItem } from '@/adapters/leve
 import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapter'
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
+import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 interface Props {
   quizzes?: QuizItem[]
@@ -257,7 +258,7 @@ async function loadData() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : '数据处理失败'
     emit('error', error.value)
-    console.error('AdaptQuiz 数据加载失败:', e)
+    debugError('AdaptQuiz 数据加载失败:', e)
   } finally {
     isLoading.value = false
   }
@@ -330,7 +331,7 @@ function saveToLocal(
   existingRecords.push(record)
   localStorage.setItem(storageKey, JSON.stringify(existingRecords))
 
-  console.log('[AdaptQuiz] 答题数据已保存到本地:', record)
+  debugLog('[AdaptQuiz] 答题数据已保存到本地:', record)
 
   downloadSingleReport(record, studentId, studentName)
 
@@ -347,7 +348,7 @@ function downloadSingleReport(record: any, studentId: string, studentName: strin
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
-  console.log('[AdaptQuiz] 报告已下载:', filename)
+  debugLog('[AdaptQuiz] 报告已下载:', filename)
 }
 
 async function submitToBackend(
@@ -357,7 +358,7 @@ async function submitToBackend(
 ) {
   const id = studentId.value
   if (!id) {
-    console.warn('[AdaptQuiz] 未登录，跳过后端提交')
+    debugWarn('[AdaptQuiz] 未登录，跳过后端提交')
     return
   }
 
@@ -371,7 +372,7 @@ async function submitToBackend(
       quiz.questionId ||
       `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
 
-    console.log('[AdaptQuiz] 提交答题数据到后端:', {
+    debugLog('[AdaptQuiz] 提交答题数据到后端:', {
       studentId: id,
       studentName: name,
       wenId,
@@ -390,10 +391,10 @@ async function submitToBackend(
       submittedAt: new Date().toISOString(),
     })
 
-    console.log('[AdaptQuiz] 答题数据已成功提交到后端:', result)
+    debugLog('[AdaptQuiz] 答题数据已成功提交到后端:', result)
   } catch (error) {
-    console.error('[AdaptQuiz] 后端提交失败，但本地已保存:', error)
-    console.log('[AdaptQuiz] 本地保存的记录:', localRecord)
+    debugError('[AdaptQuiz] 后端提交失败，但本地已保存:', error)
+    debugLog('[AdaptQuiz] 本地保存的记录:', localRecord)
   }
 }
 

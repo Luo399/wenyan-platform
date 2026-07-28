@@ -467,6 +467,7 @@ import {
   validateStudentName,
   type StudentInfo,
 } from '@/utils/studentApi'
+import { debugError } from '@/utils/debug'
 
 interface StudentRecord {
   student_id: string
@@ -688,7 +689,7 @@ async function fetchData(url: string, type: string) {
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '网络请求失败'
-    console.error('获取数据失败:', err)
+    debugError('获取数据失败:', err)
   } finally {
     loading.value = false
   }
