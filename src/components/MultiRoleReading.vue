@@ -45,22 +45,26 @@
       }
     ]
   }
+
+  数据加载分层（遵循项目规则）：
+  - 组件不得直接 fetch('/data/...')，必须走 useDataLoader 组合式函数
+  - useDataLoader 内部封装：fetch、AbortController、超时、重试、模块级 LRU 缓存、Worker JSON 解析
+  - 数据格式校验通过 transform 函数注入，校验失败抛错由 useDataLoader 统一捕获
 -->
 
 <template>
   <div class="multi-role-reading">
     <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <span>加载中...</span>
-    </div>
+    <BaseLoader v-if="loading" loading-text="加载中..." />
+
+    <!-- 超时状态 -->
+    <BaseTimeout v-else-if="isTimeout" @retry="loadData" />
 
     <!-- 错误状态 -->
-    <div v-else-if="error" class="error-state">
-      <i class="fas fa-exclamation-circle"></i>
-      <p>{{ error }}</p>
-      <button @click="loadData" class="retry-btn">重试</button>
-    </div>
+    <BaseError v-else-if="errorMessage" :error="errorMessage" @retry="loadData" />
+
+    <!-- 空数据状态 -->
+    <BaseEmpty v-else-if="!segments.length" empty-text="暂无段落数据" />
 
     <!-- 主内容 -->
     <div v-else class="player-content">
@@ -124,8 +128,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
+import BaseLoader from '@/components/common/BaseLoader.vue'
+import BaseError from '@/components/common/BaseError.vue'
+import BaseEmpty from '@/components/common/BaseEmpty.vue'
+import BaseTimeout from '@/components/common/BaseTimeout.vue'
+import { useDataLoader } from '@/composables/useDataLoader'
 import { debugLog, debugError } from '@/utils/debug'
 
 // 段落数据类型定义
@@ -172,21 +181,65 @@ const emit = defineEmits<{
   (e: 'segment-change', index: number): void
 }>()
 
-// 状态管理
-const loading = ref(false)
+// 音频相关状态（与数据加载无关，由本组件直接管理）
 const audioLoading = ref(false)
-const error = ref<string | null>(null)
 const audioError = ref<string | null>(null)
-const multiRoleData = ref<MultiRoleData | null>(null)
 const audioRef = ref<HTMLAudioElement | null>(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const playbackSpeed = ref(1)
-const abortController = ref<AbortController | null>(null)
 
-// 缓存对象
-const dataCache = new Map<string, MultiRoleData>()
+// 错误展示消息（由 onLoadError 回调写入，保留 404 友好提示等业务语义）
+const errorMessage = ref<string | null>(null)
+
+// 数据 URL（wenId 为空时返回空串，useDataLoader 会触发 "请提供有效的URL" 错误）
+const dataUrl = computed(() => (props.wenId ? `${props.dataBaseUrl}${props.wenId}.json` : ''))
+
+// 使用 useDataLoader 加载数据（替代直接 fetch，遵循项目分层规则）
+// 内部封装：fetch、AbortController、超时、指数退避重试、模块级 LRU 缓存、Worker JSON 解析
+const {
+  loading,
+  isTimeout,
+  data: multiRoleData,
+  retry,
+} = useDataLoader<MultiRoleData>(() => dataUrl.value, {
+  autoLoad: props.autoLoad,
+  timeout: props.requestTimeout,
+  retryCount: 1,
+  cacheEnabled: props.cacheEnabled,
+  cacheTTL: 5 * 60 * 1000,
+  // transform 同时承担数据格式校验职责：校验失败抛错，由 useDataLoader 统一进入错误分支
+  transform: (raw) => {
+    if (!validateMultiRoleData(raw)) {
+      throw new Error('数据格式错误')
+    }
+    return raw as MultiRoleData
+  },
+  onLoadSuccess: (data) => {
+    errorMessage.value = null
+    debugLog(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
+    emit('load-success', data)
+    setupAudio()
+  },
+  onLoadError: (err) => {
+    const msg = formatErrorMessage(err)
+    errorMessage.value = msg
+    debugError(`加载失败: ${msg}`)
+    emit('load-error', msg)
+  },
+})
+
+// loading 由 false 变 true 时发射 load-start 事件（覆盖 autoLoad / 手动 load / wenId 变化三种场景）
+watch(
+  loading,
+  (isLoading) => {
+    if (isLoading) {
+      emit('load-start')
+    }
+  },
+  { immediate: true },
+)
 
 // 计算属性
 const segments = computed(() => multiRoleData.value?.segments || [])
@@ -259,94 +312,25 @@ function parseTimeRange(timeRange: string): { start: number; end: number } {
 }
 
 /**
- * 加载课文数据
+ * 格式化错误消息（保留原 404 友好提示与"请提供课文ID"语义）
+ * useDataLoader 内部错误消息（如 "HTTP 404"、"请提供有效的URL"）映射为面向用户的中文提示
  */
-async function loadData() {
-  debugLog(`开始加载多角色朗读数据: wenId=${props.wenId}`)
-
-  if (!props.wenId) {
-    loading.value = false
-    error.value = '请提供课文ID'
-    emit('load-error', error.value)
-    return
+function formatErrorMessage(err: string): string {
+  if (err === '请提供有效的URL') {
+    return '请提供课文ID'
   }
-
-  // 检查缓存
-  if (props.cacheEnabled && dataCache.has(props.wenId)) {
-    loading.value = false
-    debugLog(`使用缓存数据: ${props.wenId}`)
-    multiRoleData.value = dataCache.get(props.wenId)!
-    emit('load-success', multiRoleData.value)
-    setupAudio()
-    return
+  if (err.includes('404') || err.includes('HTTP 404')) {
+    return '【404正在加班加点中】'
   }
+  return err
+}
 
-  // 取消之前的请求
-  if (abortController.value) {
-    abortController.value.abort()
-  }
-  abortController.value = new AbortController()
-
-  loading.value = true
-  error.value = null
-  emit('load-start')
-
-  try {
-    const url = `${props.dataBaseUrl}${props.wenId}.json`
-    debugLog(`请求URL: ${url}`)
-
-    const timeout = setTimeout(() => {
-      debugLog(`请求超时: ${url}`)
-      abortController.value?.abort()
-    }, props.requestTimeout)
-
-    const response = await fetch(url, {
-      signal: abortController.value.signal,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    clearTimeout(timeout)
-
-    if (!response.ok) {
-      throw new Error(`HTTP错误: ${response.status}`)
-    }
-
-    const data: MultiRoleData = await response.json()
-    debugLog(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
-
-    // 数据格式验证
-    if (!validateMultiRoleData(data)) {
-      throw new Error('数据格式错误')
-    }
-
-    multiRoleData.value = data
-
-    // 存入缓存
-    if (props.cacheEnabled) {
-      dataCache.set(props.wenId, data)
-    }
-
-    emit('load-success', data)
-    setupAudio()
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      error.value = '加载超时'
-      emit('load-error', error.value)
-      return
-    }
-    const errorMsg = err instanceof Error ? err.message : '加载失败'
-    debugError(`加载失败: ${errorMsg}`)
-    if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
-      error.value = '【404正在加班加点中】'
-    } else {
-      error.value = errorMsg
-    }
-    emit('load-error', error.value)
-  } finally {
-    loading.value = false
-  }
+/**
+ * 加载课文数据（暴露给父组件，委托给 useDataLoader.retry）
+ * 使用 retry 而非 load 是为了在手动重试时重置内部重试计数器，确保错误恢复后仍可享受指数退避重试
+ */
+function loadData() {
+  retry()
 }
 
 /**
@@ -503,32 +487,15 @@ watch(currentSegmentIndex, (newIndex) => {
 })
 
 // 生命周期
-onMounted(() => {
-  if (props.autoLoad) {
-    loadData()
-  }
-})
-
+// 注：数据加载的 onMounted 和 wenId watch 已由 useDataLoader 内部 autoLoad + watch(urlGetter) 接管
+// 这里仅保留音频资源的清理
 onUnmounted(() => {
-  if (abortController.value) {
-    abortController.value.abort()
-  }
+  // useDataLoader 内部已通过自己的 onUnmounted 取消 AbortController
   if (audioRef.value) {
     audioRef.value.pause()
     audioRef.value.src = ''
   }
 })
-
-// 监听wenId变化
-watch(
-  () => props.wenId,
-  (newWenId, oldWenId) => {
-    debugLog(`wenId 变化: ${oldWenId} -> ${newWenId}`)
-    if (props.autoLoad && newWenId) {
-      loadData()
-    }
-  },
-)
 
 // 暴露方法给父组件
 defineExpose({
@@ -552,58 +519,6 @@ defineExpose({
   max-width: 800px;
   margin: 0 auto;
   padding: 1rem;
-}
-
-/* 加载状态 */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  gap: 0.75rem;
-}
-
-.spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid #e5e7eb;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 错误状态 */
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3rem;
-  gap: 0.75rem;
-  color: #ef4444;
-}
-
-.error-state i {
-  font-size: 2.5rem;
-}
-
-.retry-btn {
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
-}
-
-.retry-btn:hover {
-  background-color: #2563eb;
 }
 
 /* 播放器内容 */
