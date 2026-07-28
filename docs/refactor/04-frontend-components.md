@@ -26,17 +26,19 @@
 
 ## C02. AnswerQueryView.vue 1810 行需拆分为子组件
 - **优先级**: P1
-- **状态**: [ ] 未开始
-- **文件**: `src/views/AnswerQueryView.vue`（全文 1810 行）
+- **状态**: [x] 已完成（refactor/component-02）
+- **文件**: `src/views/AnswerQueryView.vue`（重构前 1584 行，含模板+script+style）
 - **问题描述**: 模板 + script + style 全部塞在单文件，含 4 种弹窗、3 种表格、CRUD 逻辑、分页、导出。严重违反"代码超过 20 行需拆分"规则
-- **修复方案**: 拆分为：
-  - `AnswerQueryView.vue`（主容器 + 状态管理）
-  - `StudentTable.vue`（学生列表表格）
-  - `AnswerTable.vue`（答题记录表格）
-  - `StudentFormModal.vue`（学生编辑弹窗）
-  - `DeleteConfirmModal.vue`（删除确认弹窗）
-  - `AnswerDetailModal.vue`（答题详情弹窗）
-- **验证方式**: 答题查询页面所有功能不变；每个子文件 < 300 行
+- **修复方案**: 已拆分为：
+  - `AnswerQueryView.vue`（主容器 + 状态管理 + 页面级样式）
+  - `StudentTable.vue`（学生列表表格，约 45 行）
+  - `AnswerTable.vue`（答题记录表格，wenId / studentId 双模式，约 65 行）
+  - `StudentFormModal.vue`（学生编辑弹窗，含表单校验，约 140 行）
+  - `DeleteConfirmModal.vue`（删除确认弹窗，约 55 行）
+  - `AnswerDetailModal.vue`（答题详情弹窗，约 75 行）
+  - `utils/format.ts`（共享 `formatDate` / `formatAnswer` 工具）
+- **样式策略**: 主容器 `<style scoped>` 保留，子组件相关选择器用 `:deep()` 穿透，避免样式重复与全局污染
+- **验证方式**: 答题查询页面所有功能不变；每个子文件 < 300 行；type-check 通过；单元测试已同步更新
 - **分支建议**: `refactor/component-02`
 - **依赖**: 无
 
