@@ -75,6 +75,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentQuery } from '@/composables/useStudentQuery'
+import { debugError } from '@/utils/debug'
 
 // Props
 interface Props {
@@ -168,7 +169,7 @@ async function handleSubmit(): Promise<void> {
     emit('login-success')
     handleClose()
   } catch (err) {
-    console.error('登录失败:', err)
+    debugError('登录失败:', err)
   } finally {
     isSubmitting.value = false
   }

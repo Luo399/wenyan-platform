@@ -94,6 +94,7 @@ import { submitAnswers as submitAnswersApi } from '@/services/apiService'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
+import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 interface Level1QuizItem {
   text_id: string
@@ -277,7 +278,7 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
   existingRecords.push(report)
   localStorage.setItem(storageKey, JSON.stringify(existingRecords))
 
-  console.log('[Level1Quiz] 答题数据已保存到本地:', report)
+  debugLog('[Level1Quiz] 答题数据已保存到本地:', report)
 
   // 自动下载报告
   downloadReport(report, studentId, studentName)
@@ -299,9 +300,9 @@ function downloadReport(report: any, studentId: string, studentName: string) {
     a.download = filename
     a.click()
     URL.revokeObjectURL(url)
-    console.log('[Level1Quiz] 报告已下载:', filename)
+    debugLog('[Level1Quiz] 报告已下载:', filename)
   } else {
-    console.log('[Level1Quiz] 报告生成成功（非浏览器环境跳过下载）:', filename)
+    debugLog('[Level1Quiz] 报告生成成功（非浏览器环境跳过下载）:', filename)
   }
 }
 
@@ -311,12 +312,12 @@ function downloadReport(report: any, studentId: string, studentName: string) {
 async function submitToBackend(answers: Record<number, number>) {
   const id = studentId.value
   if (!id) {
-    console.warn('[Level1Quiz] 未登录，跳过后端提交')
+    debugWarn('[Level1Quiz] 未登录，跳过后端提交')
     return
   }
 
   if (!quizList.value?.length) {
-    console.warn('[Level1Quiz] 无题目数据，跳过后端提交')
+    debugWarn('[Level1Quiz] 无题目数据，跳过后端提交')
     return
   }
 
@@ -342,7 +343,7 @@ async function submitToBackend(answers: Record<number, number>) {
       }
     })
 
-    console.log('[Level1Quiz] 提交答题数据到后端:', {
+    debugLog('[Level1Quiz] 提交答题数据到后端:', {
       answers: answerMap,
       questions,
       wenId: props.wenId,
@@ -358,10 +359,10 @@ async function submitToBackend(answers: Record<number, number>) {
       30000,
     )
 
-    console.log('[Level1Quiz] 答题数据已成功提交到后端:', result)
+    debugLog('[Level1Quiz] 答题数据已成功提交到后端:', result)
   } catch (error) {
-    console.error('[Level1Quiz] 后端提交失败，但本地已保存:', error)
-    console.log('[Level1Quiz] 本地保存的报告:', localReport)
+    debugError('[Level1Quiz] 后端提交失败，但本地已保存:', error)
+    debugLog('[Level1Quiz] 本地保存的报告:', localReport)
   }
 }
 

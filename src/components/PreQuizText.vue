@@ -45,6 +45,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptScenarioText, getScenarioTextByQuestion } from '@/adapters/scenarioAdapter'
 import type { ProcessedScenarioText, RawScenarioText } from '@/adapters/scenarioAdapter'
+import { debugError } from '@/utils/debug'
 
 interface Props {
   questionNumber?: number
@@ -111,7 +112,7 @@ async function loadData() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : '数据处理失败'
     emit('error', error.value)
-    console.error('PreQuizText 数据加载失败:', e)
+    debugError('PreQuizText 数据加载失败:', e)
   } finally {
     isLoading.value = false
   }

@@ -68,6 +68,7 @@
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
 import { ref, computed } from 'vue'
+import { debugWarn } from '@/utils/debug'
 
 // ============================================================
 // 组件 Props 定义
@@ -157,7 +158,7 @@ function togglePlay() {
     // 开始播放视频
     // play() 返回 Promise，需要处理可能的错误（如浏览器自动播放策略阻止）
     videoRef.value.play().catch((err) => {
-      console.warn('播放失败:', err)
+      debugWarn('播放失败:', err)
       isPlaying.value = false
     })
   }

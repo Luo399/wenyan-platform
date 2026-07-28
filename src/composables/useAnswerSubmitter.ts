@@ -24,6 +24,7 @@
 import { ref, type Ref } from 'vue'
 import { useStudentInfo } from '@/composables/useStudentInfo'
 import { post } from '@/utils/api'
+import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 /**
  * 单个答案记录（前端内部使用）
@@ -212,7 +213,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     } else {
       answers.value.push(processedRecord)
     }
-    console.log(`[useAnswerSubmitter] 答案已添加/更新: ${processedRecord.questionId}`)
+    debugLog(`[useAnswerSubmitter] 答案已添加/更新: ${processedRecord.questionId}`)
   }
 
   /**
@@ -239,7 +240,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
         userAnswer: current.userAnswer,
         ...processedUpdates,
       } as AnswerRecord
-      console.log(`[useAnswerSubmitter] 答案已更新: ${questionId}`)
+      debugLog(`[useAnswerSubmitter] 答案已更新: ${questionId}`)
     }
   }
 
@@ -251,7 +252,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     const index = answers.value.findIndex((a) => a.questionId === questionId)
     if (index >= 0) {
       answers.value.splice(index, 1)
-      console.log(`[useAnswerSubmitter] 答案已删除: ${questionId}`)
+      debugLog(`[useAnswerSubmitter] 答案已删除: ${questionId}`)
     }
   }
 
@@ -261,7 +262,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
   function clearAnswers(): void {
     answers.value = []
     submitError.value = null
-    console.log('[useAnswerSubmitter] 所有答案已清空')
+    debugLog('[useAnswerSubmitter] 所有答案已清空')
   }
 
   /**
@@ -325,26 +326,26 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     // 验证学生ID
     if (!id || id.trim() === '') {
-      console.error('[useAnswerSubmitter] 学生未登录或学号为空')
+      debugError('[useAnswerSubmitter] 学生未登录或学号为空')
       return null
     }
 
     // 验证学号格式（数字）
     if (!/^\d+$/.test(id)) {
-      console.error('[useAnswerSubmitter] 学号格式不正确，应为纯数字')
+      debugError('[useAnswerSubmitter] 学号格式不正确，应为纯数字')
       return null
     }
 
     // 验证课文ID
     if (!wenId || wenId.trim() === '') {
-      console.error('[useAnswerSubmitter] 课文ID为空')
+      debugError('[useAnswerSubmitter] 课文ID为空')
       return null
     }
 
     // 验证答案
     const validation = validateAnswers()
     if (!validation.valid) {
-      console.error('[useAnswerSubmitter] 答案验证失败:', validation.errors)
+      debugError('[useAnswerSubmitter] 答案验证失败:', validation.errors)
       return null
     }
 
@@ -364,7 +365,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
 
     // 如果没有正确答案信息，仍然构建载荷（后端可能自己判断）
     if (questionsArray.length === 0 && answers.value.length > 0) {
-      console.warn('[useAnswerSubmitter] 没有提供正确答案信息，后端将无法自动判分')
+      debugWarn('[useAnswerSubmitter] 没有提供正确答案信息，后端将无法自动判分')
       answers.value.forEach((answer) => {
         questionsArray.push({
           id: answer.questionId,
@@ -382,7 +383,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
       questions: questionsArray,
     }
 
-    console.log('[useAnswerSubmitter] 提交载荷已构建:', JSON.stringify(payload, null, 2))
+    debugLog('[useAnswerSubmitter] 提交载荷已构建:', JSON.stringify(payload, null, 2))
     return payload
   }
 
@@ -410,7 +411,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
       const apiResponse = await post<SubmitResponse['data']>('/api/submit', payload)
 
       if (apiResponse.success) {
-        console.log('[useAnswerSubmitter] 答案提交成功')
+        debugLog('[useAnswerSubmitter] 答案提交成功')
         return {
           success: true,
           message: apiResponse.message || '提交成功',
@@ -422,7 +423,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '提交失败'
       submitError.value = errorMessage
-      console.error('[useAnswerSubmitter] 提交失败:', error)
+      debugError('[useAnswerSubmitter] 提交失败:', error)
       throw error
     } finally {
       isSubmitting.value = false

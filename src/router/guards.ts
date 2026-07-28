@@ -9,6 +9,7 @@
 
 import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { debugLog } from '@/utils/debug'
 
 /**
  * 检查路由是否需要登录
@@ -32,7 +33,7 @@ export function setupAuthGuard(router: Router): void {
 
       // 检查是否需要登录
       if (requiresAuth(to) && !authStore.isLoggedIn) {
-        console.log('[AuthGuard] 需要登录，触发登录弹窗')
+        debugLog('[AuthGuard] 需要登录，触发登录弹窗')
 
         // 在路由元信息中标记需要登录
         to.meta.showLoginModal = true

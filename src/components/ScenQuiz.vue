@@ -80,6 +80,7 @@ import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/leve
 import type { ProcessedLevel2QuizItem, RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
 import type { ProcessedLevel3QuizItem, RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
 import type { QuizItem } from '@/adapters/quizAdapter'
+import { debugLog, debugError } from '@/utils/debug'
 
 interface Props {
   textId?: string
@@ -153,7 +154,7 @@ async function loadData() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : '数据加载失败'
     emit('error', error.value)
-    console.error('ScenQuiz 数据加载失败:', e)
+    debugError('ScenQuiz 数据加载失败:', e)
   } finally {
     isLoading.value = false
   }
@@ -305,11 +306,11 @@ function selectQuestion(questionNumber: number) {
 }
 
 function handleScenarioLoaded(scenario: ProcessedScenarioText) {
-  console.log('Scenario loaded:', scenario)
+  debugLog('Scenario loaded:', scenario)
 }
 
 function handleScenarioError(err: string) {
-  console.error('Scenario error:', err)
+  debugError('Scenario error:', err)
 }
 
 function handleAnswer(quiz: QuizItem, answer: string, isCorrect: boolean) {
@@ -332,7 +333,7 @@ function handleComplete(
 }
 
 function handleQuizError(err: string) {
-  console.error('Quiz error:', err)
+  debugError('Quiz error:', err)
 }
 
 function handleRetry() {

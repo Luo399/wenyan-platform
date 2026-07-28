@@ -47,6 +47,7 @@ import { useStudentInfo } from '@/composables/useStudentInfo'
 import { submitAnswers } from '@/services/apiService'
 import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
+import { debugLog, debugError } from '@/utils/debug'
 
 interface Level1QuizItem {
   text_id: string
@@ -85,12 +86,12 @@ const currentSegment = ref<number | null>(null)
 const { goNext, goPrev } = useNavigation('stepone', poemId)
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
-  console.log('音频数据加载成功:', data)
+  debugLog('音频数据加载成功:', data)
   isAudioLoaded.value = true
 }
 
 function handleAudioLoadError(error: string) {
-  console.error('音频数据加载失败:', error)
+  debugError('音频数据加载失败:', error)
 }
 
 function handleSegmentChange(index: number) {

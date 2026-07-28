@@ -82,6 +82,7 @@ import { useNavigation } from '@/composables/useNavigation'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import type { PageConfig } from '@/types/pageConfig'
+import { debugLog } from '@/utils/debug'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,7 +118,7 @@ watch(
   (config) => {
     const count = config?.blocks.filter((b) => b.type === 'quiz').length || 0
     totalQuizCount.value = count
-    console.log(`[StepTwoView] quiz数量更新: ${count}`)
+    debugLog(`[StepTwoView] quiz数量更新: ${count}`)
   },
   { immediate: true, deep: true },
 )
@@ -134,7 +135,7 @@ const {
 } = useQuizProgress(
   totalQuizCount,
   (questionIndex, answer, isCorrect) => {
-    console.log(`[StepTwoView] 第 ${questionIndex + 1} 题提交，答案: ${answer}，正确: ${isCorrect}`)
+    debugLog(`[StepTwoView] 第 ${questionIndex + 1} 题提交，答案: ${answer}，正确: ${isCorrect}`)
   },
   wenId.value,
 )
@@ -198,14 +199,14 @@ async function handleQuizAnswer(event: {
     event.module || 'B',
     event.correctAnswer,
   )
-  console.log(
+  debugLog(
     `[StepTwoView] Quiz 答案提交: 答案=${event.answer}, 是否正确=${event.isCorrect}, questionId=${event.questionId}, module=${event.module}`,
   )
 }
 
 // 处理 quiz 提交事件（适配原事件名，仅用于触发后续逻辑）
 function handleQuizSubmitted() {
-  console.log(`[StepTwoView] Quiz 已提交，当前题目索引: ${currentIndex.value}`)
+  debugLog(`[StepTwoView] Quiz 已提交，当前题目索引: ${currentIndex.value}`)
 }
 
 // 使用导航composable
@@ -222,12 +223,12 @@ function handleGoPrev() {
 
 // 监听 wenId 变化，重置进度
 watch(wenId, () => {
-  console.log(`[StepTwoView] wenId 变化，重置进度`)
+  debugLog(`[StepTwoView] wenId 变化，重置进度`)
   resetProgress()
 })
 
 onMounted(() => {
-  console.log('[StepTwoView] 页面加载:', wenId.value)
+  debugLog('[StepTwoView] 页面加载:', wenId.value)
 })
 </script>
 

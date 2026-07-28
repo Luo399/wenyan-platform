@@ -3,6 +3,8 @@
  * 负责对 level2_dialog JSON 数据进行清洗、格式化和转换操作
  */
 
+import { debugWarn } from '../utils/debug'
+
 // 原始数据类型定义
 export interface RawDialogItem {
   text_id: string | null
@@ -26,7 +28,7 @@ export interface ProcessedDialogItem {
  */
 export function adaptDialogData(rawData: RawDialogItem[] | null): ProcessedDialogItem[] {
   if (!rawData || !Array.isArray(rawData)) {
-    console.warn('对话数据为空或格式异常')
+    debugWarn('对话数据为空或格式异常')
     return []
   }
 

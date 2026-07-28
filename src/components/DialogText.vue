@@ -92,6 +92,7 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptDialogData, getAllDialogs } from '@/adapters/dialogAdapter'
 import type { ProcessedDialogItem, RawDialogItem } from '@/adapters/dialogAdapter'
 import { getAssetUrl } from '@/utils/asset'
+import { debugError, debugWarn } from '@/utils/debug'
 
 interface Props {
   textId?: string
@@ -206,7 +207,7 @@ async function loadData() {
   } catch (e) {
     error.value = e instanceof Error ? e.message : '数据处理失败'
     emit('error', error.value)
-    console.error('DialogText 数据加载失败:', e)
+    debugError('DialogText 数据加载失败:', e)
   } finally {
     isLoading.value = false
   }
@@ -260,7 +261,7 @@ function toggleAudio() {
         isPlaying.value = true
       })
       .catch((err) => {
-        console.warn('音频播放失败:', err)
+        debugWarn('音频播放失败:', err)
         isPlaying.value = false
       })
   }

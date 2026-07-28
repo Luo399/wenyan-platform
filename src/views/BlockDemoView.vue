@@ -105,6 +105,7 @@ import { useRouter } from 'vue-router'
 import BlockRenderer from '@/components/BlockRenderer.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import type { PageConfig } from '@/types/pageConfig'
+import { debugLog } from '@/utils/debug'
 
 const router = useRouter()
 
@@ -146,7 +147,7 @@ const visibleBlocks = computed(() => {
 // 处理题目提交
 function handleQuizSubmitted() {
   submittedCount.value++
-  console.log('题目已提交，当前提交数:', submittedCount.value)
+  debugLog('题目已提交，当前提交数:', submittedCount.value)
 }
 
 // 加载页面
@@ -160,7 +161,7 @@ function loadPage() {
 function handlePageChange() {
   // 切换页面时重置提交计数
   submittedCount.value = 0
-  console.log('切换到页面:', selectedPage.value)
+  debugLog('切换到页面:', selectedPage.value)
 }
 
 // 返回首页
@@ -192,7 +193,7 @@ function addQuizTitle(block: any, index: number) {
 
 // 组件挂载时加载
 onMounted(() => {
-  console.log('[BlockDemoView] 测试页面已加载')
+  debugLog('[BlockDemoView] 测试页面已加载')
 })
 </script>
 

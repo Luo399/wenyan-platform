@@ -24,6 +24,7 @@ import {
   transformId,
   pageSequence,
 } from '@/config/navigation'
+import { debugError, debugWarn } from '@/utils/debug'
 
 export function useNavigation(currentRouteName: RouteName, currentId?: string) {
   const router = useRouter()
@@ -52,7 +53,7 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
   function goNext(targetId?: string) {
     const nextPage = getNextPage(currentRouteName)
     if (!nextPage) {
-      console.warn('已是最后一页')
+      debugWarn('已是最后一页')
       return
     }
     const id = targetId ?? getTargetId(nextPage.name)
@@ -81,7 +82,7 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
   function goTo(routeName: RouteName, id?: string) {
     const page = pageSequence.find((p) => p.name === routeName)
     if (!page) {
-      console.error(`页面 ${routeName} 不存在`)
+      debugError(`页面 ${routeName} 不存在`)
       return
     }
     const targetId = id ?? getTargetId(routeName)

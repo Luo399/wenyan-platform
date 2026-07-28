@@ -1,3 +1,5 @@
+import { debugWarn } from '../utils/debug'
+
 export interface RawLevel3QuizItem {
   text_id: string | null
   question_number: number | null
@@ -29,7 +31,7 @@ export interface ProcessedLevel3QuizItem {
 
 export function adaptLevel3Quiz(rawData: RawLevel3QuizItem[] | null): ProcessedLevel3QuizItem[] {
   if (!rawData || !Array.isArray(rawData)) {
-    console.warn('Level3测验数据为空或格式异常')
+    debugWarn('Level3测验数据为空或格式异常')
     return []
   }
 
