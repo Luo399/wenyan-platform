@@ -5,6 +5,7 @@
 ---
 
 ## C01. RuleView/RuleView1/2/3 四文件 99% 重复
+
 - **优先级**: P1
 - **状态**: [x] 已完成
 - **文件**:
@@ -25,6 +26,7 @@
   - 新增 `tests/views/RuleVideoView.spec.ts`：覆盖 4 种 props 配置的渲染、结构、子组件测试
 
 ## C02. AnswerQueryView.vue 1810 行需拆分为子组件
+
 - **优先级**: P1
 - **状态**: [x] 已完成（refactor/component-02）
 - **文件**: `src/views/AnswerQueryView.vue`（重构前 1584 行，含模板+script+style）
@@ -43,6 +45,7 @@
 - **依赖**: 无
 
 ## C03. 生产代码残留 59 处 console.log
+
 - **优先级**: P1
 - **状态**: [ ] 未开始
 - **文件**（按数量排序）:
@@ -66,16 +69,31 @@
 - **依赖**: 无
 
 ## C04. MultiRoleReading.vue 直接 fetch 违反分层规则
+
 - **优先级**: P1
-- **状态**: [ ] 未开始
-- **文件**: `src/components/MultiRoleReading.vue`（第 294-307 行）
+- **状态**: [x] 已完成（refactor/component-04）
+- **文件**: `src/components/MultiRoleReading.vue`（重构前第 294-307 行）
 - **问题描述**: 直接 `fetch(url, { signal: abortController.value.signal })` 拉取 `/data/multi_role_reading/{wenId}.json`，违反"组件不得直接 fetch('/data/...')"规则。其他 quiz 组件已正确使用 `useDataLoader`
 - **修复方案**: 改用 `useDataLoader` 加载数据
 - **验证方式**: 组件内无 `fetch` 调用；数据加载功能正常
 - **分支建议**: `refactor/component-04`
 - **依赖**: 无
+- **实际变更**:
+  - `src/components/MultiRoleReading.vue`：
+    - 移除：`abortController`、`dataCache`、手动 `fetch`、手动 `setTimeout` 超时、手动缓存检查逻辑
+    - 替换为：`useDataLoader<MultiRoleData>(() => dataUrl.value, {...})`，复用模块级 LRU 缓存、指数退避重试、Worker JSON 解析
+    - 模板：用 `BaseLoader`/`BaseError`/`BaseEmpty`/`BaseTimeout` 替换内联 `.loading-state`/`.error-state` div
+    - 保留：所有 emits、`defineExpose` 方法签名、音频播放逻辑、`validateMultiRoleData` 校验、`parseTime`/`formatTime`/`parseTimeRange` 工具
+    - 新增：`formatErrorMessage` 将 useDataLoader 内部错误（"HTTP 404"/"请提供有效的URL"）映射为面向用户的中文提示，保留原 404 友好提示语义
+    - `loadData` 委托给 `useDataLoader.retry()`（重置重试计数器 + 重新加载）
+    - `watch(loading, { immediate: true })` 统一发射 `load-start` 事件（覆盖 autoLoad / 手动 load / wenId 变化三种场景）
+  - `tests/components/MultiRoleReading.spec.ts`：
+    - 新增 `vi.mock('@/composables/useDataLoader')`（参考 Level1Quiz.spec.ts 模式，避免 jsdom 环境 Worker 实例化问题）
+    - 保留 `readingAdapter` 适配器测试（纯函数测试，不依赖 useDataLoader）
+    - 新增测试：props 透传（autoLoad/timeout/cacheEnabled）、四种状态渲染（BaseLoader/BaseTimeout/BaseEmpty/BaseError）、事件发射（load-start/load-success/load-error）、404 错误格式化、空 URL 错误格式化、transform 校验、loadData 委托 retry、分层规则验证（组件不直接 fetch）
 
 ## C05. AdaptQuiz/Level1Quiz 直接读写 localStorage
+
 - **优先级**: P1
 - **状态**: [ ] 未开始
 - **文件**:
@@ -88,6 +106,7 @@
 - **依赖**: 无
 
 ## C06. BlockDemoView 直接 router.push 违反导航规则
+
 - **优先级**: P1
 - **状态**: [ ] 未开始
 - **文件**:
@@ -100,6 +119,7 @@
 - **依赖**: 02-routing-auth.md R01
 
 ## C07. Options.vue / Question.vue 单词组件名
+
 - **优先级**: P2
 - **状态**: [ ] 未开始
 - **文件**:
@@ -116,6 +136,7 @@
 - **依赖**: 无
 
 ## C08. 7 个组件缺少 withDefaults
+
 - **优先级**: P2
 - **状态**: [ ] 未开始
 - **文件**:
@@ -133,6 +154,7 @@
 - **依赖**: 无
 
 ## C09. StepOneView 大量未使用导入与 dead code
+
 - **优先级**: P2
 - **状态**: [ ] 未开始
 - **文件**: `src/views/StepOneView.vue`（第 46-63, 81-82 行）
@@ -146,6 +168,7 @@
 - **依赖**: 无
 
 ## C10. PoetryMenu / BlockDemoView 诗文列表硬编码
+
 - **优先级**: P2
 - **状态**: [ ] 未开始
 - **文件**:
