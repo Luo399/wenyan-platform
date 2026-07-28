@@ -13,6 +13,7 @@
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
 import { submitAnswers as submitAnswersApi, submitSingleAnswer } from '@/services/apiService'
 import { useAuthStore } from '@/stores/auth'
+import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 export interface QuizAnswer {
   questionIndex: number
@@ -88,13 +89,13 @@ export function useQuizProgress(
       answeredCount: completedCount.value,
     }
     sessionStorage.setItem(key, JSON.stringify(record))
-    console.log(`[useQuizProgress] 完成记录已保存:`, record)
+    debugLog(`[useQuizProgress] 完成记录已保存:`, record)
   }
 
   function clearCompletionRecord(): void {
     const key = getCompletionKey(completionKeyPrefix)
     sessionStorage.removeItem(key)
-    console.log(`[useQuizProgress] 完成记录已清除`)
+    debugLog(`[useQuizProgress] 完成记录已清除`)
   }
 
   function getStudentInfo(): { studentId: string; studentName: string } {
@@ -112,7 +113,7 @@ export function useQuizProgress(
 
   async function submitSingleAnswerToBackend(answer: QuizAnswer): Promise<void> {
     if (!completionKeyPrefix) {
-      console.log(`[useQuizProgress] submitSingleAnswerToBackend - 无需提交`)
+      debugLog(`[useQuizProgress] submitSingleAnswerToBackend - 无需提交`)
       return
     }
 
@@ -120,7 +121,7 @@ export function useQuizProgress(
       const { studentId, studentName } = getStudentInfo()
 
       if (!studentId) {
-        console.warn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
+        debugWarn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
         return
       }
 
@@ -137,19 +138,19 @@ export function useQuizProgress(
         submittedAt: new Date().toISOString(),
       })
 
-      console.log(`[useQuizProgress] submitSingleAnswerToBackend - 单题答案已提交`, {
+      debugLog(`[useQuizProgress] submitSingleAnswerToBackend - 单题答案已提交`, {
         questionId,
         answer: answer.answer,
         isCorrect: answer.isCorrect,
       })
     } catch (error) {
-      console.error('[useQuizProgress] submitSingleAnswerToBackend - 提交失败:', error)
+      debugError('[useQuizProgress] submitSingleAnswerToBackend - 提交失败:', error)
     }
   }
 
   async function submitAnswersToBackend(): Promise<void> {
     if (!completionKeyPrefix || answers.value.length === 0) {
-      console.log(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
+      debugLog(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
       return
     }
 
@@ -157,7 +158,7 @@ export function useQuizProgress(
       const { studentId, studentName } = getStudentInfo()
 
       if (!studentId) {
-        console.warn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
+        debugWarn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
         return
       }
 
@@ -187,9 +188,9 @@ export function useQuizProgress(
         studentName,
       )
 
-      console.log(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
+      debugLog(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
     } catch (error) {
-      console.error('[useQuizProgress] submitAnswersToBackend - 提交失败:', error)
+      debugError('[useQuizProgress] submitAnswersToBackend - 提交失败:', error)
     }
   }
 
@@ -204,7 +205,7 @@ export function useQuizProgress(
     const prevCompletedCount = completedCount.value
 
     if (isCompleted.value) {
-      console.log(`[useQuizProgress] handleSubmit - 已全部完成，跳过提交`)
+      debugLog(`[useQuizProgress] handleSubmit - 已全部完成，跳过提交`)
       return
     }
 
@@ -243,7 +244,7 @@ export function useQuizProgress(
       currentIndex.value++
     }
 
-    console.log(`[useQuizProgress] handleSubmit - 操作完成`, {
+    debugLog(`[useQuizProgress] handleSubmit - 操作完成`, {
       operation: 'submit',
       prevCurrentIndex,
       newCurrentIndex: currentIndex.value,
@@ -259,7 +260,7 @@ export function useQuizProgress(
 
   function markAsCompleted(): void {
     saveCompletionRecord()
-    console.log(`[useQuizProgress] markAsCompleted - 手动标记完成`)
+    debugLog(`[useQuizProgress] markAsCompleted - 手动标记完成`)
   }
 
   function resetProgress(): void {
@@ -274,7 +275,7 @@ export function useQuizProgress(
     answers.value = []
     submittedList.value = []
 
-    console.log(`[useQuizProgress] resetProgress - 进度已重置`, {
+    debugLog(`[useQuizProgress] resetProgress - 进度已重置`, {
       operation: 'reset',
       prevCurrentIndex,
       newCurrentIndex: currentIndex.value,
@@ -290,13 +291,13 @@ export function useQuizProgress(
 
     if (index >= 0 && index < totalQuestionsRef.value) {
       currentIndex.value = index
-      console.log(`[useQuizProgress] goToQuestion - 跳转到题目`, {
+      debugLog(`[useQuizProgress] goToQuestion - 跳转到题目`, {
         operation: 'goToQuestion',
         prevIndex,
         newIndex: currentIndex.value,
       })
     } else {
-      console.log(`[useQuizProgress] goToQuestion - 无效索引`, {
+      debugLog(`[useQuizProgress] goToQuestion - 无效索引`, {
         operation: 'goToQuestion',
         requestedIndex: index,
         totalQuestions: totalQuestionsRef.value,
@@ -307,7 +308,7 @@ export function useQuizProgress(
   watch(
     totalQuestionsRef,
     (newVal, oldVal) => {
-      console.log(`[useQuizProgress] watch - 题目总数变化`, {
+      debugLog(`[useQuizProgress] watch - 题目总数变化`, {
         operation: 'totalQuestionsChange',
         oldValue: oldVal,
         newValue: newVal,

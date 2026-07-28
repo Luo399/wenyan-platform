@@ -11,6 +11,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { post } from '@/utils/api'
+import { debugLog, debugError } from '@/utils/debug'
 
 /**
  * 用户信息接口
@@ -56,9 +57,9 @@ export const useAuthStore = defineStore('auth', () => {
         token.value = savedToken
         user.value = JSON.parse(savedUser)
         error.value = null
-        console.log('[AuthStore] 从 localStorage 恢复登录状态')
+        debugLog('[AuthStore] 从 localStorage 恢复登录状态')
       } catch (e) {
-        console.error('[AuthStore] 解析保存的用户信息失败:', e)
+        debugError('[AuthStore] 解析保存的用户信息失败:', e)
         error.value = '登录状态已过期，请重新登录'
         clearAuthData()
       }
@@ -106,7 +107,7 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('auth_token', token.value!)
       localStorage.setItem('auth_user', JSON.stringify(user.value))
 
-      console.log('[AuthStore] 登录成功:', user.value)
+      debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
       clearAuthData()
@@ -121,7 +122,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function logout(): void {
     clearAuthData()
-    console.log('[AuthStore] 已登出')
+    debugLog('[AuthStore] 已登出')
   }
 
   /**
@@ -144,9 +145,9 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = response.data!.token
       localStorage.setItem('auth_token', token.value!)
 
-      console.log('[AuthStore] 令牌已刷新')
+      debugLog('[AuthStore] 令牌已刷新')
     } catch (err) {
-      console.error('[AuthStore] 刷新令牌失败:', err)
+      debugError('[AuthStore] 刷新令牌失败:', err)
       logout()
       throw err
     }
@@ -205,7 +206,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     // 持久化到 localStorage
     localStorage.setItem('auth_user', JSON.stringify(user.value))
-    console.log('[AuthStore] 用户信息已更新:', user.value)
+    debugLog('[AuthStore] 用户信息已更新:', user.value)
   }
 
   return {

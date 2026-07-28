@@ -126,6 +126,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
+import { debugLog, debugError } from '@/utils/debug'
 
 // 段落数据类型定义
 export interface MultiRoleSegment {
@@ -261,7 +262,7 @@ function parseTimeRange(timeRange: string): { start: number; end: number } {
  * 加载课文数据
  */
 async function loadData() {
-  console.log(`开始加载多角色朗读数据: wenId=${props.wenId}`)
+  debugLog(`开始加载多角色朗读数据: wenId=${props.wenId}`)
 
   if (!props.wenId) {
     loading.value = false
@@ -273,7 +274,7 @@ async function loadData() {
   // 检查缓存
   if (props.cacheEnabled && dataCache.has(props.wenId)) {
     loading.value = false
-    console.log(`使用缓存数据: ${props.wenId}`)
+    debugLog(`使用缓存数据: ${props.wenId}`)
     multiRoleData.value = dataCache.get(props.wenId)!
     emit('load-success', multiRoleData.value)
     setupAudio()
@@ -292,10 +293,10 @@ async function loadData() {
 
   try {
     const url = `${props.dataBaseUrl}${props.wenId}.json`
-    console.log(`请求URL: ${url}`)
+    debugLog(`请求URL: ${url}`)
 
     const timeout = setTimeout(() => {
-      console.log(`请求超时: ${url}`)
+      debugLog(`请求超时: ${url}`)
       abortController.value?.abort()
     }, props.requestTimeout)
 
@@ -313,7 +314,7 @@ async function loadData() {
     }
 
     const data: MultiRoleData = await response.json()
-    console.log(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
+    debugLog(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
 
     // 数据格式验证
     if (!validateMultiRoleData(data)) {
@@ -336,7 +337,7 @@ async function loadData() {
       return
     }
     const errorMsg = err instanceof Error ? err.message : '加载失败'
-    console.error(`加载失败: ${errorMsg}`)
+    debugError(`加载失败: ${errorMsg}`)
     if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
       error.value = '【404正在加班加点中】'
     } else {
@@ -393,7 +394,7 @@ function handleLoadedData() {
 function handleAudioError(event: Event) {
   audioLoading.value = false
   audioError.value = '音频加载失败，请检查网络或重试'
-  console.error('音频加载错误:', event)
+  debugError('音频加载错误:', event)
 }
 
 /**
@@ -439,7 +440,7 @@ function togglePlay() {
     }
     audioRef.value.play().catch((err) => {
       audioLoading.value = false
-      console.error('播放失败:', err)
+      debugError('播放失败:', err)
     })
     isPlaying.value = true
     emit('play')
@@ -459,7 +460,7 @@ function playFromSegment(index: number) {
 
   if (!isPlaying.value) {
     audioRef.value.play().catch((err) => {
-      console.error('播放失败:', err)
+      debugError('播放失败:', err)
     })
     isPlaying.value = true
   }
@@ -522,7 +523,7 @@ onUnmounted(() => {
 watch(
   () => props.wenId,
   (newWenId, oldWenId) => {
-    console.log(`wenId 变化: ${oldWenId} -> ${newWenId}`)
+    debugLog(`wenId 变化: ${oldWenId} -> ${newWenId}`)
     if (props.autoLoad && newWenId) {
       loadData()
     }

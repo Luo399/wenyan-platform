@@ -68,6 +68,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 import { useStudentQuery } from '@/composables/useStudentQuery'
+import { debugError } from '@/utils/debug'
 
 // 使用新的 auth store
 const authStore = useAuthStore()
@@ -162,7 +163,7 @@ async function handleSave() {
   } catch (err) {
     hasError.value = true
     errorMessage.value = authError.value || '操作失败，请重试'
-    console.error('登录/修改失败:', err)
+    debugError('登录/修改失败:', err)
   } finally {
     isLoading.value = false
   }

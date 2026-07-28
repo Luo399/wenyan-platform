@@ -13,6 +13,8 @@
  * monitor.end('dataLoad')
  */
 
+import { debugLog, debugWarn } from '@/utils/debug'
+
 interface PerfRecord {
   name: string
   startTime: number
@@ -29,25 +31,25 @@ export function createPerfMonitor(componentName: string) {
       name,
       startTime: performance.now(),
     })
-    console.log(`[${componentName}] ⏱️ 开始 ${name}`)
+    debugLog(`[${componentName}] ⏱️ 开始 ${name}`)
   }
 
   function end(name: string) {
     const key = `${componentName}:${name}`
     const record = records.get(key)
     if (!record) {
-      console.warn(`[${componentName}] ⚠️ 未找到性能记录: ${name}`)
+      debugWarn(`[${componentName}] ⚠️ 未找到性能记录: ${name}`)
       return
     }
 
     record.endTime = performance.now()
     record.duration = record.endTime - record.startTime
 
-    console.log(`[${componentName}] ✅ 完成 ${name}, 耗时: ${record.duration.toFixed(2)}ms`)
+    debugLog(`[${componentName}] ✅ 完成 ${name}, 耗时: ${record.duration.toFixed(2)}ms`)
 
     // 性能警告
     if (record.duration > 1000) {
-      console.warn(`[${componentName}] ⚠️ 性能警告: ${name} 耗时超过1秒`)
+      debugWarn(`[${componentName}] ⚠️ 性能警告: ${name} 耗时超过1秒`)
     }
   }
 
@@ -86,7 +88,7 @@ export function checkMemoryUsage() {
     const totalMB = (memory.totalJSHeapSize / 1024 / 1024).toFixed(2)
     const limitMB = (memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)
 
-    console.log(`📊 内存使用情况:
+    debugLog(`📊 内存使用情况:
       已用: ${usedMB}MB
       总计: ${totalMB}MB
       限制: ${limitMB}MB
@@ -95,7 +97,7 @@ export function checkMemoryUsage() {
 
     // 内存警告
     if (memory.usedJSHeapSize / memory.jsHeapSizeLimit > 0.8) {
-      console.warn('⚠️ 内存使用率超过80%，可能存在内存泄漏')
+      debugWarn('⚠️ 内存使用率超过80%，可能存在内存泄漏')
     }
   }
 }
@@ -113,10 +115,10 @@ export function withPerfMonitor<T extends (...args: any[]) => any>(
     const endTime = performance.now()
     const duration = endTime - startTime
 
-    console.log(`[${componentName}] ⏱️ 执行耗时: ${duration.toFixed(2)}ms`)
+    debugLog(`[${componentName}] ⏱️ 执行耗时: ${duration.toFixed(2)}ms`)
 
     if (duration > 16) {
-      console.warn(`[${componentName}] ⚠️ 执行时间超过一帧(16ms)，可能影响性能`)
+      debugWarn(`[${componentName}] ⚠️ 执行时间超过一帧(16ms)，可能影响性能`)
     }
 
     return result

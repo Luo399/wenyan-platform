@@ -4,6 +4,8 @@
  * 提供适配器层共用的工具函数，避免代码重复
  */
 
+import { debugWarn } from './debug'
+
 /**
  * HTML转义函数，防止XSS攻击
  *
@@ -36,7 +38,7 @@ export function parseTimeToSeconds(timeStr: string): number {
   const parts = timeStr.split(':').map(Number)
 
   if (parts.length < 2 || parts.length > 3 || parts.some(isNaN)) {
-    console.warn(`[adapterUtils] 无效的时间格式: ${timeStr}`)
+    debugWarn(`[adapterUtils] 无效的时间格式: ${timeStr}`)
     return 0
   }
 

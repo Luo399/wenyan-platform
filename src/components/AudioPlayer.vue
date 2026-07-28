@@ -67,6 +67,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { debugWarn } from '@/utils/debug'
 
 // ============================================================
 // 组件 Props 定义
@@ -119,7 +120,7 @@ function togglePlay() {
     audioRef.value.pause()
   } else {
     audioRef.value.play().catch((err) => {
-      console.warn('播放失败:', err)
+      debugWarn('播放失败:', err)
       isPlaying.value = false
     })
   }

@@ -1,9 +1,9 @@
 import { ref, onUnmounted, watch } from 'vue'
-import { debugLog, debugError } from '@/utils/debug'
+import { debugLog } from '@/utils/debug'
 
 // 诊断日志函数 - 始终输出用于调试
 function diagLog(...args: unknown[]) {
-  console.log('[useDataLoader 诊断]', ...args)
+  debugLog('[useDataLoader 诊断]', ...args)
 }
 
 // Worker 超时时间（毫秒）

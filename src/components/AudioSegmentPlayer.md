@@ -18,37 +18,37 @@ AudioSegmentPlayer (主组件)
 
 ## Props 参数
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `wenId` | `string` | - | **必填** 课文ID，用于拉取对应分段数据 |
-| `autoLoad` | `boolean` | `true` | 是否自动加载数据 |
-| `cacheEnabled` | `boolean` | `true` | 是否启用缓存机制 |
-| `requestTimeout` | `number` | `10000` | 请求超时时间（毫秒） |
-| `audioBaseUrl` | `string` | `'/audio/'` | 音频和JSON数据的基础URL |
+| 参数             | 类型      | 默认值      | 说明                                  |
+| ---------------- | --------- | ----------- | ------------------------------------- |
+| `wenId`          | `string`  | -           | **必填** 课文ID，用于拉取对应分段数据 |
+| `autoLoad`       | `boolean` | `true`      | 是否自动加载数据                      |
+| `cacheEnabled`   | `boolean` | `true`      | 是否启用缓存机制                      |
+| `requestTimeout` | `number`  | `10000`     | 请求超时时间（毫秒）                  |
+| `audioBaseUrl`   | `string`  | `'/audio/'` | 音频和JSON数据的基础URL               |
 
 ## Events 事件
 
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
-| `load-start` | - | 开始加载数据时触发 |
-| `load-success` | `data: WenData` | 数据加载成功时触发 |
-| `load-error` | `error: string` | 数据加载失败时触发 |
-| `play` | - | 开始播放时触发 |
-| `pause` | - | 暂停播放时触发 |
-| `ended` | - | 播放结束时触发 |
+| 事件名           | 参数            | 说明                   |
+| ---------------- | --------------- | ---------------------- |
+| `load-start`     | -               | 开始加载数据时触发     |
+| `load-success`   | `data: WenData` | 数据加载成功时触发     |
+| `load-error`     | `error: string` | 数据加载失败时触发     |
+| `play`           | -               | 开始播放时触发         |
+| `pause`          | -               | 暂停播放时触发         |
+| `ended`          | -               | 播放结束时触发         |
 | `segment-change` | `index: number` | 当前播放段落变化时触发 |
 
 ## 暴露方法
 
 组件通过 `defineExpose` 暴露以下方法：
 
-| 方法名 | 参数 | 返回值 | 说明 |
-|--------|------|--------|------|
-| `loadData()` | - | `void` | 手动触发数据加载 |
-| `play()` | - | `Promise<void>` | 开始播放 |
-| `pause()` | - | `void` | 暂停播放 |
-| `seek(time)` | `time: number` | `void` | 跳转到指定时间（秒） |
-| `getCurrentSegment()` | - | `Segment \| null` | 获取当前播放段落 |
+| 方法名                | 参数           | 返回值            | 说明                 |
+| --------------------- | -------------- | ----------------- | -------------------- |
+| `loadData()`          | -              | `void`            | 手动触发数据加载     |
+| `play()`              | -              | `Promise<void>`   | 开始播放             |
+| `pause()`             | -              | `void`            | 暂停播放             |
+| `seek(time)`          | `time: number` | `void`            | 跳转到指定时间（秒） |
+| `getCurrentSegment()` | -              | `Segment \| null` | 获取当前播放段落     |
 
 ## 数据类型定义
 
@@ -56,12 +56,12 @@ AudioSegmentPlayer (主组件)
 
 ```typescript
 interface Segment {
-  id: string;           // 段落ID
-  text: string;         // 段落文本内容
-  role: string;         // 角色名称
-  avatar: string;       // 角色头像（emoji）
-  startTime: number;    // 开始时间（秒）
-  endTime: number;      // 结束时间（秒）
+  id: string // 段落ID
+  text: string // 段落文本内容
+  role: string // 角色名称
+  avatar: string // 角色头像（emoji）
+  startTime: number // 开始时间（秒）
+  endTime: number // 结束时间（秒）
 }
 ```
 
@@ -69,10 +69,10 @@ interface Segment {
 
 ```typescript
 interface WenData {
-  wenId: string;        // 课文ID
-  title: string;        // 课文标题
-  audioUrl: string;     // 音频文件URL
-  segments: Segment[];  // 段落列表
+  wenId: string // 课文ID
+  title: string // 课文标题
+  audioUrl: string // 音频文件URL
+  segments: Segment[] // 段落列表
 }
 ```
 
@@ -91,19 +91,19 @@ interface WenData {
 </template>
 
 <script setup lang="ts">
-import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue';
-import type { WenData } from '@/components/AudioSegmentPlayer.vue';
+import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue'
+import type { WenData } from '@/components/AudioSegmentPlayer.vue'
 
 function handleLoadSuccess(data: WenData) {
-  console.log('数据加载成功:', data);
+  console.log('数据加载成功:', data)
 }
 
 function handleLoadError(error: string) {
-  console.error('数据加载失败:', error);
+  console.error('数据加载失败:', error)
 }
 
 function handleSegmentChange(index: number) {
-  console.log('当前段落索引:', index);
+  console.log('当前段落索引:', index)
 }
 </script>
 ```
@@ -114,19 +114,15 @@ function handleSegmentChange(index: number) {
 <template>
   <div>
     <button @click="playerRef?.loadData()">加载音频</button>
-    <AudioSegmentPlayer
-      ref="playerRef"
-      wenId="WEN_02"
-      :auto-load="false"
-    />
+    <AudioSegmentPlayer ref="playerRef" wenId="WEN_02" :auto-load="false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue';
+import { ref } from 'vue'
+import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue'
 
-const playerRef = ref<InstanceType<typeof AudioSegmentPlayer> | null>(null);
+const playerRef = ref<InstanceType<typeof AudioSegmentPlayer> | null>(null)
 </script>
 ```
 
@@ -143,7 +139,7 @@ const playerRef = ref<InstanceType<typeof AudioSegmentPlayer> | null>(null);
 </template>
 
 <script setup lang="ts">
-import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue';
+import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue'
 </script>
 ```
 
@@ -182,14 +178,17 @@ import AudioSegmentPlayer from '@/components/AudioSegmentPlayer.vue';
 ## 错误处理机制
 
 ### 网络错误
+
 - 请求超时自动取消
 - 提供重试按钮
 
 ### 数据格式错误
+
 - 自动验证返回数据结构
 - 验证失败时显示错误提示
 
 ### 请求取消
+
 - 组件卸载前自动取消正在进行的请求
 - 支持手动取消（通过 AbortController）
 

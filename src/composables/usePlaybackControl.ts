@@ -9,6 +9,7 @@
  * - 所有子按钮暂停 → 主按钮暂停
  */
 import { ref, type Ref } from 'vue'
+import { debugError } from '@/utils/debug'
 
 export interface UsePlaybackControlOptions {
   onPlay?: () => void
@@ -53,7 +54,7 @@ export function usePlaybackControl(
     if (!audioRef.value) return
 
     audioRef.value.play().catch((err) => {
-      console.error('播放失败:', err)
+      debugError('播放失败:', err)
       isPlaying.value = false
     })
     isPlaying.value = true

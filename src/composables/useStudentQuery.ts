@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { get } from '@/utils/api'
+import { debugError } from '@/utils/debug'
 
 export interface StudentInfo {
   studentId: string
@@ -37,7 +38,7 @@ export function useStudentQuery() {
       }
       return ''
     } catch (err) {
-      console.error('[useStudentQuery] 查询学生信息失败:', err)
+      debugError('[useStudentQuery] 查询学生信息失败:', err)
       queryError.value = err instanceof Error ? err.message : '查询失败'
       return ''
     } finally {

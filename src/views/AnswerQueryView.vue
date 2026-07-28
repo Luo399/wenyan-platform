@@ -279,6 +279,7 @@ import { ref, computed, reactive } from 'vue'
 import { get } from '@/utils/api'
 import { formatDate } from '@/utils/format'
 import { createStudent, updateStudent, deleteStudent, type StudentInfo } from '@/utils/studentApi'
+import { debugError } from '@/utils/debug'
 import StudentTable from '@/components/StudentTable.vue'
 import AnswerTable from '@/components/AnswerTable.vue'
 import StudentFormModal from '@/components/StudentFormModal.vue'
@@ -462,7 +463,7 @@ async function fetchData(url: string, type: 'wenId' | 'studentId' | 'students') 
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '网络请求失败'
-    console.error('获取数据失败:', err)
+    debugError('获取数据失败:', err)
   } finally {
     loading.value = false
   }
