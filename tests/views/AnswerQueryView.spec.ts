@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { ref } from 'vue'
 import AnswerQueryView from '@/views/AnswerQueryView.vue'
 import { get } from '@/utils/api'
 import {
@@ -10,6 +9,7 @@ import {
   validateStudentId,
   validateStudentName,
 } from '@/utils/studentApi'
+import { formatDate, formatAnswer } from '@/utils/format'
 
 vi.mock('@/utils/api', () => ({
   get: vi.fn(),
@@ -546,24 +546,17 @@ describe('AnswerQueryView.vue', () => {
   })
 
   describe('答案格式化测试', () => {
-    it('应该正确格式化日期', async () => {
-      const wrapper = mount(AnswerQueryView)
-      await flushPromises()
-
-      const vm = wrapper.vm as any
-      const formatted = vm.formatDate('2024-01-01T00:00:00Z')
+    // formatDate / formatAnswer 已抽到 utils/format.ts（C02 拆分），直接测试工具函数
+    it('应该正确格式化日期', () => {
+      const formatted = formatDate('2024-01-01T00:00:00Z')
       expect(typeof formatted).toBe('string')
     })
 
-    it('应该正确格式化答案', async () => {
-      const wrapper = mount(AnswerQueryView)
-      await flushPromises()
-
-      const vm = wrapper.vm as any
-      expect(vm.formatAnswer(2)).toBe('2')
-      expect(vm.formatAnswer([0, 2])).toBe('0, 2')
-      expect(vm.formatAnswer(null)).toBe('-')
-      expect(vm.formatAnswer(undefined)).toBe('-')
+    it('应该正确格式化答案', () => {
+      expect(formatAnswer(2)).toBe('2')
+      expect(formatAnswer([0, 2])).toBe('0, 2')
+      expect(formatAnswer(null)).toBe('-')
+      expect(formatAnswer(undefined)).toBe('-')
     })
   })
 
