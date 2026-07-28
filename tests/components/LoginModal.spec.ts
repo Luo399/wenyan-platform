@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import LoginModal from '@/components/LoginModal.vue'
 
 vi.mock('@/stores/auth', () => {
@@ -26,13 +27,14 @@ vi.mock('@/stores/auth', () => {
 
 describe('LoginModal.vue', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
   })
 
   describe('基础渲染测试', () => {
     it('应该正确渲染组件', () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -44,7 +46,7 @@ describe('LoginModal.vue', () => {
 
     it('应该显示登录标题', () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -56,7 +58,7 @@ describe('LoginModal.vue', () => {
 
     it('应该显示学号输入框', () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -69,7 +71,7 @@ describe('LoginModal.vue', () => {
 
     it('应该显示登录按钮', () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -83,7 +85,7 @@ describe('LoginModal.vue', () => {
   describe('交互功能测试', () => {
     it('点击弹窗内部不应该关闭', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -91,16 +93,16 @@ describe('LoginModal.vue', () => {
         },
       })
 
-      const modalContent = wrapper.find('.modal-content')
-      await modalContent.trigger('click')
+      const modalContainer = wrapper.find('.modal-container')
+      await modalContainer.trigger('click')
       await nextTick()
 
-      expect(wrapper.emitted('update:show')).toBeFalsy()
+      expect(wrapper.emitted('close')).toBeFalsy()
     })
 
     it('点击外部区域应该关闭弹窗', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -112,13 +114,12 @@ describe('LoginModal.vue', () => {
       await modalOverlay.trigger('click')
       await nextTick()
 
-      expect(wrapper.emitted('update:show')).toBeTruthy()
-      expect(wrapper.emitted('update:show')?.[0][0]).toBe(false)
+      expect(wrapper.emitted('close')).toBeTruthy()
     })
 
     it('按下ESC键应该关闭弹窗', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -130,15 +131,14 @@ describe('LoginModal.vue', () => {
       document.dispatchEvent(event)
       await nextTick()
 
-      expect(wrapper.emitted('update:show')).toBeTruthy()
-      expect(wrapper.emitted('update:show')?.[0][0]).toBe(false)
+      expect(wrapper.emitted('close')).toBeTruthy()
     })
   })
 
   describe('用户认证测试', () => {
     it('关闭按钮应该触发 close 事件', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -155,7 +155,7 @@ describe('LoginModal.vue', () => {
 
     it('登录成功应该触发 login-success 事件', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -176,7 +176,7 @@ describe('LoginModal.vue', () => {
 
     it('学号输入验证 - 非空输入应该通过验证', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,
@@ -193,7 +193,7 @@ describe('LoginModal.vue', () => {
 
     it('学号输入验证 - 空输入应该显示错误', async () => {
       const wrapper = mount(LoginModal, {
-        props: { show: true },
+        props: { visible: true },
         global: {
           stubs: {
             Teleport: true,

@@ -45,11 +45,11 @@ const { goNext, goPrev } = useNavigation('rule3', poemId)
 const currentPoem = computed(() => {
   const wenId = getWenId(poemId)
   const title = getPoemTitle(poemId)
-  
+
   // 动态拼接视频路径
   // 视频文件位于 public/video/ 目录下，命名格式：WEN_xx_rule_3.mp4
   const videoUrl = `/video/${wenId}_rule_3.mp4`
-  
+
   return {
     title,
     videoUrl,

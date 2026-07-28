@@ -1,10 +1,10 @@
 /**
  * JWT令牌工具模块
- * 提供令牌生成和验证功能
+ * 使用 jsonwebtoken 标准库提供令牌生成和验证功能
  */
 
-const jwt = require('jsonwebtoken');
-const config = require('../config/app');
+const jwt = require('jsonwebtoken')
+const config = require('../config/app')
 
 /**
  * 生成JWT token
@@ -17,11 +17,11 @@ function generateToken(studentId, username) {
     sub: studentId,
     username: username,
     role: 'student',
-  };
+  }
 
   return jwt.sign(payload, config.jwt.secret, {
     expiresIn: config.jwt.expiresIn,
-  });
+  })
 }
 
 /**
@@ -31,13 +31,15 @@ function generateToken(studentId, username) {
  */
 function verifyToken(token) {
   try {
-    return jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret)
+    return decoded
   } catch (err) {
-    return null;
+    console.error('Token验证失败:', err.message)
+    return null
   }
 }
 
 module.exports = {
   generateToken,
-  verifyToken
-};
+  verifyToken,
+}

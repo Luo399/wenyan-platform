@@ -224,5 +224,7 @@ export const useAuthStore = defineStore('auth', () => {
     isTokenExpired,
     clearError,
     setUser,
+    clearAuthData,
+    restoreFromStorage: initialize,
   }
 })

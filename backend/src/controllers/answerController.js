@@ -133,36 +133,11 @@ function submitAnswers(req, res) {
       });
     });
 
-    Promise.all(insertPromises)
-      .then((results) => {
-        const totalScore = results.reduce((sum, r) => sum + r.score, 0);
-        const correctCount = results.filter((r) => r.isCorrect === 1).length;
-        const avgScore = Math.round(totalScore / results.length);
-
-        res.status(200).json({
-          success: true,
-          message: '答案提交成功',
-          data: {
-            studentId,
-            wenId,
-            submittedAt,
-            questionCount: results.length,
-            correctCount,
-            wrongCount: results.length - correctCount,
-            totalScore,
-            avgScore,
-            details: results,
-          },
-        });
-      })
-      .catch((err) => {
-        console.error('数据库操作失败:', err);
-        res.status(500).json({
-          success: false,
-          error: 'DATABASE_ERROR',
-          message: '数据库操作失败: ' + err.message,
-        });
-      });
+    res.status(200).json({
+      success: result.success,
+      message: '答案提交成功',
+      data: result.data,
+    });
   } catch (err) {
     console.error('处理请求失败:', err);
     res.status(500).json({

@@ -15,14 +15,14 @@ export function useStudentInfo() {
     if (!authStore.isLoggedIn || !authStore.user) {
       return ''
     }
-    return authStore.user.studentId
+    return authStore.user.studentId || ''
   })
 
   function getStudentName(): string {
     if (!authStore.isLoggedIn || !authStore.user) {
       return ''
     }
-    return authStore.user.username
+    return authStore.user.username || ''
   }
 
   function getStudentInfo(): StudentInfo {

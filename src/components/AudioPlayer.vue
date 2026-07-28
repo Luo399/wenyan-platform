@@ -52,7 +52,11 @@
       </div>
 
       <!-- 音量控制按钮 -->
-      <button class="control-btn volume-btn" @click="toggleMute" :title="isMuted ? '取消静音' : '静音'">
+      <button
+        class="control-btn volume-btn"
+        @click="toggleMute"
+        :title="isMuted ? '取消静音' : '静音'"
+      >
         <!-- 根据静音状态显示不同图标 -->
         <i v-if="isMuted" class="fas fa-volume-mute"></i>
         <i v-else class="fas fa-volume-up"></i>

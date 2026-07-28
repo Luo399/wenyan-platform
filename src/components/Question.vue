@@ -46,8 +46,7 @@ import { ref, watch } from 'vue'
 import Options, { type Option, type OptionsType } from './Options.vue'
 import { submitAnswers } from '@/services/apiService'
 import { ApiError } from '@/utils/api'
-import { useStudentStore } from '@/stores/student'
-import { storeToRefs } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
 
 export interface QuestionData {
   id: string

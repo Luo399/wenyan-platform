@@ -33,6 +33,12 @@ export function getWenId(id: string): string {
  * @param poemId - 篇目 ID
  * @returns 篇目标题，如果不存在则返回 '未知篇目'
  */
-export function getPoemTitle(poemId: string): string {
-  return poemMap[poemId]?.title || '未知篇目'
+export function getPoemTitle(poemId?: string): string {
+  if (!poemId) return '未知篇目'
+
+  const id = poemId.startsWith('WEN_') ? poemId.replace('WEN_', '') : poemId
+
+  const normalizedId = parseInt(id, 10).toString()
+
+  return poemMap[normalizedId]?.title || '未知篇目'
 }

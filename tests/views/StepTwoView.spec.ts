@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { ref } from 'vue'
 import StepTwoView from '@/views/StepTwoView.vue'
 
-// Mock router
 const mockRouter = {
   push: vi.fn(),
   back: vi.fn(),
@@ -12,6 +12,18 @@ const mockRouter = {
 vi.mock('vue-router', () => ({
   useRouter: () => mockRouter,
   useRoute: () => ({ params: { id: 'WEN_01' } }),
+}))
+
+vi.mock('@/composables/useDataLoader', () => ({
+  useDataLoader: vi.fn(() => ({
+    loading: ref(false),
+    error: ref<string | null>(null),
+    data: ref({
+      title: '测试页面',
+      blocks: [],
+    }),
+    retry: vi.fn(),
+  })),
 }))
 
 describe('StepTwoView.vue', () => {

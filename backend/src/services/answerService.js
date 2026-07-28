@@ -4,6 +4,7 @@
  */
 
 const { answerDb, studentDb } = require('../config/database')
+const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise')
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader')
 const { info, warn, logOperation } = require('../utils/logger')
 const { dbGet, dbAll, dbPrepareRun, dbSerialize } = require('../utils/dbPromise')
@@ -14,13 +15,8 @@ const { dbGet, dbAll, dbPrepareRun, dbSerialize } = require('../utils/dbPromise'
  * @returns {Promise<string|null>} - 学生姓名
  */
 async function getStudentName(studentId) {
-  try {
-    const row = await dbGet(studentDb, 'SELECT name FROM students WHERE student_id = ?', [studentId])
-    return row?.name || null
-  } catch (err) {
-    console.warn('查询学生姓名失败:', err)
-    return null
-  }
+  const row = await dbGet(studentDb, 'SELECT name FROM students WHERE student_id = ?', [studentId])
+  return row?.name || null
 }
 
 /**
@@ -106,58 +102,51 @@ async function submitAnswers(data) {
   await ensureStudentInfo(studentId, studentName)
 
   // 计算得分并准备插入数据
-  const insertPromises = questions.map((question) => {
-    const userAnswer = answers[question.id]
-    const correctAnswer = question.correctAnswer
+  const results = await Promise.all(
+    questions.map(async (question) => {
+      const userAnswer = answers[question.id]
+      const correctAnswer = question.correctAnswer
+      const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
 
-    const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
-
-    return dbSerialize(answerDb, async () => {
+      // 查询已有记录数
       const countRow = await dbGet(
         answerDb,
         `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
-        [wenId, studentId, question.id],
+        [wenId, studentId, question.id]
       )
-
       const attemptNumber = (countRow?.count || 0) + 1
 
-      await dbPrepareRun(
-        answerDb,
-        `INSERT INTO answer_records (
-          wen_id,
-          student_id,
-          question_id,
-          user_answer,
-          correct_answer,
-          is_correct,
-          score,
-          submitted_at,
-          attempt_number
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          wenId,
-          studentId,
-          question.id,
-          JSON.stringify(userAnswer ?? null),
-          JSON.stringify(correctAnswer ?? null),
-          isCorrect,
-          score,
-          submittedAt,
-          attemptNumber,
-        ],
+      // 插入新记录
+      const stmt = answerDb.prepare(`
+        INSERT INTO answer_records (
+          wen_id, student_id, question_id, user_answer, correct_answer,
+          is_correct, score, submitted_at, attempt_number
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      await stmtRun(
+        stmt,
+        wenId,
+        studentId,
+        question.id,
+        JSON.stringify(userAnswer ?? null),
+        JSON.stringify(correctAnswer ?? null),
+        isCorrect,
+        score,
+        submittedAt,
+        attemptNumber
       )
+      stmt.finalize()
 
       return { questionId: question.id, score, isCorrect, attemptNumber }
     })
-  })
+  )
 
-  // 执行所有插入操作
-  const results = await Promise.all(insertPromises)
   const totalScore = results.reduce((sum, r) => sum + r.score, 0)
   const correctCount = results.filter((r) => r.isCorrect === 1).length
   const avgScore = Math.round(totalScore / results.length)
 
-  const result = {
+  const resultData = {
     studentId,
     wenId,
     submittedAt,
@@ -179,7 +168,7 @@ async function submitAnswers(data) {
     avgScore,
   })
 
-  return result
+  return { success: true, data: resultData }
 }
 
 /**
@@ -190,16 +179,12 @@ async function submitAnswers(data) {
 async function getAnswersByWenId(wenId) {
   const rows = await dbAll(
     answerDb,
-    `SELECT * FROM answer_records
-     WHERE wen_id = ?
-     ORDER BY submitted_at DESC`,
-    [wenId],
+    `SELECT * FROM answer_records WHERE wen_id = ? ORDER BY submitted_at DESC`,
+    [wenId]
   )
 
-  // 获取所有学生ID
+  // 获取所有学生ID并批量查询姓名
   const studentIds = [...new Set(rows.map((row) => row.student_id))]
-
-  // 批量查询学生姓名
   const studentNames = {}
   for (const studentId of studentIds) {
     studentNames[studentId] = await getStudentName(studentId)
@@ -213,7 +198,7 @@ async function getAnswersByWenId(wenId) {
     if (!studentStats[row.student_id]) {
       studentStats[row.student_id] = {
         studentId: row.student_id,
-        studentName: studentName,
+        studentName,
         wenId: row.wen_id,
         totalQuestions: 0,
         correctCount: 0,
@@ -229,11 +214,10 @@ async function getAnswersByWenId(wenId) {
     stat.wrongCount += row.is_correct === 0 ? 1 : 0
     stat.totalScore += row.score
 
-    // 处理答案值
     const correctAnswerValue = processCorrectAnswerValue(
       row.correct_answer,
       row.question_id,
-      row.wen_id,
+      row.wen_id
     )
 
     stat.answers.push({
@@ -268,10 +252,8 @@ async function getAnswersByWenId(wenId) {
 async function getAnswersByStudentId(studentId) {
   const rows = await dbAll(
     answerDb,
-    `SELECT * FROM answer_records
-     WHERE student_id = ?
-     ORDER BY wen_id, submitted_at DESC`,
-    [studentId],
+    `SELECT * FROM answer_records WHERE student_id = ? ORDER BY wen_id, submitted_at DESC`,
+    [studentId]
   )
 
   // 获取学生姓名
@@ -283,7 +265,7 @@ async function getAnswersByStudentId(studentId) {
     if (!wenStats[row.wen_id]) {
       wenStats[row.wen_id] = {
         studentId: row.student_id,
-        studentName: studentName,
+        studentName,
         wenId: row.wen_id,
         submittedAt: row.submitted_at,
         totalQuestions: 0,
@@ -300,11 +282,10 @@ async function getAnswersByStudentId(studentId) {
     stat.wrongCount += row.is_correct === 0 ? 1 : 0
     stat.totalScore += row.score
 
-    // 处理答案值
     const correctAnswerValue = processCorrectAnswerValue(
       row.correct_answer,
       row.question_id,
-      row.wen_id,
+      row.wen_id
     )
 
     stat.answers.push({
@@ -333,7 +314,7 @@ async function getAnswersByStudentId(studentId) {
 
   return {
     studentId,
-    studentName: studentName,
+    studentName,
     totalWenCount: Object.keys(wenStats).length,
     totalAllQuestions,
     totalAllCorrect,
@@ -363,55 +344,50 @@ async function submitSingleAnswer(data) {
 
   const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
 
-  return dbSerialize(answerDb, async () => {
-    const countRow = await dbGet(
-      answerDb,
-      `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
-      [wenId, studentId, questionId],
-    )
+  // 查询已有记录数
+  const countRow = await dbGet(
+    answerDb,
+    `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+    [wenId, studentId, questionId]
+  )
+  const attemptNumber = (countRow?.count || 0) + 1
 
-    const attemptNumber = (countRow?.count || 0) + 1
+  // 插入新记录
+  const stmt = answerDb.prepare(`
+    INSERT INTO answer_records (
+      wen_id, student_id, question_id, user_answer, correct_answer,
+      is_correct, score, submitted_at, attempt_number
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
 
-    await dbPrepareRun(
-      answerDb,
-      `INSERT INTO answer_records (
-        wen_id,
-        student_id,
-        question_id,
-        user_answer,
-        correct_answer,
-        is_correct,
-        score,
-        submitted_at,
-        attempt_number
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        wenId,
-        studentId,
-        questionId,
-        JSON.stringify(userAnswer ?? null),
-        JSON.stringify(correctAnswer ?? null),
-        isCorrect,
-        score,
-        submittedAt,
-        attemptNumber,
-      ],
-    )
+  await stmtRun(
+    stmt,
+    wenId,
+    studentId,
+    questionId,
+    JSON.stringify(userAnswer ?? null),
+    JSON.stringify(correctAnswer ?? null),
+    isCorrect,
+    score,
+    submittedAt,
+    attemptNumber
+  )
+  stmt.finalize()
 
-    const result = {
-      studentId,
-      wenId,
-      questionId,
-      userAnswer,
-      correctAnswer,
-      isCorrect,
-      score,
-      submittedAt,
-      attemptNumber,
-    }
-    logOperation('单题答题提交完成', result)
-    return result
-  })
+  const result = {
+    studentId,
+    wenId,
+    questionId,
+    userAnswer,
+    correctAnswer,
+    isCorrect,
+    score,
+    submittedAt,
+    attemptNumber,
+  }
+
+  logOperation('单题答题提交完成', result)
+  return result
 }
 
 module.exports = {

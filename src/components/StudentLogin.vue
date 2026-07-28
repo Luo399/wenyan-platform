@@ -18,16 +18,12 @@
         maxlength="4"
         placeholder="请输入4位学号"
         @keyup.enter="handleSubmit"
-        :class="{ 'error': hasError }"
+        :class="{ error: hasError }"
       />
-      <button @click="handleSubmit" :disabled="!isValid">
-        确认
-      </button>
+      <button @click="handleSubmit" :disabled="!isValid">确认</button>
     </div>
 
-    <p v-if="hasError" class="error-message">
-      学号必须为4位数字
-    </p>
+    <p v-if="hasError" class="error-message">学号必须为4位数字</p>
   </div>
 </template>
 
@@ -134,5 +130,20 @@ function handleSubmit() {
   color: #ef4444;
   font-size: 0.875rem;
   margin-top: 0.5rem;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

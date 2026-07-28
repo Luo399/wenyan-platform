@@ -1,35 +1,53 @@
-import { ref, type Ref, unref } from 'vue'
+import { ref } from 'vue'
 import { get } from '@/utils/api'
 
-export function useStudentQuery(studentId: Ref<string> | string) {
-  const studentName = ref('')
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+export interface StudentInfo {
+  studentId: string
+  name: string
+}
 
-  async function fetchName(): Promise<void> {
-    const id = unref(studentId).trim()
-    if (!id) {
-      studentName.value = ''
-      return
+/**
+ * 学生查询 Composable
+ *
+ * 提供共享的学生信息查询功能，消除 LoginModal 和 StudentDisplay 的重复调用
+ */
+export function useStudentQuery() {
+  const isQuerying = ref(false)
+  const queryError = ref<string | null>(null)
+
+  /**
+   * 根据学号查询学生姓名
+   *
+   * @param studentId - 学号
+   * @returns 学生姓名（查询失败返回空字符串）
+   */
+  async function queryStudentName(studentId: string): Promise<string> {
+    const trimmedId = studentId.trim()
+    if (!trimmedId) {
+      return ''
     }
 
-    loading.value = true
-    error.value = null
+    isQuerying.value = true
+    queryError.value = null
 
     try {
-      const response = await get(`/api/students/${id}`)
+      const response = await get(`/api/students/${trimmedId}`)
       if (response.success && response.data) {
-        studentName.value = response.data.name || ''
-      } else {
-        studentName.value = ''
+        return response.data.name || ''
       }
+      return ''
     } catch (err) {
-      error.value = err instanceof Error ? err.message : '查询学生信息失败'
-      studentName.value = ''
+      console.error('[useStudentQuery] 查询学生信息失败:', err)
+      queryError.value = err instanceof Error ? err.message : '查询失败'
+      return ''
     } finally {
-      loading.value = false
+      isQuerying.value = false
     }
   }
 
-  return { studentName, loading, error, fetchName }
+  return {
+    isQuerying,
+    queryError,
+    queryStudentName,
+  }
 }

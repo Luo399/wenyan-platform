@@ -238,168 +238,19 @@ function sanitizeHtml(html: string): string {
   return tempDiv.innerHTML
 }
 
-/**
- * 计算属性：安全处理后的 HTML 内容
- */
-const sanitizedContent = computed(() => {
-  return sanitizeHtml(contentHtml.value)
-})
-
-/**
- * 计算属性：弹窗样式
- */
-const tooltipStyle = computed(() => ({
-  left: `${tooltipPosition.value.x}px`,
-  top: `${tooltipPosition.value.y}px`,
-}))
-
-/**
- * 加载字词列表和基础信息数据
- */
-async function loadData() {
-  if (!props.wenId) {
-    loading.value = false
-    error.value = '请提供课文ID'
-    return
-  }
-
-  // 取消之前的请求
-  if (abortController) {
-    abortController.abort()
-  }
-  abortController = new AbortController()
-
-  loading.value = true
-  error.value = null
-
-  try {
-    // 并行加载 word_list 和 text_basic_info
-    const [wordListResponse, basicInfoResponse] = await Promise.all([
-      fetch(`${props.wordListBaseUrl}${props.wenId}.json`, {
-        signal: abortController.signal,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-      fetch(`${props.basicInfoBaseUrl}${props.wenId}.json`, {
-        signal: abortController.signal,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    ])
-
-    if (!wordListResponse.ok) {
-      throw new Error(`word_list 加载失败: HTTP ${wordListResponse.status}`)
-    }
-
-    if (!basicInfoResponse.ok) {
-      throw new Error(`text_basic_info 加载失败: HTTP ${basicInfoResponse.status}`)
-    }
-
-    const wordListData: WordItem[] = await wordListResponse.json()
-    const basicInfoData: TextBasicInfo = await basicInfoResponse.json()
-
-    // 数据格式验证
-    if (!Array.isArray(wordListData)) {
-      throw new Error('word_list 数据格式错误：应为数组')
-    }
-
-    if (!basicInfoData.text_id || !basicInfoData.title) {
-      throw new Error('text_basic_info 数据格式错误：缺少必要字段')
-    }
-
-    wordList.value = wordListData
-    basicInfo.value = basicInfoData
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      error.value = '加载超时'
-      return
-    }
-    const errorMsg = err instanceof Error ? err.message : '加载失败'
-    if (errorMsg.includes('404')) {
-      error.value = '【404正在加班加点中】'
-    } else {
-      error.value = errorMsg
-    }
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 鼠标悬浮处理
- */
-function handleMouseOver(event: MouseEvent) {
-  const target = event.target as HTMLElement
-
-  if (target.classList.contains('annotated-word')) {
-    const definition = target.getAttribute('data-def')
-    if (definition) {
-      currentAnnotation.value = definition
-      showTooltip.value = true
-      updateTooltipPosition(event)
-    }
-  }
-}
-
-/**
- * 鼠标移出处理
- */
-function handleMouseOut(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  const relatedTarget = event.relatedTarget as HTMLElement
-
-  if (target.classList.contains('annotated-word')) {
-    if (relatedTarget?.classList?.contains('annotation-tooltip')) {
-      return
-    }
-    showTooltip.value = false
-  }
-}
-
-/**
- * 更新弹窗位置
- */
-function updateTooltipPosition(event: MouseEvent) {
-  const x = event.clientX + 10
-  const y = event.clientY + 10
-
-  const windowWidth = window.innerWidth
-  const windowHeight = window.innerHeight
-
-  const tooltipMaxWidth = 300
-  const tooltipPadding = 20
-
-  tooltipPosition.value = {
-    x: Math.min(x, windowWidth - tooltipMaxWidth - tooltipPadding),
-    y: Math.min(y, windowHeight - tooltipPadding),
-  }
-}
-
-/**
- * 全局鼠标移动事件
- */
-function handleMouseMove(event: MouseEvent) {
-  if (showTooltip.value) {
-    updateTooltipPosition(event)
-  }
-}
-
-// 生命周期
+// 生命周期钩子 - 将 mousemove 监听范围缩小到 article-content 容器
 onMounted(() => {
-  if (props.autoLoad) {
-    loadData()
+  const contentEl = contentRef.value
+  if (contentEl) {
+    contentEl.addEventListener('mousemove', handleMouseMove)
   }
-})
-
-// 当 contentRef 元素出现/消失时绑定/解绑 mousemove 事件
-watch(contentRef, (el, prevEl) => {
-  prevEl?.removeEventListener('mousemove', handleMouseMove)
-  el?.addEventListener('mousemove', handleMouseMove)
 })
 
 onUnmounted(() => {
-  if (abortController) {
-    abortController.abort()
+  const contentEl = contentRef.value
+  if (contentEl) {
+    contentEl.removeEventListener('mousemove', handleMouseMove)
   }
-  contentRef.value?.removeEventListener('mousemove', handleMouseMove)
 })
 </script>
 
