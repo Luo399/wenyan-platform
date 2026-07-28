@@ -5,10 +5,7 @@ import HomeView from '@/views/HomeView.vue'
 
 // 非首屏组件懒加载
 const DetailView = () => import('@/views/DetailView.vue')
-const RuleView = () => import('@/views/RuleView.vue')
-const RuleView1 = () => import('@/views/RuleView1.vue')
-const RuleView2 = () => import('@/views/RuleView2.vue')
-const RuleView3 = () => import('@/views/RuleView3.vue')
+const RuleVideoView = () => import('@/views/RuleVideoView.vue')
 const StepOneView = () => import('@/views/StepOneView.vue')
 const StepTwoView = () => import('@/views/StepTwoView.vue')
 const StepThreeView = () => import('@/views/StepThreeView.vue')
@@ -24,7 +21,8 @@ export const routes = [
   {
     path: '/rules/:id',
     name: 'rules',
-    component: RuleView,
+    component: RuleVideoView,
+    props: { videoKey: 'bg', navKey: 'rules', titlePrefix: '规则介绍' },
   },
   {
     path: '/stepone/:id',
@@ -35,17 +33,20 @@ export const routes = [
   {
     path: '/rule1/:id',
     name: 'rule1',
-    component: RuleView1,
+    component: RuleVideoView,
+    props: { videoKey: '1', navKey: 'rule1', titlePrefix: '规则介绍（一）' },
   },
   {
     path: '/rule2/:id',
     name: 'rule2',
-    component: RuleView2,
+    component: RuleVideoView,
+    props: { videoKey: '2', navKey: 'rule2', titlePrefix: '规则介绍（二）' },
   },
   {
     path: '/rule3/:id',
     name: 'rule3',
-    component: RuleView3,
+    component: RuleVideoView,
+    props: { videoKey: '3', navKey: 'rule3', titlePrefix: '规则介绍（三）' },
   },
   {
     path: '/stepthree/:id',
