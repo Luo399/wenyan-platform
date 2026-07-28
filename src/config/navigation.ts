@@ -42,7 +42,16 @@
  */
 
 // 页面路由名称定义
-export type RouteName = 'home' | 'rules' | 'stepone' | 'steptwo' | 'stepthree' | 'rule1' | 'rule2' | 'rule3' | 'detail'
+export type RouteName =
+  | 'home'
+  | 'rules'
+  | 'stepone'
+  | 'steptwo'
+  | 'stepthree'
+  | 'rule1'
+  | 'rule2'
+  | 'rule3'
+  | 'detail'
 
 // 页面配置接口
 export interface PageConfig {

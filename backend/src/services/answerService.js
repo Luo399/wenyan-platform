@@ -3,11 +3,10 @@
  * 提供答题相关的业务逻辑
  */
 
-const { answerDb, studentDb } = require('../config/database')
+const { db } = require('../config/database')
 const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise')
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader')
 const { info, warn, logOperation } = require('../utils/logger')
-const { dbGet, dbAll, dbPrepareRun, dbSerialize } = require('../utils/dbPromise')
 
 /**
  * 获取学生姓名（从学生数据库）
@@ -15,8 +14,8 @@ const { dbGet, dbAll, dbPrepareRun, dbSerialize } = require('../utils/dbPromise'
  * @returns {Promise<string|null>} - 学生姓名
  */
 async function getStudentName(studentId) {
-  const row = await dbGet(studentDb, 'SELECT name FROM students WHERE student_id = ?', [studentId])
-  return row?.name || null
+  const row = await dbGet(db, 'SELECT student_name FROM students WHERE student_id = ?', [studentId])
+  return row?.student_name || null
 }
 
 /**
@@ -110,15 +109,15 @@ async function submitAnswers(data) {
 
       // 查询已有记录数
       const countRow = await dbGet(
-        answerDb,
-        `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+        db,
+        `SELECT COUNT(*) as count FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
         [wenId, studentId, question.id]
       )
       const attemptNumber = (countRow?.count || 0) + 1
 
       // 插入新记录
-      const stmt = answerDb.prepare(`
-        INSERT INTO answer_records (
+      const stmt = db.prepare(`
+        INSERT INTO answers (
           wen_id, student_id, question_id, user_answer, correct_answer,
           is_correct, score, submitted_at, attempt_number
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -178,8 +177,8 @@ async function submitAnswers(data) {
  */
 async function getAnswersByWenId(wenId) {
   const rows = await dbAll(
-    answerDb,
-    `SELECT * FROM answer_records WHERE wen_id = ? ORDER BY submitted_at DESC`,
+    db,
+    `SELECT * FROM answers WHERE wen_id = ? ORDER BY submitted_at DESC`,
     [wenId]
   )
 
@@ -251,8 +250,8 @@ async function getAnswersByWenId(wenId) {
  */
 async function getAnswersByStudentId(studentId) {
   const rows = await dbAll(
-    answerDb,
-    `SELECT * FROM answer_records WHERE student_id = ? ORDER BY wen_id, submitted_at DESC`,
+    db,
+    `SELECT * FROM answers WHERE student_id = ? ORDER BY wen_id, submitted_at DESC`,
     [studentId]
   )
 
@@ -346,15 +345,15 @@ async function submitSingleAnswer(data) {
 
   // 查询已有记录数
   const countRow = await dbGet(
-    answerDb,
-    `SELECT COUNT(*) as count FROM answer_records WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+    db,
+    `SELECT COUNT(*) as count FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
     [wenId, studentId, questionId]
   )
   const attemptNumber = (countRow?.count || 0) + 1
 
   // 插入新记录
-  const stmt = answerDb.prepare(`
-    INSERT INTO answer_records (
+  const stmt = db.prepare(`
+    INSERT INTO answers (
       wen_id, student_id, question_id, user_answer, correct_answer,
       is_correct, score, submitted_at, attempt_number
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

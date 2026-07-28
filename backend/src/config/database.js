@@ -43,6 +43,7 @@ function initAllTables() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             student_id TEXT NOT NULL UNIQUE,
             student_name TEXT,
+            class INTEGER DEFAULT 9,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
           )`,

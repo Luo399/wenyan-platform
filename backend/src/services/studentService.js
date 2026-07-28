@@ -3,7 +3,7 @@
  * 提供学生相关的业务逻辑
  */
 
-const { studentDb, answerDb } = require('../config/database');
+const { db } = require('../config/database');
 const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise');
 
 /**
@@ -13,8 +13,8 @@ const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise');
  */
 async function getStudentById(studentId) {
   return dbGet(
-    studentDb,
-    'SELECT student_id, name, class, created_at FROM students WHERE student_id = ?',
+    db,
+    'SELECT student_id, student_name, class, created_at FROM students WHERE student_id = ?',
     [studentId]
   );
 }
@@ -27,8 +27,8 @@ async function getStudentById(studentId) {
  * @returns {Promise<object>} - 操作结果
  */
 async function createOrUpdateStudent(studentId, name, studentClass = 9) {
-  const stmt = studentDb.prepare(
-    'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)'
+  const stmt = db.prepare(
+    'INSERT OR REPLACE INTO students (student_id, student_name, class) VALUES (?, ?, ?)'
   );
 
   try {
@@ -55,7 +55,7 @@ async function getStudentList(classNum) {
   }
 
   sql += ' ORDER BY student_id ASC';
-  return dbAll(studentDb, sql, params);
+  return dbAll(db, sql, params);
 }
 
 /**
@@ -66,7 +66,7 @@ async function getStudentList(classNum) {
  * @returns {Promise<object>} - 更新结果
  */
 async function updateStudent(studentId, name, studentClass) {
-  let updateSql = 'UPDATE students SET name = ?';
+  let updateSql = 'UPDATE students SET student_name = ?';
   const params = [name.trim()];
 
   if (studentClass !== undefined) {
@@ -77,7 +77,7 @@ async function updateStudent(studentId, name, studentClass) {
   updateSql += ' WHERE student_id = ?';
   params.push(studentId);
 
-  const result = await dbRun(studentDb, updateSql, params);
+  const result = await dbRun(db, updateSql, params);
 
   if (result.changes === 0) {
     return { success: false, message: '未找到该学生' };
@@ -98,15 +98,15 @@ async function updateStudent(studentId, name, studentClass) {
 async function deleteStudent(studentId) {
   // 删除答题记录
   const answerResult = await dbRun(
-    answerDb,
-    'DELETE FROM answer_records WHERE student_id = ?',
+    db,
+    'DELETE FROM answers WHERE student_id = ?',
     [studentId]
   );
   const deletedRecordsCount = answerResult.changes || 0;
 
   // 删除学生
   const result = await dbRun(
-    studentDb,
+    db,
     'DELETE FROM students WHERE student_id = ?',
     [studentId]
   );
