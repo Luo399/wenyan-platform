@@ -7,6 +7,13 @@
   - 展示学生列表和答题记录
   - 提供数据筛选、排序和分页功能
   - 支持数据导出
+
+  子组件拆分（C02）：
+  - StudentTable        学生列表表格
+  - AnswerTable         答题记录表格（wenId / studentId 两种模式）
+  - StudentFormModal    新增/编辑学生弹窗
+  - DeleteConfirmModal  删除确认弹窗
+  - AnswerDetailModal   答题详情弹窗
 -->
 <template>
   <div class="answer-query-container">
@@ -172,91 +179,24 @@
       </div>
 
       <!-- 学生列表（带CRUD操作） -->
-      <table v-else-if="activeTab === 'students'" class="data-table">
-        <thead>
-          <tr>
-            <th>学号</th>
-            <th>姓名</th>
-            <th>班级</th>
-            <th>创建时间</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="student in displayData" :key="student.student_id">
-            <td>{{ student.student_id }}</td>
-            <td>{{ student.name }}</td>
-            <td>{{ student.class || '-' }}</td>
-            <td>{{ formatDate(student.created_at) }}</td>
-            <td class="actions-cell">
-              <button class="action-btn view-btn" @click="viewStudentDetail(student)">查看</button>
-              <button class="action-btn edit-btn" @click="openEditModal(student)">编辑</button>
-              <button class="action-btn answer-btn" @click="viewStudentAnswers(student.student_id)">
-                答题
-              </button>
-              <button class="action-btn delete-btn" @click="confirmDelete(student)">删除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <StudentTable
+        v-else-if="activeTab === 'students'"
+        :students="displayData"
+        @view="viewStudentDetail"
+        @edit="openEditModal"
+        @view-answers="viewStudentAnswers"
+        @confirm-delete="confirmDelete"
+      />
 
-      <!-- 按文言文查询结果 -->
-      <table v-else-if="activeTab === 'wenId'" class="data-table">
-        <thead>
-          <tr>
-            <th>学号</th>
-            <th>姓名</th>
-            <th>答题数</th>
-            <th>正确数</th>
-            <th>错误数</th>
-            <th>平均分</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="student in displayData" :key="student.studentId">
-            <td>{{ student.studentId }}</td>
-            <td>{{ student.studentName || '未知' }}</td>
-            <td>{{ student.totalQuestions }}</td>
-            <td class="correct">{{ student.correctCount }}</td>
-            <td class="wrong">{{ student.wrongCount }}</td>
-            <td>{{ student.avgScore }}%</td>
-            <td>
-              <button class="action-btn detail-btn" @click="viewWenStudentDetail(student)">
-                详情
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- 按学生查询结果 -->
-      <table v-else-if="activeTab === 'studentId'" class="data-table">
-        <thead>
-          <tr>
-            <th>文言文ID</th>
-            <th>答题时间</th>
-            <th>答题数</th>
-            <th>正确数</th>
-            <th>平均分</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="record in displayData" :key="record.wenId">
-            <td>{{ record.wenId }}</td>
-            <td>{{ formatDate(record.submittedAt) }}</td>
-            <td>{{ record.totalQuestions }}</td>
-            <td class="correct">{{ record.correctCount }}</td>
-            <td>{{ record.avgScore }}%</td>
-            <td>
-              <button class="action-btn detail-btn" @click="viewStudentWenDetail(record)">
-                详情
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <!-- 按文言文/学生ID查询结果 -->
+      <AnswerTable
+        v-else
+        :records="displayData"
+        :mode="activeTab as 'wenId' | 'studentId'"
+        @view-detail="
+          activeTab === 'wenId' ? viewWenStudentDetail($event) : viewStudentWenDetail($event)
+        "
+      />
     </div>
 
     <!-- 分页 -->
@@ -277,7 +217,7 @@
       </button>
     </div>
 
-    <!-- 学生详情弹窗 -->
+    <!-- 学生详情弹窗（轻量，保留在主容器） -->
     <div v-if="showStudentModal" class="modal-overlay" @click.self="closeModals">
       <div class="modal-content student-detail-modal">
         <div class="modal-header">
@@ -306,174 +246,44 @@
     </div>
 
     <!-- 答题详情弹窗 -->
-    <div v-if="showAnswerModal" class="modal-overlay" @click.self="closeModals">
-      <div class="modal-content answer-detail-modal">
-        <div class="modal-header">
-          <h3>答题详情</h3>
-          <button class="close-btn" @click="closeModals">×</button>
-        </div>
-        <div v-if="selectedAnswers.length > 0" class="modal-body">
-          <div class="answer-detail-header">
-            <span>{{ selectedStudentInfo }}</span>
-          </div>
-          <div v-for="(answer, index) in selectedAnswers" :key="index" class="answer-item">
-            <div class="answer-header">
-              <span class="question-num">第 {{ index + 1 }} 题</span>
-              <span class="score-badge" :class="{ correct: answer.isCorrect }">
-                {{ answer.isCorrect ? '正确' : '错误' }}
-              </span>
-            </div>
-            <div class="answer-content">
-              <div class="answer-row">
-                <span class="label">提交时间：</span>
-                <span class="value">{{ formatDate(answer.submittedAt) }}</span>
-              </div>
-              <div class="answer-row">
-                <span class="label">答题次数：</span>
-                <span class="value">第 {{ answer.attemptNumber }} 次</span>
-              </div>
-              <div class="answer-row">
-                <span class="label">你的答案：</span>
-                <span class="value">{{ formatAnswer(answer.userAnswer) }}</span>
-              </div>
-              <div class="answer-row" v-if="answer.correctAnswer">
-                <span class="label">正确答案：</span>
-                <span class="value correct">{{ formatAnswer(answer.correctAnswer) }}</span>
-              </div>
-              <div class="answer-row">
-                <span class="label">得分：</span>
-                <span class="value">{{ answer.score }}分</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AnswerDetailModal
+      v-if="showAnswerModal"
+      :student-info="selectedStudentInfo"
+      :answers="selectedAnswers"
+      @close="closeModals"
+    />
 
     <!-- 新增/编辑学生弹窗 -->
-    <div v-if="showStudentFormModal" class="modal-overlay" @click.self="closeFormModal">
-      <div class="modal-content student-form-modal">
-        <div class="modal-header">
-          <h3>{{ isEditMode ? '编辑学生信息' : '新增学生' }}</h3>
-          <button class="close-btn" @click="closeFormModal">×</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="handleSubmitForm" class="student-form">
-            <div class="form-group">
-              <label for="studentIdInput">学号 <span class="required">*</span></label>
-              <input
-                id="studentIdInput"
-                v-model="studentForm.studentId"
-                type="text"
-                placeholder="请输入学号（纯数字）"
-                class="form-input"
-                :disabled="isEditMode || isSubmitting"
-                :class="{ error: formErrors.studentId }"
-              />
-              <span v-if="formErrors.studentId" class="error-text">{{ formErrors.studentId }}</span>
-            </div>
-
-            <div class="form-group">
-              <label for="studentNameInput">姓名 <span class="required">*</span></label>
-              <input
-                id="studentNameInput"
-                v-model="studentForm.name"
-                type="text"
-                placeholder="请输入姓名"
-                class="form-input"
-                :disabled="isSubmitting"
-                :class="{ error: formErrors.name }"
-              />
-              <span v-if="formErrors.name" class="error-text">{{ formErrors.name }}</span>
-            </div>
-
-            <div class="form-group">
-              <label for="studentClassInput">班级 <span class="required">*</span></label>
-              <input
-                id="studentClassInput"
-                v-model.number="studentForm.class"
-                type="number"
-                placeholder="请输入班级（如：9）"
-                class="form-input"
-                :disabled="isSubmitting"
-                :class="{ error: formErrors.class }"
-              />
-              <span v-if="formErrors.class" class="error-text">{{ formErrors.class }}</span>
-            </div>
-
-            <div class="form-actions">
-              <button
-                type="button"
-                class="cancel-btn"
-                @click="closeFormModal"
-                :disabled="isSubmitting"
-              >
-                取消
-              </button>
-              <button type="submit" class="submit-btn" :disabled="isSubmitting">
-                <span v-if="isSubmitting" class="spinner-small"></span>
-                <span v-else>{{ isEditMode ? '保存' : '添加' }}</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <StudentFormModal
+      v-if="showStudentFormModal"
+      :is-edit-mode="isEditMode"
+      :is-submitting="isSubmitting"
+      :initial-student="selectedStudent"
+      @close="closeFormModal"
+      @submit="handleSubmitForm"
+    />
 
     <!-- 删除确认弹窗 -->
-    <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
-      <div class="modal-content delete-confirm-modal">
-        <div class="modal-header">
-          <h3>确认删除</h3>
-          <button class="close-btn" @click="closeDeleteModal">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="confirm-content">
-            <div class="warning-icon">⚠</div>
-            <p>
-              确定要删除学生 <strong>{{ studentToDelete?.name }}</strong> 吗？
-            </p>
-            <p class="sub-text">学号：{{ studentToDelete?.student_id }}</p>
-            <p class="sub-text danger">此操作将同时删除该学生的所有答题记录，且无法恢复！</p>
-          </div>
-          <div class="form-actions">
-            <button
-              type="button"
-              class="cancel-btn"
-              @click="closeDeleteModal"
-              :disabled="isDeleting"
-            >
-              取消
-            </button>
-            <button type="button" class="danger-btn" @click="handleDelete" :disabled="isDeleting">
-              <span v-if="isDeleting" class="spinner-small"></span>
-              <span v-else>确认删除</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <DeleteConfirmModal
+      v-if="showDeleteModal"
+      :student="studentToDelete"
+      :is-deleting="isDeleting"
+      @close="closeDeleteModal"
+      @confirm="handleDelete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
 import { get } from '@/utils/api'
-import {
-  createStudent,
-  updateStudent,
-  deleteStudent,
-  validateStudentId,
-  validateStudentName,
-  type StudentInfo,
-} from '@/utils/studentApi'
-
-interface StudentRecord {
-  student_id: string
-  name: string
-  class?: number
-  created_at?: string
-}
+import { formatDate } from '@/utils/format'
+import { createStudent, updateStudent, deleteStudent, type StudentInfo } from '@/utils/studentApi'
+import StudentTable from '@/components/StudentTable.vue'
+import AnswerTable from '@/components/AnswerTable.vue'
+import StudentFormModal from '@/components/StudentFormModal.vue'
+import DeleteConfirmModal from '@/components/DeleteConfirmModal.vue'
+import AnswerDetailModal from '@/components/AnswerDetailModal.vue'
 
 interface Toast {
   show: boolean
@@ -481,19 +291,7 @@ interface Toast {
   type: 'success' | 'error'
 }
 
-interface FormErrors {
-  studentId: string
-  name: string
-  class?: string
-}
-
-const tabs = [
-  { id: 'wenId', name: '按文言文ID查询' },
-  { id: 'studentId', name: '按学生ID查询' },
-  { id: 'students', name: '学生管理' },
-]
-
-const activeTab = ref('students')
+const activeTab = ref<'students' | 'wenId' | 'studentId'>('students')
 const loading = ref(false)
 const error = ref('')
 const queryForm = reactive({
@@ -517,7 +315,7 @@ const pagination = ref<{
 
 const showStudentModal = ref(false)
 const showAnswerModal = ref(false)
-const selectedStudent = ref<StudentRecord | null>(null)
+const selectedStudent = ref<StudentInfo | null>(null)
 const selectedAnswers = ref<any[]>([])
 const selectedStudentInfo = ref('')
 
@@ -533,19 +331,7 @@ const showDeleteModal = ref(false)
 const isEditMode = ref(false)
 const isSubmitting = ref(false)
 const isDeleting = ref(false)
-const studentToDelete = ref<StudentRecord | null>(null)
-
-const studentForm = reactive({
-  studentId: '',
-  name: '',
-  class: 9,
-})
-
-const formErrors = reactive<FormErrors>({
-  studentId: '',
-  name: '',
-  class: '',
-})
+const studentToDelete = ref<StudentInfo | null>(null)
 
 const toast = reactive<Toast>({
   show: false,
@@ -584,18 +370,6 @@ const displayData = computed(() => {
   return allData.value.slice(start, end)
 })
 
-function formatDate(dateStr: string | undefined): string {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN')
-}
-
-function formatAnswer(answer: any): string {
-  if (answer === null || answer === undefined) return '-'
-  if (Array.isArray(answer)) return answer.join(', ')
-  return String(answer)
-}
-
 async function queryByWenId() {
   const wenId = queryForm.wenId.trim()
   if (!wenId) {
@@ -631,7 +405,7 @@ async function queryByClass() {
   }
 }
 
-async function fetchData(url: string, type: string) {
+async function fetchData(url: string, type: 'wenId' | 'studentId' | 'students') {
   loading.value = true
   error.value = ''
   allData.value = []
@@ -732,7 +506,7 @@ function handleSearch() {
   }
 
   const filtered = allData.value.filter((student: any) => {
-    const s = student as StudentRecord
+    const s = student as StudentInfo
     return s.student_id.toLowerCase().includes(keyword) || s.name.toLowerCase().includes(keyword)
   })
 
@@ -756,7 +530,7 @@ function nextPage() {
   }
 }
 
-function viewStudentDetail(student: any) {
+function viewStudentDetail(student: StudentInfo) {
   selectedStudent.value = student
   showStudentModal.value = true
 }
@@ -788,23 +562,12 @@ function closeModals() {
 
 function openAddModal() {
   isEditMode.value = false
-  studentForm.studentId = ''
-  studentForm.name = ''
-  studentForm.class = 9
-  formErrors.studentId = ''
-  formErrors.name = ''
-  formErrors.class = ''
+  selectedStudent.value = null
   showStudentFormModal.value = true
 }
 
-function openEditModal(student: StudentRecord) {
+function openEditModal(student: StudentInfo) {
   isEditMode.value = true
-  studentForm.studentId = student.student_id
-  studentForm.name = student.name
-  studentForm.class = student.class || 9
-  formErrors.studentId = ''
-  formErrors.name = ''
-  formErrors.class = ''
   selectedStudent.value = student
   showStudentFormModal.value = true
 }
@@ -814,51 +577,22 @@ function closeFormModal() {
   selectedStudent.value = null
 }
 
-function validateForm(): boolean {
-  let valid = true
-  formErrors.studentId = ''
-  formErrors.name = ''
-  formErrors.class = ''
-
-  if (!isEditMode.value) {
-    const idValidation = validateStudentId(studentForm.studentId)
-    if (!idValidation.valid) {
-      formErrors.studentId = idValidation.error!
-      valid = false
-    }
-  }
-
-  const nameValidation = validateStudentName(studentForm.name)
-  if (!nameValidation.valid) {
-    formErrors.name = nameValidation.error!
-    valid = false
-  }
-
-  if (!studentForm.class || studentForm.class <= 0) {
-    formErrors.class = '请输入有效的班级号'
-    valid = false
-  }
-
-  return valid
-}
-
-async function handleSubmitForm() {
-  if (!validateForm()) return
-
+/** 接收 StudentFormModal 提交的表单数据，调用 API 完成 新增/编辑 */
+async function handleSubmitForm(payload: { studentId: string; name: string; class: number }) {
   isSubmitting.value = true
 
   try {
     let result
     if (isEditMode.value && selectedStudent.value) {
       result = await updateStudent(selectedStudent.value.student_id, {
-        name: studentForm.name.trim(),
-        class: studentForm.class,
+        name: payload.name,
+        class: payload.class,
       })
     } else {
       result = await createStudent({
-        studentId: studentForm.studentId.trim(),
-        name: studentForm.name.trim(),
-        class: studentForm.class,
+        studentId: payload.studentId,
+        name: payload.name,
+        class: payload.class,
       })
     }
 
@@ -876,7 +610,7 @@ async function handleSubmitForm() {
   }
 }
 
-function confirmDelete(student: StudentRecord) {
+function confirmDelete(student: StudentInfo) {
   studentToDelete.value = student
   showDeleteModal.value = true
 }
@@ -1151,11 +885,14 @@ loadAllStudents()
   align-items: flex-end;
 }
 
-.form-group {
+/* 查询表单与 StudentFormModal 共用的表单字段样式（:deep 穿透到子组件） */
+.form-group,
+:deep(.form-group) {
   flex: 1;
 }
 
-.form-group label {
+.form-group label,
+:deep(.form-group label) {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1163,7 +900,8 @@ loadAllStudents()
   margin-bottom: 0.375rem;
 }
 
-.form-input {
+.form-input,
+:deep(.form-input) {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #d1d5db;
@@ -1172,29 +910,30 @@ loadAllStudents()
   transition: all 0.2s;
 }
 
-.form-input:focus {
+.form-input:focus,
+:deep(.form-input:focus) {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-input.error {
+:deep(.form-input.error) {
   border-color: #ef4444;
 }
 
-.form-input:disabled {
+:deep(.form-input:disabled) {
   background: #f3f4f6;
   cursor: not-allowed;
 }
 
-.error-text {
+:deep(.error-text) {
   color: #ef4444;
   font-size: 0.75rem;
   margin-top: 0.25rem;
   display: block;
 }
 
-.required {
+:deep(.required) {
   color: #ef4444;
 }
 
@@ -1308,44 +1047,45 @@ loadAllStudents()
   cursor: not-allowed;
 }
 
-.data-table {
+/* 表格相关样式穿透到 StudentTable / AnswerTable */
+:deep(.data-table) {
   width: 100%;
   border-collapse: collapse;
 }
 
-.data-table th,
-.data-table td {
+:deep(.data-table th),
+:deep(.data-table td) {
   padding: 0.875rem 1rem;
   text-align: left;
   border-bottom: 1px solid #e5e7eb;
 }
 
-.data-table th {
+:deep(.data-table th) {
   background: #f9fafb;
   font-weight: 600;
   color: #374151;
   font-size: 0.875rem;
 }
 
-.data-table tr:hover {
+:deep(.data-table tr:hover) {
   background: #f9fafb;
 }
 
-.data-table .correct {
+:deep(.data-table .correct) {
   color: #10b981;
   font-weight: 500;
 }
 
-.data-table .wrong {
+:deep(.data-table .wrong) {
   color: #ef4444;
   font-weight: 500;
 }
 
-.actions-cell {
+:deep(.actions-cell) {
   white-space: nowrap;
 }
 
-.action-btn {
+:deep(.action-btn) {
   padding: 0.375rem 0.75rem;
   border: none;
   border-radius: 0.25rem;
@@ -1356,48 +1096,48 @@ loadAllStudents()
   transition: all 0.2s;
 }
 
-.view-btn {
+:deep(.view-btn) {
   background: #f3f4f6;
   color: #374151;
 }
 
-.view-btn:hover {
+:deep(.view-btn:hover) {
   background: #e5e7eb;
 }
 
-.edit-btn {
+:deep(.edit-btn) {
   background: #fef3c7;
   color: #d97706;
 }
 
-.edit-btn:hover {
+:deep(.edit-btn:hover) {
   background: #fde68a;
 }
 
-.answer-btn {
+:deep(.answer-btn) {
   background: #dbeafe;
   color: #2563eb;
 }
 
-.answer-btn:hover {
+:deep(.answer-btn:hover) {
   background: #bfdbfe;
 }
 
-.detail-btn {
+:deep(.detail-btn) {
   background: #3b82f6;
   color: white;
 }
 
-.detail-btn:hover {
+:deep(.detail-btn:hover) {
   background: #2563eb;
 }
 
-.delete-btn {
+:deep(.delete-btn) {
   background: #fee2e2;
   color: #dc2626;
 }
 
-.delete-btn:hover {
+:deep(.delete-btn:hover) {
   background: #fecaca;
 }
 
@@ -1478,7 +1218,8 @@ loadAllStudents()
   font-size: 0.875rem;
 }
 
-.modal-overlay {
+/* 弹窗共享样式：穿透到 StudentFormModal / DeleteConfirmModal / AnswerDetailModal */
+:deep(.modal-overlay) {
   position: fixed;
   top: 0;
   left: 0;
@@ -1492,7 +1233,7 @@ loadAllStudents()
   padding: 1rem;
 }
 
-.modal-content {
+:deep(.modal-content) {
   background: white;
   border-radius: 0.5rem;
   max-width: 500px;
@@ -1501,7 +1242,7 @@ loadAllStudents()
   overflow: hidden;
 }
 
-.modal-header {
+:deep(.modal-header) {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1509,12 +1250,12 @@ loadAllStudents()
   border-bottom: 1px solid #e5e7eb;
 }
 
-.modal-header h3 {
+:deep(.modal-header h3) {
   margin: 0;
   color: #1f2937;
 }
 
-.close-btn {
+:deep(.close-btn) {
   width: 2rem;
   height: 2rem;
   border: none;
@@ -1528,16 +1269,17 @@ loadAllStudents()
   justify-content: center;
 }
 
-.close-btn:hover {
+:deep(.close-btn:hover) {
   background: #f3f4f6;
 }
 
-.modal-body {
+:deep(.modal-body) {
   padding: 1.5rem;
   overflow-y: auto;
   max-height: calc(80vh - 6rem);
 }
 
+/* 学生详情弹窗（保留在主容器，仍用 scoped 命中） */
 .detail-row {
   margin-bottom: 0.75rem;
 }
@@ -1552,20 +1294,21 @@ loadAllStudents()
   color: #1f2937;
 }
 
-.student-form {
+/* StudentFormModal 表单 */
+:deep(.student-form) {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.form-actions {
+:deep(.form-actions) {
   display: flex;
   gap: 0.75rem;
   margin-top: 1rem;
   justify-content: flex-end;
 }
 
-.cancel-btn {
+:deep(.cancel-btn) {
   padding: 0.625rem 1.25rem;
   background: #f3f4f6;
   color: #374151;
@@ -1576,11 +1319,11 @@ loadAllStudents()
   transition: all 0.2s;
 }
 
-.cancel-btn:hover:not(:disabled) {
+:deep(.cancel-btn:hover:not(:disabled)) {
   background: #e5e7eb;
 }
 
-.submit-btn {
+:deep(.submit-btn) {
   padding: 0.625rem 1.5rem;
   background: #3b82f6;
   color: white;
@@ -1596,17 +1339,17 @@ loadAllStudents()
   min-width: 80px;
 }
 
-.submit-btn:hover:not(:disabled) {
+:deep(.submit-btn:hover:not(:disabled)) {
   background: #2563eb;
 }
 
-.submit-btn:disabled,
-.cancel-btn:disabled {
+:deep(.submit-btn:disabled),
+:deep(.cancel-btn:disabled) {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.danger-btn {
+:deep(.danger-btn) {
   padding: 0.625rem 1.5rem;
   background: #ef4444;
   color: white;
@@ -1622,16 +1365,16 @@ loadAllStudents()
   min-width: 100px;
 }
 
-.danger-btn:hover:not(:disabled) {
+:deep(.danger-btn:hover:not(:disabled)) {
   background: #dc2626;
 }
 
-.danger-btn:disabled {
+:deep(.danger-btn:disabled) {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.spinner-small {
+:deep(.spinner-small) {
   width: 1rem;
   height: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -1640,7 +1383,8 @@ loadAllStudents()
   animation: spin 0.8s linear infinite;
 }
 
-.answer-detail-header {
+/* AnswerDetailModal 内容样式 */
+:deep(.answer-detail-header) {
   padding: 0.75rem;
   background: #f9fafb;
   border-radius: 0.375rem;
@@ -1649,14 +1393,14 @@ loadAllStudents()
   color: #374151;
 }
 
-.answer-item {
+:deep(.answer-item) {
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
   margin-bottom: 1rem;
   overflow: hidden;
 }
 
-.answer-header {
+:deep(.answer-header) {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1664,12 +1408,12 @@ loadAllStudents()
   background: #f9fafb;
 }
 
-.question-num {
+:deep(.question-num) {
   font-weight: 600;
   color: #374151;
 }
 
-.score-badge {
+:deep(.score-badge) {
   padding: 0.25rem 0.5rem;
   border-radius: 9999px;
   font-size: 0.75rem;
@@ -1678,60 +1422,61 @@ loadAllStudents()
   color: #dc2626;
 }
 
-.score-badge.correct {
+:deep(.score-badge.correct) {
   background: #d1fae5;
   color: #059669;
 }
 
-.answer-content {
+:deep(.answer-content) {
   padding: 0.75rem;
 }
 
-.answer-row {
+:deep(.answer-row) {
   margin-bottom: 0.5rem;
 }
 
-.answer-row:last-child {
+:deep(.answer-row:last-child) {
   margin-bottom: 0;
 }
 
-.answer-row .label {
+:deep(.answer-row .label) {
   color: #6b7280;
   font-size: 0.875rem;
   margin-right: 0.5rem;
 }
 
-.answer-row .value {
+:deep(.answer-row .value) {
   color: #1f2937;
   font-size: 0.875rem;
 }
 
-.answer-row .value.correct {
+:deep(.answer-row .value.correct) {
   color: #10b981;
   font-weight: 500;
 }
 
-.confirm-content {
+/* DeleteConfirmModal 内容样式 */
+:deep(.confirm-content) {
   text-align: center;
   margin-bottom: 1.5rem;
 }
 
-.warning-icon {
+:deep(.warning-icon) {
   font-size: 3rem;
   margin-bottom: 1rem;
 }
 
-.confirm-content p {
+:deep(.confirm-content p) {
   margin: 0.5rem 0;
   color: #374151;
 }
 
-.sub-text {
+:deep(.sub-text) {
   font-size: 0.875rem;
   color: #6b7280;
 }
 
-.sub-text.danger {
+:deep(.sub-text.danger) {
   color: #ef4444;
   font-weight: 500;
 }
@@ -1778,17 +1523,17 @@ loadAllStudents()
     justify-content: space-between;
   }
 
-  .data-table {
+  :deep(.data-table) {
     display: block;
     overflow-x: auto;
   }
 
-  .action-btn {
+  :deep(.action-btn) {
     margin-bottom: 0.25rem;
     margin-right: 0.25rem;
   }
 
-  .modal-content {
+  :deep(.modal-content) {
     width: 100%;
     margin: 0.5rem;
   }
