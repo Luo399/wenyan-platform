@@ -6,7 +6,7 @@
 
 ## C01. RuleView/RuleView1/2/3 四文件 99% 重复
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**:
   - `src/views/RuleView.vue`（1-80 行）
   - `src/views/RuleView1.vue`（1-80 行）
@@ -17,6 +17,12 @@
 - **验证方式**: 4 个规则页面功能正常，代码量从 320 行降到约 90 行
 - **分支建议**: `refactor/component-01`
 - **依赖**: 无
+- **实际变更**:
+  - 新增 `src/views/RuleVideoView.vue`（97 行）
+  - 删除 `src/views/RuleView.vue` / `RuleView1.vue` / `RuleView2.vue` / `RuleView3.vue`
+  - 更新 `src/router/index.ts`：4 条路由指向 RuleVideoView，传不同 props
+  - 删除 `tests/views/RuleView.spec.ts` / `tests/views/RuleViews.spec.ts`
+  - 新增 `tests/views/RuleVideoView.spec.ts`：覆盖 4 种 props 配置的渲染、结构、子组件测试
 
 ## C02. AnswerQueryView.vue 1810 行需拆分为子组件
 - **优先级**: P1
