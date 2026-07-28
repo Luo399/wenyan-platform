@@ -46,10 +46,15 @@ __screenshots__/
 # Vite
 *.timestamp-*-*.mjs
 
-# Environment files
+# Environment files（仅保留 .example 模板，实际配置不进版本库）
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
+backend/.env
+backend/.env.production
+backend/.env.local
 
 # Media files
 public/audio/
@@ -89,5 +94,5 @@ project_structure.txt
 # OSS tool output
 ossutil_output/
 
-# Personal config files
-config
+# Personal config files（仅忽略根目录下的 config，不影响 backend/src/config/）
+/config
