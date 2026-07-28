@@ -46,6 +46,7 @@ import { useNavigation } from '@/composables/useNavigation'
 import { useStudentInfo } from '@/composables/useStudentInfo'
 import { submitAnswers } from '@/services/apiService'
 import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
+import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 
 interface Level1QuizItem {
   text_id: string

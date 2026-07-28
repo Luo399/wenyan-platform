@@ -340,11 +340,3 @@ export function terminateJsonParserWorker() {
     debugLog('[useDataLoader] JSON Parser Worker 已终止')
   }
 }
-
-/**
- * 清理模块级共享数据缓存（供外部调用）
- */
-export function clearDataCache() {
-  dataCache.clear()
-  debugLog('[useDataLoader] 数据缓存已清理')
-}

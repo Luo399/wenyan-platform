@@ -1,37 +1,3 @@
-<!--
-  WordList.vue - 字词注释组件
-
-  功能说明：
-  - 从 word_list JSON 加载字词注释数据
-  - 从 text_basic_info JSON 加载课文标题和原文
-  - 渲染带有注释标记的 HTML 内容
-  - 鼠标悬浮时显示注释弹窗
-  - 弹窗宽度自适应内容长度
-
-  使用方式：
-  <WordList wenId="WEN_01" />
-
-  Props:
-  - wenId: 课文ID，用于加载对应的注释数据
-
-  JSON 数据格式：
-  word_list: [
-    {
-      "text_id": "WEN_01",
-      "word": "阳城",
-      "basic_meaning": "在今河南登封东南",
-      "synonym_analysis": "",
-      "follow_up_questions": []
-    }
-  ]
-
-  text_basic_info: {
-    "text_id": "WEN_01",
-    "title": "陈涉世家",
-    "original_text": "陈胜者，阳城人也..."
-  }
--->
-
 <template>
   <div class="word-list-container">
     <!-- 加载状态 -->
@@ -43,199 +9,145 @@
     <!-- 错误状态 -->
     <div v-else-if="error" class="error-state">
       <i class="fas fa-exclamation-circle"></i>
-      <p>{{ error }}</p>
-      <button @click="loadData" class="retry-btn">重试</button>
+      <p>{{ error || '加载失败' }}</p>
+      <button @click="retry" class="retry-btn">重试</button>
+    </div>
+
+    <!-- 空数据状态 -->
+    <div v-else-if="!adaptedData" class="empty-state">
+      <p>暂无数据</p>
     </div>
 
     <!-- 主内容 -->
     <div v-else class="content-wrapper">
-      <h1 class="article-title">{{ articleTitle }}</h1>
+      <!-- 文章标题区域 -->
+      <div class="article-header">
+        <h1 class="article-title">{{ adaptedData.basicInfo.title || '未知标题' }}</h1>
+        <p class="article-meta">
+          <span class="author"
+            >{{ adaptedData.basicInfo.dynasty }} · {{ adaptedData.basicInfo.author }}</span
+          >
+        </p>
+      </div>
+
+      <!-- 文章内容（直接使用适配器预生成的 HTML） -->
       <div
         ref="contentRef"
         class="article-content"
-        v-html="sanitizedContent"
-        @mouseover="handleMouseOver"
-        @mouseout="handleMouseOut"
+        v-html="adaptedData.basicInfo.contentHtml"
       ></div>
-    </div>
 
-    <!-- 注释弹窗 -->
-    <Teleport to="body">
-      <div v-if="showTooltip" class="annotation-tooltip" :style="tooltipStyle">
+      <!-- Tooltip -->
+      <div
+        v-if="showTooltip"
+        class="tooltip"
+        :style="{ left: tooltipPosition.x + 'px', top: tooltipPosition.y + 'px' }"
+      >
         {{ currentAnnotation }}
       </div>
-    </Teleport>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useDataLoader } from '@/composables/useDataLoader'
+import {
+  adaptWordList,
+  type RawWordItem,
+  type RawTextBasicInfo,
+  type WordListAdapterResult,
+} from '@/adapters/wordListAdapter'
 
-/**
- * 字词数据类型定义
- */
-interface WordItem {
-  text_id: string
-  word: string
-  basic_meaning: string
-  synonym_analysis: string
-  follow_up_questions: string[]
-}
-
-/**
- * 课文基础信息类型定义
- */
-interface TextBasicInfo {
-  text_id: string
-  title: string
-  author: string
-  dynasty: string
-  original_text: string
-  illustration: string
-  bgm: string
-}
-
-/**
- * Props 类型定义
- */
-interface Props {
-  wenId: string
-  autoLoad?: boolean
-  wordListBaseUrl?: string
-  basicInfoBaseUrl?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  autoLoad: true,
-  wordListBaseUrl: '/data/word_list/',
-  basicInfoBaseUrl: '/data/text_basic_info/',
-})
-
-// 状态管理
-const loading = ref(false)
-const error = ref<string | null>(null)
-const wordList = ref<WordItem[]>([])
-const basicInfo = ref<TextBasicInfo | null>(null)
+// Tooltip 状态
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
 const contentRef = ref<HTMLElement | null>(null)
 
-// AbortController 用于取消请求
-let abortController: AbortController | null = null
-
-/**
- * 获取文章标题
- */
-const articleTitle = computed(() => {
-  return basicInfo.value?.title || '未知标题'
-})
-
-/**
- * 生成带注释的 HTML 内容
- * 将原文中的字词替换为带有 data-def 属性的 span 标签
- */
-const contentHtml = computed(() => {
-  if (!basicInfo.value?.original_text || !wordList.value.length) {
-    return '<p>暂无内容</p>'
-  }
-
-  let content = basicInfo.value.original_text
-
-  // 创建字词映射表，按字词长度降序排列，优先匹配长词
-  const sortedWords = [...wordList.value].sort((a, b) => b.word.length - a.word.length)
-
-  // 替换所有字词为带注释的 span 标签
-  for (const item of sortedWords) {
-    if (!item.word || !item.basic_meaning) continue
-
-    // 使用正则表达式全局替换
-    // 转义特殊字符
-    const escapedWord = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(escapedWord, 'g')
-
-    // 创建带注释的 span 标签
-    const replacement = `<span class="annotated-word" data-def="${escapeHtml(item.basic_meaning)}">${item.word}</span>`
-
-    content = content.replace(regex, replacement)
-  }
-
-  // 将换行符转换为段落标签
-  content = content.replace(/\n\n/g, '</p><p>')
-  content = content.replace(/\n/g, '<br>')
-  content = `<p>${content}</p>`
-
-  return content
-})
-
-/**
- * HTML 转义函数
- */
-function escapeHtml(text: string): string {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+interface Props {
+  wenId: string
+  wordListBaseUrl?: string
+  basicInfoBaseUrl?: string
 }
 
-/**
- * HTML 白名单过滤配置
- * 只允许安全的标签和属性，防止 XSS 攻击
- */
-const ALLOWED_TAGS = ['p', 'span', 'br']
-const ALLOWED_ATTRS: Record<string, string[]> = {
-  p: [],
-  span: ['class', 'data-def'],
-  br: [],
-}
+const props = withDefaults(defineProps<Props>(), {
+  wordListBaseUrl: '/data/word_list/',
+  basicInfoBaseUrl: '/data/text_basic_info/',
+})
 
-/**
- * 过滤 HTML 内容，移除危险标签和属性
- */
-function sanitizeHtml(html: string): string {
-  if (!html) return ''
+const wordListUrl = `${props.wordListBaseUrl}${props.wenId}.json`
+const basicInfoUrl = `${props.basicInfoBaseUrl}${props.wenId}.json`
 
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = html
+// 加载词汇列表
+const {
+  loading: wordListLoading,
+  error: wordListError,
+  data: wordListData,
+  retry: retryWordList,
+} = useDataLoader<RawWordItem[]>(() => wordListUrl, {
+  timeout: 10000,
+  retryCount: 1,
+})
 
-  function filterNode(node: Node) {
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as HTMLElement
-      const tagName = element.tagName.toLowerCase()
+// 加载基础信息
+const {
+  loading: basicInfoLoading,
+  error: basicInfoError,
+  data: basicInfoData,
+  retry: retryBasicInfo,
+} = useDataLoader<RawTextBasicInfo>(() => basicInfoUrl, {
+  timeout: 10000,
+  retryCount: 1,
+})
 
-      if (!ALLOWED_TAGS.includes(tagName)) {
-        while (element.firstChild) {
-          element.parentNode?.insertBefore(element.firstChild, element)
-        }
-        element.parentNode?.removeChild(element)
-        return
-      }
+// 组合状态
+const loading = computed(() => wordListLoading.value || basicInfoLoading.value)
+const error = computed(() => wordListError.value || basicInfoError.value)
 
-      const attributes = Array.from(element.attributes)
-      for (const attr of attributes) {
-        const allowedAttrs = ALLOWED_ATTRS[tagName] || []
-        if (!allowedAttrs.includes(attr.name.toLowerCase())) {
-          element.removeAttribute(attr.name)
-        }
-      }
-
-      if (tagName === 'span') {
-        const className = element.className
-        if (className && !className.includes('annotated-word')) {
-          element.removeAttribute('class')
-        }
-      }
-    }
-
-    let child = node.firstChild
-    while (child) {
-      const next = child.nextSibling
-      filterNode(child)
-      child = next
-    }
+// 使用适配器处理数据（纯函数，无响应式副作用）
+const adaptedData = computed<WordListAdapterResult | null>(() => {
+  if (!wordListData.value || !basicInfoData.value) {
+    return null
   }
 
-  filterNode(tempDiv)
-  return tempDiv.innerHTML
+  // 调用适配器进行数据转换
+  return adaptWordList(basicInfoData.value, wordListData.value)
+})
+
+function retry() {
+  retryWordList()
+  retryBasicInfo()
+}
+
+// Tooltip 事件处理
+function handleMouseMove(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.classList.contains('annotated-word')) {
+    const def = target.getAttribute('data-def')
+    if (def) {
+      currentAnnotation.value = def
+
+      // 计算Tooltip位置并确保在视口内
+      const tooltipWidth = 200
+      const tooltipHeight = 60
+      let x = e.clientX + 10
+      let y = e.clientY + 10
+
+      // 边界检查
+      if (x + tooltipWidth > window.innerWidth) {
+        x = e.clientX - tooltipWidth - 10
+      }
+      if (y + tooltipHeight > window.innerHeight) {
+        y = e.clientY - tooltipHeight - 10
+      }
+
+      tooltipPosition.value = { x, y }
+      showTooltip.value = true
+      return
+    }
+  }
+  showTooltip.value = false
 }
 
 // 生命周期钩子 - 将 mousemove 监听范围缩小到 article-content 容器
@@ -256,133 +168,85 @@ onUnmounted(() => {
 
 <style scoped>
 .word-list-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
-/* 加载状态 */
-.loading-state {
+.loading-state,
+.error-state,
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
-  gap: 0.75rem;
+  padding: 2rem;
 }
 
 .spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  to {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
     transform: rotate(360deg);
   }
 }
 
-/* 错误状态 */
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3rem;
-  gap: 0.75rem;
-  color: #ef4444;
-}
-
-.error-state i {
-  font-size: 2.5rem;
-}
-
 .retry-btn {
+  margin-top: 1rem;
   padding: 0.5rem 1rem;
-  background-color: #3b82f6;
+  background: #3498db;
   color: white;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 4px;
   cursor: pointer;
 }
 
-.retry-btn:hover {
-  background-color: #2563eb;
-}
-
-/* 内容区域 */
-.content-wrapper {
-  background-color: #fff;
-  border-radius: 0.5rem;
-  padding: 2rem;
+.article-header {
+  margin-bottom: 1rem;
 }
 
 .article-title {
   font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 1rem;
+  margin: 0;
+}
+
+.article-meta {
+  color: #666;
+  margin: 0.5rem 0 0;
 }
 
 .article-content {
-  font-size: 1rem;
-  line-height: 2;
-  color: #374151;
+  line-height: 1.8;
 }
 
-.article-content :deep(p) {
-  margin-bottom: 1rem;
-  text-indent: 2em;
-}
-
-/* 注释词语样式 */
 .article-content :deep(.annotated-word) {
-  color: #2563eb;
-  cursor: help;
-  border-bottom: 1px dashed #2563eb;
-  padding-bottom: 1px;
-  transition: all 0.2s;
-}
-
-.article-content :deep(.annotated-word:hover) {
-  background-color: #dbeafe;
+  color: #3498db !important;
+  text-decoration: underline !important;
+  text-decoration-color: #3498db !important;
+  cursor: help !important;
+  font-weight: normal !important;
+  background-color: rgba(52, 152, 219, 0.1) !important;
+  padding: 0 2px;
   border-radius: 2px;
 }
-</style>
 
-<!-- 全局弹窗样式 -->
-<style>
-.annotation-tooltip {
+.tooltip {
   position: fixed;
-  z-index: 9999;
-  max-width: 300px;
-  padding: 0.75rem 1rem;
-  background-color: #1f2937;
-  color: #fff;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #333;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  z-index: 1000;
   pointer-events: none;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  animation: fadeIn 0.15s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 </style>
