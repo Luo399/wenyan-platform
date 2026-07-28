@@ -163,7 +163,10 @@ async function submitAnswer() {
     }
 
     await submitAnswers(
-      { answers: { [props.question.id]: selectedAnswer.value }, questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }] },
+      {
+        answers: { [props.question.id]: selectedAnswer.value },
+        questions: [{ id: props.question.id, correctAnswer: props.question.correctAnswer }],
+      },
       props.question.wenId,
       studentId.value,
       undefined,
