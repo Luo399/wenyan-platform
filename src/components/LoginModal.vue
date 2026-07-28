@@ -94,6 +94,7 @@ const modalRef = ref<HTMLElement | null>(null)
 
 // State
 const studentId = ref('')
+const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 const isSubmitting = ref(false)
