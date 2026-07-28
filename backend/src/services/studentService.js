@@ -4,7 +4,7 @@
  */
 
 const { studentDb, answerDb } = require('../config/database');
-const { dbGet, dbAll, dbRun, dbPrepareRun, dbSerialize } = require('../utils/dbPromise');
+const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise');
 
 /**
  * 获取学生信息
@@ -12,12 +12,11 @@ const { dbGet, dbAll, dbRun, dbPrepareRun, dbSerialize } = require('../utils/dbP
  * @returns {Promise<object|null>} - 学生信息
  */
 async function getStudentById(studentId) {
-  const row = await dbGet(
+  return dbGet(
     studentDb,
     'SELECT student_id, name, class, created_at FROM students WHERE student_id = ?',
     [studentId]
   );
-  return row || null;
 }
 
 /**
@@ -28,11 +27,16 @@ async function getStudentById(studentId) {
  * @returns {Promise<object>} - 操作结果
  */
 async function createOrUpdateStudent(studentId, name, studentClass = 9) {
-  await dbPrepareRun(
-    studentDb,
-    'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)',
-    [studentId, name, studentClass]
+  const stmt = studentDb.prepare(
+    'INSERT OR REPLACE INTO students (student_id, name, class) VALUES (?, ?, ?)'
   );
+
+  try {
+    await stmtRun(stmt, studentId, name, studentClass);
+  } finally {
+    stmt.finalize();
+  }
+
   return { studentId, name, class: studentClass };
 }
 
@@ -42,17 +46,16 @@ async function createOrUpdateStudent(studentId, name, studentClass = 9) {
  * @returns {Promise<Array>} - 学生列表
  */
 async function getStudentList(classNum) {
-  let query = 'SELECT * FROM students';
-  let params = [];
+  let sql = 'SELECT * FROM students';
+  const params = [];
 
   if (classNum && /^\d+$/.test(String(classNum))) {
-    query += ' WHERE class = ?';
+    sql += ' WHERE class = ?';
     params.push(parseInt(classNum));
   }
 
-  query += ' ORDER BY student_id ASC';
-
-  return dbAll(studentDb, query, params);
+  sql += ' ORDER BY student_id ASC';
+  return dbAll(studentDb, sql, params);
 }
 
 /**
@@ -64,7 +67,7 @@ async function getStudentList(classNum) {
  */
 async function updateStudent(studentId, name, studentClass) {
   let updateSql = 'UPDATE students SET name = ?';
-  let params = [name.trim()];
+  const params = [name.trim()];
 
   if (studentClass !== undefined) {
     updateSql += ', class = ?';
@@ -74,9 +77,9 @@ async function updateStudent(studentId, name, studentClass) {
   updateSql += ' WHERE student_id = ?';
   params.push(studentId);
 
-  const { changes } = await dbRun(studentDb, updateSql, params);
+  const result = await dbRun(studentDb, updateSql, params);
 
-  if (changes === 0) {
+  if (result.changes === 0) {
     return { success: false, message: '未找到该学生' };
   }
 
@@ -93,29 +96,30 @@ async function updateStudent(studentId, name, studentClass) {
  * @returns {Promise<object>} - 删除结果
  */
 async function deleteStudent(studentId) {
-  return dbSerialize(studentDb, async () => {
-    const { changes: deletedRecordsCount } = await dbRun(
-      answerDb,
-      'DELETE FROM answer_records WHERE student_id = ?',
-      [studentId]
-    );
+  // 删除答题记录
+  const answerResult = await dbRun(
+    answerDb,
+    'DELETE FROM answer_records WHERE student_id = ?',
+    [studentId]
+  );
+  const deletedRecordsCount = answerResult.changes || 0;
 
-    const { changes } = await dbRun(
-      studentDb,
-      'DELETE FROM students WHERE student_id = ?',
-      [studentId]
-    );
+  // 删除学生
+  const result = await dbRun(
+    studentDb,
+    'DELETE FROM students WHERE student_id = ?',
+    [studentId]
+  );
 
-    if (changes === 0) {
-      return { success: false, message: '未找到该学生' };
-    }
+  if (result.changes === 0) {
+    return { success: false, message: '未找到该学生' };
+  }
 
-    return {
-      success: true,
-      message: `学生删除成功，同时删除了 ${deletedRecordsCount} 条答题记录`,
-      data: { studentId, deletedRecordsCount }
-    };
-  });
+  return {
+    success: true,
+    message: `学生删除成功，同时删除了 ${deletedRecordsCount} 条答题记录`,
+    data: { studentId, deletedRecordsCount }
+  };
 }
 
 module.exports = {

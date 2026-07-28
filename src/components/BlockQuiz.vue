@@ -72,7 +72,7 @@ const adaptedQuizzes = computed<QuizItem[]>(() => {
       question_type: props.question_type,
     },
     props.text_id || '',
-    props.question_id || ''
+    props.question_id || '',
   )
 
   return isValidQuizItem(quizItem) ? [quizItem] : []

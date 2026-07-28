@@ -35,9 +35,10 @@ export function adaptBlockQuizToQuizItem(
   textId: string = '',
   questionId: string = '',
 ): QuizItem {
-  const qNumber = typeof blockData.question_number === 'number'
-    ? blockData.question_number
-    : parseInt(String(blockData.question_number)) || 1
+  const qNumber =
+    typeof blockData.question_number === 'number'
+      ? blockData.question_number
+      : parseInt(String(blockData.question_number)) || 1
 
   let correctAnswer: string | number | null = null
   if (blockData.correct_answer !== undefined && blockData.correct_answer !== null) {
@@ -65,5 +66,7 @@ export function adaptBlockQuizToQuizItem(
 }
 
 export function isValidQuizItem(item: QuizItem): boolean {
-  return item.questionText.trim() !== '' && item.options.length > 0
+  return (
+    Boolean(item?.questionText?.trim()) && Array.isArray(item?.options) && item.options.length > 0
+  )
 }

@@ -28,6 +28,14 @@ coverage
 
 .eslintcache
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test output
+test-output*.txt
+
 # Cypress
 /cypress/videos/
 /cypress/screenshots/

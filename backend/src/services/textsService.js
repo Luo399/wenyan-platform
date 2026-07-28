@@ -42,7 +42,7 @@ function getLevel3ScenarioText(textId) {
 }
 
 function getLevel3AdaptiveQuiz(textId) {
-  const filePath = getDataFilePath('level3_adaptive_quiz', `${textId}.json`);
+  const filePath = getDataFilePath('level3_quiz', `${textId}.json`);
   return readJsonFile(filePath);
 }
 

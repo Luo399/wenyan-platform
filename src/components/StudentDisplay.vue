@@ -47,6 +47,7 @@
 import { ref, computed } from 'vue'
 import { useStudentStore } from '@/stores/student'
 import { storeToRefs } from 'pinia'
+import { useStudentQuery } from '@/composables/useStudentQuery'
 
 const studentStore = useStudentStore()
 const { studentId, isLoggedIn } = storeToRefs(studentStore)
@@ -57,6 +58,21 @@ const showEditModal = ref(false)
 const inputId = ref('')
 // 是否有错误
 const hasError = ref(false)
+// 错误消息
+const errorMessage = ref('')
+// 查询到的学生姓名
+const searchedName = ref('')
+// 当前加载状态
+const isLoading = ref(false)
+
+// 学生查询
+const { queryStudentName } = useStudentQuery()
+
+// 计算属性：学号
+const studentId = computed(() => user.value?.studentId || '')
+
+// 计算属性：用户姓名
+const userName = computed(() => user.value?.username || '')
 
 /**
  * 验证输入是否为4位数字
@@ -68,7 +84,40 @@ const isValid = computed(() => {
 /**
  * 保存新学号
  */
-function handleSave() {
+function handleClick() {
+  showEditModal.value = true
+  // 如果已登录，显示当前学号
+  if (isLoggedIn.value && studentId.value) {
+    inputId.value = studentId.value
+  }
+}
+
+/**
+ * 输入处理 - 查询学生姓名
+ */
+async function handleInput() {
+  clearError()
+
+  if (inputId.value.trim()) {
+    searchedName.value = await queryStudentName(inputId.value)
+  } else {
+    searchedName.value = ''
+  }
+}
+
+/**
+ * 清除错误状态
+ */
+function clearError() {
+  hasError.value = false
+  errorMessage.value = ''
+  authStore.clearError()
+}
+
+/**
+ * 保存新学号 / 登录
+ */
+async function handleSave() {
   if (!isValid.value) {
     hasError.value = true
     return
