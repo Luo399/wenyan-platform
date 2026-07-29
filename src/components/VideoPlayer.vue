@@ -74,19 +74,25 @@ import { debugWarn } from '@/utils/debug'
 // 组件 Props 定义
 // ============================================================
 // defineProps 是 Vue 3 Composition API 提供的宏，用于定义组件属性
-const props = defineProps<{
-  /**
-   * 视频文件的 URL 地址
-   * 支持本地路径或网络 URL
-   */
-  src: string
+const props = withDefaults(
+  defineProps<{
+    /**
+     * 视频文件的 URL 地址
+     * 支持本地路径或网络 URL
+     */
+    src: string
 
-  /**
-   * 视频封面图片的 URL 地址
-   * 可选属性：视频未播放时显示的图片
-   */
-  poster?: string
-}>()
+    /**
+     * 视频封面图片的 URL 地址
+     * 可选属性：视频未播放时显示的图片
+     */
+    poster?: string
+  }>(),
+  {
+    // 空字符串：:poster="''" 时浏览器不显示封面，与原 undefined 行为一致
+    poster: '',
+  },
+)
 
 // ============================================================
 // 响应式状态定义

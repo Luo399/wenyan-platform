@@ -31,12 +31,18 @@ export interface Option {
   label: string
 }
 
-const props = defineProps<{
-  options: Option[]
-  type: OptionsType
-  modelValue?: string | number | (string | number)[]
-  disabled?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    options: Option[]
+    type: OptionsType
+    modelValue?: string | number | (string | number)[]
+    disabled?: boolean
+  }>(),
+  {
+    disabled: false,
+    // modelValue 不给默认值：依赖 type（radio→'' / checkbox→[]），由 getInitialValue() 运行时兜底
+  },
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string | number | (string | number)[]): void

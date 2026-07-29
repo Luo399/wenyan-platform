@@ -298,7 +298,7 @@
 ## C08. 7 个组件缺少 withDefaults
 
 - **优先级**: P2
-- **状态**: [ ] 未开始（设计方案已就绪）
+- **状态**: [x] 已完成（refactor/component-08）
 - **文件**（C07 已将 Options.vue/Question.vue 重命名为 QuizOptions.vue/QuizQuestion.vue，下文沿用新名）:
   - `src/components/QuizOptions.vue`（第 34-39 行 defineProps）
   - `src/components/QuizQuestion.vue`（第 63-66 行 defineProps）
@@ -485,6 +485,15 @@
   - 缓解：在设计文档与本文件注释中明确说明"依赖其他 prop，运行时兜底"，并附 Vue 官方推荐链接
   - 风险点：原审计列 7 个文件，实际只改 4 个，可能被质疑"未完成"
   - 缓解：本设计逐文件说明不改原因，审计口径从"7 个待改"修正为"4 个改 + 3 个不适用"
+- **实际变更**:
+  - `src/components/QuizOptions.vue`：`defineProps<{...}>()` 改为 `withDefaults(defineProps<{...}>(), { disabled: false })`，modelValue 保持可选无默认值（依赖 type，由 getInitialValue() 运行时兜底）
+  - `src/components/VideoPlayer.vue`：`defineProps<{...}>()` 改为 `withDefaults(defineProps<{...}>(), { poster: '' })`
+  - `src/components/MultiRoleReadingItem.vue`：`isActive: boolean` 改为 `isActive?: boolean`，`defineProps<Props>()` 改为 `withDefaults(defineProps<Props>(), { isActive: false })`
+  - `src/components/QuizCard.vue`：`submitted: boolean` 改为 `submitted?: boolean`，`defineProps<{...}>()` 改为 `withDefaults(defineProps<{...}>(), { submitted: false })`
+  - `tests/components/QuizOptions.spec.ts`：新增"默认值验证"测试组，1 个用例验证不传 disabled 时默认 false（选项无 disabled 类、点击可触发事件）
+  - `tests/components/VideoPlayer.spec.ts`：新增"默认值验证"测试组，1 个用例验证不传 poster 时 video 元素 poster 属性为空字符串
+  - `tests/components/QuizCard.spec.ts`：新增"默认值验证"测试组，1 个用例验证不传 submitted 时默认 false（提交按钮可见、选项未锁定、解析区域隐藏）
+  - 未改动：`QuizQuestion.vue` / `AudioPlayer.vue` / `LoginModal.vue`（无可改的 optional props，详见设计决策）
 
 ## C09. StepOneView 大量未使用导入与 dead code
 

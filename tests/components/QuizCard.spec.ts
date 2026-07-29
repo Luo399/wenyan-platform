@@ -200,4 +200,23 @@ describe('QuizCard.vue', () => {
       expect(wrapper.find('.explanation-box').exists()).toBe(true)
     })
   })
+
+  describe('默认值验证', () => {
+    it('不传 submitted 时默认为 false，处于未提交态', () => {
+      // 验证 withDefaults 生效：submitted 默认 false
+      // 未提交态特征：提交按钮可见、选项可点击、无解析区域
+      const wrapper = mount(QuizCard, {
+        props: { data: mockQuestionData },
+      })
+      // 提交按钮可见
+      expect(wrapper.find('.submit-btn').exists()).toBe(true)
+      // 解析区域隐藏
+      expect(wrapper.find('.explanation-box').exists()).toBe(false)
+      // 选项未锁定（未带 disabled 属性）
+      const optionBtns = wrapper.findAll('.option-btn')
+      optionBtns.forEach((option) => {
+        expect(option.element.disabled).toBe(false)
+      })
+    })
+  })
 })
