@@ -1,6 +1,5 @@
-<!-- eslint-disable vue/multi-word-component-names -->
 <!--
-  Repeatbgm.vue - 背景音乐循环播放组件
+  RepeatBgm.vue - 背景音乐循环播放组件
 
   功能说明：
   1. 根据当前活动 wenId 自动加载对应的背景音乐
@@ -108,7 +107,7 @@ watch(
   (newId) => {
     if (newId) {
       const wenId = getWenId(newId as string)
-      debugLog('[Repeatbgm] 路由变化，更新wenId:', wenId)
+      debugLog('[RepeatBgm] 路由变化，更新wenId:', wenId)
       bgmStore.setActiveWenId(wenId)
     }
   },
@@ -118,7 +117,7 @@ watch(
 // 监听BGM文件变化，重新加载音频
 watch(currentBgmFile, (newFile, oldFile) => {
   if (newFile && newFile !== oldFile && audioRef.value) {
-    debugLog('[Repeatbgm] BGM文件变化:', oldFile, '->', newFile)
+    debugLog('[RepeatBgm] BGM文件变化:', oldFile, '->', newFile)
     audioRef.value.pause()
     audioRef.value.load()
     bgmStore.pause()
@@ -133,7 +132,7 @@ watch(
 
     if (playing) {
       audioRef.value.play().catch((err) => {
-        debugWarn('[Repeatbgm] 播放失败:', err)
+        debugWarn('[RepeatBgm] 播放失败:', err)
         bgmStore.pause()
       })
     } else {
@@ -163,7 +162,7 @@ watch(
 )
 
 function handleLoadedMetadata() {
-  debugLog('[Repeatbgm] ✅ 背景音乐加载完成:', currentBgmFile.value)
+  debugLog('[RepeatBgm] ✅ 背景音乐加载完成:', currentBgmFile.value)
 
   if (audioRef.value) {
     audioRef.value.volume = currentVolume.value / 100
@@ -175,13 +174,13 @@ function handleLoadedMetadata() {
 }
 
 function handleAudioError() {
-  debugError('[Repeatbgm] ❌ 音频加载失败:', bgmUrl.value)
+  debugError('[RepeatBgm] ❌ 音频加载失败:', bgmUrl.value)
   error.value = '背景音乐加载失败'
 }
 
 function handleAudioEnded() {
   // 循环播放不需要特殊处理，audio元素已有loop属性
-  debugLog('[Repeatbgm] 音频播放结束，将自动循环')
+  debugLog('[RepeatBgm] 音频播放结束，将自动循环')
 }
 
 function handleTogglePlay() {
@@ -206,11 +205,11 @@ function retry() {
 }
 
 onMounted(() => {
-  debugLog('[Repeatbgm] 组件挂载')
+  debugLog('[RepeatBgm] 组件挂载')
 })
 
 onUnmounted(() => {
-  debugLog('[Repeatbgm] 组件卸载')
+  debugLog('[RepeatBgm] 组件卸载')
   if (audioRef.value) {
     audioRef.value.pause()
     audioRef.value.src = ''
