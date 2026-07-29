@@ -101,13 +101,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import BlockRenderer from '@/components/BlockRenderer.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { useNavigation } from '@/composables/useNavigation'
 import type { PageConfig } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
-const router = useRouter()
+// 非顺序页面（block-demo）不传 currentRouteName，仅使用 goHome
+const { goHome } = useNavigation()
 
 // 选中的页面ID
 const selectedPage = ref('WEN_01')
@@ -166,7 +167,7 @@ function handlePageChange() {
 
 // 返回首页
 function goBack() {
-  router.push('/')
+  goHome()
 }
 
 // 为quiz block添加标题
