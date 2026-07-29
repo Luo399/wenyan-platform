@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="adapt-quiz">
     <div class="quiz-container" v-if="hasContent">
       <div class="quiz-header">
@@ -102,6 +102,7 @@ import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapt
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
+import { appendQuizRecord } from '@/utils/localStorage'
 
 interface Props {
   quizzes?: QuizItem[]
@@ -326,12 +327,9 @@ function saveToLocal(
     submittedAt,
   }
 
-  const storageKey = `quiz_records_${studentId}`
-  const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
-  existingRecords.push(record)
-  localStorage.setItem(storageKey, JSON.stringify(existingRecords))
+  const allRecords = appendQuizRecord(studentId, record)
 
-  debugLog('[AdaptQuiz] 答题数据已保存到本地:', record)
+  debugLog('[AdaptQuiz] 答题数据已保存到本地:', record, '当前共', allRecords.length, '条')
 
   downloadSingleReport(record, studentId, studentName)
 
