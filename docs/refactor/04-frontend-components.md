@@ -177,7 +177,7 @@
 ## C07. Options.vue / Question.vue 单词组件名
 
 - **优先级**: P2
-- **状态**: [ ] 未开始（设计方案已就绪）
+- **状态**: [x] 已完成（refactor/component-07）
 - **文件**:
   - `src/components/Options.vue`（153 行，第 1 行 eslint-disable 绕过）
   - `src/components/Question.vue`（321 行，第 1 行 eslint-disable 绕过）
@@ -286,6 +286,14 @@
   - 缓解：本次重构同步补齐 `QuizOptions.spec.ts` / `QuizQuestion.spec.ts`，将覆盖率从 0% 提升到 ≥ 85%
   - 风险点：符号名 `Options` 在 `Question.vue` 内部多处使用（template + 无 script 直接引用），漏改可能导致编译错误
   - 缓解：CI `type-check` 会立即捕获未定义符号；实施时使用 IDE 全局替换 + 编译验证双重保障
+- **实际变更**:
+  - `git mv` 重命名：`src/components/Options.vue` → `src/components/QuizOptions.vue`，`src/components/Question.vue` → `src/components/QuizQuestion.vue`
+  - `src/components/QuizOptions.vue`：删除第 1 行 `<!-- eslint-disable vue/multi-word-component-names -->`，其余内容不变
+  - `src/components/QuizQuestion.vue`：删除第 1 行 eslint-disable；import 改为 `import QuizOptions, { type Option, type OptionsType } from './QuizOptions.vue'`；模板 `<Options>` → `<QuizOptions>`
+  - `src/views/DetailView.vue`：import 改为 `import QuizQuestion, { type QuestionData } from '../components/QuizQuestion.vue'`；模板 `<Question>` → `<QuizQuestion>`
+  - 新增 `tests/components/QuizOptions.spec.ts`：覆盖基础渲染（radio/checkbox 类、disabled 类）、radio 交互（事件、selected 类、单选切换）、checkbox 交互（多选累积、取消选中）、v-model 双向绑定（radio/checkbox 同步、空值、非数组降级）、disabled 拦截事件，共 13 个用例
+  - 新增 `tests/components/QuizQuestion.spec.ts`：覆盖渲染（序号、题型标签、选项数量、徽章/答案区域隐藏、按钮文字）、未登录与空答案拦截、提交成功路径（单选选对/选错、多选全对/漏选、提交中按钮禁用与 spinner）、提交失败路径（ApiError 回显、非 ApiError 回显"提交失败"）、事件发射（update:modelValue/answer-change 携带 questionId）、正确答案格式化（单选字符串、多选顿号连接），共 14 个用例
+  - 验证：`grep` 确认 `src/` 内无 `eslint-disable vue/multi-word-component-names` 残留于 Options/Question 系列文件；无 `from '...Options.vue'` / `from '...Question.vue'` 旧路径引用
 
 ## C08. 7 个组件缺少 withDefaults
 

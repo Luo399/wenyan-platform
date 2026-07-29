@@ -1,4 +1,3 @@
-﻿<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="question-container" :class="{ submitted: isSubmitted }">
     <div class="question-header">
@@ -9,7 +8,7 @@
       </span>
     </div>
     <div class="question-text">{{ question.text }}</div>
-    <Options
+    <QuizOptions
       :options="question.options"
       :type="question.type"
       v-model="selectedAnswer"
@@ -44,7 +43,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import Options, { type Option, type OptionsType } from './Options.vue'
+import QuizOptions, { type Option, type OptionsType } from './QuizOptions.vue'
 import { submitAnswers } from '@/services/apiService'
 import { ApiError } from '@/utils/api'
 import { useStudentStore } from '@/stores/student'
