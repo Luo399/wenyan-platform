@@ -339,3 +339,85 @@
 - **验证方式**: 新增课文只需修改 `wenUtils.ts` 一处
 - **分支建议**: `refactor/component-10`
 - **依赖**: 无
+
+## C11. Repeatbgm.vue 单词组件名（C07 延伸）
+
+- **优先级**: P2
+- **状态**: [x] 已完成（refactor/component-07-extend）
+- **文件**:
+  - `src/components/common/Repeatbgm.vue`（317 行，第 1 行 eslint-disable 绕过）
+- **问题描述**: C07 重构 Options.vue / Question.vue 时发现 `src/components/common/Repeatbgm.vue` 也通过 `<!-- eslint-disable vue/multi-word-component-names -->` 绕过校验。文件名 `Repeatbgm` 将 `Bgm` 全小写，eslint 视为单词命名，违反"组件名 >= 2 个单词（PascalCase）"规则。该组件无任何外部引用（grep `RepeatBgm` / `Repeatbgm` / `common/Repeatbgm` 在 `src/` 下仅命中组件自身），属"僵尸组件"，但仍需整改以保持代码库一致性。
+- **修复方案**:
+
+  #### 设计决策
+
+  **1. 命名选择**
+  - `Repeatbgm.vue` → `RepeatBgm.vue`：修正为标准 PascalCase（`Repeat` + `Bgm` 两个单词首字母大写）
+  - 保留原语义（"重复播放 BGM"），仅修正大小写，最小改动
+  - 与 `common/` 目录下其他组件命名风格一致（`AutoPlayPrompt.vue` / `BaseLoader.vue` / `SectionDivider.vue` 均为多词 PascalCase）
+  - `Bgm` 作为术语已被项目接受（`bgmStore` / `currentBgmFile` / `bgmMapping`）
+
+  **2. 重命名策略**
+  - 使用 `git mv` 重命名，保留 git 历史可追溯
+  - 移除文件首行 `<!-- eslint-disable vue/multi-word-component-names -->`
+  - 同步更新文件内所有 `[Repeatbgm]` 日志前缀为 `[RepeatBgm]`（共 8 处），保持日志一致性
+  - 更新文件顶部注释中的文件名（`Repeatbgm.vue -` → `RepeatBgm.vue -`）
+  - 组件对外 API（`bgmStore` 集成、audio 元素事件、retry 方法）完全不变
+
+  **3. 影响范围分析**
+  - 无任何 `.vue` / `.ts` 文件引用此组件（已 grep 验证）
+  - 无需更新其他文件的 import / 模板标签
+  - 无单元测试覆盖该组件（本次同步补齐）
+
+  #### 实施步骤
+
+  1. **重命名文件**
+     ```bash
+     git mv src/components/common/Repeatbgm.vue src/components/common/RepeatBgm.vue
+     ```
+
+  2. **修改 `src/components/common/RepeatBgm.vue`**
+     - 删除第 1 行 `<!-- eslint-disable vue/multi-word-component-names -->`
+     - 第 3 行注释 `Repeatbgm.vue -` → `RepeatBgm.vue -`
+     - 全局替换 `[Repeatbgm]` → `[RepeatBgm]`（8 处 debugLog / debugWarn / debugError 日志前缀）
+
+  3. **新增单元测试 `tests/components/RepeatBgm.spec.ts`**
+     - mock 依赖：`vue-router`（useRoute）、`@/utils/asset`（getAssetUrl）、`@/utils/wenUtils`（getWenId）、`@/utils/debug`（debugLog/debugError/debugWarn）
+     - 使用真实 pinia + 真实 `useBgmStore`，避免 mock 复杂的响应式状态
+     - 覆盖点：
+       - 基础渲染：加载状态、错误状态、正常状态（含 audio 元素、播放按钮、音量滑块）
+       - 播放/暂停按钮点击触发 `bgmStore.togglePlay`
+       - 静音按钮点击触发 `bgmStore.toggleMute`
+       - 音量滑块 input 事件触发 `bgmStore.setVolume`
+       - retry 按钮点击清除 error 状态
+       - 路由变化触发 `bgmStore.setActiveWenId`
+       - store 播放状态变化触发 `audio.play` / `audio.pause`
+       - store 音量变化触发 `audio.volume` 更新
+       - store 静音状态变化触发 `audio.muted` 更新
+       - onUnmounted 时 pause + 清空 src
+     - 目标：语句覆盖 ≥ 80%
+
+  #### 兼容性评估
+
+  - 组件对外 API 完全不变（无 props / emits，仅通过 bgmStore 集成）
+  - 无外部引用方，零影响
+  - 现有测试套件无相关用例，无需修改
+
+- **验证方式**:
+  1. `grep -r "eslint-disable vue/multi-word-component-names" src/` 无命中
+  2. `grep -r "Repeatbgm" src/` 无命中（仅 `RepeatBgm`）
+  3. `npm run type-check` 通过
+  4. `npm run lint` 通过
+  5. `npm run test` 全部通过（含新增 RepeatBgm 单测）
+- **分支建议**: `refactor/component-07-extend`
+- **依赖**: C07（已完成）
+- **风险评估**:
+  - 风险点：组件无外部引用，可能已是废弃代码
+  - 缓解：本次仅重命名 + 补测试，不删除组件；若后续确认废弃可单独清理
+  - 风险点：测试 mock 较多（4 个模块），维护成本较高
+  - 缓解：使用真实 pinia + bgmStore，减少状态 mock；debug 工具 mock 仅隔离日志噪音
+- **实际变更**:
+  - `git mv` 重命名：`src/components/common/Repeatbgm.vue` → `src/components/common/RepeatBgm.vue`
+  - `src/components/common/RepeatBgm.vue`：删除 eslint-disable 注释；顶部注释文件名改为 `RepeatBgm.vue`；8 处 `[Repeatbgm]` 日志前缀改为 `[RepeatBgm]`
+  - 新增 `tests/components/RepeatBgm.spec.ts`：覆盖渲染（加载/错误/正常三种状态）、播放暂停按钮、静音按钮、音量滑块、retry、路由变化触发 setActiveWenId、store 播放/音量/静音状态变化触发 audio 元素相应行为、onUnmounted 清理，共 12 个用例
+  - 验证：`grep` 确认 `src/` 内无 `eslint-disable vue/multi-word-component-names` 残留；无 `Repeatbgm` 旧命名残留
