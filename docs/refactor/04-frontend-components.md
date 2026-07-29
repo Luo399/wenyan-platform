@@ -177,19 +177,115 @@
 ## C07. Options.vue / Question.vue 单词组件名
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [ ] 未开始（设计方案已就绪）
 - **文件**:
-  - `src/components/Options.vue`（第 1 行 eslint-disable 绕过）
-  - `src/components/Question.vue`（第 1 行 eslint-disable 绕过）
-- **问题描述**: 项目规则要求组件名 >= 2 个单词，这两个用 eslint-disable 绕过属历史债务
+  - `src/components/Options.vue`（153 行，第 1 行 eslint-disable 绕过）
+  - `src/components/Question.vue`（321 行，第 1 行 eslint-disable 绕过）
+  - `src/views/DetailView.vue`（第 4 行 import Question）
+- **问题描述**: 项目规则要求组件名 >= 2 个单词（PascalCase），单文件组件禁止以单词命名。这两个文件通过 `<!-- eslint-disable vue/multi-word-component-names -->` 绕过校验，属于历史债务。`Options.vue` 内部被 `Question.vue` 引用，`Question.vue` 又被 `DetailView.vue` 引用，形成 `Options → Question → DetailView` 三层引用链，重命名时需同步更新。
 - **修复方案**:
-  1. 重命名 `Options.vue` -> `QuizOptions.vue`
-  2. 重命名 `Question.vue` -> `QuizQuestion.vue`
-  3. 全局更新所有 import 引用
-  4. 移除 eslint-disable 注释
-- **验证方式**: 无 eslint-disable；所有引用更新
-- **分支建议**: `refactor/component-07`
+
+  #### 设计决策
+
+  **1. 命名选择**
+  - `Options.vue` → `QuizOptions.vue`：保留 `Quiz` 前缀表明归属答题场景，与 `QuizCard.vue` / `Level1Quiz.vue` / `AdaptQuiz.vue` / `ScenQuiz.vue` 命名风格一致
+  - `Question.vue` → `QuizQuestion.vue`：同上，避免与未来可能出现的"问题反馈"等单义词冲突
+
+  **2. 重命名策略**
+  - 使用 `git mv` 重命名，保留 git 历史可追溯（`git log --follow` 可继续查看）
+  - 显式更新所有 import 路径与符号名（项目未使用 `unplugin-vue-components` 自动导入，所有组件均为显式 import，重命名安全）
+  - 同步更新模板中的 PascalCase 标签（`<Options>` → `<QuizOptions>`、`<Question>` → `<QuizQuestion>`）
+  - 移除文件首行的 `<!-- eslint-disable vue/multi-word-component-names -->` 注释
+
+  **3. 影响范围分析**
+
+  | 引用方 | 被引用文件 | 引用形式 | 改动内容 |
+  |-------|-----------|---------|---------|
+  | `src/components/Question.vue` | `Options.vue` | `import Options, { type Option, type OptionsType } from './Options.vue'` + 模板 `<Options>` | import 路径 + 符号名 + 模板标签 |
+  | `src/views/DetailView.vue` | `Question.vue` | `import Question, { type QuestionData } from '../components/Question.vue'` + 模板 `<Question>` | import 路径 + 符号名 + 模板标签 |
+
+  - 无其他 `.vue` / `.ts` 文件引用这两个组件
+  - `docs/testing/TEST_REPORT.md` 与 `docs/前端代码审查报告-组件层.md` 中的组件名仅作文档说明，不参与编译，可在重构完成后另行更新
+  - 无直接单元测试覆盖这两个组件（现有 `Level1Quiz.spec.ts` / `AdaptQuiz.spec.ts` 走 quiz 组件的 `.option-btn` 类名断言，不依赖 `Options.vue`/`Question.vue` 的符号名）
+
+  #### 实施步骤
+
+  1. **重命名文件**
+     ```bash
+     git mv src/components/Options.vue src/components/QuizOptions.vue
+     git mv src/components/Question.vue src/components/QuizQuestion.vue
+     ```
+
+  2. **修改 `src/components/QuizOptions.vue`**
+     - 删除第 1 行 `<!-- eslint-disable vue/multi-word-component-names -->`
+     - 其余 script / template / style 不变（无自引用）
+
+  3. **修改 `src/components/QuizQuestion.vue`**
+     - 删除第 1 行 `<!-- eslint-disable vue/multi-word-component-names -->`
+     - 修改 import（第 47 行）：
+       ```ts
+       // 修改前
+       import Options, { type Option, type OptionsType } from './Options.vue'
+       // 修改后
+       import QuizOptions, { type Option, type OptionsType } from './QuizOptions.vue'
+       ```
+     - 修改模板（第 12 行）`<Options ... />` → `<QuizOptions ... />`
+
+  4. **修改 `src/views/DetailView.vue`**
+     - 修改 import（第 4 行）：
+       ```ts
+       // 修改前
+       import Question, { type QuestionData } from '../components/Question.vue'
+       // 修改后
+       import QuizQuestion, { type QuestionData } from '../components/QuizQuestion.vue'
+       ```
+     - 修改模板（第 86 行）`<Question :question="question" ... />` → `<QuizQuestion :question="question" ... />`
+
+  5. **新增单元测试 `tests/components/QuizOptions.spec.ts`**
+     - 覆盖点：
+       - radio 模式：点击选项后 `update:modelValue` 与 `change` 事件携带单值
+       - checkbox 模式：点击多选项后事件携带数组，再次点击取消
+       - `v-model` 双向绑定：外部 `modelValue` 变化时内部 `selectedValue` 同步
+       - `disabled` 状态：点击不触发事件
+       - `isSelected` 在 radio/checkbox 两种模式下的判定
+     - 目标：语句覆盖 ≥ 90%
+
+  6. **新增单元测试 `tests/components/QuizQuestion.spec.ts`**
+     - 覆盖点：
+       - 渲染：题目序号、题型标签（单选/多选）、题干文字、选项数量
+       - 提交答案成功路径：mock `submitAnswers` resolve，`isSubmitted` 变 true，`isCorrect` 正确判定
+       - 提交答案失败路径：mock `submitAnswers` reject `ApiError`，`submitError` 显示错误信息
+       - 未登录拦截：`isLoggedIn` 为 false 时点击提交显示"请先登录"
+       - 空答案拦截：未选择答案时点击提交显示"请先选择答案"
+       - 提交后正确答案展示：`isSubmitted && !isCorrect` 时渲染 `.correct-answer`
+     - 目标：语句覆盖 ≥ 85%
+
+  #### 兼容性评估
+
+  - 组件对外 API（`props`、`emits`、导出的 `Option` / `OptionsType` / `QuestionData` 类型）完全不变
+  - `DetailView.vue` 中导入的 `QuestionData` 类型本身定义不变，仅 import 路径更新
+  - 现有 `Level1Quiz.spec.ts` / `AdaptQuiz.spec.ts` / `quiz-full-flow.spec.ts` 通过 `.option-btn` / `.quiz-item` 类名断言，不依赖被重命名的符号，无需修改
+  - Vue SFC 编译器对 `<QuizOptions>` / `<QuizQuestion>` 这类多词标签名原生支持，无需额外配置
+
+- **验证方式**:
+  1. `grep -r "eslint-disable vue/multi-word-component-names" src/` 无命中
+  2. `grep -rn "from.*['\"]\(\.\./\|\./\|@/\)*components/Options\.vue['\"]" src/` 无命中
+  3. `grep -rn "from.*['\"]\(\.\./\|\./\|@/\)*components/Question\.vue['\"]" src/` 无命中
+  4. `npm run type-check` 通过
+  5. `npm run lint` 通过
+  6. `npm run test` 全部通过（含新增的 QuizOptions / QuizQuestion 单测）
+  7. 手动验证：访问 DetailView 路由，答题 → 提交 → 显示对错流程正常
+- **分支建议**:
+  - 设计：`refactor/component-07-design`
+  - 实施：`refactor/component-07`
 - **依赖**: 无
+- **风险评估**:
+  - 风险点：git mv 后 `git log` 默认不追溯重命名前的历史
+  - 缓解：使用 `git log --follow src/components/QuizOptions.vue` 可继续查看；git 自动跟踪内容相似度 ≥ 50% 的重命名
+  - 风险点：测试覆盖率不足（当前两个组件无单测）
+  - 缓解：本次重构同步补齐 `QuizOptions.spec.ts` / `QuizQuestion.spec.ts`，将覆盖率从 0% 提升到 ≥ 85%
+  - 风险点：符号名 `Options` 在 `Question.vue` 内部多处使用（template + 无 script 直接引用），漏改可能导致编译错误
+  - 缓解：CI `type-check` 会立即捕获未定义符号；实施时使用 IDE 全局替换 + 编译验证双重保障
 
 ## C08. 7 个组件缺少 withDefaults
 
