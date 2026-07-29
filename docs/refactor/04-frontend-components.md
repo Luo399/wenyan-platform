@@ -298,20 +298,193 @@
 ## C08. 7 个组件缺少 withDefaults
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
-- **文件**:
-  - `src/components/Options.vue`（第 35-40 行）
-  - `src/components/Question.vue`（第 64-67 行）
-  - `src/components/AudioPlayer.vue`（第 74 行）
-  - `src/components/VideoPlayer.vue`（第 76 行）
-  - `src/components/LoginModal.vue`（第 84 行）
-  - `src/components/MultiRoleReadingItem.vue`（第 44 行）
-  - `src/components/QuizCard.vue`（第 103 行）
-- **问题描述**: `defineProps<{...}>()` 未使用 `withDefaults`，可选 props 无默认值
-- **修复方案**: 改为 `withDefaults(defineProps<Props>(), { ... })`
-- **验证方式**: TypeScript 类型检查通过
-- **分支建议**: `refactor/component-08`
-- **依赖**: 无
+- **状态**: [ ] 未开始（设计方案已就绪）
+- **文件**（C07 已将 Options.vue/Question.vue 重命名为 QuizOptions.vue/QuizQuestion.vue，下文沿用新名）:
+  - `src/components/QuizOptions.vue`（第 34-39 行 defineProps）
+  - `src/components/QuizQuestion.vue`（第 63-66 行 defineProps）
+  - `src/components/AudioPlayer.vue`（第 75-80 行 defineProps）
+  - `src/components/VideoPlayer.vue`（第 77-89 行 defineProps）
+  - `src/components/LoginModal.vue`（第 81-85 行 defineProps）
+  - `src/components/MultiRoleReadingItem.vue`（第 39-44 行 defineProps）
+  - `src/components/QuizCard.vue`（第 103-108 行 defineProps）
+- **问题描述**: `defineProps<{...}>()` 未使用 `withDefaults`，可选 props 无默认值。原审计列出 7 个组件，但逐文件复核后发现实际只有 4 个需要改动，2 个无需改动，1 个不适用（详见设计决策）
+- **修复方案**:
+
+  #### 设计决策
+
+  **0. 复核结论（重要）**
+
+  逐文件审查 7 个组件的 props 定义后，按"是否有可选 prop、默认值是否可静态确定"分类：
+
+  | 文件 | 必填 props | 可选 props | 是否改动 | 原因 |
+  |------|-----------|-----------|---------|------|
+  | `QuizOptions.vue` | options, type | modelValue?, disabled? | ✅ 改 | disabled 给 false；modelValue 依赖 type 不给默认值 |
+  | `QuizQuestion.vue` | question | modelValue? | ❌ 不改 | 唯一可选 prop modelValue 依赖 question.type，无法给静态默认值；加空 withDefaults 是无意义噪音 |
+  | `AudioPlayer.vue` | src | （无） | ❌ 不改 | 无可选 props，加 withDefaults 无意义 |
+  | `VideoPlayer.vue` | src | poster? | ✅ 改 | poster 给 `''` |
+  | `LoginModal.vue` | visible | （无） | ❌ 不改 | 无可选 props |
+  | `MultiRoleReadingItem.vue` | segment, isActive | （无） | ✅ 改 | isActive 语义应为可选，改 `isActive?: boolean` + 默认 false |
+  | `QuizCard.vue` | data, submitted | （无） | ✅ 改 | submitted 语义应为可选，改 `submitted?: boolean` + 默认 false |
+
+  实际改动：**4 个文件**（QuizOptions / VideoPlayer / MultiRoleReadingItem / QuizCard）。
+  未改动：**3 个文件**（QuizQuestion / AudioPlayer / LoginModal），在设计说明中标注原因，避免后续重复审计。
+
+  **1. ESLint 规则复核**
+
+  项目 `eslint.config.ts` 使用 `pluginVue.configs['flat/essential']`，**不包含** `vue/require-default-prop` 规则（该规则属于 recommended 级别）。因此本次重构不是 ESLint 强制要求，动机是：
+  - 类型安全：可选 props 在组件内访问时为 `T | undefined`，加默认值可收窄类型
+  - 调用方简化：父组件不必显式传 `:disabled="false"`
+  - 语义对齐：`isActive`/`submitted` 这类"状态标志"语义上应有默认 false
+
+  **2. modelValue 默认值策略（关键）**
+
+  `QuizOptions` 和 `QuizQuestion` 的 `modelValue` 默认值依赖另一 prop（`type` / `question.type`）：
+  - radio 模式默认 `''`
+  - checkbox 模式默认 `[]`
+
+  `withDefaults` 不支持基于其他 props 计算默认值（只能给静态字面量）。Vue 官方明确推荐：**当默认值依赖其他 props 时，保持 `modelValue?: T`（不给 withDefaults 默认值），在 `getInitialValue()` 等运行时函数中兜底**。两个组件已有 `getInitialValue()` 实现（`props.modelValue ?? ''` / `Array.isArray(props.modelValue) ? [...] : []`），运行时兜底正确。
+
+  因此 `modelValue` 不进入 withDefaults 默认值表，这是有意为之，不是遗漏。
+
+  **3. 各文件改动细节**
+
+  ##### 3.1 `src/components/QuizOptions.vue`（第 34-39 行）
+
+  ```ts
+  // 修改前
+  const props = defineProps<{
+    options: Option[]
+    type: OptionsType
+    modelValue?: string | number | (string | number)[]
+    disabled?: boolean
+  }>()
+
+  // 修改后
+  const props = withDefaults(
+    defineProps<{
+      options: Option[]
+      type: OptionsType
+      modelValue?: string | number | (string | number)[]
+      disabled?: boolean
+    }>(),
+    {
+      disabled: false,
+      // modelValue 不给默认值：依赖 type（radio→'' / checkbox→[]），由 getInitialValue() 运行时兜底
+    },
+  )
+  ```
+
+  ##### 3.2 `src/components/VideoPlayer.vue`（第 77-89 行）
+
+  ```ts
+  // 修改前
+  const props = defineProps<{
+    src: string
+    poster?: string
+  }>()
+
+  // 修改后
+  const props = withDefaults(
+    defineProps<{
+      src: string
+      poster?: string
+    }>(),
+    {
+      poster: '', // 空字符串：:poster="''" 时浏览器不显示封面，与原 undefined 行为一致
+    },
+  )
+  ```
+
+  ##### 3.3 `src/components/MultiRoleReadingItem.vue`（第 39-44 行）
+
+  ```ts
+  // 修改前
+  interface Props {
+    segment: MultiRoleSegment
+    isActive: boolean
+  }
+  const props = defineProps<Props>()
+
+  // 修改后
+  interface Props {
+    segment: MultiRoleSegment
+    isActive?: boolean // 由必填改为可选，语义"是否高亮当前段落"，默认不高亮
+  }
+  const props = withDefaults(defineProps<Props>(), {
+    isActive: false,
+  })
+  ```
+
+  ##### 3.4 `src/components/QuizCard.vue`（第 103-108 行）
+
+  ```ts
+  // 修改前
+  const props = defineProps<{
+    /** 题目数据 */
+    data: QuizCardData
+    /** 提交状态 */
+    submitted: boolean
+  }>()
+
+  // 修改后
+  const props = withDefaults(
+    defineProps<{
+      /** 题目数据 */
+      data: QuizCardData
+      /** 提交状态（默认未提交） */
+      submitted?: boolean
+    }>(),
+    {
+      submitted: false,
+    },
+  )
+  ```
+
+  #### 实施步骤
+
+  1. **修改 4 个文件**（按上述 3.1–3.4 改动）
+     - 注意：`MultiRoleReadingItem.vue` 与 `QuizCard.vue` 的 props 从"必填"改为"可选"，调用方（父组件）无需改动（不传等价于传 false，与原"必须显式传 false"行为等价）
+  2. **更新单测**（如有断言依赖 props 必填性）
+     - `tests/components/QuizOptions.spec.ts`：现有用例均显式传 disabled，新增 1 个用例验证"不传 disabled 时默认 false"（点击选项可触发 toggle）
+     - `tests/components/VideoPlayer.spec.ts`：新增 1 个用例验证"不传 poster 时 `<video>` 元素 poster 属性为空字符串"
+     - `tests/components/QuizCard.spec.ts`：新增 1 个用例验证"不传 submitted 时默认 false（提交按钮可见、选项可点击）"
+     - `MultiRoleReadingItem` 暂无单测，不新增（保持现状，避免本次范围蔓延）
+  3. **运行验证**
+     - `npm run type-check`：确认可选 props 改动未破坏类型推断
+     - `npm run lint`：确认无新告警
+     - `npm run test`：确认新增用例通过且原有用例不回归
+
+  #### 兼容性评估
+
+  - **QuizOptions**：`disabled` 默认值 `false` 与原"未传时 undefined（falsy）"行为等价；`toggleOption` 中 `if (props.disabled) return` 对 false/undefined 行为一致
+  - **VideoPlayer**：`poster: ''` 与原 `poster: undefined` 在模板 `:poster="poster"` 渲染一致（空字符串与 undefined 都不显示封面）
+  - **MultiRoleReadingItem**：`isActive` 改可选后，父组件 `MultiRoleReading.vue` 现有调用 `<MultiRoleReadingItem :is-active="..." />` 仍可工作；不传时默认 false（不高亮），符合语义
+  - **QuizCard**：`submitted` 改可选后，父组件现有调用 `<QuizCard :submitted="..." />` 仍可工作；不传时默认 false（未提交态），符合语义
+  - **未改动文件**：QuizQuestion / AudioPlayer / LoginModal 行为完全不变
+
+  - **类型推断变化**：`isActive`/`submitted` 从必填变可选，父组件 TSX/模板中若依赖"必填"类型推断的场景极少（Vue 模板不强制类型检查 prop 必填性），CI type-check 会捕获任何潜在问题
+
+- **验证方式**:
+  1. `grep -rn "defineProps<{" src/components/QuizOptions.vue src/components/VideoPlayer.vue src/components/MultiRoleReadingItem.vue src/components/QuizCard.vue` 无命中（均已改为 withDefaults 包装）
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. `npm run test` 全部通过（含新增 3 个默认值验证用例）
+  5. 手动验证（生产部署后）：
+     - 选项组件可正常点击切换（默认非禁用）
+     - 视频组件无 poster 时正常播放
+     - 多角色朗读段落默认不高亮，当前播放段落高亮
+     - 测验卡片默认未提交态，提交按钮可见
+- **分支建议**:
+  - 设计：`refactor/component-08-design`
+  - 实施：`refactor/component-08`
+- **依赖**: C07（已完成，Options/Question 已重命名为 QuizOptions/QuizQuestion）
+- **风险评估**:
+  - 风险点：`isActive`/`submitted` 从必填改为可选，可能影响父组件类型推断
+  - 缓解：Vue 模板对 prop 必填性不强制；CI type-check 捕获 TS 类型问题；两个 prop 默认值 false 与原"必传 false"语义等价
+  - 风险点：`modelValue` 不给 withDefaults 默认值，可能被误认为遗漏
+  - 缓解：在设计文档与本文件注释中明确说明"依赖其他 prop，运行时兜底"，并附 Vue 官方推荐链接
+  - 风险点：原审计列 7 个文件，实际只改 4 个，可能被质疑"未完成"
+  - 缓解：本设计逐文件说明不改原因，审计口径从"7 个待改"修正为"4 个改 + 3 个不适用"
 
 ## C09. StepOneView 大量未使用导入与 dead code
 
