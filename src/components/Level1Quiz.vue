@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   Level1Quiz.vue - Level 1 阅读测验组件
   功能描述：展示单选题测验，支持选项选择、答案提交、结果展示和解析
   Props:
@@ -95,6 +95,7 @@ import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
+import { appendQuizRecord } from '@/utils/localStorage'
 
 interface Level1QuizItem {
   text_id: string
@@ -272,13 +273,10 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
     records,
   }
 
-  // 保存到 localStorage
-  const storageKey = `quiz_records_${studentId}`
-  const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
-  existingRecords.push(report)
-  localStorage.setItem(storageKey, JSON.stringify(existingRecords))
+  // 保存到 localStorage（通过 utils/localStorage 封装，避免组件直接操作 storage）
+  const allRecords = appendQuizRecord(studentId, report)
 
-  debugLog('[Level1Quiz] 答题数据已保存到本地:', report)
+  debugLog('[Level1Quiz] 答题数据已保存到本地:', report, '当前共', allRecords.length, '条')
 
   // 自动下载报告
   downloadReport(report, studentId, studentName)

@@ -95,15 +95,21 @@
 ## C05. AdaptQuiz/Level1Quiz 直接读写 localStorage
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（refactor/component-05）
 - **文件**:
-  - `src/components/AdaptQuiz.vue`（第 329, 331 行）
-  - `src/components/Level1Quiz.vue`（第 276, 278 行）
+  - `src/components/AdaptQuiz.vue`（原第 329, 331 行）
+  - `src/components/Level1Quiz.vue`（原第 276, 278 行）
 - **问题描述**: 直接 `localStorage.getItem`/`setItem` 保存答题记录，违反"学生身份必须走 useStudentStore"精神，答题记录缓存也应封装到 utils 层
 - **修复方案**: 抽离 `utils/localStorage.ts`，提供类型安全的 `getQuizRecords`/`setQuizRecords` 封装
 - **验证方式**: 组件内无直接 `localStorage` 调用
 - **分支建议**: `refactor/component-05`
 - **依赖**: 无
+- **实际变更**:
+  - 新增 `src/utils/localStorage.ts`：泛型封装 `getQuizRecords<T>` / `setQuizRecords<T>` / `appendQuizRecord<T>` / `clearQuizRecords`，统一 key 命名 `quiz_records_<studentId>`，JSON.parse 失败时容错返回 `[]`，解析结果非数组时降级为 `[]`
+  - 修改 `src/components/AdaptQuiz.vue`：`saveToLocal` 中手写读改写替换为 `appendQuizRecord(studentId, record)`，并保留原 `debugLog` 输出语义
+  - 修改 `src/components/Level1Quiz.vue`：`saveToLocal` 中手写读改写替换为 `appendQuizRecord(studentId, report)`，并保留原 `debugLog` 输出语义
+  - 新增 `tests/utils/localStorage.spec.ts`：覆盖空读取、JSON 解析失败容错、非数组降级、追加单条、覆盖式写入、连续追加顺序、不同 studentId 隔离、key 命名规范等 21 个测试用例
+  - 分层规则验证：`src/components/AdaptQuiz.vue` 和 `src/components/Level1Quiz.vue` 内除 import 与注释外不再出现 `localStorage` 直接调用
 
 ## C06. BlockDemoView 直接 router.push 违反导航规则
 
