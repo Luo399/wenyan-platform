@@ -10,6 +10,7 @@
 4. 生成详细的验证报告
 """
 
+import argparse
 import json
 import os
 from typing import Dict, List, Any, Optional, Tuple
@@ -401,15 +402,9 @@ class DataValidator:
         
         return report_text
 
-def main():
-    """主入口"""
-    validator = DataValidator()
-    
-    # 获取项目根目录（maintenance_tools -> python -> data-pipeline -> wenyan-platform）
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    
-    # 定义要验证的数据目录
-    data_dirs = [
+def _default_data_dirs(project_root: str) -> List[Tuple[str, str]]:
+    """构建默认验证目录列表，路径基于 project_root"""
+    return [
         ('word_list', os.path.join(project_root, 'public', 'data', 'word_list')),
         ('text_basic_info', os.path.join(project_root, 'public', 'data', 'text_basic_info')),
         ('multi_role_reading', os.path.join(project_root, 'public', 'data', 'multi_role_reading')),
@@ -419,17 +414,46 @@ def main():
         ('backend_data', os.path.join(project_root, 'backend', 'data')),
         ('temp_data', os.path.join(project_root, 'data-pipeline', 'temp')),
     ]
-    
+
+
+def main():
+    """主入口
+
+    支持命令行参数：
+      --project-root PATH   覆盖默认项目根目录
+      --add-dir NAME:PATH   追加自定义验证目录（可多次指定）
+      --report-path PATH    覆盖默认报告输出路径
+    """
+    parser = argparse.ArgumentParser(description="数据结构验证器")
+    # maintenance_tools -> python -> data-pipeline -> wenyan-platform
+    default_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    parser.add_argument('--project-root', default=default_root, help='项目根目录')
+    parser.add_argument('--add-dir', action='append', default=[], metavar='NAME:PATH',
+                        help='追加验证目录（格式 NAME:PATH，可多次指定）')
+    parser.add_argument('--report-path', default=None, help='报告输出路径')
+    args = parser.parse_args()
+
+    validator = DataValidator()
+    data_dirs = _default_data_dirs(args.project_root)
+
+    # 追加用户自定义目录
+    for item in args.add_dir:
+        if ':' not in item:
+            print(f"⚠️ 忽略无效的 --add-dir 参数（缺少冒号分隔）: {item}")
+            continue
+        name, path = item.split(':', 1)
+        data_dirs.append((name.strip(), path.strip()))
+
     print("=" * 60)
     print("数据结构验证器")
     print("=" * 60)
-    print(f"📂 项目根目录: {project_root}")
+    print(f"📂 项目根目录: {args.project_root}")
     print()
-    
+
     for data_type, directory in data_dirs:
         print(f"🔍 正在验证: {data_type}")
         print(f"   目录: {directory}")
-        
+
         if os.path.exists(directory):
             validator.validate_directory(data_type, directory)
             count = sum(1 for r in validator.results if data_type in r.file_path)
@@ -437,11 +461,11 @@ def main():
         else:
             print(f"   ⚠️ 目录不存在")
         print()
-    
+
     # 生成报告
-    report_path = os.path.join(os.path.dirname(__file__), 'validation_report.md')
+    report_path = args.report_path or os.path.join(os.path.dirname(__file__), 'validation_report.md')
     validator.generate_report(report_path)
-    
+
     print("=" * 60)
     print("验证完成！")
     print("=" * 60)
