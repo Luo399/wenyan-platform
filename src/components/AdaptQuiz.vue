@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="adapt-quiz">
     <div class="quiz-container" v-if="hasContent">
       <div class="quiz-header">
@@ -446,34 +446,36 @@ defineExpose({
 .adapt-quiz {
   width: 100%;
   min-height: 400px;
+  font-family: var(--font-family-serif);
 }
 
+/* 测验容器：30px 圆角 + 设计 token 阴影 */
 .quiz-container {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-card);
 }
 
 .quiz-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: var(--border-width-thin) solid var(--color-border);
 }
 
 .quiz-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--color-accent);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 18px;
+  color: var(--color-white);
+  font-size: var(--font-size-body-lg);
 }
 
 .quiz-info {
@@ -482,19 +484,20 @@ defineExpose({
 
 .quiz-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .quiz-difficulty {
   display: inline-block;
-  padding: 4px 12px;
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
 }
 
+/* 难度标签配色（语义色，无对应 token，保持原值） */
 .difficulty-l1 {
   background: #dcfce7;
   color: #166534;
@@ -502,7 +505,7 @@ defineExpose({
 
 .difficulty-l2 {
   background: #dbeafe;
-  color: #1d4ed8;
+  color: var(--color-primary);
 }
 
 .difficulty-l3 {
@@ -511,19 +514,19 @@ defineExpose({
 }
 
 .quiz-content {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .question-text {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semibold);
   line-height: 1.6;
-  color: #1e293b;
-  margin-bottom: 20px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 12px;
-  border-left: 4px solid #667eea;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  border-left: var(--border-width-thin) solid var(--color-primary);
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -531,39 +534,43 @@ defineExpose({
 .options-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
+/* 选项按钮：橄榄绿细边框 */
 .option-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  background: #f8fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-small);
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: left;
 }
 
 .option-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
+/* 选项卡片选中状态：朱红色边框 + 米色背景 */
 .option-btn.selected {
-  border-color: #667eea;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
+/* 正确状态：语义色绿色 */
 .option-btn.correct {
   border-color: #22c55e;
   background: #f0fdf4;
 }
 
+/* 错误状态：语义色红色 */
 .option-btn.wrong {
-  border-color: #ef4444;
+  border-color: var(--color-primary);
   background: #fef2f2;
 }
 
@@ -574,40 +581,40 @@ defineExpose({
 .option-label {
   width: 28px;
   height: 28px;
-  background: #e2e8f0;
+  background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
 .option-btn.selected .option-label {
-  background: #667eea;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .option-btn.correct .option-label {
   background: #22c55e;
-  color: white;
+  color: var(--color-white);
 }
 
 .option-btn.wrong .option-label {
-  background: #ef4444;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .option-text {
   flex: 1;
-  font-size: 14px;
-  color: #475569;
+  font-size: var(--font-size-small);
+  color: var(--color-text);
 }
 
 .option-icon {
-  font-size: 18px;
+  font-size: var(--font-size-body-lg);
 }
 
 .option-btn.correct .option-icon {
@@ -615,32 +622,33 @@ defineExpose({
 }
 
 .option-btn.wrong .option-icon {
-  color: #ef4444;
+  color: var(--color-primary);
 }
 
+/* 解析框 */
 .explanation-box {
-  margin-top: 20px;
-  padding: 16px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-radius: 8px;
-  border-left: 4px solid #f59e0b;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  border-left: var(--border-width-thin) solid var(--color-accent);
 }
 
 .explanation-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #92400e;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .explanation-text {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-size-small);
   line-height: 1.6;
-  color: #78350f;
+  color: var(--color-text);
 }
 
 .quiz-footer {
@@ -648,28 +656,30 @@ defineExpose({
   justify-content: flex-end;
 }
 
+/* 按钮：朱红底色 + 橄榄绿边框 + 50px 圆角 */
 .submit-btn,
 .next-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .submit-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-small);
 }
 
 .submit-btn:disabled {
@@ -678,13 +688,13 @@ defineExpose({
 }
 
 .next-btn {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 
 .next-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  box-shadow: var(--shadow-small);
 }
 
 .quiz-loading {
@@ -698,65 +708,66 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  color: #667eea;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
-  font-size: 32px;
+  font-size: var(--font-size-heading);
 }
 
 .loading-spinner span {
-  font-size: 14px;
+  font-size: var(--font-size-small);
 }
 
+/* 错误态：语义色红色 */
 .quiz-error {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 400px;
-  padding: 24px;
+  padding: var(--spacing-xl);
   background: #fef2f2;
-  border-radius: 16px;
-  border: 1px solid #fecaca;
+  border-radius: var(--radius-card);
+  border: var(--border-width-hairline) solid #fecaca;
 }
 
 .error-icon {
   width: 50px;
   height: 50px;
-  background: #ef4444;
+  background: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 24px;
-  margin-bottom: 16px;
+  color: var(--color-white);
+  font-size: var(--font-size-subheading);
+  margin-bottom: var(--spacing-md);
 }
 
 .error-message {
-  color: #dc2626;
-  font-size: 14px;
-  margin: 0 0 16px 0;
+  color: var(--color-primary-hover);
+  font-size: var(--font-size-small);
+  margin: 0 0 var(--spacing-md) 0;
   text-align: center;
 }
 
 .error-retry {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #ef4444;
-  color: white;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-small);
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
 .error-retry:hover {
-  background: #dc2626;
+  background: var(--color-primary-hover);
 }
 </style>

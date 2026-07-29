@@ -1,4 +1,4 @@
-<!-- eslint-disable vue/multi-word-component-names -->
+﻿<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="question-container" :class="{ submitted: isSubmitted }">
     <div class="question-header">
@@ -196,114 +196,119 @@ function formatCorrectAnswer(): string {
 </script>
 
 <style scoped>
+/* 题目容器 */
 .question-container {
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  background-color: #fff;
+  padding: var(--spacing-md);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
+  background-color: var(--color-white);
+  font-family: var(--font-family-serif);
 }
 .question-container.submitted {
-  border-color: #e5e7eb;
+  border-color: var(--color-placeholder);
 }
 .question-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
   flex-wrap: wrap;
 }
 .question-seq {
-  font-weight: 600;
-  color: #374151;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 .question-type {
-  font-size: 0.75rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  background-color: #dbeafe;
-  color: #1d4ed8;
+  font-size: var(--font-size-small);
+  padding: 0.125rem var(--spacing-xs);
+  border-radius: var(--radius-small);
+  background-color: var(--color-bg-highlight);
+  color: var(--color-primary);
 }
 .result-badge {
-  font-size: 0.75rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-weight: 600;
+  font-size: var(--font-size-small);
+  padding: 0.125rem var(--spacing-xs);
+  border-radius: var(--radius-small);
+  font-weight: var(--font-weight-semibold);
 }
+/* 正确徽章：语义色绿色 */
 .result-badge.correct {
   background-color: #dcfce7;
   color: #16a34a;
 }
+/* 错误徽章：语义色红色 */
 .result-badge.wrong {
   background-color: #fee2e2;
-  color: #dc2626;
+  color: var(--color-primary-hover);
 }
 .question-text {
-  font-size: 1rem;
+  font-size: var(--font-size-body);
   line-height: 1.5;
-  margin-bottom: 1rem;
-  color: #111827;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text);
 }
 .question-image {
-  margin-top: 1rem;
+  margin-top: var(--spacing-md);
 }
 .question-image img {
   max-width: 100%;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-small);
 }
 .question-audio {
-  margin-top: 1rem;
+  margin-top: var(--spacing-md);
 }
 .question-audio audio {
   width: 100%;
 }
 .action-area {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
 }
+/* 提交按钮：朱红底色 + 橄榄绿边框 + 50px 圆角 */
 .submit-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 0.375rem;
-  background-color: #3b82f6;
-  color: white;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  background-color: var(--color-primary);
+  color: var(--color-white);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--font-size-small);
   transition: background-color 0.2s;
 }
 .submit-btn:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
 }
 .submit-btn.disabled,
 .submit-btn:disabled {
-  background-color: #9ca3af;
+  background-color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 .correct-answer {
-  margin-top: 1rem;
-  padding: 0.5rem;
-  border-radius: 0.375rem;
-  background-color: #fef3c7;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-small);
+  background-color: var(--color-bg-highlight);
 }
 .correct-answer .label {
-  font-weight: 600;
-  color: #92400e;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 .correct-answer .value {
-  color: #b45309;
+  color: var(--color-text);
 }
 .submit-error {
-  margin-top: 0.5rem;
-  color: #dc2626;
-  font-size: 0.875rem;
+  margin-top: var(--spacing-xs);
+  color: var(--color-primary-hover);
+  font-size: var(--font-size-small);
 }
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid #fff;
+  border: 2px solid var(--color-white);
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;

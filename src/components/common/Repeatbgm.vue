@@ -222,33 +222,38 @@ onUnmounted(() => {
 .repeat-bgm {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.5rem;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xs);
+  /* 使用设计 token 衬线字体 */
+  font-family: var(--font-family-serif);
 }
 
 .bgm-controls {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
+/* 背景音乐按钮（文字按钮：朱红底 + 橄榄绿边框 + 药丸圆角） */
 .bgm-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  /* 朱红主色底 */
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--font-size-small);
   transition: all 0.3s ease;
 }
 
 .bgm-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  /* 设计 token 小阴影 */
+  box-shadow: var(--shadow-small);
 }
 
 .bgm-btn:active {
@@ -256,33 +261,36 @@ onUnmounted(() => {
 }
 
 .btn-text {
-  font-weight: 500;
+  font-weight: var(--font-weight-semibold);
 }
 
 .volume-control {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-xs);
 }
 
 .volume-btn {
-  padding: 0.5rem;
+  padding: var(--spacing-xs);
   background: transparent;
   border: none;
-  color: #6b7280;
+  /* 灰色次要文字 */
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: color 0.2s;
 }
 
 .volume-btn:hover {
-  color: #374151;
+  /* 黑色主文字 */
+  color: var(--color-text);
 }
 
 .volume-slider {
   width: 80px;
   height: 4px;
   appearance: none;
-  background: #e5e7eb;
+  /* 占位灰色轨道 */
+  background: var(--color-placeholder);
   border-radius: 2px;
   outline: none;
 }
@@ -291,7 +299,8 @@ onUnmounted(() => {
   appearance: none;
   width: 12px;
   height: 12px;
-  background: #667eea;
+  /* 朱红主色滑块 */
+  background: var(--color-primary);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -299,7 +308,8 @@ onUnmounted(() => {
 .volume-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: #667eea;
+  /* 朱红主色滑块 */
+  background: var(--color-primary);
   border-radius: 50%;
   cursor: pointer;
   border: none;

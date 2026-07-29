@@ -97,19 +97,20 @@ function toggleOption(id: string | number) {
 .options-container {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-xs);
+  font-family: var(--font-family-serif);
 }
 .option-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 0.375rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-small);
   cursor: pointer;
   transition: background 0.2s;
 }
 .option-item:hover:not(.disabled) {
-  background-color: #f3f4f6;
+  background-color: var(--color-bg-highlight);
 }
 .option-item.disabled {
   cursor: not-allowed;
@@ -121,9 +122,9 @@ function toggleOption(id: string | number) {
   justify-content: center;
   width: 1.25rem;
   height: 1.25rem;
-  border: 1px solid #9ca3af;
+  border: var(--border-width-hairline) solid var(--color-text-secondary);
   border-radius: 9999px;
-  background: white;
+  background: var(--color-white);
 }
 .option-item.radio .selector {
   border-radius: 9999px;
@@ -134,18 +135,19 @@ function toggleOption(id: string | number) {
 .dot {
   width: 0.625rem;
   height: 0.625rem;
-  background-color: #3b82f6;
+  background-color: var(--color-primary);
   border-radius: 9999px;
 }
 .check {
-  color: #3b82f6;
+  color: var(--color-primary);
   font-weight: bold;
 }
+/* 选中状态：朱红色边框 + 米色背景 */
 .selected .selector {
-  border-color: #3b82f6;
-  background-color: #eff6ff;
+  border-color: var(--color-primary);
+  background-color: var(--color-bg-highlight);
 }
 .option-label {
-  font-size: 0.875rem;
+  font-size: var(--font-size-small);
 }
 </style>

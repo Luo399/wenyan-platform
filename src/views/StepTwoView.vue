@@ -234,7 +234,7 @@ onMounted(() => {
 
 <style scoped>
 .steptwo-view {
-  padding: 1rem;
+  padding: var(--spacing-md);
   max-width: 1000px;
   margin: 0 auto;
   padding-bottom: 5rem;
@@ -242,15 +242,16 @@ onMounted(() => {
 
 /* 页面标题 */
 .page-header {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
   text-align: center;
 }
 
 .page-title {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 /* 加载状态 */
@@ -259,23 +260,23 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .loading-spinner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  color: #667eea;
+  gap: var(--spacing-md);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
-  font-size: 2rem;
+  font-size: var(--font-size-heading);
 }
 
 .loading-spinner span {
-  font-size: 0.875rem;
+  font-size: var(--font-size-small);
 }
 
 /* 错误状态 */
@@ -284,55 +285,58 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .error-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem;
-  background: #fef2f2;
-  border-radius: 1rem;
-  border: 1px solid #fecaca;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  border: var(--border-width-hairline) solid var(--color-border);
 }
 
 .error-icon {
-  font-size: 2rem;
-  color: #ef4444;
+  font-size: var(--font-size-heading);
+  color: var(--color-primary);
 }
 
 .error-message {
   margin: 0;
-  color: #dc2626;
-  font-size: 0.875rem;
+  color: var(--color-primary);
+  font-size: var(--font-size-small);
   text-align: center;
 }
 
+/* 重试按钮：朱红底 + 橄榄绿边框 + 50px 圆角 */
 .retry-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .retry-button:hover {
-  background: #dc2626;
+  background: var(--color-primary-hover);
 }
 
 /* 页面内容 */
 .blocks-container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--spacing-lg);
 }
 
 /* 空状态 */
@@ -341,45 +345,45 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .empty-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem;
-  background: #f9fafb;
-  border-radius: 1rem;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
 }
 
 .empty-icon {
   width: 64px;
   height: 64px;
-  background: #e5e7eb;
+  background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  color: #9ca3af;
+  font-size: var(--font-size-heading);
+  color: var(--color-text-secondary);
 }
 
 .empty-message {
   margin: 0;
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
 }
 
 /* 响应式调整 */
 @media (max-width: 768px) {
   .steptwo-view {
-    padding: 0.75rem;
+    padding: var(--spacing-sm);
   }
 
   .page-title {
-    font-size: 1.25rem;
+    font-size: var(--font-size-subheading);
   }
 }
 </style>

@@ -518,26 +518,30 @@ defineExpose({
 .multi-role-reading {
   max-width: 800px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: var(--spacing-md);
+  /* 使用设计 token 衬线字体 */
+  font-family: var(--font-family-serif);
 }
 
 /* 播放器内容 */
 .player-content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
 /* 音频错误提示 */
 .audio-error {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #fef3c7;
-  border-radius: 0.375rem;
-  color: #d97706;
-  font-size: 0.875rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  /* 半透明米色高亮背景 */
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  /* 暖棕色强调文字 */
+  color: var(--color-accent);
+  font-size: var(--font-size-small);
 }
 
 .audio-error i {
@@ -548,18 +552,21 @@ defineExpose({
 .audio-controls {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f9fafb;
-  border-radius: 0.5rem;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  /* 半透明米色高亮背景 */
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
 }
 
+/* 主播放按钮（圆形图标按钮） */
 .main-play-btn {
   width: 3rem;
   height: 3rem;
   border-radius: 50%;
-  background-color: #3b82f6;
-  color: white;
+  /* 朱红主色底 */
+  background-color: var(--color-primary);
+  color: var(--color-white);
   border: none;
   cursor: pointer;
   display: flex;
@@ -570,19 +577,21 @@ defineExpose({
 }
 
 .main-play-btn:hover {
-  background-color: #2563eb;
+  /* 暗红悬浮态 */
+  background-color: var(--color-primary-hover);
 }
 
 .progress-section {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
 }
 
 .time {
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: var(--font-size-small);
+  /* 灰色次要文字 */
+  color: var(--color-text-secondary);
   min-width: 3.5rem;
 }
 
@@ -590,24 +599,31 @@ defineExpose({
   flex: 1;
   height: 0.5rem;
   cursor: pointer;
-  accent-color: #3b82f6;
+  /* 朱红主色进度条 */
+  accent-color: var(--color-primary);
 }
 
+/* 倍速按钮（文字按钮：朱红底 + 橄榄绿边框 + 药丸圆角） */
 .speed-btn {
-  padding: 0.5rem 1rem;
-  background-color: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background-color: var(--color-primary);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   cursor: pointer;
-  font-size: 0.875rem;
-  color: #374151;
+  font-size: var(--font-size-small);
+  color: var(--color-white);
+  transition: background-color 0.2s;
+}
+
+.speed-btn:hover {
+  background-color: var(--color-primary-hover);
 }
 
 /* 段落列表 */
 .segments-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
   max-height: 400px;
   overflow-y: auto;
 }

@@ -101,7 +101,7 @@ function handleSegmentChange(index: number) {
 
 <style scoped>
 .annotated-segment-view {
-  padding: 1rem;
+  padding: var(--spacing-md);
   max-width: 900px;
   margin: 0 auto;
   padding-bottom: 5rem;
@@ -109,15 +109,15 @@ function handleSegmentChange(index: number) {
 
 /* 课文注释区域 */
 .annotated-section {
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
-/* 分割线 */
+/* 分割线 - Figma 设计：橄榄绿 */
 .divider {
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
-  gap: 1rem;
+  margin: var(--spacing-lg) 0;
+  gap: var(--spacing-md);
 }
 
 .divider::before,
@@ -125,19 +125,22 @@ function handleSegmentChange(index: number) {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #e5e7eb;
+  background-color: var(--color-border);
+  opacity: 0.4;
 }
 
 .divider-text {
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: var(--color-text);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
   white-space: nowrap;
 }
 
-/* 音频区域 */
+/* 音频区域 - Figma 设计：米色背景 */
 .audio-section {
-  background-color: #f9fafb;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-md);
 }
 </style>

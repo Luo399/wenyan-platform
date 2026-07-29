@@ -14,26 +14,17 @@ import StudentDisplay from '@/components/StudentDisplay.vue'
 </script>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-}
-
+/* 全局重置和 body 样式已由 design-tokens.css 统一管理 */
 #app {
   min-height: 100vh;
+  position: relative;
 }
 
 .top-bar {
   position: fixed;
   top: 0;
   right: 0;
-  padding: 1rem;
+  padding: var(--spacing-md);
   z-index: 100;
 }
 </style>

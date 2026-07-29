@@ -1,5 +1,5 @@
 <template>
-  <div class="home">
+  <div class="home" :style="{ backgroundImage: `url(${bgUrl})` }">
     <PoetryMenu />
 
     <div class="main-content">
@@ -19,37 +19,56 @@ import PoetryMenu from '@/components/PoetryMenu.vue'
 import StudentLogin from '@/components/StudentLogin.vue'
 import { useStudentStore } from '@/stores/student'
 import { storeToRefs } from 'pinia'
+import { getAssetUrl } from '@/utils/asset'
 
 const studentStore = useStudentStore()
 const { isLoggedIn } = storeToRefs(studentStore)
+
+// 登录页背景图（Figma 设计稿）
+const bgUrl = getAssetUrl('images', 'WEN_01_bg_login.png')
 </script>
 
 <style scoped>
 .home {
   display: flex;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .main-content {
   margin-left: 16.666%;
-  padding: 2rem;
+  padding: var(--spacing-2xl);
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .main-content h1 {
-  margin-bottom: 0.5rem;
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-sm);
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
 }
 
 .main-content p {
-  color: #6b7280;
-  margin-bottom: 2rem;
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  margin-bottom: var(--spacing-xl);
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.6);
 }
 
-/* 学号输入卡片样式 */
+/* 学号输入卡片 - Figma 设计：圆角 30px + 阴影 */
 .login-card {
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  max-width: 400px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  max-width: 500px;
+  width: 100%;
 }
 </style>

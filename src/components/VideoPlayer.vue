@@ -289,14 +289,18 @@ function formatTime(seconds: number): string {
    样式说明：
    - 使用 scoped 确保样式仅在当前组件内生效
    - 采用 Flexbox 布局实现控制栏的水平排列
+   - 颜色与字体遵循设计 token 规范
    ============================================================ */
 
 /* 播放器最外层容器 */
 .video-player-container {
   width: 100%;
-  background-color: #000; /* 黑色背景 */
-  border-radius: 0.5rem; /* 圆角边框 */
+  /* 黑色背景（视频播放区域） */
+  background-color: var(--color-text);
+  border-radius: var(--radius-small); /* 圆角边框 */
   overflow: hidden; /* 隐藏溢出内容 */
+  /* 使用设计 token 衬线字体 */
+  font-family: var(--font-family-serif);
 }
 
 /* 视频播放区域容器 */
@@ -304,7 +308,7 @@ function formatTime(seconds: number): string {
   width: 100%;
   /* aspect-ratio 设置宽高比为 16:9，保持视频比例 */
   aspect-ratio: 16 / 9;
-  background-color: #000; /* 黑色背景填充空白区域 */
+  background-color: var(--color-text); /* 黑色背景填充空白区域 */
 }
 
 /* 视频元素样式 */
@@ -323,27 +327,28 @@ function formatTime(seconds: number): string {
 .controls-bar {
   display: flex; /* Flexbox 布局 */
   align-items: center; /* 垂直居中对齐 */
-  gap: 0.75rem; /* 元素间距 */
-  padding: 0.75rem; /* 内边距 */
-  background-color: #1f2937; /* 深灰色背景 */
+  gap: var(--spacing-sm); /* 元素间距 */
+  padding: var(--spacing-sm); /* 内边距 */
+  /* 视频控制栏深色背景，设计 token 无对应深色变量，保留原值 */
+  background-color: #1f2937;
 }
 
-/* 播放/暂停按钮样式 */
+/* 播放/暂停按钮样式（文字按钮：朱红底 + 橄榄绿边框 + 药丸圆角） */
 .control-btn {
-  padding: 0.375rem 0.75rem; /* 按钮内边距 */
-  border: none; /* 无边框 */
-  border-radius: 0.25rem; /* 圆角 */
-  background-color: #3b82f6; /* 蓝色背景 */
-  color: white; /* 白色文字 */
-  font-size: 0.875rem; /* 字体大小 */
+  padding: var(--spacing-xs) var(--spacing-sm); /* 按钮内边距 */
+  border: var(--border-width-thin) solid var(--color-border); /* 橄榄绿边框 */
+  border-radius: var(--radius-button); /* 药丸圆角 */
+  background-color: var(--color-primary); /* 朱红主色底 */
+  color: var(--color-white); /* 白色文字 */
+  font-size: var(--font-size-small); /* 字体大小 */
   cursor: pointer; /* 鼠标指针 */
   transition: background-color 0.2s; /* 过渡效果 */
   flex-shrink: 0; /* 不允许收缩 */
 }
 
-/* 按钮悬停状态：背景变深 */
+/* 按钮悬停状态：暗红 */
 .control-btn:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
 }
 
 /* 进度条容器 */
@@ -356,23 +361,24 @@ function formatTime(seconds: number): string {
 /* 进度条轨道（背景） */
 .progress-bar {
   height: 0.375rem; /* 进度条高度 */
-  background-color: #4b5563; /* 灰色背景 */
-  border-radius: 0.25rem; /* 圆角 */
+  /* 灰色轨道（深色控制栏上的次要灰） */
+  background-color: var(--color-text-secondary);
+  border-radius: var(--radius-small); /* 圆角 */
   overflow: hidden; /* 隐藏溢出 */
 }
 
 /* 进度条填充（已播放部分） */
 .progress-filled {
   height: 100%; /* 高度100%填充轨道 */
-  background-color: #3b82f6; /* 蓝色填充 */
+  background-color: var(--color-primary); /* 朱红主色填充 */
   /* transition 平滑过渡，使宽度变化有动画效果 */
   transition: width 0.1s linear;
 }
 
 /* 时间显示文本 */
 .time-display {
-  color: #e5e7eb; /* 浅灰色文字 */
-  font-size: 0.875rem; /* 字体大小 */
+  color: var(--color-white); /* 白色文字（深色背景上） */
+  font-size: var(--font-size-small); /* 字体大小 */
   flex-shrink: 0; /* 不允许收缩 */
   min-width: 90px; /* 最小宽度 */
   text-align: right; /* 右对齐 */

@@ -168,7 +168,7 @@ onUnmounted(() => {
 
 <style scoped>
 .word-list-container {
-  padding: 1rem;
+  padding: var(--spacing-md);
 }
 
 .loading-state,
@@ -178,14 +178,14 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border: 4px solid var(--color-placeholder);
+  border-top: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -200,53 +200,67 @@ onUnmounted(() => {
 }
 
 .retry-btn {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 4px;
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.retry-btn:hover {
+  background-color: var(--color-primary-hover);
 }
 
 .article-header {
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .article-title {
-  font-size: 1.5rem;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
   margin: 0;
 }
 
 .article-meta {
-  color: #666;
-  margin: 0.5rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  margin: var(--spacing-xs) 0 0;
 }
 
 .article-content {
+  font-size: var(--font-size-body-lg);
   line-height: 1.8;
+  color: var(--color-text);
 }
 
+/* 注释词 - Figma 设计：朱红下划线 */
 .article-content :deep(.annotated-word) {
-  color: #3498db !important;
+  color: var(--color-primary) !important;
   text-decoration: underline !important;
-  text-decoration-color: #3498db !important;
+  text-decoration-color: var(--color-primary) !important;
   cursor: help !important;
-  font-weight: normal !important;
-  background-color: rgba(52, 152, 219, 0.1) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  background-color: rgba(133, 30, 14, 0.08) !important;
   padding: 0 2px;
   border-radius: 2px;
 }
 
 .tooltip {
   position: fixed;
-  background: #333;
-  color: white;
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-small);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
   z-index: 1000;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-small);
 }
 </style>

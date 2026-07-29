@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="scen-quiz">
     <div class="scen-quiz-container" v-if="hasMatchingData">
       <div class="section-tabs">
@@ -375,57 +375,60 @@ defineExpose({
 .scen-quiz {
   width: 100%;
   min-height: 500px;
+  font-family: var(--font-family-serif);
 }
 
+/* 容器：30px 圆角 + 设计 token 阴影 */
 .scen-quiz-container {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
 .section-tabs {
   display: flex;
-  gap: 8px;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-bottom: 1px solid #e2e8f0;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
   flex-wrap: wrap;
 }
 
 .tab-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
   background: transparent;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .tab-btn:hover {
-  border-color: #667eea;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
+/* 激活标签：朱红底色 */
 .tab-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: transparent;
-  color: white;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
 }
 
 .tab-number {
   width: 24px;
   height: 24px;
-  background: #e2e8f0;
+  background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
 }
 
 .tab-btn.active .tab-number {
@@ -433,33 +436,33 @@ defineExpose({
 }
 
 .tab-label {
-  font-size: 14px;
+  font-size: var(--font-size-small);
 }
 
 .content-area {
-  padding: 24px;
+  padding: var(--spacing-xl);
 }
 
 .quiz-divider {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 24px 0;
+  gap: var(--spacing-md);
+  margin: var(--spacing-xl) 0;
 }
 
 .quiz-divider::before,
 .quiz-divider::after {
   content: '';
   flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  height: var(--border-width-hairline);
+  background: linear-gradient(90deg, transparent, var(--color-placeholder), transparent);
 }
 
 .divider-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #64748b;
-  padding: 0 16px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  padding: 0 var(--spacing-md);
 }
 
 .scen-quiz-loading {
@@ -473,95 +476,97 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  color: #667eea;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
-  font-size: 32px;
+  font-size: var(--font-size-heading);
 }
 
 .loading-spinner span {
-  font-size: 14px;
+  font-size: var(--font-size-small);
 }
 
+/* 错误态：语义色红色 */
 .scen-quiz-error {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 500px;
-  padding: 24px;
+  padding: var(--spacing-xl);
   background: #fef2f2;
-  border-radius: 16px;
-  border: 1px solid #fecaca;
+  border-radius: var(--radius-card);
+  border: var(--border-width-hairline) solid #fecaca;
 }
 
 .error-icon {
   width: 50px;
   height: 50px;
-  background: #ef4444;
+  background: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 24px;
-  margin-bottom: 16px;
+  color: var(--color-white);
+  font-size: var(--font-size-subheading);
+  margin-bottom: var(--spacing-md);
 }
 
 .error-message {
-  color: #dc2626;
-  font-size: 14px;
-  margin: 0 0 16px 0;
+  color: var(--color-primary-hover);
+  font-size: var(--font-size-small);
+  margin: 0 0 var(--spacing-md) 0;
   text-align: center;
 }
 
 .error-retry {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #ef4444;
-  color: white;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-small);
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
 .error-retry:hover {
-  background: #dc2626;
+  background: var(--color-primary-hover);
 }
 
+/* 空状态 */
 .scen-quiz-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 500px;
-  padding: 24px;
-  background: #f8fafc;
-  border-radius: 16px;
+  padding: var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
 }
 
 .empty-icon {
   width: 50px;
   height: 50px;
-  background: #e2e8f0;
+  background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
-  font-size: 24px;
-  margin-bottom: 16px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-subheading);
+  margin-bottom: var(--spacing-md);
 }
 
 .empty-message {
-  color: #94a3b8;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
   margin: 0;
   text-align: center;
 }

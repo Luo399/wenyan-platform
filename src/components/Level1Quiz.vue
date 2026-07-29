@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   Level1Quiz.vue - Level 1 阅读测验组件
   功能描述：展示单选题测验，支持选项选择、答案提交、结果展示和解析
   Props:
@@ -377,43 +377,45 @@ onMounted(() => {})
 .level1-quiz-container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: 'Microsoft YaHei', sans-serif;
+  padding: var(--spacing-lg);
+  font-family: var(--font-family-serif);
 }
 
 .quiz-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--spacing-lg);
 }
 
+/* 测验卡片：30px 圆角 + 设计 token 阴影 */
 .quiz-item {
-  background: #fff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .quiz-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
 
 .question-number {
-  font-weight: 600;
-  color: #333;
-  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
 }
 
 .difficulty-tag {
-  padding: 4px 12px;
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
 }
 
+/* 难度标签配色（语义色，无对应 token，保持原值） */
 .difficulty-tag.L1 {
   background-color: #dcfce7;
   color: #166534;
@@ -421,7 +423,7 @@ onMounted(() => {})
 
 .difficulty-tag.L2 {
   background-color: #dbeafe;
-  color: #1d4ed8;
+  color: var(--color-primary);
 }
 
 .difficulty-tag.L3 {
@@ -430,50 +432,54 @@ onMounted(() => {})
 }
 
 .question-text {
-  font-size: 16px;
+  font-size: var(--font-size-body);
   line-height: 1.8;
-  color: #333;
-  margin-bottom: 20px;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-lg);
   text-align: justify;
 }
 
 .options-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
+/* 选项按钮：橄榄绿细边框 */
 .option-btn {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
-  background-color: #f8f9fa;
-  border: 2px solid transparent;
-  border-radius: 8px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--color-white);
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--radius-small);
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--font-size-body);
   transition: all 0.3s ease;
   text-align: left;
 }
 
 .option-btn:hover:not(.disabled) {
-  background-color: #e8f0fe;
-  border-color: #4a90d9;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-primary);
 }
 
+/* 选项卡片选中状态：朱红色边框 + 米色背景 */
 .option-btn.selected {
-  background-color: #e8f0fe;
-  border-color: #4a90d9;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-primary);
 }
 
+/* 正确状态：语义色绿色 */
 .option-btn.correct {
   background-color: #f0fdf4;
   border-color: #22c55e;
 }
 
+/* 错误状态：语义色红色 */
 .option-btn.wrong {
   background-color: #fef2f2;
-  border-color: #ef4444;
+  border-color: var(--color-primary);
 }
 
 .option-btn.disabled {
@@ -486,39 +492,39 @@ onMounted(() => {})
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #e0e0e0;
+  background-color: var(--color-placeholder);
   border-radius: 50%;
-  margin-right: 16px;
-  font-weight: 600;
-  color: #666;
-  font-size: 14px;
+  margin-right: var(--spacing-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
 }
 
 .option-btn.selected .option-letter {
-  background-color: #4a90d9;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-white);
 }
 
 .option-btn.correct .option-letter {
   background-color: #22c55e;
-  color: white;
+  color: var(--color-white);
 }
 
 .option-btn.wrong .option-letter {
-  background-color: #ef4444;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-white);
 }
 
 .option-content {
   flex: 1;
-  color: #333;
+  color: var(--color-text);
   line-height: 1.6;
 }
 
 .correct-icon,
 .wrong-icon {
-  margin-left: 12px;
-  font-size: 20px;
+  margin-left: var(--spacing-sm);
+  font-size: var(--font-size-body-lg);
   font-weight: bold;
 }
 
@@ -527,92 +533,95 @@ onMounted(() => {})
 }
 
 .wrong-icon {
-  color: #ef4444;
+  color: var(--color-primary);
 }
 
+/* 解析框 */
 .explanation {
-  margin-top: 20px;
-  padding: 16px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  border-left: 4px solid #4a90d9;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  border-left: var(--border-width-thin) solid var(--color-primary);
 }
 
 .explanation-title {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-  font-size: 14px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-small);
 }
 
 .explanation-content {
-  color: #666;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
   line-height: 1.7;
 }
 
 .quiz-actions {
   display: flex;
   justify-content: center;
-  padding: 20px 0;
+  padding: var(--spacing-lg) 0;
 }
 
+/* 提交按钮：朱红底色 + 橄榄绿边框 + 50px 圆角 */
 .submit-btn {
-  padding: 14px 48px;
-  background-color: #4a90d9;
-  color: white;
-  border: none;
-  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-2xl);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
   transition: background-color 0.3s ease;
 }
 
 .submit-btn:hover:not(:disabled) {
-  background-color: #357abd;
+  background-color: var(--color-primary-hover);
 }
 
 .submit-btn:disabled {
-  background-color: #ccc;
+  background-color: var(--color-placeholder);
   cursor: not-allowed;
 }
 
+/* 结果面板 */
 .result-panel {
-  background: linear-gradient(135deg, #4a90d9 0%, #357abd 100%);
-  color: white;
-  padding: 32px;
-  border-radius: 12px;
+  background: var(--color-primary);
+  color: var(--color-white);
+  padding: var(--spacing-xl);
+  border-radius: var(--radius-card);
   text-align: center;
 }
 
 .result-header {
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 20px;
+  font-size: var(--font-size-subheading);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--spacing-lg);
 }
 
 .result-stats {
   display: flex;
   justify-content: center;
-  gap: 40px;
-  margin-bottom: 24px;
+  gap: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
 }
 
 .correct-count,
 .score {
-  font-size: 18px;
-  font-weight: 500;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semibold);
 }
 
 .reset-btn {
-  padding: 12px 32px;
+  padding: var(--spacing-sm) var(--spacing-xl);
   background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 6px;
+  color: var(--color-white);
+  border: var(--border-width-hairline) solid rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-small);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-small);
   transition: background-color 0.3s ease;
 }
 
@@ -622,33 +631,33 @@ onMounted(() => {})
 
 @media (max-width: 768px) {
   .level1-quiz-container {
-    padding: 16px;
+    padding: var(--spacing-md);
   }
 
   .quiz-item {
-    padding: 16px;
+    padding: var(--spacing-md);
   }
 
   .question-text {
-    font-size: 15px;
+    font-size: var(--font-size-small);
   }
 
   .option-btn {
-    padding: 12px 16px;
-    font-size: 14px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-small);
   }
 
   .option-letter {
     width: 28px;
     height: 28px;
-    font-size: 13px;
-    margin-right: 12px;
+    font-size: var(--font-size-small);
+    margin-right: var(--spacing-sm);
   }
 
   .quiz-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--spacing-xs);
   }
 }
 </style>

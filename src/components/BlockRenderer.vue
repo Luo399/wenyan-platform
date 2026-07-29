@@ -89,7 +89,7 @@ const emit = defineEmits<{
 <style scoped>
 .block-renderer {
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .block-renderer:last-child {

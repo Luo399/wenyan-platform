@@ -226,29 +226,29 @@ onUnmounted(() => {
 <style scoped>
 .dialogue-card {
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .dialogue-bubble {
   display: flex;
-  gap: 12px;
-  padding: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-small);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .dialogue-bubble.speaker-chen {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid var(--color-primary);
 }
 
 .dialogue-bubble.speaker-wu {
-  border-left: 4px solid #10b981;
+  border-left: 4px solid var(--color-border);
 }
 
 .dialogue-bubble.speaker-soldier {
-  border-left: 4px solid #f59e0b;
+  border-left: 4px solid var(--color-accent);
 }
 
 .dialogue-avatar {
@@ -256,11 +256,11 @@ onUnmounted(() => {
   height: 48px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--color-white);
   font-size: 20px;
   overflow: hidden;
 }
@@ -278,15 +278,15 @@ onUnmounted(() => {
 
 .dialogue-speaker {
   font-size: 14px;
-  font-weight: 600;
-  color: #374151;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
   margin-bottom: 4px;
 }
 
 .dialogue-text-content {
   font-size: 14px;
   line-height: 1.6;
-  color: #4b5563;
+  color: var(--color-text-secondary);
   word-break: break-word;
 }
 
@@ -303,8 +303,8 @@ onUnmounted(() => {
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -314,16 +314,16 @@ onUnmounted(() => {
 
 .dialogue-action-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-small);
 }
 
 .dialogue-action-btn.play-btn.playing {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: var(--color-primary-hover);
 }
 
 @media (max-width: 768px) {
   .dialogue-bubble {
-    padding: 12px;
+    padding: var(--spacing-sm);
     gap: 10px;
   }
 

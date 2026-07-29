@@ -231,25 +231,25 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  padding: 1rem;
+  padding: var(--spacing-md);
 }
 
 /* 模态框容器 */
 .modal-container {
   position: relative;
-  background-color: #ffffff;
-  border-radius: 12px;
+  background-color: var(--color-white);
+  border-radius: var(--radius-card);
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
 /* 关闭按钮 */
 .close-btn {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
   width: 32px;
   height: 32px;
   border: none;
@@ -269,51 +269,51 @@ onUnmounted(() => {
 
 .close-icon {
   font-size: 1.25rem;
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1;
 }
 
 /* 头部 */
 .modal-header {
-  padding: 1.5rem 1.5rem 1rem;
+  padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
   text-align: center;
 }
 
 .modal-title {
   font-size: 1.5rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin: 0 0 0.5rem 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin: 0 0 var(--spacing-xs) 0;
 }
 
 .modal-subtitle {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
 /* 表单 */
 .login-form {
-  padding: 0 1.5rem 1.5rem;
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .form-label {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #333;
-  margin-bottom: 0.5rem;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
 }
 
 .form-input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
   font-size: 1rem;
   transition: all 0.2s ease;
   box-sizing: border-box;
@@ -321,20 +321,20 @@ onUnmounted(() => {
 
 .form-input:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 .form-input.error {
-  border-color: #ef4444;
+  border-color: var(--color-primary);
 }
 
 .form-input::placeholder {
-  color: #999;
+  color: var(--color-placeholder);
 }
 
 .form-input:disabled {
-  background-color: #f5f5f5;
+  background-color: var(--color-placeholder);
   cursor: not-allowed;
 }
 
@@ -342,23 +342,23 @@ onUnmounted(() => {
 .student-name-display {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: #ecfdf5;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #10b981;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  margin-bottom: var(--spacing-md);
+  border: var(--border-width-hairline) solid var(--color-border);
 }
 
 .name-label {
   font-size: 0.875rem;
-  color: #059669;
+  color: var(--color-border);
   font-weight: 500;
 }
 
 .name-value {
   font-size: 0.875rem;
-  color: #047857;
-  font-weight: 600;
+  color: var(--color-border);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* 记住我选项 */
@@ -376,50 +376,50 @@ onUnmounted(() => {
 .checkbox-input {
   width: 1rem;
   height: 1rem;
-  margin-right: 0.5rem;
-  accent-color: #4f46e5;
+  margin-right: var(--spacing-xs);
+  accent-color: var(--color-primary);
 }
 
 .checkbox-text {
   font-size: 0.875rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 /* 错误提示 */
 .error-box {
   display: flex;
   align-items: center;
-  padding: 0.75rem;
-  background-color: #fef2f2;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  margin-bottom: var(--spacing-md);
 }
 
 .error-icon {
   font-size: 1rem;
-  margin-right: 0.5rem;
+  margin-right: var(--spacing-xs);
 }
 
 .error-text {
   font-size: 0.875rem;
-  color: #dc2626;
+  color: var(--color-primary);
 }
 
 .error-message {
   display: block;
   font-size: 0.75rem;
-  color: #dc2626;
+  color: var(--color-primary);
   margin-top: 0.25rem;
 }
 
-/* 登录按钮 */
+/* 登录按钮：朱红底色 + 橄榄绿边框 + 胶囊圆角 */
 .login-btn {
   width: 100%;
   padding: 0.875rem;
-  background-color: #4f46e5;
-  color: white;
-  border: none;
-  border-radius: 8px;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
@@ -427,11 +427,11 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--spacing-xs);
 }
 
 .login-btn:hover:not(:disabled) {
-  background-color: #4338ca;
+  background-color: var(--color-primary-hover);
 }
 
 .login-btn:active:not(:disabled) {
@@ -439,7 +439,7 @@ onUnmounted(() => {
 }
 
 .login-btn:disabled {
-  background-color: #a5b4fc;
+  background-color: var(--color-placeholder);
   cursor: not-allowed;
 }
 
@@ -448,7 +448,7 @@ onUnmounted(() => {
   width: 1rem;
   height: 1rem;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border-top-color: var(--color-white);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -461,42 +461,42 @@ onUnmounted(() => {
 
 /* 测试账号提示 */
 .test-account-hint {
-  padding: 1rem 1.5rem 1.5rem;
-  background-color: #f9fafb;
-  border-top: 1px solid #e5e7eb;
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  background-color: var(--color-bg-highlight);
+  border-top: var(--border-width-hairline) solid var(--color-placeholder);
   text-align: center;
 }
 
 .test-account-hint p {
   margin: 0;
   font-size: 0.75rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .test-accounts {
   margin-top: 0.25rem !important;
-  color: #4f46e5 !important;
+  color: var(--color-primary) !important;
   font-family: monospace;
 }
 
 .format-hint {
-  margin-top: 0.5rem !important;
-  color: #9ca3af !important;
+  margin-top: var(--spacing-xs) !important;
+  color: var(--color-text-secondary) !important;
   font-size: 0.625rem !important;
 }
 
 /* 响应式设计 */
 @media (max-width: 480px) {
   .modal-overlay {
-    padding: 0.5rem;
+    padding: var(--spacing-xs);
   }
 
   .modal-container {
-    border-radius: 8px;
+    border-radius: var(--radius-small);
   }
 
   .modal-header {
-    padding: 1rem 1rem 0.5rem;
+    padding: var(--spacing-md) var(--spacing-md) var(--spacing-xs);
   }
 
   .modal-title {
@@ -504,7 +504,7 @@ onUnmounted(() => {
   }
 
   .login-form {
-    padding: 0 1rem 1rem;
+    padding: 0 var(--spacing-md) var(--spacing-md);
   }
 }
 </style>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="pre-quiz-text">
     <div class="pre-quiz-container" v-if="hasContent">
       <div class="pre-quiz-header">
@@ -144,51 +144,53 @@ defineExpose({
 .pre-quiz-text {
   width: 100%;
   min-height: 200px;
+  font-family: var(--font-family-serif);
 }
 
+/* 情景导入容器：30px 圆角 + 设计 token 阴影 */
 .pre-quiz-container {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-card);
 }
 
 .pre-quiz-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: var(--border-width-thin) solid var(--color-border);
 }
 
 .pre-quiz-icon {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 18px;
+  color: var(--color-white);
+  font-size: var(--font-size-body-lg);
 }
 
 .pre-quiz-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .pre-quiz-content {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .pre-quiz-text-content {
-  font-size: 16px;
+  font-size: var(--font-size-body);
   line-height: 1.8;
-  color: #475569;
+  color: var(--color-text);
   margin: 0;
   text-align: justify;
 }
@@ -198,24 +200,26 @@ defineExpose({
   justify-content: flex-end;
 }
 
+/* 按钮：朱红底色 + 橄榄绿边框 + 50px 圆角 */
 .pre-quiz-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .pre-quiz-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-small);
 }
 
 .pre-quiz-button:disabled {
@@ -234,65 +238,66 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  color: #667eea;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
-  font-size: 32px;
+  font-size: var(--font-size-heading);
 }
 
 .loading-spinner span {
-  font-size: 14px;
+  font-size: var(--font-size-small);
 }
 
+/* 错误态：语义色红色 */
 .pre-quiz-error {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 200px;
-  padding: 24px;
+  padding: var(--spacing-xl);
   background: #fef2f2;
-  border-radius: 16px;
-  border: 1px solid #fecaca;
+  border-radius: var(--radius-card);
+  border: var(--border-width-hairline) solid #fecaca;
 }
 
 .error-icon {
   width: 50px;
   height: 50px;
-  background: #ef4444;
+  background: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 24px;
-  margin-bottom: 16px;
+  color: var(--color-white);
+  font-size: var(--font-size-subheading);
+  margin-bottom: var(--spacing-md);
 }
 
 .error-message {
-  color: #dc2626;
-  font-size: 14px;
-  margin: 0 0 16px 0;
+  color: var(--color-primary-hover);
+  font-size: var(--font-size-small);
+  margin: 0 0 var(--spacing-md) 0;
   text-align: center;
 }
 
 .error-retry {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #ef4444;
-  color: white;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-small);
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
 .error-retry:hover {
-  background: #dc2626;
+  background: var(--color-primary-hover);
 }
 </style>

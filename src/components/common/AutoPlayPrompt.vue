@@ -48,58 +48,69 @@ function handleClick() {
   z-index: 100;
   width: 90%;
   max-width: 400px;
+  /* 使用设计 token 衬线字体 */
+  font-family: var(--font-family-serif);
 }
 
+/* 提示卡片 */
 .prompt-content {
+  /* 半透明黑色遮罩背景（模态提示，设计 token 无对应半透明深色） */
   background: rgba(0, 0, 0, 0.8);
-  border-radius: 12px;
-  padding: 24px;
+  /* 卡片圆角 */
+  border-radius: var(--radius-card);
+  padding: var(--spacing-lg);
   text-align: center;
-  color: #fff;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  color: var(--color-white);
+  /* 卡片阴影 */
+  box-shadow: var(--shadow-card);
 }
 
 .prompt-icon {
-  font-size: 48px;
-  color: #3b82f6;
-  margin-bottom: 16px;
+  font-size: var(--font-size-display);
+  /* 朱红主色图标 */
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-md);
 }
 
 .prompt-text {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
 }
 
 .prompt-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
+  font-size: var(--font-size-subheading);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--spacing-xs) 0;
 }
 
 .prompt-desc {
-  font-size: 14px;
+  font-size: var(--font-size-small);
+  /* 半透明白色描述文字（模态背景上，保留透明度） */
   color: rgba(255, 255, 255, 0.8);
   margin: 0;
   line-height: 1.5;
 }
 
+/* 提示按钮（文字按钮：朱红底 + 橄榄绿边框 + 药丸圆角） */
 .prompt-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 500;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  /* 朱红主色底 */
+  background: var(--color-primary);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  color: var(--color-white);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .prompt-btn:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  /* 暗红悬浮态 */
+  background: var(--color-primary-hover);
   transform: translateY(-2px);
 }
 
@@ -108,6 +119,6 @@ function handleClick() {
 }
 
 .prompt-btn i {
-  font-size: 16px;
+  font-size: var(--font-size-body-lg);
 }
 </style>

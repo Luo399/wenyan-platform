@@ -277,7 +277,7 @@ onMounted(() => {
 
 <style scoped>
 .stepthree-view {
-  padding: 1rem;
+  padding: var(--spacing-md);
   max-width: 800px;
   margin: 0 auto;
   padding-bottom: 5rem;
@@ -287,7 +287,7 @@ onMounted(() => {
 .quiz-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--spacing-lg);
 }
 
 .quiz-item {
@@ -309,25 +309,27 @@ onMounted(() => {
   }
 }
 
-/* 页面标题 */
+/* 页面标题（朱红主色块） */
 .page-header {
   text-align: center;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 1rem;
-  color: white;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background-color: var(--color-primary);
+  border-radius: var(--radius-card);
+  color: var(--color-white);
 }
 
 .page-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  font-weight: 700;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
 }
 
 .page-subtitle {
   margin: 0;
-  font-size: 0.875rem;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
   opacity: 0.9;
 }
 
@@ -335,32 +337,33 @@ onMounted(() => {
 .progress-bar-container {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 0.5rem;
-  background-color: #f3f4f6;
-  border-radius: 0.5rem;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-xs);
+  background-color: var(--color-placeholder);
+  border-radius: var(--radius-small);
 }
 
 .progress-bar {
   flex: 1;
   height: 8px;
-  background-color: #e5e7eb;
+  background-color: var(--color-placeholder);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background-color: var(--color-primary);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
 
 .progress-text {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
   min-width: 60px;
   text-align: right;
 }
@@ -371,19 +374,19 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .loading-spinner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  color: #667eea;
+  gap: var(--spacing-md);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
-  font-size: 2rem;
+  font-size: var(--font-size-heading);
 }
 
 /* 错误状态 */
@@ -393,111 +396,118 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  padding: 2rem;
-  background: #fef2f2;
-  border-radius: 1rem;
+  padding: var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
 }
 
 .error-icon {
-  font-size: 2rem;
-  color: #ef4444;
-  margin-bottom: 1rem;
+  font-size: var(--font-size-heading);
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-md);
 }
 
 .error-message {
-  margin: 0 0 1rem 0;
-  color: #dc2626;
-  font-size: 0.875rem;
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-small);
 }
 
+/* 重试按钮：朱红底 + 橄榄绿边框 + 50px 圆角 */
 .error-retry {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 
-/* 情景文本 */
+/* 情景文本（米色高亮卡片） */
 .scenario-text {
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-radius: 1rem;
-  border-left: 4px solid #f59e0b;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  border-left: var(--border-width-thin) solid var(--color-accent);
 }
 
 .scenario-text p {
   margin: 0;
-  font-size: 1rem;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
   line-height: 1.8;
-  color: #78350f;
+  color: var(--color-text);
 }
 
 /* 题目头部 */
 .quiz-header {
   display: flex;
   justify-content: flex-start;
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 0.75rem 0.75rem 0 0;
-  border-bottom: 1px solid #e2e8f0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .quiz-number {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
-/* 完成状态 */
+/* 完成状态（米色高亮卡片 + 橄榄绿图标） */
 .complete-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 2rem;
-  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-  border-radius: 1rem;
-  margin-top: 1.5rem;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  margin-top: var(--spacing-lg);
 }
 
 .complete-icon {
   width: 64px;
   height: 64px;
-  background: #22c55e;
+  background: var(--color-border);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 2rem;
-  margin-bottom: 1rem;
+  color: var(--color-white);
+  font-size: var(--font-size-heading);
+  margin-bottom: var(--spacing-md);
 }
 
 .complete-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #166534;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .complete-stats {
   margin: 0;
-  font-size: 1rem;
-  color: #15803d;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  color: var(--color-text);
 }
 
 /* 文化卡片区域 */
 .culture-cards-section {
-  margin-top: 1.5rem;
-  padding: 1rem 0;
-  border-top: 1px solid #e2e8f0;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+  border-top: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 /* 空状态 */
@@ -506,41 +516,42 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
-  background-color: #f9fafb;
-  border-radius: 1rem;
+  padding: 4rem var(--spacing-xl);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
 }
 
 .empty-icon {
   width: 64px;
   height: 64px;
-  background-color: #e5e7eb;
+  background-color: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9ca3af;
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-heading);
+  margin-bottom: var(--spacing-md);
 }
 
 .empty-message {
-  color: #6b7280;
-  font-size: 0.875rem;
+  font-family: var(--font-family-serif);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
 }
 
 /* 响应式调整 */
 @media (max-width: 767px) {
   .stepthree-view {
-    padding: 0.75rem;
+    padding: var(--spacing-sm);
   }
 
   .page-header {
-    padding: 1rem;
+    padding: var(--spacing-md);
   }
 
   .page-title {
-    font-size: 1.25rem;
+    font-size: var(--font-size-subheading);
   }
 }
 </style>

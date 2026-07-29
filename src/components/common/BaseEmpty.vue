@@ -20,9 +20,9 @@ withDefaults(defineProps<Props>(), {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3rem;
-  gap: 0.75rem;
-  color: #9ca3af;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-sm);
+  color: var(--color-text-secondary);
 }
 
 .base-empty i {

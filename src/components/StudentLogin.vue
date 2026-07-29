@@ -68,82 +68,87 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .student-login h2 {
-  font-size: 1.5rem;
-  color: #374151;
-  margin-bottom: 0.5rem;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  margin-bottom: var(--spacing-sm);
 }
 
 .subtitle {
-  color: #6b7280;
-  margin-bottom: 1.5rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  margin-bottom: var(--spacing-xl);
 }
 
 .input-group {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
 }
 
+/* 输入框 - Figma 设计：底部下划线样式 */
 .input-group input {
-  padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 1rem;
-  width: 8rem;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-bottom: 2px solid var(--color-text);
+  border-radius: 0;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  width: 10rem;
   text-align: center;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.input-group input::placeholder {
+  color: var(--color-text-secondary);
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  border-bottom-color: var(--color-primary);
 }
 
 .input-group input.error {
-  border-color: #ef4444;
+  border-bottom-color: var(--color-primary);
 }
 
+/* 确认按钮 - Figma 设计：朱红底 + 橄榄绿边框 + 50px 圆角 */
 .input-group button {
-  padding: 0.75rem 1.5rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 1rem;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+  white-space: nowrap;
 }
 
 .input-group button:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
+}
+
+.input-group button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .input-group button:disabled {
-  background-color: #9ca3af;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .error-message {
-  color: #ef4444;
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-}
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #fff;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  color: var(--color-primary);
+  font-size: var(--font-size-small);
+  margin-top: var(--spacing-sm);
 }
 </style>

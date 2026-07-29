@@ -26,65 +26,74 @@ function goBack() {
 </script>
 
 <style scoped>
+/* 404 容器：居中铺满 */
 .not-found-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f7fa;
+  background-color: var(--color-placeholder);
 }
 
 .not-found-content {
   text-align: center;
-  padding: 2rem;
+  padding: var(--spacing-xl);
 }
 
 .icon {
   width: 80px;
   height: 80px;
-  margin: 0 auto 1rem;
+  margin: 0 auto var(--spacing-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #e5e7eb;
+  background-color: var(--color-placeholder);
   border-radius: 50%;
-  font-size: 2rem;
-  color: #6b7280;
+  font-size: var(--font-size-heading);
+  color: var(--color-text-secondary);
 }
 
 h1 {
-  font-size: 4rem;
-  margin: 0 0 0.5rem;
-  color: #374151;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-display);
+  font-weight: var(--font-weight-heavy);
+  margin: 0 0 var(--spacing-xs);
+  color: var(--color-text);
 }
 
 .message {
-  font-size: 1.25rem;
-  margin: 0 0 0.5rem;
-  color: #374151;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-subheading);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--spacing-xs);
+  color: var(--color-text);
 }
 
 .description {
-  font-size: 0.875rem;
-  margin: 0 0 1.5rem;
-  color: #6b7280;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  margin: 0 0 var(--spacing-lg);
+  color: var(--color-text-secondary);
 }
 
+/* 返回按钮：朱红底 + 橄榄绿边框 + 50px 圆角 */
 .back-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .back-btn:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
 }
 </style>

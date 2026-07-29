@@ -21,15 +21,15 @@ withDefaults(defineProps<Props>(), {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
-  gap: 0.75rem;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-sm);
 }
 
 .spinner {
   width: 2rem;
   height: 2rem;
-  border: 3px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  border: var(--border-width-thin) solid var(--color-placeholder);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
