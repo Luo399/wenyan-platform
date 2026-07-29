@@ -40,14 +40,27 @@ function verifyHmacSignature(studentId, timestamp, signature, toleranceMs = 5 * 
 
 function compareAnswers(userAnswer, correctAnswer) {
   if (Array.isArray(correctAnswer)) {
+    // 正确答案是数组的情况
     if (Array.isArray(userAnswer)) {
-      const sortedCorrect = [...correctAnswer].sort();
-      const sortedUser = [...userAnswer].sort();
+      const sortedCorrect = [...correctAnswer].map(String).sort();
+      const sortedUser = [...userAnswer].map(String).sort();
+      return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser);
+    } else {
+      // 用户答案不是数组，转为数组进行对比
+      const sortedCorrect = [...correctAnswer].map(String).sort();
+      const sortedUser = [String(userAnswer ?? '')].sort();
       return JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser);
     }
-    return false;
   } else {
-    return userAnswer === correctAnswer;
+    // 正确答案不是数组的情况
+    const stringCorrect = String(correctAnswer ?? '');
+    if (Array.isArray(userAnswer)) {
+      // 用户答案是数组，用逗号拼接对比
+      const stringUser = userAnswer.map(String).join(',');
+      return stringCorrect === stringUser;
+    } else {
+      return String(userAnswer ?? '') === stringCorrect;
+    }
   }
 }
 
@@ -74,7 +87,7 @@ async function submitAnswers(req, res) {
       }
     }
 
-    // 等待所有题目的写入完成
+    // 等待所有题目的写入完成（使用子查询保证原子性）
     const results = await Promise.all(
       questions.map((question) => {
         return new Promise((resolve, reject) => {
@@ -91,49 +104,60 @@ async function submitAnswers(req, res) {
             }
           }
 
-          db.get(
-            'SELECT attempt_number FROM answers WHERE student_id = ? AND question_id = ?',
-            [studentId, question.id],
-            (err, row) => {
-              if (err) {
-                reject(err);
-                return;
+          // 使用子查询计算 attempt_number，保证并发安全
+          const stmt = db.prepare(`
+            INSERT INTO answers (
+              student_id,
+              wen_id,
+              question_id,
+              user_answer,
+              correct_answer,
+              submitted_at,
+              score,
+              is_correct,
+              attempt_number
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
+              SELECT COALESCE(MAX(attempt_number), 0) + 1
+              FROM answers
+              WHERE student_id = ? AND wen_id = ? AND question_id = ?
+            ))
+          `);
+
+          stmt.run(
+            studentId,
+            wenId,
+            question.id,
+            JSON.stringify(userAnswer),
+            correctAnswer !== null ? JSON.stringify(correctAnswer) : null,
+            submittedAt,
+            score,
+            isCorrect,
+            studentId,
+            wenId,
+            question.id,
+            (runErr) => {
+              stmt.finalize();
+              if (runErr) {
+                reject(runErr);
+              } else {
+                // 获取刚插入的 attempt_number
+                db.get(
+                  'SELECT attempt_number FROM answers WHERE student_id = ? AND wen_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1',
+                  [studentId, wenId, question.id],
+                  (err, row) => {
+                    if (err) {
+                      reject(err);
+                    } else {
+                      resolve({
+                        questionId: question.id,
+                        score,
+                        isCorrect,
+                        attemptNumber: row?.attempt_number || 1,
+                      });
+                    }
+                  },
+                );
               }
-              const attemptNumber = row ? row.attempt_number + 1 : 1;
-
-              const stmt = db.prepare(`
-                INSERT OR REPLACE INTO answers (
-                  student_id,
-                  wen_id,
-                  question_id,
-                  user_answer,
-                  correct_answer,
-                  submitted_at,
-                  score,
-                  is_correct,
-                  attempt_number
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `);
-
-              stmt.run(
-                studentId,
-                wenId,
-                question.id,
-                JSON.stringify(userAnswer),
-                correctAnswer !== null ? JSON.stringify(correctAnswer) : null,
-                submittedAt,
-                score,
-                isCorrect,
-                attemptNumber,
-                (runErr) => {
-                  stmt.finalize();
-                  if (runErr) {
-                    reject(runErr);
-                  } else {
-                    resolve({ questionId: question.id, score, isCorrect, attemptNumber });
-                  }
-                },
-              );
             },
           );
         });
@@ -197,44 +221,61 @@ function submitSingleAnswer(req, res) {
       }
     }
 
-    db.get(
-      'SELECT attempt_number FROM answers WHERE student_id = ? AND question_id = ?',
-      [studentId, questionId],
-      (err, row) => {
-        const attemptNumber = row ? row.attempt_number + 1 : 1;
+    const finalSubmittedAt = submittedAt || new Date().toISOString();
 
-        const stmt = db.prepare(`
-          INSERT OR REPLACE INTO answers (
-            student_id,
-            wen_id,
-            question_id,
-            user_answer,
-            correct_answer,
-            submitted_at,
-            score,
-            is_correct,
-            attempt_number
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+    // 使用子查询计算 attempt_number，保证并发安全
+    const stmt = db.prepare(`
+      INSERT INTO answers (
+        student_id,
+        wen_id,
+        question_id,
+        user_answer,
+        correct_answer,
+        submitted_at,
+        score,
+        is_correct,
+        attempt_number
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
+        SELECT COALESCE(MAX(attempt_number), 0) + 1
+        FROM answers
+        WHERE student_id = ? AND wen_id = ? AND question_id = ?
+      ))
+    `);
 
-        stmt.run(
-          studentId,
-          wenId,
-          questionId,
-          JSON.stringify(userAnswer),
-          finalCorrectAnswer !== null ? JSON.stringify(finalCorrectAnswer) : null,
-          submittedAt || new Date().toISOString(),
-          score,
-          isCorrect,
-          attemptNumber,
-          (err) => {
-            stmt.finalize();
-            if (err) {
-              console.error('数据库操作失败:', err);
+    stmt.run(
+      studentId,
+      wenId,
+      questionId,
+      JSON.stringify(userAnswer),
+      finalCorrectAnswer !== null ? JSON.stringify(finalCorrectAnswer) : null,
+      finalSubmittedAt,
+      score,
+      isCorrect,
+      studentId,
+      wenId,
+      questionId,
+      (err) => {
+        stmt.finalize();
+        if (err) {
+          console.error('数据库操作失败:', err);
+          return res.status(500).json({
+            success: false,
+            error: 'DATABASE_ERROR',
+            message: '数据库操作失败: ' + err.message,
+          });
+        }
+
+        // 获取刚插入的 attempt_number
+        db.get(
+          'SELECT attempt_number FROM answers WHERE student_id = ? AND wen_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1',
+          [studentId, wenId, questionId],
+          (getErr, row) => {
+            if (getErr) {
+              console.error('获取 attempt_number 失败:', getErr);
               return res.status(500).json({
                 success: false,
                 error: 'DATABASE_ERROR',
-                message: '数据库操作失败: ' + err.message,
+                message: '获取答题次数失败',
               });
             }
 
@@ -249,13 +290,13 @@ function submitSingleAnswer(req, res) {
                 correctAnswer: finalCorrectAnswer,
                 isCorrect,
                 score,
-                submittedAt: submittedAt || new Date().toISOString(),
-                attemptNumber,
+                submittedAt: finalSubmittedAt,
+                attemptNumber: row?.attempt_number || 1,
               },
             });
           },
         );
-      }
+      },
     );
   } catch (err) {
     console.error('处理请求失败:', err);

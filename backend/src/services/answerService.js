@@ -29,6 +29,7 @@ function compareAnswers(userAnswer, correctAnswer) {
   let isCorrect = 0
 
   if (Array.isArray(correctAnswer)) {
+    // 正确答案是数组的情况
     if (Array.isArray(userAnswer)) {
       const sortedCorrect = [...correctAnswer].map(String).sort()
       const sortedUser = [...userAnswer].map(String).sort()
@@ -36,13 +37,31 @@ function compareAnswers(userAnswer, correctAnswer) {
         score = 100
         isCorrect = 1
       }
+    } else {
+      // 用户答案不是数组，转为数组进行对比
+      const sortedCorrect = [...correctAnswer].map(String).sort()
+      const sortedUser = [String(userAnswer ?? '')].sort()
+      if (JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser)) {
+        score = 100
+        isCorrect = 1
+      }
     }
   } else {
+    // 正确答案不是数组的情况
     const stringCorrect = String(correctAnswer ?? '')
-    const stringUser = String(userAnswer ?? '')
-    if (stringCorrect === stringUser) {
-      score = 100
-      isCorrect = 1
+    if (Array.isArray(userAnswer)) {
+      // 用户答案是数组，取第一个元素或用逗号拼接对比
+      const stringUser = userAnswer.map(String).join(',')
+      if (stringCorrect === stringUser) {
+        score = 100
+        isCorrect = 1
+      }
+    } else {
+      const stringUser = String(userAnswer ?? '')
+      if (stringCorrect === stringUser) {
+        score = 100
+        isCorrect = 1
+      }
     }
   }
 
@@ -100,27 +119,24 @@ async function submitAnswers(data) {
 
   await ensureStudentInfo(studentId, studentName)
 
-  // 计算得分并准备插入数据
+  // 计算得分并准备插入数据（使用子查询保证原子性）
   const results = await Promise.all(
     questions.map(async (question) => {
       const userAnswer = answers[question.id]
       const correctAnswer = question.correctAnswer
       const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
 
-      // 查询已有记录数
-      const countRow = await dbGet(
-        db,
-        `SELECT COUNT(*) as count FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
-        [wenId, studentId, question.id]
-      )
-      const attemptNumber = (countRow?.count || 0) + 1
-
-      // 插入新记录
+      // 使用子查询计算 attempt_number，保证并发安全
       const stmt = db.prepare(`
         INSERT INTO answers (
           wen_id, student_id, question_id, user_answer, correct_answer,
           is_correct, score, submitted_at, attempt_number
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
+          SELECT COALESCE(MAX(attempt_number), 0) + 1
+          FROM answers
+          WHERE wen_id = ? AND student_id = ? AND question_id = ?
+        ))
       `)
 
       await stmtRun(
@@ -133,11 +149,25 @@ async function submitAnswers(data) {
         isCorrect,
         score,
         submittedAt,
-        attemptNumber
+        wenId,
+        studentId,
+        question.id
       )
       stmt.finalize()
 
-      return { questionId: question.id, score, isCorrect, attemptNumber }
+      // 获取刚插入的 attempt_number
+      const insertRow = await dbGet(
+        db,
+        `SELECT attempt_number FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1`,
+        [wenId, studentId, question.id]
+      )
+
+      return {
+        questionId: question.id,
+        score,
+        isCorrect,
+        attemptNumber: insertRow?.attempt_number || 1,
+      }
     })
   )
 
@@ -343,20 +373,17 @@ async function submitSingleAnswer(data) {
 
   const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
 
-  // 查询已有记录数
-  const countRow = await dbGet(
-    db,
-    `SELECT COUNT(*) as count FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
-    [wenId, studentId, questionId]
-  )
-  const attemptNumber = (countRow?.count || 0) + 1
-
-  // 插入新记录
+  // 使用子查询计算 attempt_number，保证并发安全
   const stmt = db.prepare(`
     INSERT INTO answers (
       wen_id, student_id, question_id, user_answer, correct_answer,
       is_correct, score, submitted_at, attempt_number
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
+      SELECT COALESCE(MAX(attempt_number), 0) + 1
+      FROM answers
+      WHERE wen_id = ? AND student_id = ? AND question_id = ?
+    ))
   `)
 
   await stmtRun(
@@ -369,9 +396,19 @@ async function submitSingleAnswer(data) {
     isCorrect,
     score,
     submittedAt,
-    attemptNumber
+    wenId,
+    studentId,
+    questionId
   )
   stmt.finalize()
+
+  // 获取刚插入的 attempt_number
+  const insertRow = await dbGet(
+    db,
+    `SELECT attempt_number FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1`,
+    [wenId, studentId, questionId]
+  )
+  const attemptNumber = insertRow?.attempt_number || 1
 
   const result = {
     studentId,
