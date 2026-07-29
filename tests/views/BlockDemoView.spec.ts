@@ -81,7 +81,7 @@ describe('BlockDemoView.vue', () => {
     })
   })
 
-  describe('页面选择器测试', () => {
+  describe('页面选择器测试（C10 核心验证）', () => {
     it('应该包含页面选择器', () => {
       const wrapper = mount(BlockDemoView, {
         global: {
@@ -90,6 +90,58 @@ describe('BlockDemoView.vue', () => {
       })
       expect(wrapper.find('.page-selector').exists()).toBe(true)
       expect(wrapper.findAll('.selector-input option').length).toBeGreaterThan(0)
+    })
+
+    it('应该渲染 4 个选项（覆盖全部 4 篇，不再缺失 WEN_03）', () => {
+      const wrapper = mount(BlockDemoView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      const options = wrapper.findAll('.selector-input option')
+      expect(options.length).toBe(4)
+    })
+
+    it('应该包含 WEN_03 选项（此前硬编码缺失）', () => {
+      const wrapper = mount(BlockDemoView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      const options = wrapper.findAll('.selector-input option')
+      const values = options.map((o) => o.attributes('value'))
+      expect(values).toContain('WEN_01')
+      expect(values).toContain('WEN_02')
+      expect(values).toContain('WEN_03')
+      expect(values).toContain('WEN_04')
+    })
+
+    it('默认选中值应该为 WEN_01', () => {
+      const wrapper = mount(BlockDemoView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      const select = wrapper.find('.selector-input')
+      // 通过 v-model 的初始值验证：读取 option 的 selected 或 select 的 value
+      expect((select.element as HTMLSelectElement).value).toBe('WEN_01')
+    })
+
+    it('每个选项的文本格式应为「WEN_XX - 标题」（统一从 getAllPoems 读取）', () => {
+      const wrapper = mount(BlockDemoView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      const options = wrapper.findAll('.selector-input option')
+      for (const opt of options) {
+        const text = opt.text()
+        // 文本应包含" - "分隔符
+        expect(text).toContain(' - ')
+        // value 应与 wenId 前缀一致
+        const value = opt.attributes('value')
+        expect(text.startsWith(value)).toBe(true)
+      }
     })
   })
 

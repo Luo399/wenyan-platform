@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getWenId, getPoemTitle, poemMap } from '@/utils/wenUtils'
+import { getWenId, getPoemTitle, poemMap, getAllPoems } from '@/utils/wenUtils'
 
 describe('wenUtils', () => {
   describe('getWenId', () => {
@@ -77,6 +77,63 @@ describe('wenUtils', () => {
     it('should have correct structure', () => {
       expect(poemMap['1']).toHaveProperty('title')
       expect(typeof poemMap['1'].title).toBe('string')
+    })
+
+    it('should have correct title mapping (matching real data files)', () => {
+      // 与真实 WEN_XX 数据文件保持一致：WEN_01=陈涉世家, WEN_02=马说
+      expect(poemMap['1'].title).toBe('陈涉世家')
+      expect(poemMap['2'].title).toBe('马说')
+      expect(poemMap['3'].title).toBe('岳阳楼记')
+      // WEN_04 标题做简写处理
+      expect(poemMap['4'].title).toBe('庄子与惠子')
+    })
+  })
+
+  describe('getAllPoems', () => {
+    it('should return 4 poems', () => {
+      const poems = getAllPoems()
+      expect(poems.length).toBe(4)
+    })
+
+    it('should return poems sorted by poemId ascending', () => {
+      const poems = getAllPoems()
+      expect(poems[0].poemId).toBe('1')
+      expect(poems[1].poemId).toBe('2')
+      expect(poems[2].poemId).toBe('3')
+      expect(poems[3].poemId).toBe('4')
+    })
+
+    it('should return correct wenId format', () => {
+      const poems = getAllPoems()
+      expect(poems[0].wenId).toBe('WEN_01')
+      expect(poems[1].wenId).toBe('WEN_02')
+      expect(poems[2].wenId).toBe('WEN_03')
+      expect(poems[3].wenId).toBe('WEN_04')
+    })
+
+    it('should return poems with all 3 fields (wenId, title, poemId)', () => {
+      const poems = getAllPoems()
+      for (const p of poems) {
+        expect(typeof p.wenId).toBe('string')
+        expect(typeof p.title).toBe('string')
+        expect(typeof p.poemId).toBe('string')
+        expect(p.wenId.startsWith('WEN_')).toBe(true)
+        expect(p.title.length).toBeGreaterThan(0)
+      }
+    })
+
+    it('should have WEN_04 title as short form', () => {
+      const poems = getAllPoems()
+      const wen04 = poems.find((p) => p.wenId === 'WEN_04')
+      expect(wen04).toBeDefined()
+      expect(wen04!.title).toBe('庄子与惠子')
+    })
+
+    it('should return consistent title with poemMap', () => {
+      const poems = getAllPoems()
+      for (const p of poems) {
+        expect(p.title).toBe(poemMap[p.poemId].title)
+      }
     })
   })
 })
