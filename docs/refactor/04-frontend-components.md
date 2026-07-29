@@ -114,15 +114,65 @@
 ## C06. BlockDemoView 直接 router.push 违反导航规则
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [ ] 未开始（设计方案已就绪）
 - **文件**:
   - `src/views/BlockDemoView.vue`（第 168 行 `router.push('/')`）
   - `src/views/NotFoundView.vue`（第 24 行 `router.push('/')`）
-- **问题描述**: 违反"useNavigation 是唯一跳转入口"规则（PoetryMenu 除外）
-- **修复方案**: 改用 `useNavigation().goHome()` 或对应导航方法
-- **验证方式**: 组件内无 `router.push` 调用（PoetryMenu 除外）
+  - `src/composables/useNavigation.ts`（第 71 行 `goPrev` 内部也直接 `router.push('/')`，同源问题）
+- **问题描述**: 违反"useNavigation 是唯一跳转入口"规则（PoetryMenu 除外）。三个独立位置直接调用 `router.push('/')`：
+  1. `BlockDemoView.goBack()` — 测试页返回首页
+  2. `NotFoundView.goBack()` — 404 页返回首页
+  3. `useNavigation.goPrev()` — 已是第一页时回退到首页
+     后者尤其隐蔽：导航 composable 自身绕过 `pageSequence` 配置硬编码路径，未来若首页路径变化（如加 prefix）会三处同时失效。
+- **修复方案**:
+
+  #### 设计决策
+
+  现有 `useNavigation(currentRouteName, currentId?)` 强制要求 `currentRouteName` 必须是 `pageSequence` 中已注册的 `RouteName`。但 `BlockDemoView`（路由名 `block-demo`）和 `NotFoundView`（路由名 `not-found`）属于"非顺序页面"，不应进入 `pageSequence`，因此无法直接复用现有签名。
+
+  采用方案：**将 `currentRouteName` 改为可选参数 + 新增 `goHome()` 方法**
+  - 优点：单一 composable，API 表面不膨胀；`goHome()` 内部走 `pageSequence` 配置（单一事实源），不硬编码 `'/'`
+  - `goNext`/`goPrev`/`goTo`/`currentIndex`/`hasNext`/`hasPrev` 在 `currentRouteName` 为空时返回早退 + `debugWarn`，不会对非顺序页面产生副作用
+  - `goPrev` 内部不再 `router.push('/')`，改为调用 `goHome()`，消除 composable 自身的违规
+
+  #### 实施步骤
+  1. **修改 `src/composables/useNavigation.ts`**
+     - 签名改为 `useNavigation(currentRouteName?: RouteName, currentId?: string)`
+     - 新增 `goHome()` 方法：从 `pageSequence` 查找 `name === 'home'` 的配置，调用 `router.push(homePage.getPath())`；找不到时 `debugError` 兜底
+     - `getTargetId` 内部把 `currentRouteName || 'home'` 作为 transformId 的入参，避免 undefined 透传
+     - `goNext`/`goPrev` 在 `currentRouteName` 为空时 `debugWarn` 后 return
+     - `goPrev` 中"没有上一页"分支改为调用 `goHome()`（替代 `router.push('/')`）
+     - `currentIndex`/`hasNext`/`hasPrev` 计算属性在 `currentRouteName` 为空时返回 `-1`/`false`/`false`
+     - 返回对象新增 `goHome`
+  2. **修改 `src/views/BlockDemoView.vue`**
+     - 移除 `import { useRouter } from 'vue-router'` 与 `const router = useRouter()`
+     - 新增 `import { useNavigation } from '@/composables/useNavigation'`
+     - `const { goHome } = useNavigation()`
+     - `goBack()` 函数体改为 `goHome()`
+  3. **修改 `src/views/NotFoundView.vue`**
+     - 同上：移除 `useRouter`，引入 `useNavigation`，`goBack()` 改为调用 `goHome()`
+
+  #### 兼容性评估
+  - 现有调用方（如 `RuleVideoView`、`StepOneView` 等）传入了 `currentRouteName`，行为完全不变
+  - `goPrev` 的"无上一页回首页"行为保留，只是路径来源从硬编码改为配置驱动
+  - `useNavigation` 的 TypeScript 类型签名向后兼容（可选参数不破坏已有调用）
+
+- **验证方式**:
+  1. `grep -r "router\.push" src/views/ src/components/ src/composables/` 仅在 `useNavigation.ts` 与 `PoetryMenu.vue`（豁免）中命中
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. 单元测试覆盖：
+     - `tests/composables/useNavigation.spec.ts` 新增：`goHome` 调用 `router.push('/')`、`goHome` 不依赖 `currentRouteName`、`goPrev` 在第一页时调用 `goHome`、`goNext`/`goPrev` 在无 `currentRouteName` 时仅 warn 不跳转
+     - 新增 `tests/views/BlockDemoView.spec.ts`：`goBack` 触发后 `router.push` 被调用一次且参数为 `'/'`（通过 mock useNavigation 验证）
+     - 新增 `tests/views/NotFoundView.spec.ts`：同上
+  5. 手动验证：访问 `/block-demo` 点击"返回首页"跳转到 `/`；访问 `/not-exist` 点击"返回首页"跳转到 `/`
 - **分支建议**: `refactor/component-06`
-- **依赖**: 02-routing-auth.md R01
+- **依赖**: 02-routing-auth.md R01（路由配置稳定后再统一改导航入口）
+- **风险评估**:
+  - 风险点：`useNavigation` 签名变更可能影响其他调用方
+  - 缓解：可选参数向后兼容；CI type-check 会捕获所有类型不匹配
+  - 风险点：`goPrev` 行为变化（路径来源改为配置）
+  - 缓解：`pageSequence` 中 `home.getPath()` 返回 `'/'`，与原硬编码一致，行为等价
 
 ## C07. Options.vue / Question.vue 单词组件名
 
