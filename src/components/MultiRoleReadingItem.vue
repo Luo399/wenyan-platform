@@ -38,10 +38,13 @@ import type { MultiRoleSegment } from './MultiRoleReading.vue'
 
 interface Props {
   segment: MultiRoleSegment
-  isActive: boolean
+  isActive?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  // 默认不高亮，由父组件通过 :is-active="..." 控制
+  isActive: false,
+})
 
 const emit = defineEmits<{
   (e: 'play'): void

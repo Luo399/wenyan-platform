@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   QuizCard.vue - 可复用的测验卡片组件
 
   功能说明：
@@ -100,12 +100,17 @@ interface QuizCardData {
 /**
  * 组件属性定义
  */
-const props = defineProps<{
-  /** 题目数据 */
-  data: QuizCardData
-  /** 提交状态 */
-  submitted: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** 题目数据 */
+    data: QuizCardData
+    /** 提交状态（默认未提交） */
+    submitted?: boolean
+  }>(),
+  {
+    submitted: false,
+  },
+)
 
 /**
  * 自定义事件定义
