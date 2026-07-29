@@ -498,16 +498,87 @@
 ## C09. StepOneView 大量未使用导入与 dead code
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（refactor/component-09）
 - **文件**: `src/views/StepOneView.vue`（第 46-63, 81-82 行）
 - **问题描述**:
   1. 第 46-48 行 3 个 import 未使用（`useStudentInfo`、`submitAnswers`、`ProcessedMultiRoleData`）
   2. 第 51-63 行 `interface Level1QuizItem` 定义但未使用
   3. 第 81-82 行 `isAudioLoaded`、`currentSegment` 两个 ref 仅赋值从未读取（dead state）
-- **修复方案**: 删除未使用的 import、interface 和 dead state
-- **验证方式**: `npm run type-check` 无未使用警告
+- **修复方案**:
+
+  #### 设计决策
+
+  **1. 未使用 import 清理**
+  - `useStudentInfo`、`submitAnswers`、`ProcessedMultiRoleData` 三个 import 在文件内无任何引用，直接删除
+  - 复核：`useStudentInfo` 在其他 view（如 `StepThreeView`）有使用，本文件纯属遗留；`submitAnswers` 同理；`ProcessedMultiRoleData` 类型在 `handleAudioLoadSuccess` 签名中被 `MultiRoleData` 取代（后者从 `MultiRoleReading.vue` 直接导出，类型更精确）
+
+  **2. 未使用 interface 清理**
+  - `Level1QuizItem` 接口字段（`text_id`、`question_number`、`option_a`...）与当前页面无关，本页面已无 Level1Quiz 组件（早期版本曾集成，后拆分到 `DetailView`），接口属历史遗留
+  - 直接删除整个 interface 定义
+
+  **3. dead state 清理 + 事件处理函数调整**
+  - `isAudioLoaded`（ref(false)）：仅在 `handleAudioLoadSuccess` 中被赋值为 `true`，全文件无读取
+  - `currentSegment`（ref<number | null>(null)）：仅在 `handleSegmentChange` 中被赋值，全文件无读取
+  - 处理策略：
+    - `handleAudioLoadSuccess`：保留 `debugLog` 输出（调试观测用，生产构建自动剥离），删除 `isAudioLoaded.value = true` 死赋值
+    - `handleSegmentChange`：函数体仅为 `currentSegment.value = index` 死赋值，无其他副作用；将函数体改为 `debugLog` 输出段落索引，保留事件监听以维持可观测性（与 `handleAudioLoadSuccess` 行为一致），避免变更模板事件绑定
+  - **不删除 `@segment-change` 事件绑定**的理由：保持模板与组件契约一致，未来若需在父组件响应段落变化（如同步滚动条、高亮列表项）无需重新接线；同时与 `@load-success` / `@load-error` 处理风格统一（均通过 debugLog 观测）
+
+  **4. 过期测试同步修正**
+  - 现有 `tests/views/StepOneView.spec.ts` 存在历史遗留断言，期望 `.quiz-section` 与 `Level1Quiz` 组件存在，但当前 `StepOneView.vue` 早已移除测验区块（拆分至 `DetailView`），测试与实现不一致
+  - 本次同步修正：
+    - 移除对 `.quiz-section` 的断言
+    - 移除对 `Level1Quiz` 组件的断言与 stub
+    - 保留基础渲染、`.annotated-section` / `.audio-section` 结构断言
+    - 新增对 `BackContinue` 导航组件的渲染断言
+    - 新增对 `MultiRoleReading` 事件透传（`wenId`、`auto-load`）的 props 断言
+    - 新增对 `useNavigation`（goNext/goPrev）的集成测试（mock 验证）
+
+  #### 实施步骤
+
+  1. **修改 `src/views/StepOneView.vue`**
+     - 删除第 46-48 行 3 个未使用 import
+     - 删除第 52-64 行 `interface Level1QuizItem` 定义
+     - 删除第 82-83 行 `isAudioLoaded`、`currentSegment` ref 定义
+     - `handleAudioLoadSuccess` 函数体改为仅 `debugLog`（删除 `isAudioLoaded.value = true`）
+     - `handleSegmentChange` 函数体改为 `debugLog` 输出段落索引（删除 `currentSegment.value = index`）
+
+  2. **修改 `tests/views/StepOneView.spec.ts`**
+     - 移除 `Level1Quiz` / `VideoPlayer` stub（当前组件未使用）
+     - 移除"课后小测三个区块"测试中的 `.quiz-section` 断言
+     - 移除"Level1Quiz 透传 wenId"测试组（组件不存在）
+     - 新增"BackContinue 导航"测试组：验证组件渲染、goNext/goPrev 触发
+     - 新增"MultiRoleReading props 透传"测试组：验证 `wenId`、`auto-load` props
+     - 新增"事件处理"测试组：验证 `load-success` / `load-error` / `segment-change` 事件触发 debugLog（通过 mock debug 模块）
+
+  3. **运行验证**
+     - `npm run type-check`：确认无未使用警告
+     - `npm run lint`：确认无新告警
+     - `npm run test`：确认所有测试通过
+
+  #### 兼容性评估
+
+  - 模板对外契约不变：`<MultiRoleReading>` 的 props（`wen-id`、`auto-load`）与 emits（`load-success`、`load-error`、`segment-change`）绑定全部保留
+  - 路由参数 `poemId` → `wenId` 计算逻辑不变
+  - `useNavigation('stepone', poemId)` 调用不变
+  - 删除的 import / interface / ref 均为文件内部局部，无外部引用
+  - 测试修正后与实际组件结构对齐，消除历史遗留的"测试通过但断言失效"假象
+
+- **验证方式**:
+  1. `grep -rn "useStudentInfo\|submitAnswers\|ProcessedMultiRoleData\|Level1QuizItem\|isAudioLoaded\|currentSegment" src/views/StepOneView.vue` 无命中
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. `npm run test` 全部通过（含修正后的 StepOneView 测试）
 - **分支建议**: `refactor/component-09`
 - **依赖**: 无
+- **风险评估**:
+  - 风险点：移除 `@segment-change` 监听会改变 MultiRoleReading 行为
+  - 缓解：**不移除** `@segment-change` 绑定，仅将 handler 改为 debugLog，行为等价（事件原本只写 dead state）
+  - 风险点：测试修正范围超出 C09 描述的"删除 dead code"
+  - 缓解：现有测试已与实现脱节（期望不存在的 `.quiz-section`），属"修改指定文件时发现的相关过期测试"，同步修正避免后续误判
+- **实际变更**:
+  - `src/views/StepOneView.vue`：删除 3 个未使用 import、`Level1QuizItem` interface、2 个 dead ref；`handleAudioLoadSuccess` 改为仅 debugLog；`handleSegmentChange` 改为 debugLog 输出段落索引
+  - `tests/views/StepOneView.spec.ts`：移除过期 `.quiz-section` / `Level1Quiz` 断言与 stub；新增 BackContinue 渲染、MultiRoleReading props 透传、事件处理（mock debug 验证 debugLog 调用）测试组
 
 ## C10. PoetryMenu / BlockDemoView 诗文列表硬编码
 
