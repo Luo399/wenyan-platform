@@ -99,4 +99,17 @@ describe('VideoPlayer.vue', () => {
       expect(video.attributes('src')).toBe('/new/video.mp4')
     })
   })
+
+  describe('默认值验证', () => {
+    it('不传 poster 时 poster 属性默认为空字符串', () => {
+      // 验证 withDefaults 生效：poster 默认 ''，与原 undefined 行为一致（浏览器不显示封面）
+      const wrapper = mount(VideoPlayer, {
+        props: {
+          src: testSrc,
+        },
+      })
+      const video = wrapper.find('video')
+      expect(video.attributes('poster')).toBe('')
+    })
+  })
 })
