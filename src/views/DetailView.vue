@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import Question, { type QuestionData } from '../components/Question.vue'
+import QuizQuestion, { type QuestionData } from '../components/QuizQuestion.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 
@@ -83,7 +83,7 @@ function handleAnswerChange(questionId: string, answer: string | number | (strin
     <div class="questions-section">
       <h2>课后练习</h2>
       <div v-for="question in questions" :key="question.id" class="question-wrapper">
-        <Question :question="question" @answer-change="handleAnswerChange" />
+        <QuizQuestion :question="question" @answer-change="handleAnswerChange" />
       </div>
     </div>
 
