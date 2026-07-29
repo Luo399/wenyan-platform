@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   QuizCard.vue - 可复用的测验卡片组件
 
   功能说明：
@@ -178,32 +178,33 @@ defineExpose({ reset })
 </script>
 
 <style scoped>
+/* 测验卡片容器：30px 圆角 + 设计 token 阴影 */
 .quiz-card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
+  font-family: var(--font-family-serif);
 }
 
 /* 卡片头部 */
 .quiz-card-header {
   display: flex;
   justify-content: flex-end;
-  padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-bottom: 1px solid #e2e8f0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .quiz-difficulty {
   display: inline-block;
-  padding: 4px 12px;
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
 }
 
+/* 难度标签配色（语义色，无对应 token，保持原值） */
 .difficulty-l1 {
   background: #dcfce7;
   color: #166534;
@@ -211,7 +212,7 @@ defineExpose({ reset })
 
 .difficulty-l2 {
   background: #dbeafe;
-  color: #1d4ed8;
+  color: var(--color-primary);
 }
 
 .difficulty-l3 {
@@ -221,48 +222,50 @@ defineExpose({ reset })
 
 /* 卡片主体 */
 .quiz-card-body {
-  padding: 1.5rem;
+  padding: var(--spacing-lg);
 }
 
 .question-text {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
   line-height: 1.6;
-  color: #1e293b;
-  margin-bottom: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 0.75rem;
-  border-left: 4px solid #667eea;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  border-left: var(--border-width-thin) solid var(--color-primary);
 }
 
 .options-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
 }
 
+/* 选项按钮：橄榄绿细边框 */
 .option-btn {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: #f8fafc;
-  border: 2px solid #e2e8f0;
-  border-radius: 0.75rem;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-small);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
 }
 
 .option-btn:hover:not(:disabled) {
-  border-color: #667eea;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
+/* 选项卡片选中状态：朱红色边框 + 米色背景 */
 .option-btn.selected {
-  border-color: #667eea;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
 .option-btn.locked {
@@ -270,53 +273,55 @@ defineExpose({ reset })
   opacity: 0.8;
 }
 
+/* 正确状态：语义色绿色 */
 .option-btn.correct {
   border-color: #22c55e;
   background: #f0fdf4;
 }
 
+/* 错误状态：语义色红色 */
 .option-btn.wrong {
-  border-color: #ef4444;
+  border-color: var(--color-primary);
   background: #fef2f2;
 }
 
 .option-label {
   width: 24px;
   height: 24px;
-  background: #e2e8f0;
+  background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #64748b;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
 .option-btn.selected .option-label {
-  background: #667eea;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .option-btn.correct .option-label {
   background: #22c55e;
-  color: white;
+  color: var(--color-white);
 }
 
 .option-btn.wrong .option-label {
-  background: #ef4444;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .option-text {
   flex: 1;
-  font-size: 0.9rem;
-  color: #475569;
+  font-size: var(--font-size-body);
+  color: var(--color-text);
 }
 
 .option-icon {
-  font-size: 1rem;
+  font-size: var(--font-size-body);
 }
 
 .option-btn.correct .option-icon {
@@ -324,62 +329,64 @@ defineExpose({ reset })
 }
 
 .option-btn.wrong .option-icon {
-  color: #ef4444;
+  color: var(--color-primary);
 }
 
 /* 解析框 */
 .explanation-box {
-  margin-top: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  border-radius: 0.75rem;
-  border-left: 4px solid #3b82f6;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  border-left: var(--border-width-thin) solid var(--color-primary);
 }
 
 .explanation-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1e40af;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .explanation-text {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--font-size-small);
   line-height: 1.6;
-  color: #1e3a8a;
+  color: var(--color-text);
 }
 
 /* 卡片底部 */
 .quiz-card-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 1rem 1.25rem;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-highlight);
+  border-top: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
+/* 提交按钮：朱红底色 + 橄榄绿边框 + 50px 圆角 */
 .submit-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-small);
 }
 
 .submit-btn:disabled {
@@ -390,15 +397,15 @@ defineExpose({ reset })
 /* 响应式调整 */
 @media (max-width: 767px) {
   .quiz-card-body {
-    padding: 1rem;
+    padding: var(--spacing-md);
   }
 
   .question-text {
-    padding: 0.75rem 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
   }
 
   .option-btn {
-    padding: 0.875rem 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
   }
 }
 </style>

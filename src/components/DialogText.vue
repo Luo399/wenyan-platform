@@ -321,10 +321,10 @@ defineExpose({
 }
 
 .dialog-container {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .dialog-current {
@@ -334,38 +334,38 @@ defineExpose({
 
 .dialog-bubble {
   display: flex;
-  gap: 16px;
+  gap: var(--spacing-md);
   padding: 20px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 16px;
-  border-left: 4px solid #667eea;
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  border-left: 4px solid var(--color-primary);
 }
 
 .dialog-bubble.speaker-chen {
-  border-left-color: #ef4444;
-  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-left-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
 .dialog-bubble.speaker-wu {
-  border-left-color: #3b82f6;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-left-color: var(--color-primary);
+  background: var(--color-bg-highlight);
 }
 
 .dialog-bubble.speaker-soldier {
-  border-left-color: #22c55e;
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-left-color: var(--color-border);
+  background: var(--color-bg-highlight);
 }
 
 .dialog-avatar {
   flex-shrink: 0;
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--color-white);
   font-size: 24px;
   overflow: hidden;
 }
@@ -383,15 +383,15 @@ defineExpose({
 
 .dialog-speaker {
   font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 8px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
 }
 
 .dialog-text-content {
   font-size: 16px;
   line-height: 1.7;
-  color: #475569;
+  color: var(--color-text-secondary);
   min-height: 60px;
 }
 
@@ -416,40 +416,40 @@ defineExpose({
 }
 
 .play-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .play-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-small);
 }
 
 .dialog-progress {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
   margin-bottom: 20px;
 }
 
 .progress-bar {
   flex: 1;
   height: 6px;
-  background: #e2e8f0;
+  background: var(--color-placeholder);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   border-radius: 3px;
   transition: width 0.3s ease;
 }
 
 .progress-text {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--color-text-secondary);
   min-width: 50px;
   text-align: right;
 }
@@ -462,10 +462,10 @@ defineExpose({
 .control-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-button);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -473,22 +473,23 @@ defineExpose({
 }
 
 .prev-btn {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--color-bg-highlight);
+  color: var(--color-text-secondary);
 }
 
 .prev-btn:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: var(--color-placeholder);
 }
 
 .next-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
 }
 
 .next-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-small);
 }
 
 .control-btn:disabled {
@@ -507,8 +508,8 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  color: #667eea;
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
@@ -525,47 +526,47 @@ defineExpose({
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  padding: 24px;
-  background: #fef2f2;
-  border-radius: 16px;
-  border: 1px solid #fecaca;
+  padding: var(--spacing-lg);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  border: var(--border-width-hairline) solid var(--color-primary);
 }
 
 .error-icon {
   width: 50px;
   height: 50px;
-  background: #ef4444;
+  background: var(--color-primary);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--color-white);
   font-size: 24px;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
 
 .error-message {
-  color: #dc2626;
+  color: var(--color-primary);
   font-size: 14px;
-  margin: 0 0 16px 0;
+  margin: 0 0 var(--spacing-md) 0;
   text-align: center;
 }
 
 .error-retry {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
   padding: 10px 20px;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   font-size: 14px;
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
 .error-retry:hover {
-  background: #dc2626;
+  background: var(--color-primary-hover);
 }
 </style>

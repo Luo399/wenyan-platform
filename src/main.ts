@@ -2,6 +2,8 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+// 全局设计 Token（Figma 配色/字体/间距/圆角）
+import './assets/styles/design-tokens.css'
 import { setupAuthGuard } from './router/guards'
 import { useStudentStore } from './stores/student'
 import { useAuthStore } from './stores/auth'

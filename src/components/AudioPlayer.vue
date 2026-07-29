@@ -199,19 +199,22 @@ function formatTime(seconds: number): string {
 /* 播放器容器 */
 .audio-player-container {
   width: 100%;
-  background-color: #f3f4f6;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  /* 半透明米色高亮背景 */
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  padding: var(--spacing-md);
+  /* 使用设计 token 衬线字体 */
+  font-family: var(--font-family-serif);
 }
 
 /* 控制栏：水平排列各控制元素 */
 .controls-bar {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
 }
 
-/* 控制按钮样式 */
+/* 控制按钮样式（圆形图标按钮） */
 .control-btn {
   display: flex;
   align-items: center;
@@ -220,24 +223,28 @@ function formatTime(seconds: number): string {
   height: 2.5rem;
   border: none;
   border-radius: 50%;
-  background-color: #3b82f6;
-  color: white;
+  /* 朱红主色底 */
+  background-color: var(--color-primary);
+  color: var(--color-white);
   cursor: pointer;
   transition: background-color 0.2s;
   flex-shrink: 0;
 }
 
 .control-btn:hover {
-  background-color: #2563eb;
+  /* 暗红悬浮态 */
+  background-color: var(--color-primary-hover);
 }
 
-/* 音量按钮样式 */
+/* 音量按钮样式（次要按钮） */
 .volume-btn {
-  background-color: #6b7280;
+  /* 灰色次要按钮底色 */
+  background-color: var(--color-text-secondary);
 }
 
 .volume-btn:hover {
-  background-color: #4b5563;
+  /* 黑色主文字色 */
+  background-color: var(--color-text);
 }
 
 /* 进度区域 */
@@ -245,13 +252,14 @@ function formatTime(seconds: number): string {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
 }
 
 /* 时间显示文本 */
 .time-display {
-  color: #374151;
-  font-size: 0.875rem;
+  /* 黑色主文字 */
+  color: var(--color-text);
+  font-size: var(--font-size-small);
   flex-shrink: 0;
   min-width: 90px;
 }
@@ -266,15 +274,17 @@ function formatTime(seconds: number): string {
 /* 进度条轨道 */
 .progress-bar {
   height: 0.375rem;
-  background-color: #d1d5db;
-  border-radius: 0.25rem;
+  /* 占位灰色轨道 */
+  background-color: var(--color-placeholder);
+  border-radius: var(--radius-small);
   overflow: hidden;
 }
 
 /* 进度条填充 */
 .progress-filled {
   height: 100%;
-  background-color: #3b82f6;
+  /* 朱红主色填充 */
+  background-color: var(--color-primary);
   transition: width 0.1s linear;
 }
 </style>

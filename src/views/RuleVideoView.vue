@@ -80,14 +80,16 @@ const currentPoem = computed(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 2rem;
+  padding: var(--spacing-xl);
   padding-bottom: 5rem;
 }
 
 .page-title {
-  font-size: 1.5rem;
-  color: #374151;
-  margin-bottom: 1.5rem;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--spacing-lg);
   text-align: center;
 }
 

@@ -94,25 +94,27 @@ function handleAnswerChange(questionId: string, answer: string | number | (strin
 
 <style scoped>
 .detail-view {
-  padding: 2rem;
+  padding: var(--spacing-xl);
   max-width: 800px;
   margin: 0 auto;
   padding-bottom: 5rem;
 }
 
 .questions-section {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-md);
+  border-top: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .questions-section h2 {
-  font-size: 1.25rem;
-  margin-bottom: 1rem;
-  color: #374151;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-subheading);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text);
 }
 
 .question-wrapper {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--spacing-lg);
 }
 </style>

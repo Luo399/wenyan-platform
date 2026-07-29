@@ -69,7 +69,11 @@ function scanFiles(dir, files = []) {
 
 async function uploadToOSS(client, localPath, ossPath) {
   try {
-    const result = await client.put(ossPath, localPath)
+    // 必须显式设置 public-read，否则 OSS 文件默认私有会导致 403
+    // 与 deploy-frontend.yml 中 ossutil --acl public-read 行为对齐
+    const result = await client.put(ossPath, localPath, {
+      headers: { 'x-oss-object-acl': 'public-read' },
+    })
     return {
       success: true,
       url: result.url,
@@ -128,7 +132,8 @@ async function runUpload() {
   const results = []
 
   for (const localPath of files) {
-    const ossPath = path.relative(targetDir, localPath)
+    // Windows 路径分隔符 \ 需替换为 /，否则 OSS 中会编码为 %5C
+    const ossPath = path.relative(targetDir, localPath).replace(/\\/g, '/')
 
     console.log(`上传: ${ossPath}`)
     const result = await uploadToOSS(client, localPath, ossPath)

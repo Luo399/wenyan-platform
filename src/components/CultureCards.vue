@@ -133,72 +133,72 @@ function handleCardClick(card: CultureCard) {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  font-family: 'Microsoft YaHei', sans-serif;
+  font-family: var(--font-family-serif);
 }
 
 .cards-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--spacing-md);
 }
 
 .cards-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .cards-title {
   font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .cards-count {
   font-size: 14px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .cards-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: var(--spacing-md);
 }
 
 .card-item {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--color-white);
+  border-radius: var(--radius-card);
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-small);
   cursor: pointer;
   transition: all 0.3s ease;
   border: 2px solid transparent;
 }
 
 .card-item:hover:not(.locked) {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  border-color: #4a90d9;
+  box-shadow: var(--shadow-card);
+  border-color: var(--color-primary);
 }
 
 .card-item.locked {
   opacity: 0.6;
   cursor: not-allowed;
-  background: #f5f5f5;
+  background: var(--color-placeholder);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .card-name {
   font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .lock-icon {
@@ -206,54 +206,54 @@ function handleCardClick(card: CultureCard) {
 }
 
 .card-content {
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .knowledge-text {
   font-size: 14px;
   line-height: 1.8;
-  color: #555;
+  color: var(--color-text-secondary);
   text-align: justify;
   margin: 0;
 }
 
 .text-container {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 8px;
-  padding: 16px;
-  border-left: 4px solid #4a90d9;
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  padding: var(--spacing-md);
+  border-left: 4px solid var(--color-primary);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .text-container .knowledge-text {
-  color: #4a5568;
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 
 .card-item.text-only {
-  border: 2px solid #e2e8f0;
-  background: #fafbfc;
+  border: 2px solid var(--color-placeholder);
+  background: var(--color-bg-highlight);
 }
 
 .unlock-tip {
-  padding: 8px 12px;
-  background: #f0f7ff;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-bg-highlight);
   border-radius: 6px;
   font-size: 12px;
 }
 
 .unlock-label {
-  color: #4a90d9;
+  color: var(--color-primary);
   font-weight: 500;
 }
 
 .unlock-text {
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 768px) {
   .culture-cards-container {
-    padding: 16px;
+    padding: var(--spacing-md);
   }
 
   .cards-list {
@@ -261,7 +261,7 @@ function handleCardClick(card: CultureCard) {
   }
 
   .card-item {
-    padding: 16px;
+    padding: var(--spacing-md);
   }
 }
 </style>

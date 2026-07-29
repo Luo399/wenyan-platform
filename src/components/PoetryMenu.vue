@@ -76,20 +76,22 @@ function onMouseLeave() {
   top: 0;
   width: 16.666%; /* 六分之一 */
   height: 100vh;
-  background-color: #f5f5f5;
-  border-right: 1px solid #ddd;
-  padding: 20px;
+  background-color: var(--color-placeholder);
+  border-right: var(--border-width-hairline) solid var(--color-border);
+  padding: var(--spacing-md);
   box-sizing: border-box;
 }
 
 /* 触发区样式 */
 .menu-trigger {
-  font-size: 1.2rem;
-  font-weight: bold;
-  padding: 8px 12px;
-  background-color: #e9e9e9;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--color-bg-highlight);
+  color: var(--color-text);
   cursor: default;
-  border-radius: 4px;
+  border-radius: var(--radius-small);
   text-align: center;
 }
 
@@ -97,21 +99,22 @@ function onMouseLeave() {
 .dropdown {
   list-style: none;
   margin: 0;
-  padding: 8px 0;
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  margin-top: 4px;
+  padding: var(--spacing-xs) 0;
+  background-color: var(--color-white);
+  border: var(--border-width-hairline) solid var(--color-border);
+  border-radius: var(--radius-small);
+  box-shadow: var(--shadow-small);
+  margin-top: var(--spacing-xs);
 }
 
 .dropdown li {
-  padding: 8px 16px;
+  padding: var(--spacing-xs) var(--spacing-md);
   cursor: pointer;
-  transition: background-color 0.2s;
+  color: var(--color-text);
+  transition: background-color 0.2s ease;
 }
 
 .dropdown li:hover {
-  background-color: #f0f0f0;
+  background-color: var(--color-bg-highlight);
 }
 </style>
