@@ -11,7 +11,7 @@
 
   使用示例：
   <SectionDivider text="音频学习" />
-  <SectionDivider text="视频学习" color="#3b82f6" />
+  <SectionDivider text="视频学习" />
 -->
 <template>
   <div class="section-divider">
@@ -30,7 +30,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  color: '#6b7280',
+  color: '#9c9999',
 })
 
 const textColor = computed(() => props.color)
@@ -40,14 +40,14 @@ const textColor = computed(() => props.color)
 .section-divider {
   display: flex;
   align-items: center;
-  margin: 1.5rem 0;
-  gap: 1rem;
+  margin: var(--spacing-lg) 0;
+  gap: var(--spacing-md);
 }
 
 .line {
   flex: 1;
-  height: 1px;
-  background-color: #e5e7eb;
+  height: var(--border-width-hairline);
+  background-color: var(--color-placeholder);
 }
 
 .divider-text {

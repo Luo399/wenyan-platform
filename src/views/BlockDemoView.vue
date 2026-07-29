@@ -199,31 +199,32 @@ onMounted(() => {
 
 <style scoped>
 .block-demo {
-  padding: 1.5rem;
+  padding: var(--spacing-lg);
   max-width: 900px;
   margin: 0 auto;
   padding-bottom: 6rem;
+  font-family: var(--font-family-serif);
 }
 
 /* 页面标题 */
 .demo-header {
   text-align: center;
-  margin-bottom: 2rem;
-  padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 1rem;
-  color: white;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-xl);
+  background: var(--color-primary);
+  border-radius: var(--radius-card);
+  color: var(--color-white);
 }
 
 .demo-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1.75rem;
-  font-weight: 700;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-heavy);
 }
 
 .demo-subtitle {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--font-size-small);
   opacity: 0.9;
 }
 
@@ -231,31 +232,32 @@ onMounted(() => {
 .page-selector {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: #f8fafc;
-  border-radius: 0.5rem;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
 }
 
 .selector-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .selector-input {
   flex: 1;
-  padding: 0.5rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  background: white;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  background: var(--color-white);
 }
 
 .selector-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
 }
 
 /* 加载状态 */
@@ -270,8 +272,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  color: #667eea;
+  gap: var(--spacing-md);
+  color: var(--color-primary);
 }
 
 .loading-spinner i {
@@ -290,118 +292,121 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem;
-  background: #fef2f2;
-  border-radius: 1rem;
-  border: 1px solid #fecaca;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .error-icon {
   font-size: 2rem;
-  color: #ef4444;
+  color: var(--color-primary);
 }
 
 .error-message {
   margin: 0;
-  color: #dc2626;
-  font-size: 0.875rem;
+  color: var(--color-primary);
+  font-size: var(--font-size-small);
 }
 
 .retry-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .retry-button:hover {
-  background: #dc2626;
+  background: var(--color-primary-hover);
 }
 
 /* 配置信息 */
 .config-info {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: #f0fdf4;
-  border-radius: 0.5rem;
-  border: 1px solid #bbf7d0;
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  border: var(--border-width-hairline) solid var(--color-border);
 }
 
 .config-title {
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #166534;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-border);
 }
 
 .config-id,
 .config-count {
   margin: 0.25rem 0;
-  font-size: 0.875rem;
-  color: #15803d;
+  font-size: var(--font-size-small);
+  color: var(--color-border);
 }
 
 /* Blocks区域 */
 .blocks-section {
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-xl);
 }
 
 .section-title {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #374151;
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .blocks-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--spacing-lg);
 }
 
 .block-wrapper {
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
   overflow: hidden;
 }
 
 .block-label {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 1rem;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
 }
 
 .block-index {
   font-size: 0.75rem;
-  font-weight: 500;
-  color: #64748b;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
 }
 
 .block-type {
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.25rem 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  padding: 0.25rem var(--spacing-sm);
   border-radius: 9999px;
 }
 
+/* 语义类型标签 - 对话用橄榄绿，测验用暖棕 */
 .block-type.type-dialogue {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--color-bg-highlight);
+  color: var(--color-border);
 }
 
 .block-type.type-quiz {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--color-bg-highlight);
+  color: var(--color-accent);
 }
 
 /* 空状态 */
@@ -416,73 +421,76 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: var(--spacing-md);
 }
 
 .empty-icon {
   width: 64px;
   height: 64px;
-  background: #e5e7eb;
+  background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: #9ca3af;
+  color: var(--color-text-secondary);
 }
 
 .empty-message {
   margin: 0;
-  color: #6b7280;
-  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
 }
 
 /* 导航按钮 */
 .demo-nav {
   display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
 }
 
 .nav-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s ease;
 }
 
+/* 返回按钮 - 白底 */
 .back-btn {
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--color-white);
+  color: var(--color-text);
 }
 
 .back-btn:hover {
-  background: #cbd5e1;
+  background: var(--color-bg-highlight);
 }
 
+/* 刷新按钮 - 朱红底 */
 .refresh-btn {
-  background: #667eea;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-white);
 }
 
 .refresh-btn:hover {
-  background: #5a67d8;
+  background: var(--color-primary-hover);
 }
 
 @media (max-width: 768px) {
   .block-demo {
-    padding: 1rem;
+    padding: var(--spacing-md);
   }
 
   .demo-title {
-    font-size: 1.5rem;
+    font-size: var(--font-size-subheading);
   }
 
   .page-selector {

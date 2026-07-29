@@ -89,38 +89,49 @@ function handleContinue() {
   right: 0;
   display: flex;
   justify-content: space-between;
-  padding: 1rem 2rem;
+  padding: var(--spacing-md) var(--spacing-xl);
   background: linear-gradient(to top, rgba(255, 255, 255, 1) 60%, rgba(255, 255, 255, 0));
   z-index: 100;
 }
 
+/* 导航按钮 - Figma 设计：圆角 50px，思源宋体 */
 .nav-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-size: 1rem;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
 }
 
+/* 返回按钮 - 白底 */
 .back-btn {
-  background-color: #e5e7eb;
-  color: #374151;
+  background-color: var(--color-white);
+  color: var(--color-text);
 }
 
 .back-btn:hover {
-  background-color: #d1d5db;
+  background-color: var(--color-bg-highlight);
 }
 
+/* 继续按钮 - 朱红底 */
 .continue-btn {
-  background-color: #3b82f6;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-white);
 }
 
 .continue-btn:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
+}
+
+.nav-btn:active {
+  transform: scale(0.98);
 }
 </style>

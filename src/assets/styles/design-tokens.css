@@ -1,0 +1,196 @@
+/**
+ * 设计 Token - 从 Figma 设计稿提取
+ *
+ * 配色方案：朱红 + 橄榄绿 + 米色（中国古典文学风格）
+ * 字体：思源宋体（Source Han Serif CN / Noto Serif SC）
+ * 画布基准：3040×1710（Figma 设计稿尺寸）
+ */
+
+:root {
+  /* ========== 配色 ========== */
+  /* 主色 - 朱红（按钮、标题、强调文字） */
+  --color-primary: #851e0e;
+  /* 主色悬浮态 - 暗红 */
+  --color-primary-hover: #a44232;
+  /* 边框色 - 橄榄绿 */
+  --color-border: #687857;
+  /* 白色 */
+  --color-white: #ffffff;
+  /* 主文字色 - 黑色 */
+  --color-text: #000000;
+  /* 次要文字色 - 灰色 */
+  --color-text-secondary: #9c9999;
+  /* 暖棕色 - 装饰元素 */
+  --color-accent: #c99471;
+  /* 半透明米色 - 高亮背景条 */
+  --color-bg-highlight: rgba(226, 205, 170, 0.48);
+  /* 占位灰色 */
+  --color-placeholder: #d9d9d9;
+
+  /* ========== 字体 ========== */
+  --font-family-serif: 'Source Han Serif CN', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-weight-semibold: 600;
+  --font-weight-heavy: 900;
+
+  /* ========== 字号（响应式，基于 Figma 3040px 画布按比例缩放） ========== */
+  --font-size-display: clamp(2rem, 5vw, 3.5rem); /* Figma 100px - 大标题 */
+  --font-size-heading: clamp(1.5rem, 4vw, 2.5rem); /* Figma 80px - 页面标题 */
+  --font-size-subheading: clamp(1.25rem, 3vw, 2rem); /* Figma 70px - 副标题/按钮 */
+  --font-size-section: clamp(1.1rem, 2.5vw, 1.75rem); /* Figma 60px - 区段标题 */
+  --font-size-body-lg: clamp(1rem, 2.2vw, 1.5rem); /* Figma 55px - 大正文 */
+  --font-size-body: clamp(0.95rem, 1.8vw, 1.25rem); /* Figma 45px - 正文 */
+  --font-size-small: clamp(0.85rem, 1.5vw, 1.1rem); /* Figma 40px - 小字 */
+
+  /* ========== 圆角 ========== */
+  --radius-button: 50px; /* Figma 按钮圆角 */
+  --radius-card: 30px; /* Figma 卡片圆角 */
+  --radius-small: 0.5rem; /* 通用小圆角 */
+
+  /* ========== 边框 ========== */
+  --border-width: 8px; /* Figma 按钮/卡片边框 */
+  --border-width-thin: 3px; /* 虚线边框 */
+  --border-width-hairline: 1px; /* 细线 */
+
+  /* ========== 阴影 ========== */
+  --shadow-card: 18px 15px 66px 0px rgba(0, 0, 0, 0.25);
+  --shadow-small: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+
+  /* ========== 间距 ========== */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+}
+
+/* ========== 全局基础重置 ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family-serif);
+  color: var(--color-text);
+  background-color: var(--color-white);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.6;
+}
+
+/* ========== 通用按钮样式 ========== */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 次要按钮（白底红字红边） */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background-color: var(--color-white);
+  color: var(--color-primary);
+  border: var(--border-width) solid var(--color-primary);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg-highlight);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* ========== 通用卡片样式 ========== */
+.card {
+  background-color: var(--color-white);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--spacing-xl);
+}
+
+/* ========== 高亮背景条（Figma 中的米色圆角条） ========== */
+.highlight-bar {
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-sm) var(--spacing-lg);
+}
+
+/* ========== 分割线（带文字） ========== */
+.divider-with-text {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.divider-with-text::before,
+.divider-with-text::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-border);
+  opacity: 0.3;
+}
+
+.divider-with-text .divider-text {
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+/* ========== 文字工具类 ========== */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-white {
+  color: var(--color-white);
+}
+
+.font-heavy {
+  font-weight: var(--font-weight-heavy);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}

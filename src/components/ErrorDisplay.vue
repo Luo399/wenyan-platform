@@ -221,61 +221,61 @@ const hasDetail = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  gap: 0.75rem;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-card);
+  background-color: var(--color-bg-highlight);
+  border: var(--border-width-hairline) solid var(--color-primary);
+  gap: var(--spacing-sm);
   max-width: 500px;
-  margin: 1rem auto;
+  margin: var(--spacing-md) auto;
 }
 
 /* 不同资源类型的样式 */
 .error-type-video {
-  background-color: #fff7ed;
-  border-color: #fed7aa;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-accent);
 }
 
 .error-type-mp3 {
-  background-color: #f0fdf4;
-  border-color: #86efac;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-border);
 }
 
 .error-type-img {
-  background-color: #eff6ff;
-  border-color: #bfdbfe;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-primary);
 }
 
 .error-type-json {
-  background-color: #faf5ff;
-  border-color: #c4b5fd;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-accent);
 }
 
 .error-type-other {
-  background-color: #fef2f2;
-  border-color: #fecaca;
+  background-color: var(--color-bg-highlight);
+  border-color: var(--color-primary);
 }
 
 /* 图标样式 */
 .error-icon {
   font-size: 2.5rem;
-  color: #ef4444;
+  color: var(--color-primary);
 }
 
 .error-type-video .error-icon {
-  color: #ea580c;
+  color: var(--color-accent);
 }
 
 .error-type-mp3 .error-icon {
-  color: #16a34a;
+  color: var(--color-border);
 }
 
 .error-type-img .error-icon {
-  color: #2563eb;
+  color: var(--color-primary);
 }
 
 .error-type-json .error-icon {
-  color: #7c3aed;
+  color: var(--color-accent);
 }
 
 /* 错误内容 */
@@ -283,15 +283,15 @@ const hasDetail = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: var(--spacing-xs);
   width: 100%;
 }
 
 .error-title {
   margin: 0;
   font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
   width: 100%;
   text-align: center;
 }
@@ -316,13 +316,13 @@ const hasDetail = computed(() => {
 .detail-label,
 .time-label,
 .solution-label {
-  color: #6b7280;
+  color: var(--color-text-secondary);
   font-weight: 500;
   flex-shrink: 0;
 }
 
 .source-value {
-  color: #3b82f6;
+  color: var(--color-primary);
   font-weight: 500;
   font-family: 'Monaco', 'Consolas', monospace;
 }
@@ -335,43 +335,43 @@ const hasDetail = computed(() => {
 }
 
 .type-video {
-  background-color: #fed7aa;
-  color: #ea580c;
+  background-color: var(--color-accent);
+  color: var(--color-white);
 }
 
 .type-mp3 {
-  background-color: #86efac;
-  color: #16a34a;
+  background-color: var(--color-border);
+  color: var(--color-white);
 }
 
 .type-img {
-  background-color: #bfdbfe;
-  color: #2563eb;
+  background-color: var(--color-primary);
+  color: var(--color-white);
 }
 
 .type-json {
-  background-color: #c4b5fd;
-  color: #7c3aed;
+  background-color: var(--color-accent);
+  color: var(--color-white);
 }
 
 .type-other {
-  background-color: #fecaca;
-  color: #dc2626;
+  background-color: var(--color-primary);
+  color: var(--color-white);
 }
 
 .path-value {
-  color: #1f2937;
+  color: var(--color-text);
   font-family: 'Monaco', 'Consolas', monospace;
   word-break: break-all;
 }
 
 .detail-value {
-  color: #dc2626;
+  color: var(--color-primary);
   word-break: break-all;
 }
 
 .time-value {
-  color: #9ca3af;
+  color: var(--color-text-secondary);
 }
 
 /* 解决方案 */
@@ -379,9 +379,9 @@ const hasDetail = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  padding: 0.75rem;
-  background-color: rgba(0, 0, 0, 0.03);
-  border-radius: 0.375rem;
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
   width: calc(100% - 1.5rem);
 }
 
@@ -393,7 +393,7 @@ const hasDetail = computed(() => {
   margin: 0;
   padding-left: 1.25rem;
   font-size: 0.875rem;
-  color: #4b5563;
+  color: var(--color-text-secondary);
   gap: 0.25rem;
 }
 
@@ -405,16 +405,16 @@ const hasDetail = computed(() => {
   margin-bottom: 0;
 }
 
-/* 按钮样式 */
+/* 按钮样式：朱红底色 + 橄榄绿边框 + 胶囊圆角 */
 .retry-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1.25rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   cursor: pointer;
   font-size: 0.875rem;
   align-self: center;
@@ -422,11 +422,11 @@ const hasDetail = computed(() => {
 }
 
 .retry-btn:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
 }
 
 .retry-btn:disabled {
-  background-color: #9ca3af;
+  background-color: var(--color-text-secondary);
   cursor: not-allowed;
 }
 
@@ -436,7 +436,7 @@ const hasDetail = computed(() => {
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   background: none;
-  color: #6b7280;
+  color: var(--color-text-secondary);
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
@@ -444,15 +444,15 @@ const hasDetail = computed(() => {
 }
 
 .detail-btn:hover {
-  color: #3b82f6;
+  color: var(--color-primary);
 }
 
 /* 更多详情 */
 .error-more {
-  margin-top: 0.5rem;
-  padding: 1rem;
-  background-color: rgba(0, 0, 0, 0.05);
-  border-radius: 0.25rem;
+  margin-top: var(--spacing-xs);
+  padding: var(--spacing-md);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
   width: calc(100% - 2rem);
   overflow: auto;
 }
@@ -460,7 +460,7 @@ const hasDetail = computed(() => {
 .error-stack {
   margin: 0;
   font-size: 0.75rem;
-  color: #4b5563;
+  color: var(--color-text-secondary);
   white-space: pre-wrap;
   word-break: break-all;
   font-family: 'Monaco', 'Consolas', monospace;

@@ -77,35 +77,45 @@ function handlePlay() {
 </script>
 
 <style scoped>
+/* 段落卡片项 */
 .segment-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  background-color: #fff;
-  border: 1px solid #e5e7eb;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  /* 卡片圆角 */
+  border-radius: var(--radius-card);
+  background-color: var(--color-white);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  /* 卡片阴影 */
+  box-shadow: var(--shadow-small);
   cursor: pointer;
   transition: all 0.2s;
+  /* 使用设计 token 衬线字体 */
+  font-family: var(--font-family-serif);
 }
 
 .segment-item:hover {
-  background-color: #f9fafb;
+  /* 半透明米色高亮背景 */
+  background-color: var(--color-bg-highlight);
 }
 
 .segment-item.active {
-  background-color: #dbeafe;
-  border-color: #3b82f6;
+  /* 半透明米色高亮背景 */
+  background-color: var(--color-bg-highlight);
+  /* 朱红主色边框 */
+  border-color: var(--color-primary);
 }
 
 .avatar {
-  font-size: 1.5rem;
+  font-size: var(--font-size-subheading);
   width: 2.5rem;
   height: 2.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f3f4f6;
+  /* 半透明米色高亮背景 */
+  background-color: var(--color-bg-highlight);
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -116,31 +126,36 @@ function handlePlay() {
 }
 
 .role-name {
-  font-weight: 600;
-  color: #374151;
-  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
+  /* 黑色主文字 */
+  color: var(--color-text);
+  font-size: var(--font-size-small);
   margin-bottom: 0.25rem;
 }
 
 .text {
-  color: #4b5563;
-  font-size: 0.9rem;
+  /* 灰色次要文字 */
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
   line-height: 1.5;
   word-break: break-word;
 }
 
+/* 播放按钮（圆形图标按钮） */
 .play-btn {
   flex-shrink: 0;
-  padding: 0.5rem;
+  padding: var(--spacing-xs);
   border: none;
   border-radius: 50%;
-  background-color: #3b82f6;
-  color: white;
+  /* 朱红主色底 */
+  background-color: var(--color-primary);
+  color: var(--color-white);
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .play-btn:hover {
-  background-color: #2563eb;
+  /* 暗红悬浮态 */
+  background-color: var(--color-primary-hover);
 }
 </style>

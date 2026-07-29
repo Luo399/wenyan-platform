@@ -26,9 +26,9 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3rem;
-  gap: 0.75rem;
-  color: #ef4444;
+  padding: var(--spacing-2xl);
+  gap: var(--spacing-sm);
+  color: var(--color-primary);
 }
 
 .base-error i {
@@ -39,16 +39,17 @@ defineEmits<{
   margin: 0;
 }
 
+/* 重试按钮：朱红底色 + 橄榄绿边框 + 胶囊圆角 */
 .retry-btn {
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-button);
   cursor: pointer;
 }
 
 .retry-btn:hover {
-  background-color: #2563eb;
+  background-color: var(--color-primary-hover);
 }
 </style>
