@@ -15,9 +15,9 @@
     <div class="page-selector">
       <label class="selector-label">选择页面：</label>
       <select v-model="selectedPage" class="selector-input" @change="handlePageChange">
-        <option value="WEN_01">WEN_01 - 陈涉世家</option>
-        <option value="WEN_04">WEN_04 - 庄子</option>
-        <option value="WEN_02">WEN_02</option>
+        <option v-for="poem in poemList" :key="poem.wenId" :value="poem.wenId">
+          {{ poem.wenId }} - {{ poem.title }}
+        </option>
       </select>
     </div>
 
@@ -104,11 +104,15 @@ import { ref, computed, onMounted } from 'vue'
 import BlockRenderer from '@/components/BlockRenderer.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useNavigation } from '@/composables/useNavigation'
+import { getAllPoems } from '@/utils/wenUtils'
 import type { PageConfig } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
 // 非顺序页面（block-demo）不传 currentRouteName，仅使用 goHome
 const { goHome } = useNavigation()
+
+// 诗文列表：从 wenUtils 统一读取，避免硬编码
+const poemList = getAllPoems()
 
 // 选中的页面ID
 const selectedPage = ref('WEN_01')

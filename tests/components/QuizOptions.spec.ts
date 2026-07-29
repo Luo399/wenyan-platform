@@ -173,4 +173,19 @@ describe('QuizOptions.vue', () => {
       expect(wrapper.emitted('change')).toBeUndefined()
     })
   })
+
+  describe('默认值验证', () => {
+    it('不传 disabled 时默认为 false，点击选项可正常触发事件', async () => {
+      // 验证 withDefaults 生效：disabled 默认 false，等价于未禁用
+      const wrapper = mount(QuizOptions, {
+        props: { options: radioOptions, type: 'radio' },
+      })
+      // 选项不应带 disabled 类
+      expect(wrapper.find('.option-item.disabled').exists()).toBe(false)
+      // 点击应能触发事件
+      await wrapper.findAll('.option-item')[0].trigger('click')
+      expect(wrapper.emitted('update:modelValue')).toBeTruthy()
+      expect(wrapper.emitted('change')).toBeTruthy()
+    })
+  })
 })

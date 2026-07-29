@@ -298,47 +298,358 @@
 ## C08. 7 个组件缺少 withDefaults
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
-- **文件**:
-  - `src/components/Options.vue`（第 35-40 行）
-  - `src/components/Question.vue`（第 64-67 行）
-  - `src/components/AudioPlayer.vue`（第 74 行）
-  - `src/components/VideoPlayer.vue`（第 76 行）
-  - `src/components/LoginModal.vue`（第 84 行）
-  - `src/components/MultiRoleReadingItem.vue`（第 44 行）
-  - `src/components/QuizCard.vue`（第 103 行）
-- **问题描述**: `defineProps<{...}>()` 未使用 `withDefaults`，可选 props 无默认值
-- **修复方案**: 改为 `withDefaults(defineProps<Props>(), { ... })`
-- **验证方式**: TypeScript 类型检查通过
-- **分支建议**: `refactor/component-08`
-- **依赖**: 无
+- **状态**: [x] 已完成（refactor/component-08）
+- **文件**（C07 已将 Options.vue/Question.vue 重命名为 QuizOptions.vue/QuizQuestion.vue，下文沿用新名）:
+  - `src/components/QuizOptions.vue`（第 34-39 行 defineProps）
+  - `src/components/QuizQuestion.vue`（第 63-66 行 defineProps）
+  - `src/components/AudioPlayer.vue`（第 75-80 行 defineProps）
+  - `src/components/VideoPlayer.vue`（第 77-89 行 defineProps）
+  - `src/components/LoginModal.vue`（第 81-85 行 defineProps）
+  - `src/components/MultiRoleReadingItem.vue`（第 39-44 行 defineProps）
+  - `src/components/QuizCard.vue`（第 103-108 行 defineProps）
+- **问题描述**: `defineProps<{...}>()` 未使用 `withDefaults`，可选 props 无默认值。原审计列出 7 个组件，但逐文件复核后发现实际只有 4 个需要改动，2 个无需改动，1 个不适用（详见设计决策）
+- **修复方案**:
+
+  #### 设计决策
+
+  **0. 复核结论（重要）**
+
+  逐文件审查 7 个组件的 props 定义后，按"是否有可选 prop、默认值是否可静态确定"分类：
+
+  | 文件 | 必填 props | 可选 props | 是否改动 | 原因 |
+  |------|-----------|-----------|---------|------|
+  | `QuizOptions.vue` | options, type | modelValue?, disabled? | ✅ 改 | disabled 给 false；modelValue 依赖 type 不给默认值 |
+  | `QuizQuestion.vue` | question | modelValue? | ❌ 不改 | 唯一可选 prop modelValue 依赖 question.type，无法给静态默认值；加空 withDefaults 是无意义噪音 |
+  | `AudioPlayer.vue` | src | （无） | ❌ 不改 | 无可选 props，加 withDefaults 无意义 |
+  | `VideoPlayer.vue` | src | poster? | ✅ 改 | poster 给 `''` |
+  | `LoginModal.vue` | visible | （无） | ❌ 不改 | 无可选 props |
+  | `MultiRoleReadingItem.vue` | segment, isActive | （无） | ✅ 改 | isActive 语义应为可选，改 `isActive?: boolean` + 默认 false |
+  | `QuizCard.vue` | data, submitted | （无） | ✅ 改 | submitted 语义应为可选，改 `submitted?: boolean` + 默认 false |
+
+  实际改动：**4 个文件**（QuizOptions / VideoPlayer / MultiRoleReadingItem / QuizCard）。
+  未改动：**3 个文件**（QuizQuestion / AudioPlayer / LoginModal），在设计说明中标注原因，避免后续重复审计。
+
+  **1. ESLint 规则复核**
+
+  项目 `eslint.config.ts` 使用 `pluginVue.configs['flat/essential']`，**不包含** `vue/require-default-prop` 规则（该规则属于 recommended 级别）。因此本次重构不是 ESLint 强制要求，动机是：
+  - 类型安全：可选 props 在组件内访问时为 `T | undefined`，加默认值可收窄类型
+  - 调用方简化：父组件不必显式传 `:disabled="false"`
+  - 语义对齐：`isActive`/`submitted` 这类"状态标志"语义上应有默认 false
+
+  **2. modelValue 默认值策略（关键）**
+
+  `QuizOptions` 和 `QuizQuestion` 的 `modelValue` 默认值依赖另一 prop（`type` / `question.type`）：
+  - radio 模式默认 `''`
+  - checkbox 模式默认 `[]`
+
+  `withDefaults` 不支持基于其他 props 计算默认值（只能给静态字面量）。Vue 官方明确推荐：**当默认值依赖其他 props 时，保持 `modelValue?: T`（不给 withDefaults 默认值），在 `getInitialValue()` 等运行时函数中兜底**。两个组件已有 `getInitialValue()` 实现（`props.modelValue ?? ''` / `Array.isArray(props.modelValue) ? [...] : []`），运行时兜底正确。
+
+  因此 `modelValue` 不进入 withDefaults 默认值表，这是有意为之，不是遗漏。
+
+  **3. 各文件改动细节**
+
+  ##### 3.1 `src/components/QuizOptions.vue`（第 34-39 行）
+
+  ```ts
+  // 修改前
+  const props = defineProps<{
+    options: Option[]
+    type: OptionsType
+    modelValue?: string | number | (string | number)[]
+    disabled?: boolean
+  }>()
+
+  // 修改后
+  const props = withDefaults(
+    defineProps<{
+      options: Option[]
+      type: OptionsType
+      modelValue?: string | number | (string | number)[]
+      disabled?: boolean
+    }>(),
+    {
+      disabled: false,
+      // modelValue 不给默认值：依赖 type（radio→'' / checkbox→[]），由 getInitialValue() 运行时兜底
+    },
+  )
+  ```
+
+  ##### 3.2 `src/components/VideoPlayer.vue`（第 77-89 行）
+
+  ```ts
+  // 修改前
+  const props = defineProps<{
+    src: string
+    poster?: string
+  }>()
+
+  // 修改后
+  const props = withDefaults(
+    defineProps<{
+      src: string
+      poster?: string
+    }>(),
+    {
+      poster: '', // 空字符串：:poster="''" 时浏览器不显示封面，与原 undefined 行为一致
+    },
+  )
+  ```
+
+  ##### 3.3 `src/components/MultiRoleReadingItem.vue`（第 39-44 行）
+
+  ```ts
+  // 修改前
+  interface Props {
+    segment: MultiRoleSegment
+    isActive: boolean
+  }
+  const props = defineProps<Props>()
+
+  // 修改后
+  interface Props {
+    segment: MultiRoleSegment
+    isActive?: boolean // 由必填改为可选，语义"是否高亮当前段落"，默认不高亮
+  }
+  const props = withDefaults(defineProps<Props>(), {
+    isActive: false,
+  })
+  ```
+
+  ##### 3.4 `src/components/QuizCard.vue`（第 103-108 行）
+
+  ```ts
+  // 修改前
+  const props = defineProps<{
+    /** 题目数据 */
+    data: QuizCardData
+    /** 提交状态 */
+    submitted: boolean
+  }>()
+
+  // 修改后
+  const props = withDefaults(
+    defineProps<{
+      /** 题目数据 */
+      data: QuizCardData
+      /** 提交状态（默认未提交） */
+      submitted?: boolean
+    }>(),
+    {
+      submitted: false,
+    },
+  )
+  ```
+
+  #### 实施步骤
+
+  1. **修改 4 个文件**（按上述 3.1–3.4 改动）
+     - 注意：`MultiRoleReadingItem.vue` 与 `QuizCard.vue` 的 props 从"必填"改为"可选"，调用方（父组件）无需改动（不传等价于传 false，与原"必须显式传 false"行为等价）
+  2. **更新单测**（如有断言依赖 props 必填性）
+     - `tests/components/QuizOptions.spec.ts`：现有用例均显式传 disabled，新增 1 个用例验证"不传 disabled 时默认 false"（点击选项可触发 toggle）
+     - `tests/components/VideoPlayer.spec.ts`：新增 1 个用例验证"不传 poster 时 `<video>` 元素 poster 属性为空字符串"
+     - `tests/components/QuizCard.spec.ts`：新增 1 个用例验证"不传 submitted 时默认 false（提交按钮可见、选项可点击）"
+     - `MultiRoleReadingItem` 暂无单测，不新增（保持现状，避免本次范围蔓延）
+  3. **运行验证**
+     - `npm run type-check`：确认可选 props 改动未破坏类型推断
+     - `npm run lint`：确认无新告警
+     - `npm run test`：确认新增用例通过且原有用例不回归
+
+  #### 兼容性评估
+
+  - **QuizOptions**：`disabled` 默认值 `false` 与原"未传时 undefined（falsy）"行为等价；`toggleOption` 中 `if (props.disabled) return` 对 false/undefined 行为一致
+  - **VideoPlayer**：`poster: ''` 与原 `poster: undefined` 在模板 `:poster="poster"` 渲染一致（空字符串与 undefined 都不显示封面）
+  - **MultiRoleReadingItem**：`isActive` 改可选后，父组件 `MultiRoleReading.vue` 现有调用 `<MultiRoleReadingItem :is-active="..." />` 仍可工作；不传时默认 false（不高亮），符合语义
+  - **QuizCard**：`submitted` 改可选后，父组件现有调用 `<QuizCard :submitted="..." />` 仍可工作；不传时默认 false（未提交态），符合语义
+  - **未改动文件**：QuizQuestion / AudioPlayer / LoginModal 行为完全不变
+
+  - **类型推断变化**：`isActive`/`submitted` 从必填变可选，父组件 TSX/模板中若依赖"必填"类型推断的场景极少（Vue 模板不强制类型检查 prop 必填性），CI type-check 会捕获任何潜在问题
+
+- **验证方式**:
+  1. `grep -rn "defineProps<{" src/components/QuizOptions.vue src/components/VideoPlayer.vue src/components/MultiRoleReadingItem.vue src/components/QuizCard.vue` 无命中（均已改为 withDefaults 包装）
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. `npm run test` 全部通过（含新增 3 个默认值验证用例）
+  5. 手动验证（生产部署后）：
+     - 选项组件可正常点击切换（默认非禁用）
+     - 视频组件无 poster 时正常播放
+     - 多角色朗读段落默认不高亮，当前播放段落高亮
+     - 测验卡片默认未提交态，提交按钮可见
+- **分支建议**:
+  - 设计：`refactor/component-08-design`
+  - 实施：`refactor/component-08`
+- **依赖**: C07（已完成，Options/Question 已重命名为 QuizOptions/QuizQuestion）
+- **风险评估**:
+  - 风险点：`isActive`/`submitted` 从必填改为可选，可能影响父组件类型推断
+  - 缓解：Vue 模板对 prop 必填性不强制；CI type-check 捕获 TS 类型问题；两个 prop 默认值 false 与原"必传 false"语义等价
+  - 风险点：`modelValue` 不给 withDefaults 默认值，可能被误认为遗漏
+  - 缓解：在设计文档与本文件注释中明确说明"依赖其他 prop，运行时兜底"，并附 Vue 官方推荐链接
+  - 风险点：原审计列 7 个文件，实际只改 4 个，可能被质疑"未完成"
+  - 缓解：本设计逐文件说明不改原因，审计口径从"7 个待改"修正为"4 个改 + 3 个不适用"
+- **实际变更**:
+  - `src/components/QuizOptions.vue`：`defineProps<{...}>()` 改为 `withDefaults(defineProps<{...}>(), { disabled: false })`，modelValue 保持可选无默认值（依赖 type，由 getInitialValue() 运行时兜底）
+  - `src/components/VideoPlayer.vue`：`defineProps<{...}>()` 改为 `withDefaults(defineProps<{...}>(), { poster: '' })`
+  - `src/components/MultiRoleReadingItem.vue`：`isActive: boolean` 改为 `isActive?: boolean`，`defineProps<Props>()` 改为 `withDefaults(defineProps<Props>(), { isActive: false })`
+  - `src/components/QuizCard.vue`：`submitted: boolean` 改为 `submitted?: boolean`，`defineProps<{...}>()` 改为 `withDefaults(defineProps<{...}>(), { submitted: false })`
+  - `tests/components/QuizOptions.spec.ts`：新增"默认值验证"测试组，1 个用例验证不传 disabled 时默认 false（选项无 disabled 类、点击可触发事件）
+  - `tests/components/VideoPlayer.spec.ts`：新增"默认值验证"测试组，1 个用例验证不传 poster 时 video 元素 poster 属性为空字符串
+  - `tests/components/QuizCard.spec.ts`：新增"默认值验证"测试组，1 个用例验证不传 submitted 时默认 false（提交按钮可见、选项未锁定、解析区域隐藏）
+  - 未改动：`QuizQuestion.vue` / `AudioPlayer.vue` / `LoginModal.vue`（无可改的 optional props，详见设计决策）
 
 ## C09. StepOneView 大量未使用导入与 dead code
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（refactor/component-09）
 - **文件**: `src/views/StepOneView.vue`（第 46-63, 81-82 行）
 - **问题描述**:
   1. 第 46-48 行 3 个 import 未使用（`useStudentInfo`、`submitAnswers`、`ProcessedMultiRoleData`）
   2. 第 51-63 行 `interface Level1QuizItem` 定义但未使用
   3. 第 81-82 行 `isAudioLoaded`、`currentSegment` 两个 ref 仅赋值从未读取（dead state）
-- **修复方案**: 删除未使用的 import、interface 和 dead state
-- **验证方式**: `npm run type-check` 无未使用警告
+- **修复方案**:
+
+  #### 设计决策
+
+  **1. 未使用 import 清理**
+  - `useStudentInfo`、`submitAnswers`、`ProcessedMultiRoleData` 三个 import 在文件内无任何引用，直接删除
+  - 复核：`useStudentInfo` 在其他 view（如 `StepThreeView`）有使用，本文件纯属遗留；`submitAnswers` 同理；`ProcessedMultiRoleData` 类型在 `handleAudioLoadSuccess` 签名中被 `MultiRoleData` 取代（后者从 `MultiRoleReading.vue` 直接导出，类型更精确）
+
+  **2. 未使用 interface 清理**
+  - `Level1QuizItem` 接口字段（`text_id`、`question_number`、`option_a`...）与当前页面无关，本页面已无 Level1Quiz 组件（早期版本曾集成，后拆分到 `DetailView`），接口属历史遗留
+  - 直接删除整个 interface 定义
+
+  **3. dead state 清理 + 事件处理函数调整**
+  - `isAudioLoaded`（ref(false)）：仅在 `handleAudioLoadSuccess` 中被赋值为 `true`，全文件无读取
+  - `currentSegment`（ref<number | null>(null)）：仅在 `handleSegmentChange` 中被赋值，全文件无读取
+  - 处理策略：
+    - `handleAudioLoadSuccess`：保留 `debugLog` 输出（调试观测用，生产构建自动剥离），删除 `isAudioLoaded.value = true` 死赋值
+    - `handleSegmentChange`：函数体仅为 `currentSegment.value = index` 死赋值，无其他副作用；将函数体改为 `debugLog` 输出段落索引，保留事件监听以维持可观测性（与 `handleAudioLoadSuccess` 行为一致），避免变更模板事件绑定
+  - **不删除 `@segment-change` 事件绑定**的理由：保持模板与组件契约一致，未来若需在父组件响应段落变化（如同步滚动条、高亮列表项）无需重新接线；同时与 `@load-success` / `@load-error` 处理风格统一（均通过 debugLog 观测）
+
+  **4. 过期测试同步修正**
+  - 现有 `tests/views/StepOneView.spec.ts` 存在历史遗留断言，期望 `.quiz-section` 与 `Level1Quiz` 组件存在，但当前 `StepOneView.vue` 早已移除测验区块（拆分至 `DetailView`），测试与实现不一致
+  - 本次同步修正：
+    - 移除对 `.quiz-section` 的断言
+    - 移除对 `Level1Quiz` 组件的断言与 stub
+    - 保留基础渲染、`.annotated-section` / `.audio-section` 结构断言
+    - 新增对 `BackContinue` 导航组件的渲染断言
+    - 新增对 `MultiRoleReading` 事件透传（`wenId`、`auto-load`）的 props 断言
+    - 新增对 `useNavigation`（goNext/goPrev）的集成测试（mock 验证）
+
+  #### 实施步骤
+
+  1. **修改 `src/views/StepOneView.vue`**
+     - 删除第 46-48 行 3 个未使用 import
+     - 删除第 52-64 行 `interface Level1QuizItem` 定义
+     - 删除第 82-83 行 `isAudioLoaded`、`currentSegment` ref 定义
+     - `handleAudioLoadSuccess` 函数体改为仅 `debugLog`（删除 `isAudioLoaded.value = true`）
+     - `handleSegmentChange` 函数体改为 `debugLog` 输出段落索引（删除 `currentSegment.value = index`）
+
+  2. **修改 `tests/views/StepOneView.spec.ts`**
+     - 移除 `Level1Quiz` / `VideoPlayer` stub（当前组件未使用）
+     - 移除"课后小测三个区块"测试中的 `.quiz-section` 断言
+     - 移除"Level1Quiz 透传 wenId"测试组（组件不存在）
+     - 新增"BackContinue 导航"测试组：验证组件渲染、goNext/goPrev 触发
+     - 新增"MultiRoleReading props 透传"测试组：验证 `wenId`、`auto-load` props
+     - 新增"事件处理"测试组：验证 `load-success` / `load-error` / `segment-change` 事件触发 debugLog（通过 mock debug 模块）
+
+  3. **运行验证**
+     - `npm run type-check`：确认无未使用警告
+     - `npm run lint`：确认无新告警
+     - `npm run test`：确认所有测试通过
+
+  #### 兼容性评估
+
+  - 模板对外契约不变：`<MultiRoleReading>` 的 props（`wen-id`、`auto-load`）与 emits（`load-success`、`load-error`、`segment-change`）绑定全部保留
+  - 路由参数 `poemId` → `wenId` 计算逻辑不变
+  - `useNavigation('stepone', poemId)` 调用不变
+  - 删除的 import / interface / ref 均为文件内部局部，无外部引用
+  - 测试修正后与实际组件结构对齐，消除历史遗留的"测试通过但断言失效"假象
+
+- **验证方式**:
+  1. `grep -rn "useStudentInfo\|submitAnswers\|ProcessedMultiRoleData\|Level1QuizItem\|isAudioLoaded\|currentSegment" src/views/StepOneView.vue` 无命中
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. `npm run test` 全部通过（含修正后的 StepOneView 测试）
 - **分支建议**: `refactor/component-09`
 - **依赖**: 无
+- **风险评估**:
+  - 风险点：移除 `@segment-change` 监听会改变 MultiRoleReading 行为
+  - 缓解：**不移除** `@segment-change` 绑定，仅将 handler 改为 debugLog，行为等价（事件原本只写 dead state）
+  - 风险点：测试修正范围超出 C09 描述的"删除 dead code"
+  - 缓解：现有测试已与实现脱节（期望不存在的 `.quiz-section`），属"修改指定文件时发现的相关过期测试"，同步修正避免后续误判
+- **实际变更**:
+  - `src/views/StepOneView.vue`：删除 3 个未使用 import、`Level1QuizItem` interface、2 个 dead ref；`handleAudioLoadSuccess` 改为仅 debugLog；`handleSegmentChange` 改为 debugLog 输出段落索引
+  - `tests/views/StepOneView.spec.ts`：移除过期 `.quiz-section` / `Level1Quiz` 断言与 stub；新增 BackContinue 渲染、MultiRoleReading props 透传、事件处理（mock debug 验证 debugLog 调用）测试组
 
 ## C10. PoetryMenu / BlockDemoView 诗文列表硬编码
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [ ] 未开始（设计方案已就绪）
 - **文件**:
   - `src/components/PoetryMenu.vue`（第 39-44 行 `poemList` 硬编码 4 篇）
-  - `src/views/BlockDemoView.vue`（第 18-21 行 `<option>` 硬编码）
-- **问题描述**: 与 `wenUtils.ts` 的 `poemMap` 重复维护，篇目扩展时需同步多处，违反 DRY
-- **修复方案**: 统一从 `wenUtils.poemMap` 读取
-- **验证方式**: 新增课文只需修改 `wenUtils.ts` 一处
+  - `src/views/BlockDemoView.vue`（第 18-21 行 `<option>` 硬编码，缺 WEN_03、WEN_04 标题简写）
+  - `src/utils/wenUtils.ts`（`poemMap` '1'/'2' 映射顺序与真实数据相反）
+- **问题描述**: 诗文列表在三处独立维护，且数据不一致：
+  1. `poemMap` '1'→'马说' / '2'→'陈涉世家'，但真实数据 WEN_01='陈涉世家' / WEN_02='马说'（顺序搞反）
+  2. PoetryMenu 硬编码 title 与真实数据一致，但未复用 wenUtils
+  3. BlockDemoView `<option>` 缺 WEN_03、WEN_04 标题简写为"庄子"（与 PoetryMenu 的"庄子与惠子"不一致）
+  篇目扩展需同步改 3 处，违反 DRY
+- **修复方案**:
+
+  #### 设计决策
+
+  **采用方案：修复 poemMap + 新增 poemList 导出**
+
+  **1. 修改 `src/utils/wenUtils.ts`**
+  - 修复 poemMap 映射顺序：交换 '1' 和 '2' 的 title，使 `poemMap['1'].title === '陈涉世家'`、`poemMap['2'].title === '马说'`，与 WEN_01/WEN_02 真实数据一致
+  - 标题简化策略：poemMap 存简写 title（WEN_04 存"庄子与惠子"而非全称"庄子与惠子游于濠梁之上"），与 PoetryMenu 现有 UI 保持一致
+  - 新增 `getAllPoems()` 函数：返回 `Array<{ wenId: string; title: string; poemId: string }>`，按 poemId 升序排列（WEN_01→WEN_04），供组件直接 v-for 使用
+  - 保持 `getPoemTitle` / `getWenId` 签名不变，向后兼容
+
+  **2. 修改 `src/components/PoetryMenu.vue`**
+  - 删除第 39-44 行硬编码 `poemList = ref([...])`
+  - 改为 `import { getAllPoems } from '@/utils/wenUtils'`，直接赋值 `const poemList = getAllPoems()`（纯静态数据，无需 ref）
+  - 模板 `v-for="poem in poemList"` 不变，`poem.wenId` / `poem.title` 字段名保持一致，模板零改动
+  - `goToRules` 中 `poemId` 提取逻辑：改用 `poem.poemId`（getAllPoems 已返回纯数字字符串），替代原 `replace(/\D/g, '')` 正则提取
+
+  **3. 修改 `src/views/BlockDemoView.vue`**
+  - 删除第 18-20 行硬编码 `<option>` 列表
+  - 新增 `const poemList = getAllPoems()`
+  - 模板改为 `v-for="poem in poemList" :key="poem.wenId"`，渲染 4 个 option，格式：`{{ poem.wenId }} - {{ poem.title }}`
+  - 保证包含完整 4 篇（WEN_01~WEN_04），标题与 PoetryMenu 一致
+
+  **4. 单元测试补充**
+  - `tests/utils/wenUtils.spec.ts`：
+    - poemMap 映射正确性：`poemMap['1'].title === '陈涉世家'`、`poemMap['2'].title === '马说'`
+    - getAllPoems：返回长度=4、按 poemId 升序、每个元素含 wenId/title/poemId 三字段、WEN_04 title === '庄子与惠子'
+  - `tests/components/PoetryMenu.spec.ts`：
+    - 渲染 li 数量=4
+    - 标题文本与 getAllPoems().map(p => p.title) 一致
+    - 点击 li 调用 router.push 参数正确（name='rules', params.id=poemId）
+  - `tests/views/BlockDemoView.spec.ts`：
+    - select 下 option 数量=4
+    - 包含 WEN_03 选项
+    - 默认选中值为 'WEN_01'
+
+  #### 兼容性评估
+  - `getPoemTitle(poemId)` 行为修正：传入 '1' 现在返回"陈涉世家"而非"马说"。核查所有调用方：
+    - 路由参数 `poemId` 来自 `/rule/:id`，用户通过 PoetryMenu 点击跳转时，原硬编码 WEN_01→poemId='1'→getPoemTitle('1') 此前错误返回"马说"，修复后正确返回"陈涉世家"，与课文标题一致
+    - 故"修复 poemMap 顺序"不是破坏性变更，而是**修正既有 bug**
+  - PoetryMenu / BlockDemoView 对外 UI 不变（PoetryMenu 原本就是正确的，BlockDemoView 仅补齐 WEN_03、修正 WEN_04 标题）
+  - getWenId / getPoemTitle 签名不变，所有调用方零改动
+
+- **验证方式**:
+  1. `grep -rn "陈涉世家\|马说\|岳阳楼记\|庄子与惠子" src/ | grep -v "node_modules"` 仅在 wenUtils.ts 中出现数据定义（除注释与测试断言）
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. `npm run test` 全部通过（含新增 wenUtils / PoetryMenu / BlockDemoView 单测）
+  5. 手动验证：PoetryMenu 下拉 4 项顺序正确、BlockDemoView select 含 4 项完整篇目、规则页标题与课文一致
 - **分支建议**: `refactor/component-10`
 - **依赖**: 无
+- **风险评估**:
+  - 风险点：poemMap 顺序修复可能影响调用 getPoemTitle('1') 的页面标题显示
+  - 缓解：原行为是错误的（WEN_01 显示"马说"而非"陈涉世家"），修复后与真实数据一致；且 CI 测试 + 手动冒烟双重验证
+  - 风险点：BlockDemoView 补齐 WEN_03 选项后，WEN_03 对应 pages_level2_dialog_quiz JSON 是否存在
+  - 缓解：已确认 `public/data/pages_level2_dialog_quiz/WEN_03.json` 存在（Glob 搜索结果命中），无 404 风险
 
 ## C11. Repeatbgm.vue 单词组件名（C07 延伸）
 
