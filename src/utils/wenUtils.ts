@@ -5,14 +5,47 @@
  */
 
 /**
+ * 诗文条目类型
+ * 用于统一描述一篇诗文的完整标识信息
+ */
+export interface PoemEntry {
+  /** 完整 wenId 格式，如 WEN_01 */
+  wenId: string
+  /** 纯数字 poemId 字符串，如 '1' */
+  poemId: string
+  /** 篇目标题（UI 显示用，长标题做简写处理） */
+  title: string
+}
+
+/**
  * 篇目数据映射
  * 用于根据 poemId 获取篇目标题
+ * key 为纯数字字符串（'1' ~ 'n'），顺序与真实 WEN_XX 数据文件一致
  */
 export const poemMap: Record<string, { title: string }> = {
-  '1': { title: '马说' },
-  '2': { title: '陈涉世家' },
+  '1': { title: '陈涉世家' },
+  '2': { title: '马说' },
   '3': { title: '岳阳楼记' },
   '4': { title: '庄子与惠子' },
+}
+
+/**
+ * 获取全部诗文列表（按 poemId 升序）
+ * 供组件 v-for 直接使用，避免硬编码重复维护
+ * @returns 按 poemId 升序排列的诗文数组
+ */
+export function getAllPoems(): PoemEntry[] {
+  // poemMap key 为数字字符串，按升序排序生成稳定的列表顺序
+  const sortedKeys = Object.keys(poemMap).sort((a, b) => Number(a) - Number(b))
+  return sortedKeys.map((poemId) => {
+    const entry = poemMap[poemId]
+    return {
+      poemId,
+      wenId: `WEN_${poemId.padStart(2, '0')}`,
+      // entry 由 Object.keys(poemMap) 枚举，必定存在，使用非空断言
+      title: entry!.title,
+    }
+  })
 }
 
 /**

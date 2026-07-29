@@ -583,15 +583,73 @@
 ## C10. PoetryMenu / BlockDemoView 诗文列表硬编码
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [ ] 未开始（设计方案已就绪）
 - **文件**:
   - `src/components/PoetryMenu.vue`（第 39-44 行 `poemList` 硬编码 4 篇）
-  - `src/views/BlockDemoView.vue`（第 18-21 行 `<option>` 硬编码）
-- **问题描述**: 与 `wenUtils.ts` 的 `poemMap` 重复维护，篇目扩展时需同步多处，违反 DRY
-- **修复方案**: 统一从 `wenUtils.poemMap` 读取
-- **验证方式**: 新增课文只需修改 `wenUtils.ts` 一处
+  - `src/views/BlockDemoView.vue`（第 18-21 行 `<option>` 硬编码，缺 WEN_03、WEN_04 标题简写）
+  - `src/utils/wenUtils.ts`（`poemMap` '1'/'2' 映射顺序与真实数据相反）
+- **问题描述**: 诗文列表在三处独立维护，且数据不一致：
+  1. `poemMap` '1'→'马说' / '2'→'陈涉世家'，但真实数据 WEN_01='陈涉世家' / WEN_02='马说'（顺序搞反）
+  2. PoetryMenu 硬编码 title 与真实数据一致，但未复用 wenUtils
+  3. BlockDemoView `<option>` 缺 WEN_03、WEN_04 标题简写为"庄子"（与 PoetryMenu 的"庄子与惠子"不一致）
+  篇目扩展需同步改 3 处，违反 DRY
+- **修复方案**:
+
+  #### 设计决策
+
+  **采用方案：修复 poemMap + 新增 poemList 导出**
+
+  **1. 修改 `src/utils/wenUtils.ts`**
+  - 修复 poemMap 映射顺序：交换 '1' 和 '2' 的 title，使 `poemMap['1'].title === '陈涉世家'`、`poemMap['2'].title === '马说'`，与 WEN_01/WEN_02 真实数据一致
+  - 标题简化策略：poemMap 存简写 title（WEN_04 存"庄子与惠子"而非全称"庄子与惠子游于濠梁之上"），与 PoetryMenu 现有 UI 保持一致
+  - 新增 `getAllPoems()` 函数：返回 `Array<{ wenId: string; title: string; poemId: string }>`，按 poemId 升序排列（WEN_01→WEN_04），供组件直接 v-for 使用
+  - 保持 `getPoemTitle` / `getWenId` 签名不变，向后兼容
+
+  **2. 修改 `src/components/PoetryMenu.vue`**
+  - 删除第 39-44 行硬编码 `poemList = ref([...])`
+  - 改为 `import { getAllPoems } from '@/utils/wenUtils'`，直接赋值 `const poemList = getAllPoems()`（纯静态数据，无需 ref）
+  - 模板 `v-for="poem in poemList"` 不变，`poem.wenId` / `poem.title` 字段名保持一致，模板零改动
+  - `goToRules` 中 `poemId` 提取逻辑：改用 `poem.poemId`（getAllPoems 已返回纯数字字符串），替代原 `replace(/\D/g, '')` 正则提取
+
+  **3. 修改 `src/views/BlockDemoView.vue`**
+  - 删除第 18-20 行硬编码 `<option>` 列表
+  - 新增 `const poemList = getAllPoems()`
+  - 模板改为 `v-for="poem in poemList" :key="poem.wenId"`，渲染 4 个 option，格式：`{{ poem.wenId }} - {{ poem.title }}`
+  - 保证包含完整 4 篇（WEN_01~WEN_04），标题与 PoetryMenu 一致
+
+  **4. 单元测试补充**
+  - `tests/utils/wenUtils.spec.ts`：
+    - poemMap 映射正确性：`poemMap['1'].title === '陈涉世家'`、`poemMap['2'].title === '马说'`
+    - getAllPoems：返回长度=4、按 poemId 升序、每个元素含 wenId/title/poemId 三字段、WEN_04 title === '庄子与惠子'
+  - `tests/components/PoetryMenu.spec.ts`：
+    - 渲染 li 数量=4
+    - 标题文本与 getAllPoems().map(p => p.title) 一致
+    - 点击 li 调用 router.push 参数正确（name='rules', params.id=poemId）
+  - `tests/views/BlockDemoView.spec.ts`：
+    - select 下 option 数量=4
+    - 包含 WEN_03 选项
+    - 默认选中值为 'WEN_01'
+
+  #### 兼容性评估
+  - `getPoemTitle(poemId)` 行为修正：传入 '1' 现在返回"陈涉世家"而非"马说"。核查所有调用方：
+    - 路由参数 `poemId` 来自 `/rule/:id`，用户通过 PoetryMenu 点击跳转时，原硬编码 WEN_01→poemId='1'→getPoemTitle('1') 此前错误返回"马说"，修复后正确返回"陈涉世家"，与课文标题一致
+    - 故"修复 poemMap 顺序"不是破坏性变更，而是**修正既有 bug**
+  - PoetryMenu / BlockDemoView 对外 UI 不变（PoetryMenu 原本就是正确的，BlockDemoView 仅补齐 WEN_03、修正 WEN_04 标题）
+  - getWenId / getPoemTitle 签名不变，所有调用方零改动
+
+- **验证方式**:
+  1. `grep -rn "陈涉世家\|马说\|岳阳楼记\|庄子与惠子" src/ | grep -v "node_modules"` 仅在 wenUtils.ts 中出现数据定义（除注释与测试断言）
+  2. `npm run type-check` 通过
+  3. `npm run lint` 通过
+  4. `npm run test` 全部通过（含新增 wenUtils / PoetryMenu / BlockDemoView 单测）
+  5. 手动验证：PoetryMenu 下拉 4 项顺序正确、BlockDemoView select 含 4 项完整篇目、规则页标题与课文一致
 - **分支建议**: `refactor/component-10`
 - **依赖**: 无
+- **风险评估**:
+  - 风险点：poemMap 顺序修复可能影响调用 getPoemTitle('1') 的页面标题显示
+  - 缓解：原行为是错误的（WEN_01 显示"马说"而非"陈涉世家"），修复后与真实数据一致；且 CI 测试 + 手动冒烟双重验证
+  - 风险点：BlockDemoView 补齐 WEN_03 选项后，WEN_03 对应 pages_level2_dialog_quiz JSON 是否存在
+  - 缓解：已确认 `public/data/pages_level2_dialog_quiz/WEN_03.json` 存在（Glob 搜索结果命中），无 404 风险
 
 ## C11. Repeatbgm.vue 单词组件名（C07 延伸）
 
