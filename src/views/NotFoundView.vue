@@ -16,12 +16,13 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useNavigation } from '@/composables/useNavigation'
 
-const router = useRouter()
+// 非顺序页面（404）不传 currentRouteName，仅使用 goHome
+const { goHome } = useNavigation()
 
 function goBack() {
-  router.push('/')
+  goHome()
 }
 </script>
 
