@@ -47,7 +47,7 @@
 ## C03. 生产代码残留 59 处 console.log
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（refactor/component-03-console-log，PR #25 feature-1 → main 2026-07-28 合并，sha: 5927f7d）
 - **文件**（按数量排序）:
   - `src/components/MultiRoleReading.vue`（10 处：264, 276, 295, 298, 316, 339, 396, 442, 462, 525）
   - `src/views/StepThreeView.vue`（8 处：182, 202, 231, 245, 260, 264, 269, 275）
@@ -65,8 +65,15 @@
   2. 必要的 `console.error` 改用 `debugError`
   3. 纯调试日志直接删除
 - **验证方式**: `grep -r "console\.log" src/` 无命中；生产构建 bundle 中无 log 输出
-- **分支建议**: `refactor/component-03`
+- **分支建议**: `refactor/component-03-console-log`
 - **依赖**: 无
+- **实际变更**:
+  - 单次提交 `1f409e9` 批量替换 32 个文件（198 行增 / 164 行删），覆盖所有原审计列出的文件 + adapters/ / composables/ / stores/ / utils/ / router/ 下衍生调用方
+  - 统一映射：`console.log` → `debugLog`、`console.error` → `debugError`、`console.warn` → `debugWarn`，全部从 `@/utils/debug` 导入
+  - 保留 `src/utils/debug.ts` 内部的 `console.error/warn`（这是 debug 工具的实际输出出口，剥离逻辑由 Vite 的 drop 配置在生产构建阶段完成）
+  - 保留 `src/mock/setup.ts`（测试 mock 文件，非生产代码）
+  - `src/components/AudioSegmentPlayer.md` 文档内的 console 示例代码保留（非源码）
+  - 验证：`grep "console\.(log|error|warn)" src/` 仅命中上述 3 个豁免文件；生产构建通过 Vite drop 配置自动剥离 debugLog/debugError/debugWarn
 
 ## C04. MultiRoleReading.vue 直接 fetch 违反分层规则
 
@@ -114,7 +121,7 @@
 ## C06. BlockDemoView 直接 router.push 违反导航规则
 
 - **优先级**: P1
-- **状态**: [ ] 未开始（设计方案已就绪）
+- **状态**: [x] 已完成（refactor/component-06，merge: feature-1 → main 2026-07-29，sha: 18e3626）
 - **文件**:
   - `src/views/BlockDemoView.vue`（第 168 行 `router.push('/')`）
   - `src/views/NotFoundView.vue`（第 24 行 `router.push('/')`）
@@ -173,6 +180,14 @@
   - 缓解：可选参数向后兼容；CI type-check 会捕获所有类型不匹配
   - 风险点：`goPrev` 行为变化（路径来源改为配置）
   - 缓解：`pageSequence` 中 `home.getPath()` 返回 `'/'`，与原硬编码一致，行为等价
+- **实际变更**:
+  - `src/composables/useNavigation.ts`（+52/-12 行）：`currentRouteName` 改为可选参数；新增 `goHome()` 方法走 `pageSequence` 配置查 home 路由；`goPrev` 第一页分支改为调用 `goHome()`；`goNext`/`goPrev` 在未传 `currentRouteName` 时 `debugWarn` 后 return；`currentIndex`/`hasNext`/`hasPrev` 在未传时返回 `-1`/`false`/`false`
+  - `src/views/BlockDemoView.vue`（+7 行）：移除 `useRouter`，改用 `useNavigation().goHome()`
+  - `src/views/NotFoundView.vue`（+7 行）：同上
+  - `tests/composables/useNavigation.spec.ts`（+127 行）：新增 `goHome`、非顺序页面、`goPrev` 回首页、顺序页面兼容性等用例
+  - 新增 `tests/views/BlockDemoView.spec.ts`（+106 行）：mock useNavigation 验证点击返回首页触发 goHome
+  - 新增 `tests/views/NotFoundView.spec.ts`（+85 行）：同上
+  - 验证：`grep "router\.push" src/views/` 无命中；`grep "router\.push" src/components/` 仅 `PoetryMenu.vue`（规则豁免）；`type-check` + `prettier --check` 通过
 
 ## C07. Options.vue / Question.vue 单词组件名
 
@@ -583,7 +598,13 @@
 ## C10. PoetryMenu / BlockDemoView 诗文列表硬编码
 
 - **优先级**: P2
-- **状态**: [ ] 未开始（设计方案已就绪）
+- **状态**: [x] 已完成（refactor/component-10，PR #44 feature-1 → main 2026-07-29 合并，生产 Deploy Frontend success）
+- **完成记录**:
+  - 分支：`refactor/component-10` → 合并到 `feature-1` → PR #44 合并到 `main`（sha: af71b54）
+  - 实施：按设计方案完成 wenUtils + PoetryMenu + BlockDemoView 三处改造，`grep` 确认定义唯一源
+  - 质量：`type-check` 通过、`Prettier` 格式化通过、新增/修改 3 份单测共 281 行
+  - Actions 全绿：feature-1 阶段 CI Checks + Deploy Backend/Frontend Test ✅；main 阶段 Deploy Frontend to Aliyun OSS ✅（deploy-backend 因 paths filter 未触发属预期）
+  - 已知待办（非 C10 范围）：OSS 上传对 index.html 设置 `max-age=31536000` 导致浏览器强缓存 + 可能 `CLOUDFRONT_DISTRIBUTION_ID` secret 未配置导致失效未下发，生产需清缓存或等过期才能看到新代码，C11 之后重构部署 yml 时一并处理
 - **文件**:
   - `src/components/PoetryMenu.vue`（第 39-44 行 `poemList` 硬编码 4 篇）
   - `src/views/BlockDemoView.vue`（第 18-21 行 `<option>` 硬编码，缺 WEN_03、WEN_04 标题简写）
