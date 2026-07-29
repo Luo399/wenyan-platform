@@ -37,31 +37,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
-import { useStudentInfo } from '@/composables/useStudentInfo'
-import { submitAnswers } from '@/services/apiService'
-import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 import { debugLog, debugError } from '@/utils/debug'
-
-interface Level1QuizItem {
-  text_id: string
-  question_number: number
-  question_text: string
-  option_a: string
-  option_b: string
-  option_c: string
-  option_d: string
-  correct_answer: number
-  correct_index?: number
-  explanation: string
-  difficulty: string
-}
 
 const route = useRoute()
 
@@ -79,15 +62,11 @@ const wenId = computed(() => {
   return `WEN_${num.toString().padStart(2, '0')}`
 })
 
-const isAudioLoaded = ref(false)
-const currentSegment = ref<number | null>(null)
-
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('stepone', poemId)
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
   debugLog('音频数据加载成功:', data)
-  isAudioLoaded.value = true
 }
 
 function handleAudioLoadError(error: string) {
@@ -95,7 +74,7 @@ function handleAudioLoadError(error: string) {
 }
 
 function handleSegmentChange(index: number) {
-  currentSegment.value = index
+  debugLog('当前段落变化:', index)
 }
 </script>
 
