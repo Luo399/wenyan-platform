@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="pre-quiz-text">
     <div class="pre-quiz-container" v-if="hasContent">
       <div class="pre-quiz-header">
@@ -41,11 +41,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptScenarioText, getScenarioTextByQuestion } from '@/adapters/scenarioAdapter'
 import type { ProcessedScenarioText, RawScenarioText } from '@/adapters/scenarioAdapter'
-import { debugError } from '@/utils/debug'
 
 interface Props {
   questionNumber?: number
@@ -69,53 +68,66 @@ const emit = defineEmits<{
   (e: 'error', error: string): void
 }>()
 
-// 状态
-const isLoading = ref(false)
-const error = ref<string | null>(null)
-const scenarioText = ref('')
-const processedData = ref<ProcessedScenarioText[]>([])
+// R52 修复：useDataLoader 必须在 setup 顶层同步调用，不能放在 async 函数内。
+// 之前 loadData() async 函数内调用 useDataLoader，导致：
+//   1) onUnmounted 在无 active component instance 时注册，卸载时 abort 不触发
+//   2) 调用后立即同步检查 loadError.value/rawData.value，但数据尚未异步加载完成，
+//      rawData.value 恒为 null，分支永远走不到，反而误报"数据为空"
+// 现在改为 setup 顶层声明 loader，通过 computed/watch 响应异步结果。
+// 注：URL 仍硬编码 WEN_01，textId 化由 R53 单独处理。
+const loader = useDataLoader<RawScenarioText[]>(() => `/data/level3_scenario_text/WEN_01.json`, {
+  autoLoad: false,
+  timeout: 30000,
+  retryCount: 1,
+})
 
-// 计算属性
-const hasContent = computed(() => scenarioText.value && !error.value && !isLoading.value)
+// 适配后的全部数据
+const processedData = computed<ProcessedScenarioText[]>(() =>
+  loader.data.value ? adaptScenarioText(loader.data.value) : [],
+)
 
-// 加载数据
+// 当前 questionNumber 对应的情景文本
+const currentScenario = computed<ProcessedScenarioText | null>(() => {
+  if (!processedData.value.length) return null
+  return getScenarioTextByQuestion(processedData.value, props.questionNumber) || null
+})
+
+// 模板绑定的文本
+const scenarioText = computed(() => currentScenario.value?.scenarioText ?? '')
+
+// 聚合 loading/error 状态
+const isLoading = computed(() => loader.loading.value)
+const error = computed<string | null>(() => {
+  if (loader.error.value) return `数据加载失败: ${loader.error.value}`
+  // 仅在非加载状态且数据已到达时判定"数据为空/未找到"，避免加载中误报
+  if (loader.data.value !== null && !loader.loading.value) {
+    if (processedData.value.length === 0) return '数据为空'
+    if (!currentScenario.value) return `未找到题目编号 ${props.questionNumber} 的情景文本`
+  }
+  return null
+})
+
+const hasContent = computed(() => Boolean(scenarioText.value) && !error.value && !isLoading.value)
+
+// 监听异步结果 emit 事件（替代原同步检查）：
+// - loaded：首次拿到对应情景文本时触发一次，匹配原 loadData 完成时 emit 一次的行为
+// - error：error 变为非空时触发
+watch(
+  currentScenario,
+  (scenario) => {
+    if (scenario) emit('loaded', scenario)
+  },
+  { once: true },
+)
+
+watch(error, (err) => {
+  if (err) emit('error', err)
+})
+
+// 触发加载
 async function loadData() {
   if (!props.autoLoad) return
-
-  isLoading.value = true
-  error.value = null
-
-  try {
-    const url = `/data/level3_scenario_text/WEN_01.json`
-    const { data: rawData, error: loadError } = useDataLoader<RawScenarioText[]>(() => url)
-
-    if (loadError.value) {
-      throw new Error(`数据加载失败: ${loadError.value}`)
-    }
-
-    if (rawData.value) {
-      processedData.value = adaptScenarioText(rawData.value)
-
-      const scenario = getScenarioTextByQuestion(processedData.value, props.questionNumber)
-
-      if (scenario) {
-        scenarioText.value = scenario.scenarioText
-        emit('loaded', scenario)
-      } else {
-        error.value = `未找到题目编号 ${props.questionNumber} 的情景文本`
-        emit('error', error.value)
-      }
-    } else {
-      error.value = '数据为空'
-      emit('error', error.value)
-    }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '数据处理失败'
-    emit('error', error.value)
-    debugError('PreQuizText 数据加载失败:', e)
-  } finally {
-    isLoading.value = false
-  }
+  await loader.load()
 }
 
 // 处理继续
