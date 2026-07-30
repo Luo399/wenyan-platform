@@ -127,6 +127,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import MultiRoleReadingItem from './MultiRoleReadingItem.vue'
 import { debugLog, debugError } from '@/utils/debug'
+import { useDataLoader } from '@/composables/useDataLoader'
 
 // 段落数据类型定义
 export interface MultiRoleSegment {
@@ -172,21 +173,56 @@ const emit = defineEmits<{
   (e: 'segment-change', index: number): void
 }>()
 
-// 状态管理
-const loading = ref(false)
+// 状态管理（loading/error/data 由 useDataLoader 统一管理）
 const audioLoading = ref(false)
-const error = ref<string | null>(null)
 const audioError = ref<string | null>(null)
-const multiRoleData = ref<MultiRoleData | null>(null)
 const audioRef = ref<HTMLAudioElement | null>(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
 const playbackSpeed = ref(1)
-const abortController = ref<AbortController | null>(null)
 
-// 缓存对象
-const dataCache = new Map<string, MultiRoleData>()
+// URL getter：依赖 props.wenId / props.dataBaseUrl
+function getDataUrl(): string {
+  return `${props.dataBaseUrl}${props.wenId}.json`
+}
+
+// 数据转换 + 校验：useDataLoader 的 transform 钩子中完成格式校验
+function transformAndValidate(raw: unknown): MultiRoleData {
+  if (!validateMultiRoleData(raw)) {
+    throw new Error('数据格式错误')
+  }
+  return raw
+}
+
+// 使用 useDataLoader 统一处理：缓存、AbortController、超时、重试、Worker 解析
+const {
+  loading,
+  error,
+  data: multiRoleData,
+  load,
+  retry: retryData,
+} = useDataLoader<MultiRoleData>(getDataUrl, {
+  autoLoad: false, // 手动控制加载时机（onMounted 与 wenId watch 中调用）
+  timeout: 10000,
+  retryCount: 1,
+  cacheEnabled: true,
+  cacheTTL: 5 * 60 * 1000,
+  transform: transformAndValidate,
+  onLoadSuccess: (data) => {
+    emit('load-success', data)
+    setupAudio()
+  },
+  onLoadError: (errMsg) => {
+    // 映射 404 为友好文案
+    let finalMsg = errMsg
+    if (errMsg.includes('404') || errMsg.includes('HTTP 404')) {
+      finalMsg = '【404正在加班加点中】'
+    }
+    error.value = finalMsg
+    emit('load-error', finalMsg)
+  },
+})
 
 // 计算属性
 const segments = computed(() => multiRoleData.value?.segments || [])
@@ -259,94 +295,17 @@ function parseTimeRange(timeRange: string): { start: number; end: number } {
 }
 
 /**
- * 加载课文数据
+ * 加载课文数据（委托给 useDataLoader）
  */
-async function loadData() {
+function loadData() {
   debugLog(`开始加载多角色朗读数据: wenId=${props.wenId}`)
-
   if (!props.wenId) {
-    loading.value = false
     error.value = '请提供课文ID'
     emit('load-error', error.value)
     return
   }
-
-  // 检查缓存
-  if (props.cacheEnabled && dataCache.has(props.wenId)) {
-    loading.value = false
-    debugLog(`使用缓存数据: ${props.wenId}`)
-    multiRoleData.value = dataCache.get(props.wenId)!
-    emit('load-success', multiRoleData.value)
-    setupAudio()
-    return
-  }
-
-  // 取消之前的请求
-  if (abortController.value) {
-    abortController.value.abort()
-  }
-  abortController.value = new AbortController()
-
-  loading.value = true
-  error.value = null
   emit('load-start')
-
-  try {
-    const url = `${props.dataBaseUrl}${props.wenId}.json`
-    debugLog(`请求URL: ${url}`)
-
-    const timeout = setTimeout(() => {
-      debugLog(`请求超时: ${url}`)
-      abortController.value?.abort()
-    }, props.requestTimeout)
-
-    const response = await fetch(url, {
-      signal: abortController.value.signal,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    clearTimeout(timeout)
-
-    if (!response.ok) {
-      throw new Error(`HTTP错误: ${response.status}`)
-    }
-
-    const data: MultiRoleData = await response.json()
-    debugLog(`数据加载成功，段落数量: ${data.segments?.length || 0}`)
-
-    // 数据格式验证
-    if (!validateMultiRoleData(data)) {
-      throw new Error('数据格式错误')
-    }
-
-    multiRoleData.value = data
-
-    // 存入缓存
-    if (props.cacheEnabled) {
-      dataCache.set(props.wenId, data)
-    }
-
-    emit('load-success', data)
-    setupAudio()
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      error.value = '加载超时'
-      emit('load-error', error.value)
-      return
-    }
-    const errorMsg = err instanceof Error ? err.message : '加载失败'
-    debugError(`加载失败: ${errorMsg}`)
-    if (errorMsg.includes('404') || errorMsg.includes('HTTP错误: 404')) {
-      error.value = '【404正在加班加点中】'
-    } else {
-      error.value = errorMsg
-    }
-    emit('load-error', error.value)
-  } finally {
-    loading.value = false
-  }
+  load()
 }
 
 /**
@@ -510,9 +469,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (abortController.value) {
-    abortController.value.abort()
-  }
+  // AbortController 由 useDataLoader 内部在 onUnmounted 中处理，此处无需重复清理
   if (audioRef.value) {
     audioRef.value.pause()
     audioRef.value.src = ''
