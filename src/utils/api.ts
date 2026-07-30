@@ -25,11 +25,12 @@ function getAuthHeaders(): Record<string, string> {
 export interface RequestConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
   headers?: Record<string, string>
-  body?: any
+  // R91: body 从 any 改为 unknown，由调用方具体类型推断
+  body?: unknown
   timeout?: number
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   message?: string
@@ -38,7 +39,17 @@ export interface ApiResponse<T = any> {
   requestId?: string
 }
 
-export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
+// R91: 后端响应原始结构（normalizeResponse 的输入），用具体接口替代 any
+interface RawApiResponse<T = unknown> {
+  success?: boolean
+  data?: T
+  message?: string
+  code?: number
+  timestamp?: number
+  requestId?: string
+}
+
+export function normalizeResponse<T = unknown>(response: unknown): ApiResponse<T> {
   if (response === null || response === undefined) {
     return {
       success: false,
@@ -48,21 +59,25 @@ export function normalizeResponse<T = any>(response: any): ApiResponse<T> {
     }
   }
 
-  if (typeof response === 'object' && 'success' in response) {
+  // R91: 用类型谓词收窄 unknown，替代直接访问 any
+  if (typeof response === 'object' && response !== null && 'success' in response) {
+    const raw = response as RawApiResponse<T>
+    const success = !!raw.success
     return {
-      success: response.success,
-      data: response.data,
-      message: response.message || (response.success ? '操作成功' : '操作失败'),
-      code: response.code ?? (response.success ? 200 : 500),
-      timestamp: response.timestamp ?? Date.now(),
-      requestId: response.requestId,
+      success,
+      data: raw.data,
+      message: raw.message || (success ? '操作成功' : '操作失败'),
+      code: raw.code ?? (success ? 200 : 500),
+      timestamp: raw.timestamp ?? Date.now(),
+      requestId: raw.requestId,
     }
   }
 
-  if (typeof response === 'object' && 'data' in response) {
+  if (typeof response === 'object' && response !== null && 'data' in response) {
+    const raw = response as RawApiResponse<T>
     return {
       success: true,
-      data: response.data,
+      data: raw.data,
       message: '操作成功',
       code: 200,
       timestamp: Date.now(),
@@ -89,7 +104,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T = any>(
+export async function request<T = unknown>(
   url: string,
   config: RequestConfig = {},
 ): Promise<ApiResponse<T>> {
@@ -112,6 +127,7 @@ export async function request<T = any>(
     const response = await fetch(fullUrl, {
       method,
       headers: requestHeaders,
+      // R91: body 已是 unknown，JSON.stringify 接受 unknown；R93 的 falsy 判断属另一问题
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     })
@@ -127,12 +143,15 @@ export async function request<T = any>(
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null)
-      throw new ApiError(
-        response.status,
-        errorData?.error || 'REQUEST_FAILED',
-        errorData?.message || `请求失败: ${response.status}`,
-      )
+      // R91: errorData 收窄为 Record<string, unknown> | null，替代隐式 any
+      const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null
+      const errCode =
+        errorData && typeof errorData.error === 'string' ? errorData.error : 'REQUEST_FAILED'
+      const errMsg =
+        errorData && typeof errorData.message === 'string'
+          ? errorData.message
+          : `请求失败: ${response.status}`
+      throw new ApiError(response.status, errCode, errMsg)
     }
 
     const jsonResponse = await response.json()
@@ -146,7 +165,7 @@ export async function request<T = any>(
   }
 }
 
-export async function get<T = any>(
+export async function get<T = unknown>(
   url: string,
   params?: Record<string, string | number>,
   config: Omit<RequestConfig, 'method' | 'body'> = {},
@@ -160,23 +179,23 @@ export async function get<T = any>(
   return request<T>(url + queryString, config)
 }
 
-export async function post<T = any>(
+export async function post<T = unknown>(
   url: string,
-  body?: any,
+  body?: unknown,
   config: Omit<RequestConfig, 'method'> = {},
 ): Promise<ApiResponse<T>> {
   return request<T>(url, { ...config, method: 'POST', body })
 }
 
-export async function put<T = any>(
+export async function put<T = unknown>(
   url: string,
-  body?: any,
+  body?: unknown,
   config: Omit<RequestConfig, 'method'> = {},
 ): Promise<ApiResponse<T>> {
   return request<T>(url, { ...config, method: 'PUT', body })
 }
 
-export async function del<T = any>(
+export async function del<T = unknown>(
   url: string,
   config: Omit<RequestConfig, 'method'> = {},
 ): Promise<ApiResponse<T>> {
