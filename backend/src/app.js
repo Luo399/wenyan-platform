@@ -57,7 +57,6 @@ function createApp() {
       success: true,
       message: 'OK',
       timestamp: new Date().toISOString(),
-      authEnabled: config.auth.secret.length > 0,
     });
   });
 
@@ -79,7 +78,7 @@ async function startServer() {
       const server = app.listen(port, host, () => {
         console.log(`服务器运行在 http://${host}:${port}`);
         console.log(`CORS 白名单: ${config.cors.origin}`);
-        console.log(`鉴权状态: ${config.auth.secret.length > 0 ? '已启用' : '未启用'}`);
+        // R90: 鉴权统一走 JWT，HMAC AUTH_SECRET 已弃用
       });
 
       process.on('SIGINT', () => {
