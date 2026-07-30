@@ -91,6 +91,13 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
   }
 
   /**
+   * 跳转到首页（BlockDemoView / NotFoundView 等非顺序页面使用）
+   */
+  function goHome() {
+    router.push('/')
+  }
+
+  /**
    * 获取当前页面的顺序索引
    */
   const currentIndex = computed(() => {
@@ -115,6 +122,7 @@ export function useNavigation(currentRouteName: RouteName, currentId?: string) {
     goNext,
     goPrev,
     goTo,
+    goHome,
     currentIndex,
     hasNext,
     hasPrev,
