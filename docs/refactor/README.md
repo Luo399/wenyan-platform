@@ -15,7 +15,7 @@
 | 04  | 前端组件质量（C01-C11） | P1-P2  | 11     | 已完成 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md)     |
 | 05  | 前端架构与类型          | P1-P2  | 12     | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
 | 06  | 工程化与配置            | P1-P2  | 16     | 未开始 | [06-engineering-config.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/06-engineering-config.md)       |
-| 07  | 数据管道优化            | P2     | 7      | 未开始 | [07-data-pipeline.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/07-data-pipeline.md)                 |
+| 07  | 数据管道优化            | P2     | 7      | 已完成 | [07-data-pipeline.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/07-data-pipeline.md)                 |
 
 专题合计：75 个问题
 
@@ -24,7 +24,7 @@
 | #   | 轮次   | 范围                                | 问题数 | 状态   | 文件                                                                                                   |
 | --- | ------ | ----------------------------------- | ------ | ------ | ------------------------------------------------------------------------------------------------------ |
 | 08  | 第二轮 | C01-C11 完成后的前端审查（R01-R50） | 50     | 未开始 | [08-frontend-round2.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/08-frontend-round2.md) |
-| 09  | 第三轮 | 更广泛文件审查（R51-R116）          | 66     | 未开始 | [09-frontend-round3.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/09-frontend-round3.md) |
+| 09  | 第三轮 | 更广泛文件审查（R51-R116）          | 66     | 进行中 | [09-frontend-round3.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/09-frontend-round3.md) |
 
 滚动审查合计：116 个问题
 
@@ -126,10 +126,12 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md P0       | 4/66（R51, R52, R54, R108） | useDataLoader 异步调用违规 ×3 + adapter 工厂重构，分支+CI 通过，PR 待合并                                                                                        |
 | 2026-07-30              | 09-frontend-round3.md R90      | 1/66（R90）                 | 前端 VITE_AUTH_SECRET dead code 清理 + 后端 HMAC 校验移除 + yml/env 配置清理，PR #54 squash 合并到 feature-1，测试环境部署成功                                    |
 | 2026-07-30              | 09-frontend-round3.md R103     | 1/66（R103）                | stores/auth.ts 加 password 参数 + 改调 /api/auth/student/login；LoginModal/StudentDisplay 加密码输入框；apiService.ts 删 dead login；PR #55 squash 合并到 feature-1，测试环境部署成功。强制改密流程延后 |
-| -                       | 01-03, 05-07 专题              | 0/64                        | 待开始                                                                                                                                                           |
+| 2026-07-30              | 09-frontend-round3.md P1 批次  | 8/66（R75, R82, R91, R96, R98, R101, R104, R115） | P1 安全+数据完整性批次：R75/R82 被前序轮次覆盖；R91/R96/R98/R101/R104/R115 由 PR #58 squash 合并到 feature-1，测试环境部署成功 |
+| 2026-07-30              | 07-data-pipeline.md            | 7/7（P01-P07）              | config.py 重构提取 map_answer_to_index/post_process_quiz_generic 并消除副作用；validators.py 加 is_absolute_path/validate_no_absolute_path；新建 pyproject.toml 声明依赖与包结构；main.py 移除 sys.path.append；ci-checks.yml 新增 pipeline-test job；test_config.py/test_validators.py 补充单元测试；P02/P03 代码早已修复同步文档状态 |
+| -                       | 01-03, 05-06 专题              | 0/57                        | 待开始（07 已完成）                                                                                                                                             |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
-| -                       | 09-frontend-round3.md 剩余     | 0/60                        | R51/R52/R54/R90/R103/R108 已完成，剩余 60 项待开始                                                                                                               |
-| -                       | **合计**                       | **17/191**                  | 11（专题）+ 6（R51/R52/R54/R90/R103/R108）                                                                                                                       |
+| -                       | 09-frontend-round3.md 剩余     | 0/52                        | R51/R52/R54/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R115 已完成（14 项），剩余 52 项待开始                                                                   |
+| -                       | **合计**                       | **32/191**                  | 专题 18（04 的 11 + 07 的 7）+ 滚动审查 14（R51/R52/R54/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R115）                                                       |
 
 ## 使用方式
 

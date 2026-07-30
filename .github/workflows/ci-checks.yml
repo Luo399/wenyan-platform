@@ -67,3 +67,30 @@ jobs:
           DB_PATH: ':memory:'
           JWT_SECRET: ci-test-secret
           AUTH_SECRET: ''
+
+  pipeline-test:
+    # 数据管道（data-pipeline/python）Python 单元测试
+    # 对应 docs/refactor/07-data-pipeline.md P01
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: data-pipeline/python/pyproject.toml
+
+      - name: Install pipeline package and test dependencies
+        # 以可编辑模式安装 data-pipeline/python，同时安装 [test] 可选依赖（pytest）
+        run: |
+          pip install --upgrade pip
+          pip install -e "data-pipeline/python[test]"
+
+      - name: Run pytest
+        run: |
+          cd data-pipeline/python
+          pytest -v
