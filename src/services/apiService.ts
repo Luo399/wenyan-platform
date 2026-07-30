@@ -292,6 +292,10 @@ export async function getTextList(
 // 认证相关接口
 // ============================================================
 
+// R103: 已删除 apiService.login（dead code，无调用方）
+// 登录走 stores/auth.ts 的 login()，调用 /api/auth/student/login 传 student_id + password
+// LoginResponse 接口保留，供 stores/auth.ts 类型参考
+
 /**
  * 登录响应
  */
@@ -303,17 +307,6 @@ export interface LoginResponse {
     student_id: string
     role: 'student' | 'teacher' | 'admin'
   }
-}
-
-/**
- * 登录请求
- *
- * @param studentId - 学号
- * @returns 用户信息和 token
- */
-export async function login(studentId: string): Promise<LoginResponse> {
-  const response = await post<LoginResponse>('/api/auth/login', { student_id: studentId })
-  return response.data!
 }
 
 // ============================================================

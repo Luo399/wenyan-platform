@@ -38,6 +38,21 @@
           />
         </div>
 
+        <!-- R103: 密码输入 -->
+        <div class="input-group">
+          <label for="passwordInput" class="input-label">密码</label>
+          <input
+            id="passwordInput"
+            v-model="inputPassword"
+            type="password"
+            placeholder="请输入密码"
+            @keyup.enter="handleSave"
+            :class="{ error: hasError }"
+            :disabled="isLoading"
+            autocomplete="current-password"
+          />
+        </div>
+
         <!-- 学生姓名显示 -->
         <div v-if="searchedName" class="name-display">
           <span class="name-label">查询到：</span>
@@ -78,6 +93,8 @@ const { user, isLoggedIn, isLoading: authLoading, error: authError } = storeToRe
 const showEditModal = ref(false)
 // 输入的学号
 const inputId = ref('')
+// R103: 输入的密码
+const inputPassword = ref('')
 // 是否有错误
 const hasError = ref(false)
 // 错误消息
@@ -97,10 +114,10 @@ const studentId = computed(() => user.value?.studentId || '')
 const userName = computed(() => user.value?.username || '')
 
 /**
- * 验证输入是否为有效学号（纯数字）
+ * 验证输入是否为有效学号（纯数字）且密码已填
  */
 const isValid = computed(() => {
-  return inputId.value.trim() && /^\d+$/.test(inputId.value)
+  return inputId.value.trim() && /^\d+$/.test(inputId.value) && inputPassword.value.length > 0
 })
 
 /**
@@ -112,6 +129,8 @@ function handleClick() {
   if (isLoggedIn.value && studentId.value) {
     inputId.value = studentId.value
   }
+  // R103: 打开弹窗时清空密码
+  inputPassword.value = ''
 }
 
 /**
@@ -156,9 +175,10 @@ async function handleSave() {
     }
 
     // 登录
-    await authStore.login(inputId.value.trim(), searchedName.value)
+    await authStore.login(inputId.value.trim(), inputPassword.value, searchedName.value)
     showEditModal.value = false
     inputId.value = ''
+    inputPassword.value = '' // R103: 关闭弹窗时清空密码
     searchedName.value = ''
   } catch (err) {
     hasError.value = true

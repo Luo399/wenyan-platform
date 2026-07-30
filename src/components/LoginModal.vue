@@ -11,7 +11,7 @@
           <!-- 标题 -->
           <div class="modal-header">
             <h2 class="modal-title">用户登录</h2>
-            <p class="modal-subtitle">请输入学号进行登录</p>
+            <p class="modal-subtitle">请输入学号和密码进行登录</p>
           </div>
 
           <!-- 表单 -->
@@ -30,6 +30,22 @@
                 @input="handleStudentIdInput"
               />
               <span v-if="hasError && !studentId" class="error-message"> 请输入学号 </span>
+            </div>
+
+            <!-- R103: 密码输入 -->
+            <div class="form-group">
+              <label for="password" class="form-label">密码</label>
+              <input
+                id="password"
+                v-model="password"
+                type="password"
+                class="form-input"
+                :class="{ error: hasError && !password }"
+                placeholder="请输入密码"
+                :disabled="isLoading"
+                autocomplete="current-password"
+              />
+              <span v-if="hasError && !password" class="error-message"> 请输入密码 </span>
             </div>
 
             <!-- 学生姓名显示 -->
@@ -53,7 +69,11 @@
             </div>
 
             <!-- 登录按钮 -->
-            <button type="submit" class="login-btn" :disabled="isLoading || !studentId">
+            <button
+              type="submit"
+              class="login-btn"
+              :disabled="isLoading || !studentId || !password"
+            >
               <span v-if="isLoading" class="loading-spinner"></span>
               <span>{{ isLoading ? '登录中...' : '登录' }}</span>
             </button>
@@ -64,6 +84,7 @@
             <p>测试账号：</p>
             <p class="test-accounts">1 | 2 | 3 | 4 | 5</p>
             <p class="format-hint">学号格式：数字（如：1、2024001）</p>
+            <p class="format-hint">默认密码：123456（教师重置后同此值）</p>
           </div>
         </div>
       </div>
@@ -95,6 +116,7 @@ const modalRef = ref<HTMLElement | null>(null)
 
 // State
 const studentId = ref('')
+const password = ref('') // R103: 新增密码输入
 const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
@@ -125,6 +147,7 @@ watch(
   (newVisible) => {
     if (newVisible) {
       studentId.value = ''
+      password.value = '' // R103: 打开时清空密码
       studentName.value = ''
       hasError.value = false
       authStore.clearError()
@@ -161,11 +184,18 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
+  // R103: 密码必填校验
+  if (!password.value) {
+    hasError.value = true
+    return
+  }
+
   if (isSubmitting.value) return
   isSubmitting.value = true
 
   try {
-    await authStore.login(studentId.value.trim(), studentName.value)
+    // R103: 传 password 参数（必填），studentName 仅用于显示回退
+    await authStore.login(studentId.value.trim(), password.value, studentName.value)
     emit('login-success')
     handleClose()
   } catch (err) {
