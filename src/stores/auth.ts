@@ -68,19 +68,24 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * 登录
+   *
+   * R103: 改为调用 /api/auth/student/login（正式端点），传 student_id + password
+   * 旧实现走 /api/auth/login（兼容端点）免密登录，存在安全漏洞
+   *
    * @param studentId 学号
-   * @param studentName 学生姓名（可选，用于显示）
+   * @param password 密码（必填，教师重置后默认为 123456）
+   * @param studentName 学生姓名（可选，仅用于显示回退，后端不依赖此字段）
    * @returns Promise
    */
-  async function login(studentId: string, studentName?: string): Promise<void> {
+  async function login(studentId: string, password: string, studentName?: string): Promise<void> {
     isLoading.value = true
     error.value = null
 
     try {
-      // 使用统一的API封装函数，确保正确使用 VITE_API_BASE 配置
-      const response = await post('/api/auth/login', {
+      // R103: 调用正式端点 /api/auth/student/login，传 student_id + password
+      const response = await post('/api/auth/student/login', {
         student_id: studentId,
-        student_name: studentName,
+        password,
       })
 
       if (!response.success) {
@@ -96,9 +101,11 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error('登录成功但未返回用户信息')
       }
 
+      // R103: 后端 studentLogin 返回 user.username / user.student_name / user.student_id
+      // 优先使用后端返回字段，studentName 仅作显示回退
       user.value = {
         id: userData.id,
-        username: userData.username || userData.name || studentName || studentId,
+        username: userData.username || userData.student_name || studentName || studentId,
         studentId: userData.student_id || userData.studentId || studentId,
         role: userData.role || 'student',
       }
