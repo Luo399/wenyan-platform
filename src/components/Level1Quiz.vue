@@ -90,6 +90,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useStudentInfo } from '@/composables/useStudentInfo'
+import { saveQuizRecord, type QuizRecordReport } from '@/composables/useQuizProgress'
 import { submitAnswers as submitAnswersApi } from '@/services/apiService'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
@@ -233,15 +234,19 @@ function submitAnswers() {
 }
 
 /**
- * 保存答题数据到本地存储
+ * 保存答题数据到本地存储（委托给 useQuizProgress 的 saveQuizRecord）
  */
-function saveToLocal(answers: Record<number, number>, studentId: string, studentName: string) {
-  if (!quizList.value?.length) return
+function saveToLocal(
+  answers: Record<number, number>,
+  studentId: string,
+  studentName: string,
+): QuizRecordReport | undefined {
+  if (!quizList.value?.length) return undefined
 
   const now = new Date()
   const submittedAt = now.toISOString()
 
-  // 构建答题记录
+  // 构建单题答题记录
   const records = quizList.value.map((quiz, index) => {
     const userAnswer = answers[index]
     const correctAnswer = quiz.correct_answer
@@ -259,24 +264,22 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
     }
   })
 
-  const report = {
+  const correctCount = records.filter((r) => r.isCorrect).length
+  const report: QuizRecordReport = {
     studentId,
     studentName,
     wenId: props.wenId,
     submittedAt,
     totalQuestions: records.length,
-    correctCount: records.filter((r) => r.isCorrect).length,
-    wrongCount: records.filter((r) => !r.isCorrect).length,
-    totalScore: records.filter((r) => r.isCorrect).length * 100,
-    avgScore: Math.round((records.filter((r) => r.isCorrect).length / records.length) * 100),
+    correctCount,
+    wrongCount: records.length - correctCount,
+    totalScore: correctCount * 100,
+    avgScore: Math.round((correctCount / records.length) * 100),
     records,
   }
 
-  // 保存到 localStorage
-  const storageKey = `quiz_records_${studentId}`
-  const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
-  existingRecords.push(report)
-  localStorage.setItem(storageKey, JSON.stringify(existingRecords))
+  // 统一持久化入口
+  saveQuizRecord(studentId, report)
 
   debugLog('[Level1Quiz] 答题数据已保存到本地:', report)
 

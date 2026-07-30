@@ -1,339 +1,106 @@
 /**
- * useQuizProgress - 逐题交互逻辑与进度管理 Composable
+ * 答题进度本地存储封装
  *
- * 提供完整的题目进度管理功能：
- * - 逐题展示机制
- * - 提交后自动解锁下一题
- * - 进度状态追踪
- * - 答案记录管理
- * - 完成状态检测
- * - sessionStorage 完成记录（关闭标签页后清除）
+ * 集中管理 AdaptQuiz / Level1Quiz 写入 localStorage 的答题记录，
+ * 避免各组件直接访问 localStorage，确保持久化逻辑统一。
+ *
+ * 存储结构：
+ *   key:   `quiz_records_${studentId}`
+ *   value: QuizRecordReport[]（每次答题生成一个 report，内含单题 records）
  */
 
-import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers as submitAnswersApi, submitSingleAnswer } from '@/services/apiService'
-import { useAuthStore } from '@/stores/auth'
-import { debugLog, debugError, debugWarn } from '@/utils/debug'
+import { debugLog, debugWarn } from '@/utils/debug'
 
-export interface QuizAnswer {
-  questionIndex: number
-  questionId?: string
-  module?: string
-  answer: number | string
-  isCorrect?: boolean
-  correctAnswer?: string | number | (string | number)[]
+/** 单题答题记录 */
+export interface QuizQuestionRecord {
+  questionId: string
+  questionNumber: number
+  userAnswer: unknown
+  correctAnswer: unknown
+  isCorrect: boolean
+  score: number
+  submittedAt: string
 }
 
-export interface UseQuizProgressReturn {
-  currentIndex: Ref<number>
-  completedCount: Ref<number>
-  totalQuestions: Ref<number>
-  progressPercent: ComputedRef<number>
-  isCompleted: ComputedRef<boolean>
-  hasCompletionRecord: ComputedRef<boolean>
-  answers: Ref<QuizAnswer[]>
-  handleSubmit: (
-    answer: number | string,
-    isCorrect?: boolean,
-    questionId?: string,
-    module?: string,
-    correctAnswer?: string | number | (string | number)[],
-  ) => void
-  resetProgress: () => void
-  goToQuestion: (index: number) => void
-  markAsCompleted: () => void
+/** 一次答题（整份题目）生成的报告 */
+export interface QuizRecordReport {
+  studentId: string
+  studentName: string
+  wenId: string
+  submittedAt: string
+  /** level1 整卷模式：整卷题目数；level2/3 单题模式：固定 1 */
+  totalQuestions: number
+  correctCount: number
+  wrongCount: number
+  totalScore: number
+  /** 百分制整数（correct / total） */
+  avgScore: number
+  /** 单题明细数组 */
+  records: QuizQuestionRecord[]
 }
 
-function generateCompletionId(): string {
-  const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).substring(2, 9)
-  return `quiz_${timestamp}_${random}`
+/** Storage key 前缀（后缀拼 studentId） */
+const STORAGE_KEY_PREFIX = 'quiz_records_'
+
+/**
+ * 组装 key；空 studentId 不抛错，但会返回空串，下游调用会拒绝写入
+ */
+function getStorageKey(studentId: string): string {
+  return studentId ? `${STORAGE_KEY_PREFIX}${studentId}` : ''
 }
 
-function getCompletionKey(prefix?: string): string {
-  return `quiz_completion_${prefix || 'default'}`
+/**
+ * 读取某学生的全部报告列表；非浏览器或无数据返回 []
+ */
+export function loadQuizRecords(studentId: string): QuizRecordReport[] {
+  const key = getStorageKey(studentId)
+  if (!key) return []
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as QuizRecordReport[]) : []
+  } catch (e) {
+    debugWarn('[useQuizProgress] 读取 localStorage 失败，已回退为空列表:', e)
+    return []
+  }
 }
 
-export function useQuizProgress(
-  totalQuestionsRef: Ref<number>,
-  onSubmit?: (questionIndex: number, answer: number | string, isCorrect?: boolean) => void,
-  completionKeyPrefix?: string,
-): UseQuizProgressReturn {
-  const currentIndex = ref(0)
-  const completedCount = ref(0)
-  const answers = ref<QuizAnswer[]>([])
-  const submittedList = ref<boolean[]>([])
-
-  const progressPercent = computed(() => {
-    if (totalQuestionsRef.value === 0) return 0
-    const percent = (completedCount.value / totalQuestionsRef.value) * 100
-    return Math.min(Math.round(percent), 100)
-  })
-
-  const isCompleted = computed(() => {
-    return completedCount.value >= totalQuestionsRef.value && totalQuestionsRef.value > 0
-  })
-
-  const hasCompletionRecord = computed(() => {
-    const key = getCompletionKey(completionKeyPrefix)
-    const record = sessionStorage.getItem(key)
-    return !!record
-  })
-
-  function saveCompletionRecord(): void {
-    const key = getCompletionKey(completionKeyPrefix)
-    const record = {
-      completionId: generateCompletionId(),
-      completedAt: new Date().toISOString(),
-      totalQuestions: totalQuestionsRef.value,
-      answeredCount: completedCount.value,
-    }
-    sessionStorage.setItem(key, JSON.stringify(record))
-    debugLog(`[useQuizProgress] 完成记录已保存:`, record)
+/**
+ * 追加一个 report 到某学生的记录列表
+ * @returns 追加后的完整列表
+ */
+export function saveQuizRecord(studentId: string, report: QuizRecordReport): QuizRecordReport[] {
+  const key = getStorageKey(studentId)
+  if (!key) {
+    debugWarn('[useQuizProgress] studentId 为空，跳过 localStorage 写入')
+    return []
   }
-
-  function clearCompletionRecord(): void {
-    const key = getCompletionKey(completionKeyPrefix)
-    sessionStorage.removeItem(key)
-    debugLog(`[useQuizProgress] 完成记录已清除`)
-  }
-
-  function getStudentInfo(): { studentId: string; studentName: string } {
-    const authStore = useAuthStore()
-
-    if (!authStore.isLoggedIn || !authStore.user) {
-      return { studentId: '', studentName: '' }
-    }
-
-    return {
-      studentId: authStore.user.studentId,
-      studentName: authStore.user.username,
-    }
-  }
-
-  async function submitSingleAnswerToBackend(answer: QuizAnswer): Promise<void> {
-    if (!completionKeyPrefix) {
-      debugLog(`[useQuizProgress] submitSingleAnswerToBackend - 无需提交`)
-      return
-    }
-
-    try {
-      const { studentId, studentName } = getStudentInfo()
-
-      if (!studentId) {
-        debugWarn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
-        return
-      }
-
-      const questionId =
-        answer.questionId || `${completionKeyPrefix}_question_${answer.questionIndex}`
-
-      await submitSingleAnswer({
-        studentId,
-        studentName,
-        wenId: completionKeyPrefix,
-        questionId,
-        userAnswer: answer.answer,
-        correctAnswer: answer.correctAnswer,
-        submittedAt: new Date().toISOString(),
-      })
-
-      debugLog(`[useQuizProgress] submitSingleAnswerToBackend - 单题答案已提交`, {
-        questionId,
-        answer: answer.answer,
-        isCorrect: answer.isCorrect,
-      })
-    } catch (error) {
-      debugError('[useQuizProgress] submitSingleAnswerToBackend - 提交失败:', error)
-    }
-  }
-
-  async function submitAnswersToBackend(): Promise<void> {
-    if (!completionKeyPrefix || answers.value.length === 0) {
-      debugLog(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
-      return
-    }
-
-    try {
-      const { studentId, studentName } = getStudentInfo()
-
-      if (!studentId) {
-        debugWarn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
-        return
-      }
-
-      const questions = answers.value.map((ans) => ({
-        id: ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`,
-        correctAnswer: ans.correctAnswer ?? 0,
-      }))
-
-      const answerMap: Record<string, any> = {}
-      const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
-      answers.value.forEach((ans) => {
-        const key = ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`
-        let mappedAnswer: string | number = ans.answer
-        if (typeof ans.answer === 'string') {
-          const index = letterToIndex[ans.answer]
-          if (index !== undefined) {
-            mappedAnswer = index
-          }
-        }
-        answerMap[key] = mappedAnswer
-      })
-
-      await submitAnswersApi(
-        { answers: answerMap, questions },
-        completionKeyPrefix,
-        studentId,
-        studentName,
-      )
-
-      debugLog(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
-    } catch (error) {
-      debugError('[useQuizProgress] submitAnswersToBackend - 提交失败:', error)
-    }
-  }
-
-  async function handleSubmit(
-    answer: number | string,
-    isCorrect?: boolean,
-    questionId?: string,
-    module?: string,
-    correctAnswer?: string | number | (string | number)[],
-  ): Promise<void> {
-    const prevCurrentIndex = currentIndex.value
-    const prevCompletedCount = completedCount.value
-
-    if (isCompleted.value) {
-      debugLog(`[useQuizProgress] handleSubmit - 已全部完成，跳过提交`)
-      return
-    }
-
-    const existingIndex = answers.value.findIndex((a) => a.questionIndex === currentIndex.value)
-    const answerRecord: QuizAnswer = {
-      questionIndex: currentIndex.value,
-      questionId,
-      module,
-      answer,
-      isCorrect,
-      correctAnswer,
-    }
-
-    if (existingIndex >= 0) {
-      answers.value[existingIndex] = answerRecord
-    } else {
-      answers.value.push(answerRecord)
-    }
-
-    if (!submittedList.value[currentIndex.value]) {
-      submittedList.value[currentIndex.value] = true
-      completedCount.value++
-    }
-
-    if (onSubmit) {
-      onSubmit(currentIndex.value, answer, isCorrect)
-    }
-
-    await submitSingleAnswerToBackend(answerRecord)
-
-    if (isCompleted.value) {
-      saveCompletionRecord()
-    }
-
-    if (currentIndex.value < totalQuestionsRef.value - 1) {
-      currentIndex.value++
-    }
-
-    debugLog(`[useQuizProgress] handleSubmit - 操作完成`, {
-      operation: 'submit',
-      prevCurrentIndex,
-      newCurrentIndex: currentIndex.value,
-      prevCompletedCount,
-      newCompletedCount: completedCount.value,
-      answer,
-      isCorrect,
-      questionId,
-      module,
-      isCompleted: isCompleted.value,
+  const list = loadQuizRecords(studentId)
+  list.push(report)
+  try {
+    localStorage.setItem(key, JSON.stringify(list))
+    debugLog('[useQuizProgress] 答题数据已保存到本地:', {
+      studentId,
+      wenId: report.wenId,
+      questions: report.totalQuestions,
+      avgScore: report.avgScore,
     })
+  } catch (e) {
+    debugWarn('[useQuizProgress] 写入 localStorage 失败:', e)
   }
+  return list
+}
 
-  function markAsCompleted(): void {
-    saveCompletionRecord()
-    debugLog(`[useQuizProgress] markAsCompleted - 手动标记完成`)
-  }
-
-  function resetProgress(): void {
-    const prevCurrentIndex = currentIndex.value
-    const prevCompletedCount = completedCount.value
-    const prevAnswerCount = answers.value.length
-
-    clearCompletionRecord()
-
-    currentIndex.value = 0
-    completedCount.value = 0
-    answers.value = []
-    submittedList.value = []
-
-    debugLog(`[useQuizProgress] resetProgress - 进度已重置`, {
-      operation: 'reset',
-      prevCurrentIndex,
-      newCurrentIndex: currentIndex.value,
-      prevCompletedCount,
-      newCompletedCount: completedCount.value,
-      prevAnswerCount,
-      newAnswerCount: answers.value.length,
-    })
-  }
-
-  function goToQuestion(index: number): void {
-    const prevIndex = currentIndex.value
-
-    if (index >= 0 && index < totalQuestionsRef.value) {
-      currentIndex.value = index
-      debugLog(`[useQuizProgress] goToQuestion - 跳转到题目`, {
-        operation: 'goToQuestion',
-        prevIndex,
-        newIndex: currentIndex.value,
-      })
-    } else {
-      debugLog(`[useQuizProgress] goToQuestion - 无效索引`, {
-        operation: 'goToQuestion',
-        requestedIndex: index,
-        totalQuestions: totalQuestionsRef.value,
-      })
-    }
-  }
-
-  watch(
-    totalQuestionsRef,
-    (newVal, oldVal) => {
-      debugLog(`[useQuizProgress] watch - 题目总数变化`, {
-        operation: 'totalQuestionsChange',
-        oldValue: oldVal,
-        newValue: newVal,
-      })
-
-      submittedList.value = Array.from({ length: newVal }, () => false)
-
-      if (newVal === 0) {
-        resetProgress()
-      }
-    },
-    { immediate: true },
-  )
-
-  return {
-    currentIndex,
-    completedCount,
-    totalQuestions: totalQuestionsRef,
-    progressPercent,
-    isCompleted,
-    hasCompletionRecord,
-    answers,
-    handleSubmit,
-    resetProgress,
-    goToQuestion,
-    markAsCompleted,
+/**
+ * 清空某学生的全部答题记录（主要用于测试/退出登录场景）
+ */
+export function clearQuizRecords(studentId: string): void {
+  const key = getStorageKey(studentId)
+  if (!key) return
+  try {
+    localStorage.removeItem(key)
+  } catch (e) {
+    debugWarn('[useQuizProgress] 清空 localStorage 失败:', e)
   }
 }

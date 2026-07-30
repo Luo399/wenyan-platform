@@ -93,6 +93,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useStudentInfo } from '@/composables/useStudentInfo'
+import {
+  saveQuizRecord,
+  type QuizRecordReport,
+  type QuizQuestionRecord,
+} from '@/composables/useQuizProgress'
 import { submitSingleAnswer } from '@/services/apiService'
 import type { QuizItem } from '@/adapters/quizAdapter'
 import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
@@ -296,13 +301,17 @@ function submitAnswer() {
   submitToBackend(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer)
 }
 
+/**
+ * 保存单题答题记录到本地（委托给 useQuizProgress 的 saveQuizRecord）
+ * @returns 封装后的单题记录（兼容原有 return value，父级仅用于调试）
+ */
 function saveToLocal(
   quiz: QuizItem,
   userAnswer: string,
   correctAnswer: string | number | (string | number)[] | null | undefined,
   studentId: string,
   studentName: string,
-) {
+): QuizQuestionRecord {
   const now = new Date()
   const submittedAt = now.toISOString()
   const wenId = quiz.textId || props.textId
@@ -311,31 +320,36 @@ function saveToLocal(
     `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
 
   const isCorrect = String(userAnswer) === String(correctAnswer ?? '')
+  const score = isCorrect ? 100 : 0
 
-  const record = {
-    studentId,
-    studentName,
-    wenId,
+  // 单题记录，写入 reports[].records 数组
+  const questionRecord: QuizQuestionRecord = {
     questionId,
     questionNumber: quiz.questionNumber || 1,
-    level: props.level,
     userAnswer,
     correctAnswer,
     isCorrect,
-    score: isCorrect ? 100 : 0,
+    score,
     submittedAt,
   }
 
-  const storageKey = `quiz_records_${studentId}`
-  const existingRecords = JSON.parse(localStorage.getItem(storageKey) || '[]')
-  existingRecords.push(record)
-  localStorage.setItem(storageKey, JSON.stringify(existingRecords))
+  // 统一报告结构，保持与 Level1Quiz 整卷报告相同
+  const report: QuizRecordReport = {
+    studentId,
+    studentName,
+    wenId,
+    submittedAt,
+    totalQuestions: 1,
+    correctCount: isCorrect ? 1 : 0,
+    wrongCount: isCorrect ? 0 : 1,
+    totalScore: score,
+    avgScore: score,
+    records: [questionRecord],
+  }
 
-  debugLog('[AdaptQuiz] 答题数据已保存到本地:', record)
-
-  downloadSingleReport(record, studentId, studentName)
-
-  return record
+  saveQuizRecord(studentId, report)
+  downloadSingleReport({ ...report, ...questionRecord }, studentId, studentName)
+  return questionRecord
 }
 
 function downloadSingleReport(record: any, studentId: string, studentName: string) {
