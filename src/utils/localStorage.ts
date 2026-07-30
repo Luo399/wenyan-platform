@@ -99,7 +99,7 @@ export function setQuizRecords<T>(studentId: string, records: T[]): void {
 export function appendQuizRecord<T>(studentId: string, record: T): T[] {
   if (!studentId) return []
 
-  const key = buildStorageKey(studentId)
+  const key = buildQuizStorageKey(studentId)
   const raw = localStorage.getItem(key)
 
   let records: T[]
