@@ -14,7 +14,7 @@
 | 03  | 后端架构重构            | P0-P1  | 13     | 未开始 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md)   |
 | 04  | 前端组件质量（C01-C11） | P1-P2  | 11     | 已完成 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md)     |
 | 05  | 前端架构与类型          | P1-P2  | 12     | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
-| 06  | 工程化与配置            | P1-P2  | 16     | 未开始 | [06-engineering-config.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/06-engineering-config.md)       |
+| 06  | 工程化与配置            | P1-P2  | 16     | 已完成 | [06-engineering-config.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/06-engineering-config.md)       |
 | 07  | 数据管道优化            | P2     | 7      | 未开始 | [07-data-pipeline.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/07-data-pipeline.md)                 |
 
 专题合计：75 个问题
@@ -126,10 +126,10 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md P0       | 4/66（R51, R52, R54, R108） | useDataLoader 异步调用违规 ×3 + adapter 工厂重构，分支+CI 通过，PR 待合并                                                                                        |
 | 2026-07-30              | 09-frontend-round3.md R90      | 1/66（R90）                 | 前端 VITE_AUTH_SECRET dead code 清理 + 后端 HMAC 校验移除 + yml/env 配置清理，PR #54 squash 合并到 feature-1，测试环境部署成功                                    |
 | 2026-07-30              | 09-frontend-round3.md R103     | 1/66（R103）                | stores/auth.ts 加 password 参数 + 改调 /api/auth/student/login；LoginModal/StudentDisplay 加密码输入框；apiService.ts 删 dead login；PR #55 squash 合并到 feature-1，测试环境部署成功。强制改密流程延后 |
-| -                       | 01-03, 05-07 专题              | 0/64                        | 待开始                                                                                                                                                           |
+| -                       | 01-03, 05, 07 专题              | 0/48                        | 待开始                                                                                                                                                           |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
 | -                       | 09-frontend-round3.md 剩余     | 0/60                        | R51/R52/R54/R90/R103/R108 已完成，剩余 60 项待开始                                                                                                               |
-| -                       | **合计**                       | **17/191**                  | 11（专题）+ 6（R51/R52/R54/R90/R103/R108）                                                                                                                       |
+| -                       | **合计**                       | **33/191**                  | 11（专题04）+ 6（R 系列）+ 16（E01-E16，06 专题）                                                                                                                       |
 
 ## 使用方式
 

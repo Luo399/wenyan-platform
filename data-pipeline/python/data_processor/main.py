@@ -270,8 +270,7 @@ def _cmd_run(args) -> int:
 
     logging.info("=" * 60)
     logging.info("全流程完成。后续步骤：")
-    logging.info("  - 本地上传 OSS：node scripts/upload-to-oss.js")
-    logging.info("  - 或 commit + push 触发 CI 自动部署")
+    logging.info("  - commit + push 触发 CI 自动部署（deploy-frontend workflow）")
     logging.info("=" * 60)
     return 0
 

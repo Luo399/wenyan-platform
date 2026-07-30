@@ -18,7 +18,8 @@ export default defineConfigWithVueTs(
   globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
 
   ...pluginVue.configs['flat/essential'],
-  vueTsConfigs.recommended,
+  // E12: 启用类型感知规则（no-floating-promises / no-misused-promises 等）
+  vueTsConfigs.recommendedTypeChecked,
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 

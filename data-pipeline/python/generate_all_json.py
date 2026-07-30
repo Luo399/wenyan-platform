@@ -11,7 +11,7 @@ Excel转JSON批量生成工具 - 主入口（转换层唯一事实源）
 不做的事（由 data_processor 承担）：
   - 增量检测（IncrementalProcessor）
   - 版本快照（VersionManager）
-  - OSS 上传（由 scripts/upload-to-oss.js 或 CI 承担）
+  - OSS 上传（由 CI deploy-frontend workflow 承担）
 
 路径约定：所有路径基于本文件所在目录（data-pipeline/python/）计算，
 不依赖 cwd，可被 data_processor.main 作为子流程调用。

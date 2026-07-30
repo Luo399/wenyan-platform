@@ -14,5 +14,10 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['tests/**/*.spec.ts'],
     exclude: ['**/node_modules/**', '**/backend/tests/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      thresholds: { lines: 60, functions: 60, branches: 50, statements: 60 },
+    },
   },
 })

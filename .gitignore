@@ -9,6 +9,8 @@ lerna-debug.log*
 
 node_modules
 .DS_Store
+Thumbs.db
+desktop.ini
 dist
 dist-ssr
 coverage
@@ -35,6 +37,8 @@ __pycache__/
 
 # Test output
 test-output*.txt
+test-report*.json
+test-report*.md
 
 # Cypress
 /cypress/videos/
@@ -78,11 +82,6 @@ public/*.json
 data-pipeline/temp/
 data-pipeline/source/tencent_exports/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-
 # JAR files
 *.jar
 
@@ -100,3 +99,7 @@ ossutil_output/
 
 # Personal config files（仅忽略根目录下的 config，不影响 backend/src/config/）
 /config
+
+# Editor & OS extras
+.history/
+.prettierignore

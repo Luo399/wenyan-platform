@@ -6,8 +6,11 @@
 module.exports = {
   apps: [
     {
-      name: 'backend',
-      script: 'src/app.js',
+      // E11: 入口统一为 server.js（与 package.json 的 main 及 deploy workflow 一致）
+      // server.js 调用 src/app.js 的 startServer()；本文件为本地/参考配置，
+      // deploy 实际使用 `pm2 start server.js --name wenyan-backend[-test]`
+      name: 'wenyan-backend',
+      script: 'server.js',
       cwd: './',
       instances: 1,
       autorestart: true,

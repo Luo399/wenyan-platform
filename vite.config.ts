@@ -15,4 +15,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 拆分 vendor chunk，减小首屏体积
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'video-vendor': ['video.js'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+    sourcemap: false,
+  },
 })

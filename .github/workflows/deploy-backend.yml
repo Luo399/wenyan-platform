@@ -58,17 +58,15 @@ jobs:
             # 已迁移过的行按 UNIQUE(student_id) 被跳过，admins/schools 为空时才插入
             node scripts/migrate_auth.js || echo "MIGRATION_WARNING: 迁移脚本执行异常但继续部署（首次部署表结构已由 server 启动时 initAllTables 创建）"
 
-            echo "=== [4/7] Stop old process ==="
-            pm2 delete wenyan-backend 2>&1 || true
-
-            echo "=== [5/7] Start backend ==="
+            echo "=== [4/7] Reload backend (zero-downtime) ==="
+            # 安全规则 C.2：用 reload --update-env 替代 delete+start，避免停机窗口并读取新 .env
             cd "$BACKEND_PATH"
-            pm2 start server.js --name wenyan-backend
+            pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
 
-            echo "=== [6/7] Wait for startup ==="
+            echo "=== [5/7] Wait for startup ==="
             sleep 3
 
-            echo "=== [7/7] Health check ==="
+            echo "=== [6/7] Health check ==="
             pm2 status
             curl -s http://127.0.0.1:3000/api/health || echo "HEALTH_CHECK_FAILED"
           EOF
