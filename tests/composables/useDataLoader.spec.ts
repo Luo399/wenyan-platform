@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
-import { ref } from 'vue'
 import { useDataLoader, terminateJsonParserWorker, clearDataCache } from '@/composables/useDataLoader'
 
 vi.mock('@/utils/debug', () => ({
@@ -107,7 +106,7 @@ describe('useDataLoader', () => {
       }) as Mock
 
       const urlGetter = () => '/expiring.json'
-      const { data, load } = useDataLoader(urlGetter, {
+      const { load } = useDataLoader(urlGetter, {
         autoLoad: false,
         cacheEnabled: true,
         cacheTTL: 1,

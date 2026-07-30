@@ -27,6 +27,22 @@
   /* 占位灰色 */
   --color-placeholder: #d9d9d9;
 
+  /* ========== 语义色：正确 / 警告 / 错误 ========== */
+  /* 成功（绿色系，对应 L1 难度底色/文字/选中图标+边框） */
+  --color-success: #166534;
+  --color-success-light: #22c55e;
+  --color-success-bg: #dcfce7;
+  --color-success-bg-soft: #f0fdf4;
+
+  /* 信息（蓝色系，对应 L2 难度） */
+  --color-info: #1d4ed8;
+  --color-info-bg: #dbeafe;
+
+  /* 错误（红色系，对应 L3 难度 + 答错状态） */
+  --color-danger: #991b1b;
+  --color-danger-bg: #fee2e2;
+  --color-danger-bg-soft: #fef2f2;
+
   /* ========== 字体 ========== */
   --font-family-serif:
     'Source Han Serif CN', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
@@ -54,6 +70,9 @@
   --border-width-thin: 3px; /* 虚线边框 */
   --border-width-hairline: 1px; /* 细线 */
 
+  /* ========== 控件尺寸（WCAG 点击区 ≥ 44px 推荐；这里给 32px 下限，供纯 icon 按钮用） ========== */
+  --control-min-size: 2rem; /* 32px */
+
   /* ========== 阴影 ========== */
   --shadow-card: 18px 15px 66px 0px rgba(0, 0, 0, 0.25);
   --shadow-small: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
@@ -65,6 +84,19 @@
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
   --spacing-2xl: 3rem;
+
+  /* ========== 布局（侧边栏 / 内容区分隔） ========== */
+  --sidebar-width: 16.666%; /* 六分之一栏，对应 PoetryMenu + HomeView 主内容区左侧留白 */
+
+  /* ========== 区块/组件常用尺寸 ========== */
+  --section-height-md: 300px; /* 加载/错误/空状态的最小高度 */
+  --icon-size-lg: 2rem; /* loading/error 大号 icon */
+  --icon-size-xl: 64px; /* 空状态中心占位 */
+  --font-size-block-label: 0.75rem; /* block index/type 标签 */
+  --spacing-tag-inline: 0.25rem; /* tag 内部垂直 padding */
+  --content-max-width: 900px; /* 内容区最大宽度 */
+  --spacing-bottom-safe: 6rem; /* 页面底部安全留白 */
+  --radius-pill: 9999px; /* 胶囊/药丸形圆角（tag 等） */
 }
 
 /* ========== 全局基础重置 ========== */

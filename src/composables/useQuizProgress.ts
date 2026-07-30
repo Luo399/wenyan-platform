@@ -11,7 +11,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers as submitAnswersApi, submitSingleAnswer } from '@/services/apiService'
+import { submitSingleAnswer } from '@/services/apiService'
 import { useAuthStore } from '@/stores/auth'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
@@ -145,52 +145,6 @@ export function useQuizProgress(
       })
     } catch (error) {
       debugError('[useQuizProgress] submitSingleAnswerToBackend - 提交失败:', error)
-    }
-  }
-
-  async function submitAnswersToBackend(): Promise<void> {
-    if (!completionKeyPrefix || answers.value.length === 0) {
-      debugLog(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
-      return
-    }
-
-    try {
-      const { studentId, studentName } = getStudentInfo()
-
-      if (!studentId) {
-        debugWarn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
-        return
-      }
-
-      const questions = answers.value.map((ans) => ({
-        id: ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`,
-        correctAnswer: ans.correctAnswer ?? 0,
-      }))
-
-      const answerMap: Record<string, any> = {}
-      const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
-      answers.value.forEach((ans) => {
-        const key = ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`
-        let mappedAnswer: string | number = ans.answer
-        if (typeof ans.answer === 'string') {
-          const index = letterToIndex[ans.answer]
-          if (index !== undefined) {
-            mappedAnswer = index
-          }
-        }
-        answerMap[key] = mappedAnswer
-      })
-
-      await submitAnswersApi(
-        { answers: answerMap, questions },
-        completionKeyPrefix,
-        studentId,
-        studentName,
-      )
-
-      debugLog(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
-    } catch (error) {
-      debugError('[useQuizProgress] submitAnswersToBackend - 提交失败:', error)
     }
   }
 

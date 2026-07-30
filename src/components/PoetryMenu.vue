@@ -163,12 +163,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* 菜单容器：固定在左侧，占屏幕宽度的 1/6 */
+/* 菜单容器：固定在左侧，占屏幕宽度的 1/6（通过 --sidebar-width 与 HomeView 同步） */
 .poetry-menu {
   position: fixed;
   left: 0;
   top: 0;
-  width: 16.666%; /* 六分之一 */
+  width: var(--sidebar-width);
   height: 100vh;
   background-color: var(--color-placeholder);
   border-right: var(--border-width-hairline) solid var(--color-border);

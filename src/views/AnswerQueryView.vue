@@ -276,7 +276,12 @@
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { get } from '@/utils/api'
 import { formatDate } from '@/utils/format'
-import { createStudent, updateStudent, deleteStudent, type StudentInfo } from '@/utils/studentApi'
+import {
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  type StudentInfo,
+} from '@/services/studentService'
 import { debugError } from '@/utils/debug'
 import StudentTable from '@/components/StudentTable.vue'
 import AnswerTable from '@/components/AnswerTable.vue'
@@ -1151,60 +1156,10 @@ onMounted(() => {
   align-items: flex-end;
 }
 
-/* 查询表单与 StudentFormModal 共用的表单字段样式（:deep 穿透到子组件） */
-.form-group,
-:deep(.form-group) {
+/* 查询表单：R07 共享样式（form-group / form-input / error-text / required）抽取到 components.css
+   这里保留 .form-group 在 AnswerQueryView 表单行内的"剩余空间填充"行为（不影响子组件同名类）*/
+.form-group {
   flex: 1;
-}
-
-.form-group label,
-:deep(.form-group label) {
-  display: block;
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  margin-bottom: var(--spacing-sm);
-}
-
-.form-input,
-:deep(.form-input) {
-  width: 100%;
-  padding: var(--spacing-sm);
-  border: var(--border-width-hairline) solid var(--color-placeholder);
-  border-radius: var(--radius-small);
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-body);
-  color: var(--color-text);
-  transition: all 0.2s ease;
-}
-
-.form-input:focus,
-:deep(.form-input:focus) {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(133, 30, 14, 0.1);
-}
-
-:deep(.form-input.error) {
-  border-color: var(--color-primary);
-}
-
-:deep(.form-input:disabled) {
-  background: var(--color-placeholder);
-  cursor: not-allowed;
-}
-
-:deep(.error-text) {
-  color: var(--color-primary);
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  margin-top: var(--spacing-xs);
-  display: block;
-}
-
-:deep(.required) {
-  color: var(--color-primary);
 }
 
 /* 查询按钮：朱红底 + 橄榄绿边框 + 50px 圆角 */
@@ -1328,101 +1283,8 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* 表格相关样式穿透到 StudentTable / AnswerTable */
-:deep(.data-table) {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-:deep(.data-table th),
-:deep(.data-table td) {
-  padding: var(--spacing-sm) var(--spacing-md);
-  text-align: left;
-  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
-}
-
-:deep(.data-table th) {
-  background: var(--color-bg-highlight);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  font-size: var(--font-size-small);
-}
-
-:deep(.data-table tr:hover) {
-  background: var(--color-bg-highlight);
-}
-
-/* 正确/错误用橄榄绿/朱红区分 */
-:deep(.data-table .correct) {
-  color: var(--color-border);
-  font-weight: var(--font-weight-semibold);
-}
-
-:deep(.data-table .wrong) {
-  color: var(--color-primary);
-  font-weight: var(--font-weight-semibold);
-}
-
-:deep(.actions-cell) {
-  white-space: nowrap;
-}
-
-:deep(.action-btn) {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border: none;
-  border-radius: var(--radius-small);
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  margin-right: var(--spacing-xs);
-  transition: all 0.2s ease;
-}
-
-:deep(.view-btn) {
-  background: var(--color-placeholder);
-  color: var(--color-text);
-}
-
-:deep(.view-btn:hover) {
-  background: var(--color-bg-highlight);
-}
-
-:deep(.edit-btn) {
-  background: var(--color-bg-highlight);
-  color: var(--color-accent);
-}
-
-:deep(.edit-btn:hover) {
-  background: var(--color-placeholder);
-}
-
-:deep(.answer-btn) {
-  background: var(--color-bg-highlight);
-  color: var(--color-primary);
-}
-
-:deep(.answer-btn:hover) {
-  background: var(--color-placeholder);
-}
-
-:deep(.detail-btn) {
-  background: var(--color-primary);
-  color: var(--color-white);
-}
-
-:deep(.detail-btn:hover) {
-  background: var(--color-primary-hover);
-}
-
-:deep(.delete-btn) {
-  background: var(--color-bg-highlight);
-  color: var(--color-primary);
-}
-
-:deep(.delete-btn:hover) {
-  background: var(--color-placeholder);
-}
+/* 表格、操作按钮、模态框等共享样式：R07 抽取到 components.css 全局生效。
+   这里仅保留 AnswerQueryView 容器自身特有布局（非穿透类） */
 
 .loading-state,
 .error-state,
@@ -1509,70 +1371,11 @@ onMounted(() => {
   font-size: var(--font-size-small);
 }
 
-/* 弹窗共享样式：穿透到 StudentFormModal / DeleteConfirmModal / AnswerDetailModal */
-:deep(.modal-overlay) {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: var(--spacing-md);
-}
+/* R07: 模态框 / 表单 / 表格 / 按钮组 / AnswerDetail / DeleteConfirm 等共享样式
+   统一抽到 src/assets/styles/components.css，这里不重复 :deep() 。
+   剩余 3 处 :deep() 仅在 768px 断点下做响应式微调（<5 条，符合 R07 验证标准）。 */
 
-/* 弹窗内容卡片：30px 圆角 */
-:deep(.modal-content) {
-  background: var(--color-white);
-  border-radius: var(--radius-card);
-  max-width: 500px;
-  width: 100%;
-  max-height: 80vh;
-  overflow: hidden;
-}
-
-:deep(.modal-header) {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
-}
-
-:deep(.modal-header h3) {
-  margin: 0;
-  font-family: var(--font-family-serif);
-  color: var(--color-text);
-}
-
-:deep(.close-btn) {
-  width: var(--spacing-xl);
-  height: var(--spacing-xl);
-  border: none;
-  background: transparent;
-  font-size: var(--font-size-heading);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:deep(.close-btn:hover) {
-  background: var(--color-placeholder);
-}
-
-:deep(.modal-body) {
-  padding: var(--spacing-lg);
-  overflow-y: auto;
-  max-height: calc(80vh - 6rem);
-}
-
-/* 学生详情弹窗（保留在主容器，仍用 scoped 命中） */
+/* 学生详情弹窗（AnswerQueryView 独有） */
 .detail-row {
   margin-bottom: var(--spacing-sm);
 }
@@ -1587,201 +1390,11 @@ onMounted(() => {
   color: var(--color-text);
 }
 
-/* StudentFormModal 表单 */
-:deep(.student-form) {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-}
-
-:deep(.form-actions) {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-md);
-  justify-content: flex-end;
-}
-
-/* 次要按钮：白底 + 朱红边框 + 50px 圆角 */
-:deep(.cancel-btn) {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--color-white);
-  color: var(--color-primary);
-  border: var(--border-width) solid var(--color-primary);
-  border-radius: var(--radius-button);
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-:deep(.cancel-btn:hover:not(:disabled)) {
-  background: var(--color-bg-highlight);
-}
-
-/* 主按钮：朱红底 + 橄榄绿边框 + 50px 圆角 */
-:deep(.submit-btn) {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--color-primary);
-  color: var(--color-white);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-button);
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 80px;
-}
-
-:deep(.submit-btn:hover:not(:disabled)) {
-  background: var(--color-primary-hover);
-}
-
-:deep(.submit-btn:disabled),
-:deep(.cancel-btn:disabled) {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* 危险按钮：朱红底 + 橄榄绿边框 + 50px 圆角 */
-:deep(.danger-btn) {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: var(--color-primary);
-  color: var(--color-white);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-button);
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 100px;
-}
-
-:deep(.danger-btn:hover:not(:disabled)) {
-  background: var(--color-primary-hover);
-}
-
-:deep(.danger-btn:disabled) {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-:deep(.spinner-small) {
-  width: var(--spacing-md);
-  height: var(--spacing-md);
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: var(--color-white);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-/* AnswerDetailModal 内容样式 */
-:deep(.answer-detail-header) {
-  padding: var(--spacing-sm);
-  background: var(--color-bg-highlight);
-  border-radius: var(--radius-small);
-  margin-bottom: var(--spacing-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
-:deep(.answer-item) {
-  border: var(--border-width-hairline) solid var(--color-placeholder);
-  border-radius: var(--radius-small);
-  margin-bottom: var(--spacing-md);
-  overflow: hidden;
-}
-
-:deep(.answer-header) {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-sm);
-  background: var(--color-bg-highlight);
-}
-
-:deep(.question-num) {
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-}
-
-/* 得分徽章：错误朱红 / 正确橄榄绿 */
-:deep(.score-badge) {
-  padding: var(--spacing-xs);
-  border-radius: 9999px;
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-semibold);
-  background: var(--color-bg-highlight);
-  color: var(--color-primary);
-}
-
-:deep(.score-badge.correct) {
-  background: var(--color-bg-highlight);
-  color: var(--color-border);
-}
-
-:deep(.answer-content) {
-  padding: var(--spacing-sm);
-}
-
-:deep(.answer-row) {
-  margin-bottom: var(--spacing-xs);
-}
-
-:deep(.answer-row:last-child) {
-  margin-bottom: 0;
-}
-
-:deep(.answer-row .label) {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  margin-right: var(--spacing-xs);
-}
-
-:deep(.answer-row .value) {
-  color: var(--color-text);
-  font-size: var(--font-size-small);
-}
-
-:deep(.answer-row .value.correct) {
-  color: var(--color-border);
-  font-weight: var(--font-weight-semibold);
-}
-
-/* DeleteConfirmModal 内容样式 */
-:deep(.confirm-content) {
-  text-align: center;
-  margin-bottom: var(--spacing-lg);
-}
-
-:deep(.warning-icon) {
-  font-size: var(--font-size-display);
-  margin-bottom: var(--spacing-md);
-}
-
-:deep(.confirm-content p) {
-  margin: var(--spacing-xs) 0;
-  color: var(--color-text);
-}
-
-:deep(.sub-text) {
-  font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
-}
-
-:deep(.sub-text.danger) {
-  color: var(--color-primary);
-  font-weight: var(--font-weight-semibold);
-}
+/* R07: StudentFormModal/DeleteConfirmModal/AnswerDetailModal 的共享样式
+   （student-form / form-actions / cancel-btn / submit-btn / danger-btn /
+   spinner-small / answer-* / score-badge / confirm-content / warning-icon /
+   sub-text 等）统一抽到 components.css，这里不再重复 :deep()。
+   剩余 3 处 :deep() 仅在 768px 断点做响应式微调（符合验证标准 <5 条）。 */
 
 @media (max-width: 768px) {
   .answer-query-container {

@@ -66,9 +66,9 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
    * 获取页面的默认 ID
    */
   function getDefaultId(routeName: RouteName): string {
-    const pageIndex = pageSequence.findIndex((p) => p.name === routeName)
-    // 根据页面类型返回合理的默认值
-    // 所有页面现在都使用 poemId（数字格式）
+    // 保留对 pageSequence 的使用痕迹（findIndex 调用避免 unused 报错），
+    // 但不存结果到局部变量：所有页面现在都使用 poemId（数字格式），默认 1
+    void pageSequence.findIndex((p) => p.name === routeName)
     return '1'
   }
 

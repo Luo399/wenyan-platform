@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import BlockRenderer from '@/components/BlockRenderer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
@@ -85,7 +85,6 @@ import type { PageConfig } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
 const route = useRoute()
-const router = useRouter()
 
 // 篇目ID（路由参数）
 const poemId = computed(() => route.params.id as string)

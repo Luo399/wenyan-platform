@@ -1,0 +1,459 @@
+/* ============================================================
+ * 共享组件样式：表单、数据表格、模态框、操作按钮、答案详情
+ * 从 AnswerQueryView.vue 的 :deep() 穿透中抽取为全局样式，
+ * 以便在 StudentFormModal / StudentTable / AnswerTable /
+ * DeleteConfirmModal / AnswerDetailModal 等组件中直接复用。
+ *
+ * R07: 设计 token 全部通过 CSS 变量继承，无需父组件 :deep()
+ * ============================================================ */
+
+/* ============== 表单（.form-group / .form-input / .error-text / .required） ============== */
+
+.form-group {
+  flex: 1;
+}
+
+.form-group label {
+  display: block;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--spacing-sm);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
+  color: var(--color-text);
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(133, 30, 14, 0.1);
+}
+
+.form-input.error {
+  border-color: var(--color-primary);
+}
+
+.form-input:disabled {
+  background: var(--color-placeholder);
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: var(--color-primary);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  margin-top: var(--spacing-xs);
+  display: block;
+}
+
+.required {
+  color: var(--color-primary);
+}
+
+/* ============== 数据表格（.data-table） ============== */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
+}
+
+.data-table th {
+  background: var(--color-bg-highlight);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+}
+
+.data-table tr:hover {
+  background: var(--color-bg-highlight);
+}
+
+/* 正确 / 错误（分别用橄榄绿 / 朱红） */
+.data-table .correct {
+  color: var(--color-border);
+  font-weight: var(--font-weight-semibold);
+}
+
+.data-table .wrong {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.actions-cell {
+  white-space: nowrap;
+}
+
+/* ============== 通用操作按钮（.action-btn + view/edit/answer/detail/delete 语义色） ============== */
+
+.action-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--radius-small);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  margin-right: var(--spacing-xs);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 移动端换行时避免按钮粘在一起 */
+  margin-bottom: var(--spacing-xs);
+}
+
+.view-btn {
+  background: var(--color-placeholder);
+  color: var(--color-text);
+}
+.view-btn:hover {
+  background: var(--color-bg-highlight);
+}
+
+.edit-btn {
+  background: var(--color-bg-highlight);
+  color: var(--color-accent);
+}
+.edit-btn:hover {
+  background: var(--color-placeholder);
+}
+
+.answer-btn {
+  background: var(--color-bg-highlight);
+  color: var(--color-primary);
+}
+.answer-btn:hover {
+  background: var(--color-placeholder);
+}
+
+.detail-btn {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+.detail-btn:hover {
+  background: var(--color-primary-hover);
+}
+
+.delete-btn {
+  background: var(--color-bg-highlight);
+  color: var(--color-primary);
+}
+.delete-btn:hover {
+  background: var(--color-placeholder);
+}
+
+/* ============== 模态框（.modal-overlay / .modal-content / .modal-header / .close-btn / .modal-body） ============== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--spacing-md);
+  /* 让弹窗外的内容不可滚动（父级 body 可单独加 overflow:hidden，这里给兜底） */
+  overscroll-behavior: contain;
+}
+
+.modal-content {
+  background: var(--color-white);
+  border-radius: var(--radius-card);
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  animation: modal-in 0.2s ease-out;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-family: var(--font-family-serif);
+  color: var(--color-text);
+  font-size: var(--font-size-body-lg);
+}
+
+.close-btn {
+  width: var(--spacing-xl);
+  height: var(--spacing-xl);
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-heading);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+  line-height: 1;
+}
+
+.close-btn:hover,
+.close-btn:focus-visible {
+  background: var(--color-placeholder);
+  color: var(--color-text);
+  outline: none;
+}
+
+.modal-body {
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  max-height: calc(80vh - 6rem);
+  box-sizing: border-box;
+}
+
+/* ============== StudentFormModal 表单 & 表单按钮组 ============== */
+
+.student-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  justify-content: flex-end;
+}
+
+/* 次要按钮：白底 + 朱红边框 */
+.cancel-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-white);
+  color: var(--color-primary);
+  border: var(--border-width) solid var(--color-primary);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cancel-btn:hover:not(:disabled) {
+  background: var(--color-bg-highlight);
+}
+
+/* 主按钮：朱红底 + 橄榄绿边框 */
+.submit-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+}
+.submit-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.submit-btn:disabled,
+.cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 危险按钮：朱红底 + 橄榄绿边框（更宽的 min-width） */
+.danger-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+}
+.danger-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+.danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 小 spinner（用于按钮内加载态） */
+.spinner-small {
+  width: var(--spacing-md);
+  height: var(--spacing-md);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: var(--color-white);
+  border-radius: 50%;
+  animation: spin-small 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin-small {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============== AnswerDetailModal ============== */
+
+.answer-detail-header {
+  padding: var(--spacing-sm);
+  background: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  margin-bottom: var(--spacing-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.answer-item {
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
+  margin-bottom: var(--spacing-md);
+  overflow: hidden;
+}
+
+.answer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-highlight);
+}
+
+.question-num {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+}
+
+.score-badge {
+  padding: var(--spacing-xs);
+  border-radius: 9999px;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-bg-highlight);
+  color: var(--color-primary);
+  line-height: 1;
+}
+.score-badge.correct {
+  background: var(--color-bg-highlight);
+  color: var(--color-border);
+}
+
+.answer-content {
+  padding: var(--spacing-sm);
+}
+
+.answer-row {
+  margin-bottom: var(--spacing-xs);
+}
+.answer-row:last-child {
+  margin-bottom: 0;
+}
+.answer-row .label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  margin-right: var(--spacing-xs);
+}
+.answer-row .value {
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+}
+.answer-row .value.correct {
+  color: var(--color-border);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ============== DeleteConfirmModal ============== */
+
+.confirm-content {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.warning-icon {
+  font-size: var(--font-size-display);
+  margin-bottom: var(--spacing-md);
+}
+
+.confirm-content p {
+  margin: var(--spacing-xs) 0;
+  color: var(--color-text);
+}
+
+.sub-text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+.sub-text.danger {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ============== 响应式（与 AnswerQueryView 移动端对应） ============== */
+
+@media (max-width: 768px) {
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .modal-content {
+    width: 100%;
+    margin: var(--spacing-xs);
+  }
+}

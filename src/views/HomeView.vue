@@ -39,7 +39,7 @@ const bgUrl = getAssetUrl('images', 'WEN_01_bg_login.png')
 }
 
 .main-content {
-  margin-left: 16.666%;
+  margin-left: var(--sidebar-width); /* 与 PoetryMenu 宽度同步 */
   padding: var(--spacing-2xl);
   flex: 1;
   display: flex;
