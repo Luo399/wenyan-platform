@@ -92,7 +92,7 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptDialogData, getAllDialogs } from '@/adapters/dialogAdapter'
 import type { ProcessedDialogItem, RawDialogItem } from '@/adapters/dialogAdapter'
 import { getAssetUrl } from '@/utils/asset'
-import { debugError, debugWarn } from '@/utils/debug'
+import { debugWarn } from '@/utils/debug'
 
 interface Props {
   textId?: string
@@ -115,10 +115,19 @@ const emit = defineEmits<{
   (e: 'error', error: string): void
 }>()
 
+// R54 修复：useDataLoader 必须在 setup 顶层同步调用。
+// 之前 loadData() async 函数内调用 useDataLoader，导致：
+//   1) onUnmounted 在无 active component instance 时注册，卸载时 abort 不触发
+//   2) 调用后立即同步检查 loadError.value/rawData.value，但数据尚未异步加载完成，
+//      rawData.value 恒为 null，分支永远走不到，反而误报「数据为空」
+// 现在改为 setup 顶层声明 loader，通过 computed/watch 响应异步结果。
+const loader = useDataLoader<RawDialogItem[]>(() => `/data/level2_dialog/${props.textId}.json`, {
+  autoLoad: false,
+  timeout: 30000,
+  retryCount: 1,
+})
+
 // 状态
-const isLoading = ref(false)
-const error = ref<string | null>(null)
-const dialogs = ref<ProcessedDialogItem[]>([])
 const currentIndex = ref(0)
 const displayedText = ref('')
 const isPlaying = ref(false)
@@ -126,6 +135,21 @@ const audioRef = ref<HTMLAudioElement | null>(null)
 let typewriterTimer: ReturnType<typeof setTimeout> | null = null
 
 // 计算属性
+const dialogs = computed<ProcessedDialogItem[]>(() => {
+  const raw = loader.data.value
+  return raw ? getAllDialogs(adaptDialogData(raw)) : []
+})
+
+const isLoading = computed(() => loader.loading.value)
+const error = computed<string | null>(() => {
+  if (loader.error.value) return `数据加载失败: ${loader.error.value}`
+  // 仅在非加载状态且数据已到达时判定「未找到对话数据」，避免加载中误报
+  if (loader.data.value !== null && !loader.loading.value && dialogs.value.length === 0) {
+    return '未找到对话数据'
+  }
+  return null
+})
+
 const hasContent = computed(() => dialogs.value.length > 0 && !error.value && !isLoading.value)
 const currentDialog = computed(() => dialogs.value[currentIndex.value])
 const totalDialogs = computed(() => dialogs.value.length)
@@ -174,43 +198,29 @@ function typeText(text: string) {
   type()
 }
 
-// 加载数据
+// 数据首次加载成功时：重置到首句、启动打字机、emit loaded
+// （匹配原 loadData 完成时手动 typeText + emit loaded 一次的行为）
+watch(
+  dialogs,
+  (list) => {
+    if (list.length > 0 && list[0]) {
+      currentIndex.value = 0
+      typeText(list[0].dialogText)
+      emit('loaded', list)
+    }
+  },
+  { once: true },
+)
+
+// loader 出错时向上冒泡 error 事件
+watch(error, (err) => {
+  if (err) emit('error', err)
+})
+
+// 触发加载
 async function loadData() {
   if (!props.autoLoad) return
-
-  isLoading.value = true
-  error.value = null
-
-  try {
-    const url = `/data/level2_dialog/${props.textId}.json`
-    const { data: rawData, error: loadError } = useDataLoader<RawDialogItem[]>(() => url)
-
-    if (loadError.value) {
-      throw new Error(`数据加载失败: ${loadError.value}`)
-    }
-
-    if (rawData.value) {
-      const adaptedData = adaptDialogData(rawData.value)
-      dialogs.value = getAllDialogs(adaptedData)
-
-      if (dialogs.value.length > 0 && dialogs.value[0]) {
-        typeText(dialogs.value[0].dialogText)
-        emit('loaded', dialogs.value)
-      } else {
-        error.value = '未找到对话数据'
-        emit('error', error.value)
-      }
-    } else {
-      error.value = '数据为空'
-      emit('error', error.value)
-    }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '数据处理失败'
-    emit('error', error.value)
-    debugError('DialogText 数据加载失败:', e)
-  } finally {
-    isLoading.value = false
-  }
+  await loader.load()
 }
 
 // 切换到上一个对话
