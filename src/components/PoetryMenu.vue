@@ -22,6 +22,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { poemMap, getWenId } from '@/utils/wenUtils'
 
 // 响应式：控制下拉菜单显示/隐藏
 const showDropdown = ref(false)
@@ -35,13 +36,13 @@ function clearTimer() {
   }
 }
 
-// 诗题列表数据（按 wenId 升序排列，顺序与 poemMap 一致）
-const poemList = ref([
-  { wenId: 'WEN_01', title: '陈涉世家' },
-  { wenId: 'WEN_02', title: '马说' },
-  { wenId: 'WEN_03', title: '岳阳楼记' },
-  { wenId: 'WEN_04', title: '庄子与惠子' },
-])
+// 诗题列表数据（以 poemMap 为唯一事实源，避免标题不一致）
+const poemList = ref(
+  Object.entries(poemMap).map(([id, { title }]) => ({
+    wenId: getWenId(id),
+    title,
+  })),
+)
 
 const router = useRouter()
 
