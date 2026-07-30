@@ -49,6 +49,12 @@ interface RawBackendUser {
   role?: 'student' | 'teacher' | 'admin'
 }
 
+/** R91: 登录/刷新令牌响应的数据结构（替代 unknown 默认推断，恢复类型安全） */
+interface AuthTokenResponse {
+  token: string
+  user?: RawBackendUser
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
@@ -87,7 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await post('/api/auth/student/login', {
+      const response = await post<AuthTokenResponse>('/api/auth/student/login', {
         student_id: studentId,
         password,
       })
@@ -144,20 +150,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const response = await post('/api/auth/refresh')
+      const response = await post<AuthTokenResponse>('/api/auth/refresh')
 
       if (!response.success) {
         throw new Error(response.message || '刷新令牌失败')
       }
 
-      // R36: 去除 ! 非空断言，显式检查
+      // R36: 去除 ! 非空断言，显式检查（R91: 有了 AuthTokenResponse 类型，不再需要 as unknown）
       const result = response.data
-      const newToken = result?.token as unknown
-      if (!newToken || typeof newToken !== 'string') {
+      if (!result?.token) {
         throw new Error('刷新令牌响应缺少 token')
       }
 
-      token.value = newToken
+      token.value = result.token
       setAuthData(token.value, user.value)
 
       debugLog('[AuthStore] 令牌已刷新')

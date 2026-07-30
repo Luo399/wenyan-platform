@@ -11,8 +11,18 @@
  * // 生产环境返回: https://your-bucket.oss-cn-hangzhou.aliyuncs.com/audio/WEN_01_read_full.mp3
  */
 
-/** OSS 基础路径，从环境变量读取 */
-export const ossBase = import.meta.env.VITE_OSS_BASE_URL as string
+import { debugWarn } from '@/utils/debug'
+
+/**
+ * OSS 基础路径，从环境变量读取
+ * R96: 移除 as string 断言，改用 ?? 兜底，避免 VITE_OSS_BASE_URL 未配置时拼出 undefined/... URL
+ */
+export const ossBase: string = import.meta.env.VITE_OSS_BASE_URL ?? ''
+
+// R96: 开发环境未配置时给出告警，便于及早发现
+if (import.meta.env.DEV && !ossBase) {
+  debugWarn('[asset] VITE_OSS_BASE_URL 未配置，资源 URL 将使用相对路径')
+}
 
 /**
  * 获取资源完整 URL

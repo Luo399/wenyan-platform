@@ -15,6 +15,7 @@
 
 import { get, post } from '@/utils/api'
 import type { ApiResponse } from '@/utils/api'
+import { ApiError } from '@/utils/api'
 
 // ============================================================
 // 类型定义
@@ -378,7 +379,11 @@ export async function submitAnswers(
   }
 
   const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
-  return response.data!
+  // R104: 移除 response.data! 非空断言，先校验 success 与 data 存在性，避免运行时崩溃
+  if (!response.success || !response.data) {
+    throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')
+  }
+  return response.data
 }
 
 export interface SubmitSingleAnswerParams {
@@ -417,5 +422,9 @@ export async function submitSingleAnswer(
     ...params,
     submittedAt: params.submittedAt || new Date().toISOString(),
   })
-  return response.data!
+  // R104: 移除 response.data! 非空断言，先校验 success 与 data 存在性
+  if (!response.success || !response.data) {
+    throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交单题答案失败')
+  }
+  return response.data
 }
