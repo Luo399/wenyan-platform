@@ -1,8 +1,9 @@
 <template>
-  <div class="base-error">
-    <i class="fas fa-exclamation-circle"></i>
+  <!-- R39: ARIA role=alert 让屏幕阅读器立即广播错误消息（assertive 打断正在播报的内容） -->
+  <div class="base-error" role="alert" aria-live="assertive">
+    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
     <p class="error-message">{{ error }}</p>
-    <button v-if="showRetry" @click="$emit('retry')" class="retry-btn">重试</button>
+    <button v-if="showRetry" @click="$emit('retry')" class="retry-btn" type="button">重试</button>
   </div>
 </template>
 

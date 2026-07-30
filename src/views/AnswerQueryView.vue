@@ -181,7 +181,7 @@
       <!-- 学生列表（带CRUD操作） -->
       <StudentTable
         v-else-if="activeTab === 'students'"
-        :students="displayData"
+        :students="displayStudents"
         @view="viewStudentDetail"
         @edit="openEditModal"
         @view-answers="viewStudentAnswers"
@@ -191,11 +191,9 @@
       <!-- 按文言文/学生ID查询结果 -->
       <AnswerTable
         v-else
-        :records="displayData"
+        :records="displayAnswerRecords"
         :mode="activeTab as 'wenId' | 'studentId'"
-        @view-detail="
-          activeTab === 'wenId' ? viewWenStudentDetail($event) : viewStudentWenDetail($event)
-        "
+        @view-detail="handleViewDetail"
       />
     </div>
 
@@ -275,7 +273,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { get } from '@/utils/api'
 import { formatDate } from '@/utils/format'
 import { createStudent, updateStudent, deleteStudent, type StudentInfo } from '@/utils/studentApi'
@@ -286,20 +284,84 @@ import StudentFormModal from '@/components/StudentFormModal.vue'
 import DeleteConfirmModal from '@/components/DeleteConfirmModal.vue'
 import AnswerDetailModal from '@/components/AnswerDetailModal.vue'
 
+// ============================================================
+// 类型定义（R04：移除 any）
+// ============================================================
+
+/** Toast 状态接口 */
 interface Toast {
   show: boolean
   message: string
   type: 'success' | 'error'
 }
 
-const activeTab = ref<'students' | 'wenId' | 'studentId'>('students')
+/** 答题明细：单个 question 的作答记录（来自后端 answers[]） */
+interface AnswerDetail {
+  questionId?: string
+  questionNumber?: number
+  userAnswer?: string
+  correctAnswer?: string | number
+  isCorrect?: boolean
+  score?: number
+  submittedAt?: string
+  [key: string]: unknown
+}
+
+/** 文言文维度下，单个学生的聚合答题记录
+ *  后端：/api/answers/wen/:wenId 响应 data.students[i]
+ */
+interface WenIdAnswerRecord {
+  studentId: string
+  studentName?: string
+  totalQuestions?: number
+  correctCount?: number
+  wrongCount?: number
+  avgScore?: number
+  submittedAt?: string
+  answers?: AnswerDetail[]
+  [key: string]: unknown
+}
+
+/** 学生维度下，单篇文言文的聚合答题记录
+ *  后端：/api/answers/student/:studentId 响应 data.wenRecords[i]
+ */
+interface StudentIdAnswerRecord {
+  wenId: string
+  wenTitle?: string
+  totalQuestions?: number
+  correctCount?: number
+  wrongCount?: number
+  avgScore?: number
+  submittedAt?: string
+  answers?: AnswerDetail[]
+  studentId?: string
+  studentName?: string
+  [key: string]: unknown
+}
+
+/** 三种 tab 下 allData 的元素类型联合 */
+type QueryRow = StudentInfo | WenIdAnswerRecord | StudentIdAnswerRecord
+
+type QueryTab = 'students' | 'wenId' | 'studentId'
+
+/** 分页常量（R47：移除硬编码 10） */
+const DEFAULT_PAGE_SIZE = 10 as const
+const TOAST_DURATION_MS = 3000 as const
+
+// ============================================================
+// 基础状态
+// ============================================================
+const activeTab = ref<QueryTab>('students')
 const loading = ref(false)
 const error = ref('')
 const queryForm = reactive({
   wenId: '',
   studentId: '',
 })
-const allData = ref<any[]>([])
+
+// R05：originalData 保存原始后端返回，allData 只用于前端过滤/排序后的展示
+const originalData = ref<QueryRow[]>([])
+const allData = ref<QueryRow[]>([])
 const statistics = ref<{
   totalStudents: number
   totalCorrect: number
@@ -317,15 +379,15 @@ const pagination = ref<{
 const showStudentModal = ref(false)
 const showAnswerModal = ref(false)
 const selectedStudent = ref<StudentInfo | null>(null)
-const selectedAnswers = ref<any[]>([])
+const selectedAnswers = ref<AnswerDetail[]>([])
 const selectedStudentInfo = ref('')
 
 const sortBy = ref('time')
-
 const searchKeyword = ref('')
 
-const selectedClass = ref('')
-const availableClasses = ref<number[]>([9])
+// R10：availableClasses 从学生数据动态提取，初始值为空数组（load 后填充）
+const selectedClass = ref<number | ''>('')
+const availableClasses = ref<number[]>([])
 
 const showStudentFormModal = ref(false)
 const showDeleteModal = ref(false)
@@ -334,22 +396,43 @@ const isSubmitting = ref(false)
 const isDeleting = ref(false)
 const studentToDelete = ref<StudentInfo | null>(null)
 
+// ============================================================
+// Toast 展示（R09：保存 timer 并在 onUnmounted 清理）
+// ============================================================
 const toast = reactive<Toast>({
   show: false,
   message: '',
   type: 'success',
 })
 
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
 function showToast(message: string, type: 'success' | 'error' = 'success') {
+  // 连续触发时先清掉旧 timer，避免多个定时器叠加
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+    toastTimer = null
+  }
   toast.message = message
   toast.type = type
   toast.show = true
-  setTimeout(() => {
+  toastTimer = setTimeout(() => {
     toast.show = false
-  }, 3000)
+    toastTimer = null
+  }, TOAST_DURATION_MS)
 }
 
-const tableTitle = computed(() => {
+onUnmounted(() => {
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+    toastTimer = null
+  }
+})
+
+// ============================================================
+// 计算属性
+// ============================================================
+const tableTitle = computed<string>(() => {
   switch (activeTab.value) {
     case 'wenId':
       return '文言文答题情况'
@@ -364,13 +447,60 @@ const tableTitle = computed(() => {
 
 const hasData = computed(() => allData.value.length > 0)
 
-const displayData = computed(() => {
+const displayData = computed<QueryRow[]>(() => {
   if (!pagination.value) return allData.value
   const start = (pagination.value.currentPage - 1) * pagination.value.pageSize
   const end = start + pagination.value.pageSize
   return allData.value.slice(start, end)
 })
 
+/**
+ * StudentTable 要求的入参是 StudentInfo[]。
+ * 虽然 activeTab==='students' 时 allData 的运行时元素就是 StudentInfo，
+ * 但 TS 联合类型不能自动"按 tab 收窄"，所以这里显式用类型断言 + 运行时守卫做兜底。
+ */
+const displayStudents = computed<StudentInfo[]>(() => {
+  if (activeTab.value !== 'students') return []
+  return displayData.value.filter(isStudentInfo) as StudentInfo[]
+})
+
+/**
+ * AnswerTable records 接受 Record<string, any>[]。
+ * 把 QueryRow[] 直接转成宽类型，避免模板里三元函数类型交集的报错。
+ */
+const displayAnswerRecords = computed<Array<Record<string, unknown>>>(() => {
+  if (activeTab.value === 'students') return []
+  return displayData.value as Array<Record<string, unknown>>
+})
+
+/**
+ * 记录详情点击：把模板里的"三元+两个函数"收敛成一个，避免 TS 做交集类型推断导致参数不兼容。
+ * 运行时根据 activeTab 分发到具体处理函数。
+ */
+function handleViewDetail(record: Record<string, unknown>) {
+  if (activeTab.value === 'wenId') {
+    viewWenStudentDetail(record as WenIdAnswerRecord)
+  } else if (activeTab.value === 'studentId') {
+    viewStudentWenDetail(record as StudentIdAnswerRecord)
+  }
+}
+
+// ============================================================
+// 类型守卫：帮助在分支内收窄 QueryRow 联合类型
+// ============================================================
+function isStudentInfo(row: QueryRow): row is StudentInfo {
+  return activeTab.value === 'students' && 'student_id' in row
+}
+function isWenIdRecord(row: QueryRow): row is WenIdAnswerRecord {
+  return activeTab.value === 'wenId' && 'studentId' in row
+}
+function isStudentIdRecord(row: QueryRow): row is StudentIdAnswerRecord {
+  return activeTab.value === 'studentId' && 'wenId' in row
+}
+
+// ============================================================
+// 查询入口函数
+// ============================================================
 async function queryByWenId() {
   const wenId = queryForm.wenId.trim()
   if (!wenId) {
@@ -399,52 +529,68 @@ async function loadAllStudents(classNum?: number) {
 
 async function queryByClass() {
   const classNum = selectedClass.value
-  if (!classNum) {
+  if (classNum === '' || classNum === undefined) {
     await loadAllStudents()
   } else {
-    await loadAllStudents(parseInt(classNum))
+    await loadAllStudents(Number(classNum))
   }
 }
 
-async function fetchData(url: string, type: 'wenId' | 'studentId' | 'students') {
+/**
+ * R05：加载成功后同时写入 originalData + allData
+ * R10：students tab 下根据 class 字段动态刷新 availableClasses
+ */
+async function fetchData(url: string, type: QueryTab) {
   loading.value = true
   error.value = ''
+  originalData.value = []
   allData.value = []
   statistics.value = null
 
   try {
-    const response = await get(url)
+    const response = await get<unknown>(url)
 
-    if (response.success && response.data) {
+    if (response.success && response.data !== undefined && response.data !== null) {
+      const data = response.data as Record<string, unknown>
+
       if (type === 'wenId') {
-        allData.value = response.data.students || []
-        const students = response.data.students || []
+        const students = (data.students as WenIdAnswerRecord[]) || []
+        originalData.value = students
+        allData.value = students
+
         let totalCorrect = 0
         let totalWrong = 0
         let totalQuestions = 0
-        students.forEach((student: any) => {
+        students.forEach((student: WenIdAnswerRecord) => {
           totalCorrect += student.correctCount || 0
           totalWrong += student.wrongCount || 0
           totalQuestions += student.totalQuestions || 0
         })
         statistics.value = {
-          totalStudents: response.data.studentCount || 0,
+          totalStudents: (data.studentCount as number) || 0,
           totalCorrect,
           totalWrong,
           avgScore: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
         }
       } else if (type === 'studentId') {
-        allData.value = response.data.wenRecords || []
+        const wenRecords = (data.wenRecords as StudentIdAnswerRecord[]) || []
+        originalData.value = wenRecords
+        allData.value = wenRecords
         statistics.value = {
           totalStudents: 1,
-          totalCorrect: response.data.totalAllCorrect || 0,
-          totalWrong: response.data.totalAllWrong || 0,
-          avgScore: response.data.overallAvgScore || 0,
+          totalCorrect: (data.totalAllCorrect as number) || 0,
+          totalWrong: (data.totalAllWrong as number) || 0,
+          avgScore: (data.overallAvgScore as number) || 0,
         }
-      } else if (type === 'students') {
-        allData.value = response.data || []
+      } else {
+        // students tab
+        const students = (Array.isArray(data) ? data : []) as StudentInfo[]
+        originalData.value = students
+        allData.value = students
+        // R10：根据全部学生动态提取班级列表（按数值升序）
+        refreshAvailableClasses(students)
         statistics.value = {
-          totalStudents: allData.value.length,
+          totalStudents: students.length,
           totalCorrect: 0,
           totalWrong: 0,
           avgScore: 0,
@@ -454,8 +600,8 @@ async function fetchData(url: string, type: 'wenId' | 'studentId' | 'students') 
       const total = allData.value.length
       pagination.value = {
         currentPage: 1,
-        totalPages: Math.ceil(total / 10),
-        pageSize: 10,
+        totalPages: Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE)),
+        pageSize: DEFAULT_PAGE_SIZE,
         total,
       }
     } else {
@@ -467,6 +613,19 @@ async function fetchData(url: string, type: 'wenId' | 'studentId' | 'students') 
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * R10：根据学生列表的 class 字段动态刷新 availableClasses
+ */
+function refreshAvailableClasses(students: StudentInfo[]) {
+  const classSet = new Set<number>()
+  students.forEach((s: StudentInfo) => {
+    if (typeof s.class === 'number') {
+      classSet.add(s.class)
+    }
+  })
+  availableClasses.value = Array.from(classSet).sort((a, b) => a - b)
 }
 
 function retryQuery() {
@@ -483,42 +642,65 @@ function retryQuery() {
   }
 }
 
+// ============================================================
+// 排序
+// ============================================================
 function handleSort() {
   if (!hasData.value) return
 
   if (sortBy.value === 'score') {
-    allData.value.sort((a, b) => (b.avgScore || 0) - (a.avgScore || 0))
+    allData.value.sort((a: QueryRow, b: QueryRow) => {
+      const scoreA = (a as WenIdAnswerRecord | StudentIdAnswerRecord).avgScore || 0
+      const scoreB = (b as WenIdAnswerRecord | StudentIdAnswerRecord).avgScore || 0
+      return scoreB - scoreA
+    })
   } else {
-    allData.value.sort((a, b) => {
-      const dateA = new Date(a.submittedAt || a.created_at || 0)
-      const dateB = new Date(b.submittedAt || b.created_at || 0)
-      return dateB.getTime() - dateA.getTime()
+    allData.value.sort((a: QueryRow, b: QueryRow) => {
+      const getDate = (row: QueryRow): number => {
+        if (isStudentInfo(row)) return new Date(row.created_at || 0).getTime()
+        if (isWenIdRecord(row)) return new Date(row.submittedAt || 0).getTime()
+        if (isStudentIdRecord(row)) return new Date(row.submittedAt || 0).getTime()
+        return 0
+      }
+      return getDate(b) - getDate(a)
     })
   }
 }
 
+// ============================================================
+// 搜索（R05：只读 originalData，不破坏原始数据）
+// ============================================================
 function handleSearch() {
-  if (!allData.value.length) return
+  // 搜索仅对 students tab 生效；其余 tab 下无本地搜索语义
+  if (activeTab.value !== 'students') return
+  if (originalData.value.length === 0) return
 
   const keyword = searchKeyword.value.toLowerCase().trim()
-  if (!keyword) {
-    loadAllStudents()
-    return
-  }
 
-  const filtered = allData.value.filter((student: any) => {
-    const s = student as StudentInfo
-    return s.student_id.toLowerCase().includes(keyword) || s.name.toLowerCase().includes(keyword)
-  })
+  let filtered: StudentInfo[]
+  if (!keyword) {
+    // 清空关键词：直接恢复 originalData，不发网络请求
+    filtered = originalData.value as StudentInfo[]
+  } else {
+    filtered = (originalData.value as StudentInfo[]).filter((s: StudentInfo) => {
+      return s.student_id.toLowerCase().includes(keyword) || s.name.toLowerCase().includes(keyword)
+    })
+  }
 
   allData.value = filtered
   if (pagination.value) {
     pagination.value.total = filtered.length
-    pagination.value.totalPages = Math.ceil(filtered.length / pagination.value.pageSize)
+    pagination.value.totalPages = Math.max(
+      1,
+      Math.ceil(filtered.length / pagination.value.pageSize),
+    )
     pagination.value.currentPage = 1
   }
 }
 
+// ============================================================
+// 分页
+// ============================================================
 function prevPage() {
   if (pagination.value && pagination.value.currentPage > 1) {
     pagination.value.currentPage--
@@ -531,6 +713,9 @@ function nextPage() {
   }
 }
 
+// ============================================================
+// 弹窗：详情/答题记录
+// ============================================================
 function viewStudentDetail(student: StudentInfo) {
   selectedStudent.value = student
   showStudentModal.value = true
@@ -542,14 +727,14 @@ function viewStudentAnswers(studentId: string) {
   queryByStudentId()
 }
 
-function viewWenStudentDetail(student: any) {
+function viewWenStudentDetail(student: WenIdAnswerRecord) {
   selectedStudentInfo.value = `${student.studentId} - ${student.studentName || '未知'}`
   selectedAnswers.value = student.answers || []
   showAnswerModal.value = true
 }
 
-function viewStudentWenDetail(record: any) {
-  selectedStudentInfo.value = `${record.studentId} - ${record.studentName || '未知'}`
+function viewStudentWenDetail(record: StudentIdAnswerRecord) {
+  selectedStudentInfo.value = `${record.studentId || queryForm.studentId} - ${record.wenId}`
   selectedAnswers.value = record.answers || []
   showAnswerModal.value = true
 }
@@ -559,8 +744,12 @@ function closeModals() {
   showAnswerModal.value = false
   selectedStudent.value = null
   selectedAnswers.value = []
+  selectedStudentInfo.value = ''
 }
 
+// ============================================================
+// 学生表单弹窗（新增/编辑）
+// ============================================================
 function openAddModal() {
   isEditMode.value = false
   selectedStudent.value = null
@@ -578,12 +767,11 @@ function closeFormModal() {
   selectedStudent.value = null
 }
 
-/** 接收 StudentFormModal 提交的表单数据，调用 API 完成 新增/编辑 */
 async function handleSubmitForm(payload: { studentId: string; name: string; class: number }) {
   isSubmitting.value = true
 
   try {
-    let result
+    let result: { success: boolean; message: string }
     if (isEditMode.value && selectedStudent.value) {
       result = await updateStudent(selectedStudent.value.student_id, {
         name: payload.name,
@@ -600,17 +788,22 @@ async function handleSubmitForm(payload: { studentId: string; name: string; clas
     if (result.success) {
       showToast(isEditMode.value ? '学生信息修改成功' : '学生添加成功', 'success')
       closeFormModal()
+      // 清空搜索关键词后重新加载，避免新增的学生被当前搜索过滤掉
+      searchKeyword.value = ''
       await loadAllStudents()
     } else {
       showToast(result.message, 'error')
     }
-  } catch (err) {
+  } catch {
     showToast('操作失败，请重试', 'error')
   } finally {
     isSubmitting.value = false
   }
 }
 
+// ============================================================
+// 删除确认弹窗
+// ============================================================
 function confirmDelete(student: StudentInfo) {
   studentToDelete.value = student
   showDeleteModal.value = true
@@ -632,40 +825,91 @@ async function handleDelete() {
     if (result.success) {
       showToast('学生删除成功', 'success')
       closeDeleteModal()
+      // 搜索关键词保留在前端，但刷新源数据后重新过滤即可
+      const currentKeyword = searchKeyword.value
       await loadAllStudents()
+      if (currentKeyword) {
+        searchKeyword.value = currentKeyword
+        handleSearch()
+      }
     } else {
       showToast(result.message, 'error')
     }
-  } catch (err) {
+  } catch {
     showToast('删除失败，请重试', 'error')
   } finally {
     isDeleting.value = false
   }
 }
 
+// ============================================================
+// 导出 CSV（R08：加 escapeCsvField 防公式注入 + 字段引号转义）
+// ============================================================
+
+/**
+ * CSV 字段转义
+ * - 含逗号 / 双引号 / 换行符：用双引号包裹，内部双引号翻倍
+ * - 以 = + - @ 开头（Excel 公式字符）：前缀单引号，防止 CSV 注入
+ */
+function escapeCsvField(value: unknown): string {
+  const str = String(value ?? '')
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  if (/^[=+\-@\t\r]/.test(str)) {
+    return `'${str}`
+  }
+  return str
+}
+
+/** 根据 activeTab 导出不同 CSV 内容 */
 function exportData() {
   if (!hasData.value) return
 
   let csvContent = ''
-  let headers: string[] = []
+  const rows = allData.value
 
   if (activeTab.value === 'students') {
-    headers = ['学号', '姓名', '创建时间']
-    csvContent = headers.join(',') + '\n'
-    allData.value.forEach((row: any) => {
-      csvContent += `${row.student_id},${row.name || ''},${row.created_at || ''}\n`
+    const headers = ['学号', '姓名', '班级', '创建时间']
+    csvContent = headers.map(escapeCsvField).join(',') + '\n'
+    rows.forEach((row: QueryRow) => {
+      if (!isStudentInfo(row)) return
+      csvContent +=
+        [
+          escapeCsvField(row.student_id),
+          escapeCsvField(row.name),
+          escapeCsvField(row.class ?? ''),
+          escapeCsvField(row.created_at ?? ''),
+        ].join(',') + '\n'
     })
   } else if (activeTab.value === 'wenId') {
-    headers = ['学号', '姓名', '答题数', '正确数', '错误数', '平均分']
-    csvContent = headers.join(',') + '\n'
-    allData.value.forEach((row: any) => {
-      csvContent += `${row.studentId},${row.studentName || ''},${row.totalQuestions || 0},${row.correctCount || 0},${row.wrongCount || 0},${row.avgScore || 0}\n`
+    const headers = ['学号', '姓名', '答题数', '正确数', '错误数', '平均分']
+    csvContent = headers.map(escapeCsvField).join(',') + '\n'
+    rows.forEach((row: QueryRow) => {
+      if (!isWenIdRecord(row)) return
+      csvContent +=
+        [
+          escapeCsvField(row.studentId),
+          escapeCsvField(row.studentName ?? ''),
+          escapeCsvField(row.totalQuestions ?? 0),
+          escapeCsvField(row.correctCount ?? 0),
+          escapeCsvField(row.wrongCount ?? 0),
+          escapeCsvField(row.avgScore ?? 0),
+        ].join(',') + '\n'
     })
   } else if (activeTab.value === 'studentId') {
-    headers = ['文言文ID', '答题时间', '答题数', '正确数', '平均分']
-    csvContent = headers.join(',') + '\n'
-    allData.value.forEach((row: any) => {
-      csvContent += `${row.wenId},${row.submittedAt || ''},${row.totalQuestions || 0},${row.correctCount || 0},${row.avgScore || 0}\n`
+    const headers = ['文言文ID', '答题时间', '答题数', '正确数', '平均分']
+    csvContent = headers.map(escapeCsvField).join(',') + '\n'
+    rows.forEach((row: QueryRow) => {
+      if (!isStudentIdRecord(row)) return
+      csvContent +=
+        [
+          escapeCsvField(row.wenId),
+          escapeCsvField(row.submittedAt ?? ''),
+          escapeCsvField(row.totalQuestions ?? 0),
+          escapeCsvField(row.correctCount ?? 0),
+          escapeCsvField(row.avgScore ?? 0),
+        ].join(',') + '\n'
     })
   }
 
@@ -674,9 +918,16 @@ function exportData() {
   link.href = URL.createObjectURL(blob)
   link.download = `答题数据_${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
+  // 释放 object URL 避免内存泄漏（现代浏览器 GC 会处理，但显式释放更安全）
+  setTimeout(() => URL.revokeObjectURL(link.href), 0)
 }
 
-loadAllStudents()
+// ============================================================
+// R06：副作用放在 onMounted 中，而非 setup 末尾
+// ============================================================
+onMounted(() => {
+  loadAllStudents()
+})
 </script>
 
 <style scoped>

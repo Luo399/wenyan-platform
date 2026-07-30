@@ -80,14 +80,19 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 import { useStudentQuery } from '@/composables/useStudentQuery'
-import { debugError } from '@/utils/debug'
+import { debugError, debugLog } from '@/utils/debug'
 
 // 使用新的 auth store
 const authStore = useAuthStore()
 const { user, isLoggedIn, isLoading: authLoading, error: authError } = storeToRefs(authStore)
+
+// R03: 登录成功后若存在 redirect 查询参数，跳回原目标页
+const router = useRouter()
+const route = useRoute()
 
 // 是否显示编辑弹窗
 const showEditModal = ref(false)
@@ -180,6 +185,13 @@ async function handleSave() {
     inputId.value = ''
     inputPassword.value = '' // R103: 关闭弹窗时清空密码
     searchedName.value = ''
+
+    // R03: 登录成功后若存在 redirect 查询参数，跳回原目标页
+    const redirect = route.query.redirect
+    if (typeof redirect === 'string' && redirect) {
+      debugLog('[StudentDisplay] 登录成功，跳回 redirect:', redirect)
+      router.replace(redirect)
+    }
   } catch (err) {
     hasError.value = true
     errorMessage.value = authError.value || '操作失败，请重试'

@@ -21,8 +21,8 @@ export const useStudentStore = defineStore('student', () => {
   // Getters - 计算属性
   // ============================================================
 
-  /** 是否已登录（有学号） */
-  const isLoggedIn = computed(() => studentId.value.length === 4)
+  /** 是否已登录（有学号即可，长度不限，与 LoginModal/StudentDisplay 任意位数字学号一致） */
+  const isLoggedIn = computed(() => studentId.value.length > 0)
 
   /** 格式化显示的学号（如：1234 -> 学号: 1234） */
   const displayId = computed(() => (studentId.value ? `学号: ${studentId.value}` : ''))
@@ -33,7 +33,7 @@ export const useStudentStore = defineStore('student', () => {
 
   /**
    * 设置学号
-   * @param id - 4位学号
+   * @param id - 学号（纯数字，长度不限，与 LoginModal 测试账号 1-5 及正式学号 2024001 均兼容）
    */
   function setStudentId(id: string) {
     studentId.value = id
@@ -55,8 +55,8 @@ export const useStudentStore = defineStore('student', () => {
    */
   function restoreFromStorage() {
     const saved = localStorage.getItem('studentId')
-    // 验证格式：必须为4位数字
-    if (saved && /^\d{4}$/.test(saved)) {
+    // 验证格式：至少 1 位数字（兼容测试账号 1-5 与正式学号 2024001）
+    if (saved && /^\d+$/.test(saved)) {
       studentId.value = saved
     }
   }

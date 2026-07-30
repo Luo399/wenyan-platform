@@ -69,6 +69,7 @@ export const routes = [
     path: '/detail/:id',
     name: 'detail',
     component: DetailView,
+    meta: { requiresAuth: true },
   },
   {
     path: '/answer-query',

@@ -28,7 +28,8 @@
   --color-placeholder: #d9d9d9;
 
   /* ========== 字体 ========== */
-  --font-family-serif: 'Source Han Serif CN', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --font-family-serif:
+    'Source Han Serif CN', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
   --font-weight-semibold: 600;
   --font-weight-heavy: 900;
 
@@ -40,6 +41,8 @@
   --font-size-body-lg: clamp(1rem, 2.2vw, 1.5rem); /* Figma 55px - 大正文 */
   --font-size-body: clamp(0.95rem, 1.8vw, 1.25rem); /* Figma 45px - 正文 */
   --font-size-small: clamp(0.85rem, 1.5vw, 1.1rem); /* Figma 40px - 小字 */
+  --font-size-xs: clamp(0.75rem, 1.3vw, 0.875rem); /* 辅助小字 */
+  --font-size-caption: clamp(0.625rem, 1.1vw, 0.75rem); /* 提示/说明文字 */
 
   /* ========== 圆角 ========== */
   --radius-button: 50px; /* Figma 按钮圆角 */
@@ -94,7 +97,9 @@ body {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-body);
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.1s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -125,7 +130,9 @@ body {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-body);
   cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.1s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
 }
 
 .btn-secondary:hover:not(:disabled) {
