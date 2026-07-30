@@ -82,7 +82,7 @@ describe('initAllTables：所有业务表创建', () => {
       db,
       `INSERT INTO teachers (phone, name, school_id, password_hash, status)
        VALUES (?, ?, ?, ?, 'active')`,
-      ['13900000000', '权限测试教师', schoolId, await hashPassword('pwd123456'), 'active'],
+      ['13900000000', '权限测试教师', schoolId, await hashPassword('pwd123456')],
     )
     const tid = tInfo.lastID
     await dbRun(db, `INSERT INTO teacher_classes (teacher_id, class_code) VALUES (?, ?)`, [
