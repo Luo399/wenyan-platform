@@ -74,6 +74,10 @@ public/images/
 public/data/
 public/*.json
 
+# Data pipeline runtime artifacts（增量状态、版本快照、腾讯文档导出）
+data-pipeline/temp/
+data-pipeline/source/tencent_exports/
+
 # Python
 __pycache__/
 *.py[cod]
