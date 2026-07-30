@@ -155,8 +155,11 @@ function toggleAudio() {
 function playAudio() {
   if (!audioFile.value) return
 
+  // R56: 创建新 Audio 前彻底清理旧实例，避免内存泄漏与音频叠加
   if (audio) {
     audio.pause()
+    audio.onended = null
+    audio = null
   }
 
   audio = new Audio(getAssetUrl('audio', `${audioFile.value}.mp3`))

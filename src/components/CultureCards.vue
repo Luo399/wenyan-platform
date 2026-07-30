@@ -29,7 +29,12 @@
           :key="card.card_id || index"
           class="card-item"
           :class="{ locked: !isUnlocked(card), 'text-only': card.image_file === '文字' }"
+          :role="isUnlocked(card) ? 'button' : undefined"
+          :tabindex="isUnlocked(card) ? 0 : -1"
+          :aria-label="`文化卡片：${card.card_name}`"
           @click="handleCardClick(card)"
+          @keydown.enter="handleCardClick(card)"
+          @keydown.space.prevent="handleCardClick(card)"
         >
           <div class="card-header">
             <span class="card-name">{{ card.card_name }}</span>
@@ -178,6 +183,14 @@ function handleCardClick(card: CultureCard) {
 }
 
 .card-item:hover:not(.locked) {
+  box-shadow: var(--shadow-card);
+  border-color: var(--color-primary);
+}
+
+/* R62: 键盘聚焦可见样式，与 hover 保持一致 */
+.card-item:focus-visible:not(.locked) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
   box-shadow: var(--shadow-card);
   border-color: var(--color-primary);
 }

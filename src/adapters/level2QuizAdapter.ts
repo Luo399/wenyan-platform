@@ -53,7 +53,8 @@ export function adaptLevel2Quiz(rawData: RawLevel2QuizItem[] | null): ProcessedL
         ],
         audioFile: item.audio_file || null,
         difficulty: item.difficulty || 'L2',
-        correctAnswer: item.correct_answer || null,
+        // R109: 用 ?? 避免空字符串/0 被误判为 falsy 而丢失正确答案
+        correctAnswer: item.correct_answer ?? null,
         explanation: item.explanation || '',
         questionType: item.question_type || 'radio',
       }
