@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="scen-quiz">
     <div class="scen-quiz-container" v-if="hasMatchingData">
       <div class="section-tabs">
@@ -160,13 +160,15 @@ async function loadData() {
   }
 }
 
-async function loadScenarios(): Promise<void> {
-  const url = `/data/level3_scenario_text/${props.textId}.json`
-  const loader = useDataLoader<RawScenarioText[]>(() => url)
-
-  await new Promise<void>((resolve, reject) => {
+// R57: 通用加载器监听工具，消除 loadScenarios/loadQuizzes 中重复的 watch+timeout 逻辑
+function watchLoader<T>(
+  loader: ReturnType<typeof useDataLoader<T>>,
+  timeoutMsg: string,
+  onLoaded: (data: T) => void,
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
-      reject(new Error('情景数据加载超时'))
+      reject(new Error(timeoutMsg))
     }, 30000)
 
     const unwatchData = watch(
@@ -176,7 +178,7 @@ async function loadScenarios(): Promise<void> {
           clearTimeout(timeoutId)
           unwatchData()
           unwatchError()
-          scenarios.value = getAllScenarios(adaptScenarioText(data))
+          onLoaded(data)
           resolve()
         }
       },
@@ -189,115 +191,47 @@ async function loadScenarios(): Promise<void> {
           clearTimeout(timeoutId)
           unwatchData()
           unwatchError()
-          reject(new Error(`情景数据加载失败: ${err}`))
+          reject(new Error(`${timeoutMsg}: ${err}`))
         }
       },
     )
   })
 }
 
+async function loadScenarios(): Promise<void> {
+  const url = `/data/level3_scenario_text/${props.textId}.json`
+  const loader = useDataLoader<RawScenarioText[]>(() => url)
+  await watchLoader(loader, '情景数据加载超时', (data) => {
+    scenarios.value = getAllScenarios(adaptScenarioText(data))
+  })
+}
+
+// R57: 根据 quizLevel 选择 adapter，消除三段重复逻辑
+function adaptAndStoreQuizzes(level: 'level1' | 'level2' | 'level3', raw: unknown): void {
+  const typeMap = {
+    level1: adaptLevel1Quiz as (raw: RawLevel1QuizItem[]) => ProcessedLevel1QuizItem[],
+    level2: adaptLevel2Quiz as (raw: RawLevel2QuizItem[]) => ProcessedLevel2QuizItem[],
+    level3: adaptLevel3Quiz as (raw: RawLevel3QuizItem[]) => ProcessedLevel3QuizItem[],
+  } as const
+  const getAllMap = {
+    level1: getAllLevel1Quizzes,
+    level2: getAllLevel2Quizzes,
+    level3: getAllLevel3Quizzes,
+  } as const
+  const adapt = typeMap[level]
+  const getAll = getAllMap[level]
+  quizzes.value = getAll(adapt(raw as never)) as (
+    | ProcessedLevel1QuizItem
+    | ProcessedLevel2QuizItem
+    | ProcessedLevel3QuizItem
+  )[]
+}
+
 async function loadQuizzes(): Promise<void> {
   const url = `/data/${props.quizLevel}_quiz/${props.textId}.json`
-
-  await new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error('题目数据加载超时'))
-    }, 30000)
-
-    if (props.quizLevel === 'level1') {
-      const loader = useDataLoader<RawLevel1QuizItem[]>(() => url)
-
-      const unwatchData = watch(
-        () => loader.data.value,
-        (data) => {
-          if (data !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            quizzes.value = getAllLevel1Quizzes(adaptLevel1Quiz(data)) as (
-              | ProcessedLevel1QuizItem
-              | ProcessedLevel2QuizItem
-              | ProcessedLevel3QuizItem
-            )[]
-            resolve()
-          }
-        },
-      )
-
-      const unwatchError = watch(
-        () => loader.error.value,
-        (err) => {
-          if (err !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            reject(new Error(`题目数据加载失败: ${err}`))
-          }
-        },
-      )
-    } else if (props.quizLevel === 'level2') {
-      const loader = useDataLoader<RawLevel2QuizItem[]>(() => url)
-
-      const unwatchData = watch(
-        () => loader.data.value,
-        (data) => {
-          if (data !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            quizzes.value = getAllLevel2Quizzes(adaptLevel2Quiz(data)) as (
-              | ProcessedLevel1QuizItem
-              | ProcessedLevel2QuizItem
-              | ProcessedLevel3QuizItem
-            )[]
-            resolve()
-          }
-        },
-      )
-
-      const unwatchError = watch(
-        () => loader.error.value,
-        (err) => {
-          if (err !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            reject(new Error(`题目数据加载失败: ${err}`))
-          }
-        },
-      )
-    } else {
-      const loader = useDataLoader<RawLevel3QuizItem[]>(() => url)
-
-      const unwatchData = watch(
-        () => loader.data.value,
-        (data) => {
-          if (data !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            quizzes.value = getAllLevel3Quizzes(adaptLevel3Quiz(data)) as (
-              | ProcessedLevel1QuizItem
-              | ProcessedLevel2QuizItem
-              | ProcessedLevel3QuizItem
-            )[]
-            resolve()
-          }
-        },
-      )
-
-      const unwatchError = watch(
-        () => loader.error.value,
-        (err) => {
-          if (err !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            reject(new Error(`题目数据加载失败: ${err}`))
-          }
-        },
-      )
-    }
+  const loader = useDataLoader<unknown>(() => url)
+  await watchLoader(loader, '题目数据加载超时', (data) => {
+    adaptAndStoreQuizzes(props.quizLevel, data)
   })
 }
 

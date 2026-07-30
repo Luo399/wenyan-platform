@@ -50,7 +50,18 @@
 
       <!-- 进度条区域 -->
       <!-- 点击整个进度条可以跳转到对应位置 -->
-      <div class="progress-wrapper" @click="seek">
+      <div
+        class="progress-wrapper"
+        role="slider"
+        tabindex="0"
+        :aria-valuenow="Math.round(progressPercent)"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-label="`播放进度 ${Math.round(progressPercent)}%`"
+        @click="seek"
+        @keydown.left="seekBy(-0.05)"
+        @keydown.right="seekBy(0.05)"
+      >
         <!-- 进度条背景轨道 -->
         <div class="progress-bar">
           <!-- 进度条填充部分，宽度根据播放进度动态计算 -->
@@ -267,6 +278,18 @@ function seek(event: MouseEvent) {
 }
 
 /**
+ * R64: 键盘按左右箭头按步长跳转
+ * @param delta - 相对增量（0~1），负值后退、正值前进
+ */
+function seekBy(delta: number) {
+  if (!videoRef.value || duration.value === 0) return
+  const target = Math.max(0, Math.min(1, currentTime.value / duration.value + delta))
+  const seekTime = target * duration.value
+  videoRef.value.currentTime = seekTime
+  currentTime.value = seekTime
+}
+
+/**
  * 格式化时间显示
  *
  * 功能：
@@ -362,6 +385,13 @@ function formatTime(seconds: number): string {
   flex: 1; /* 占据剩余空间 */
   cursor: pointer; /* 鼠标指针 */
   padding: 0.25rem 0; /* 上下内边距增加点击区域 */
+}
+
+/* R64: 键盘聚焦可见样式 */
+.progress-wrapper:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-small);
 }
 
 /* 进度条轨道（背景） */

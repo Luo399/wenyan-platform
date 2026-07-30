@@ -217,9 +217,9 @@ async function loadData() {
 function prevDialog() {
   if (currentIndex.value > 0) {
     currentIndex.value--
+    // R55: typeText 由 watch(currentIndex) 统一触发，此处不手动调用避免重复
     const dialog = dialogs.value[currentIndex.value]
     if (dialog) {
-      typeText(dialog.dialogText)
       emit('dialogChange', dialog, currentIndex.value)
     }
   }
@@ -229,9 +229,9 @@ function prevDialog() {
 function nextDialog() {
   if (currentIndex.value < dialogs.value.length - 1) {
     currentIndex.value++
+    // R55: typeText 由 watch(currentIndex) 统一触发，此处不手动调用避免重复
     const dialog = dialogs.value[currentIndex.value]
     if (dialog) {
-      typeText(dialog.dialogText)
       emit('dialogChange', dialog, currentIndex.value)
 
       if (currentIndex.value === dialogs.value.length - 1) {
@@ -250,6 +250,12 @@ function toggleAudio() {
     audioRef.value?.pause()
     isPlaying.value = false
   } else {
+    // R56: 创建新 Audio 前清理旧实例，避免内存泄漏与音频叠加
+    if (audioRef.value) {
+      audioRef.value.pause()
+      audioRef.value.onended = null
+      audioRef.value = null
+    }
     const audioUrl = getAssetUrl('audio', `${dialog.audioFile}.mp3`)
     audioRef.value = new Audio(audioUrl)
     audioRef.value.onended = () => {
