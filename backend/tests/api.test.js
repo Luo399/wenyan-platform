@@ -13,7 +13,10 @@ const request = require('supertest');
 const path = require('path');
 const fs = require('fs');
 
-// 确保测试数据库目录存在
+// 必须在 require database 之前设置，使用内存数据库避免污染工作区
+process.env.DB_PATH = ':memory:';
+
+// 确保测试数据库目录存在（保留以兼容旧逻辑，:memory: 模式下不实际使用）
 const testDbDir = path.join(__dirname);
 if (!fs.existsSync(testDbDir)) {
   fs.mkdirSync(testDbDir, { recursive: true });
@@ -23,11 +26,10 @@ if (!fs.existsSync(testDbDir)) {
 let app;
 
 beforeAll(async () => {
-  // 设置测试数据库路径
+  // 测试模式标记
   process.env.TEST_MODE = 'true';
-  process.env.DB_PATH = path.join(__dirname, 'test-answers.db');
 
-  // 初始化数据库
+  // 初始化数据库（:memory: 内存数据库）
   const { initAllTables } = require('../src/config/database');
   await initAllTables();
 
