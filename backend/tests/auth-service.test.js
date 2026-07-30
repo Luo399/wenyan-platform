@@ -9,6 +9,9 @@
  *  5. 默认密码 "123456" 经哈希后能通过 verifyPassword
  */
 
+// 必须在 require database 之前设置，使用内存数据库避免污染工作区
+process.env.DB_PATH = ':memory:'
+
 const { z } = require('zod')
 const {
   DEFAULT_STUDENT_PASSWORD,

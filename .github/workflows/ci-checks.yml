@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - 'trae/agent-*'
+      - 'feature/**'
 
 jobs:
   quality-check:
@@ -56,3 +57,13 @@ jobs:
         run: |
           cd backend
           node -c server.js
+
+      - name: Run backend database & API tests
+        run: |
+          cd backend
+          npm test
+        env:
+          NODE_ENV: test
+          DB_PATH: ':memory:'
+          JWT_SECRET: ci-test-secret
+          AUTH_SECRET: ''

@@ -2,18 +2,32 @@ const sqlite3 = require('sqlite3').verbose()
 const fs = require('fs')
 const path = require('path')
 
-const dbDir = path.join(__dirname, '../../database')
-
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
+/**
+ * 数据库文件路径解析：
+ *  - 优先读 process.env.DB_PATH（测试可用 ':memory:' 或自定义路径）
+ *  - 默认 backend/database/answers.db
+ *  - ':memory:' 直接传给 sqlite3，不 join 目录，否则 path.join 拼出 'database/:memory:' 就不是内存库了
+ */
+function resolveDbPath() {
+  const envPath = process.env.DB_PATH
+  if (envPath && envPath.trim() !== '') {
+    if (envPath === ':memory:') return ':memory:'
+    return envPath
+  }
+  const dbDir = path.join(__dirname, '../../database')
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+  }
+  return path.join(dbDir, 'answers.db')
 }
 
-const db = new sqlite3.Database(path.join(dbDir, 'answers.db'), (err) => {
+const dbPath = resolveDbPath()
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('数据库连接失败:', err.message)
     process.exit(1)
   }
-  console.log('成功连接到 SQLite 数据库')
+  console.log('成功连接到 SQLite 数据库:', dbPath)
 })
 
 // 顺序串行执行若干条 DDL，方便在 Promise 链里使用

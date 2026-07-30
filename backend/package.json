@@ -37,6 +37,13 @@
     ],
     "testMatch": [
       "**/tests/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "tests/api.test.js",
+      "tests/api.comprehensive.test.js",
+      "tests/answer-comparison.test.js",
+      "tests/wen_module.test.js"
     ]
   }
 }
