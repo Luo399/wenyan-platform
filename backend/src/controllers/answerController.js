@@ -1,42 +1,10 @@
 const { db } = require('../config/database');
 const { getCorrectAnswerFromJson } = require('../utils/jsonReader');
-const crypto = require('crypto');
-const config = require('../config/app');
 
-const AUTH_SECRET = config.auth.secret;
-const AUTH_ENABLED = AUTH_SECRET.length > 0;
-
-function generateHmacSignature(studentId, timestamp) {
-  const payload = `${studentId}:${timestamp}`;
-  return crypto
-    .createHmac('sha256', AUTH_SECRET)
-    .update(payload)
-    .digest('hex');
-}
-
-function verifyHmacSignature(studentId, timestamp, signature, toleranceMs = 5 * 60 * 1000) {
-  if (!AUTH_ENABLED) {
-    return { valid: true };
-  }
-
-  if (!signature) {
-    return { valid: false, error: '缺少签名' };
-  }
-
-  const requestTime = new Date(timestamp).getTime();
-  const now = Date.now();
-  if (isNaN(requestTime) || Math.abs(now - requestTime) > toleranceMs) {
-    return { valid: false, error: '签名已过期' };
-  }
-
-  const expectedSignature = generateHmacSignature(studentId, timestamp);
-  
-  if (signature !== expectedSignature) {
-    return { valid: false, error: '签名无效' };
-  }
-
-  return { valid: true };
-}
+// R90 已移除 HMAC 签名校验（AUTH_SECRET/AUTH_ENABLED/generateHmacSignature/verifyHmacSignature）
+// 鉴权完全交给路由层的 optionalAuthMiddleware（JWT Bearer token）
+// 旧实现的问题：前端从不发送 signature 字段，导致 AUTH_SECRET 非空时 /api/submit 直接 401
+// 客户端密钥无法安全存储，HMAC 签名方案已被 JWT 取代
 
 function compareAnswers(userAnswer, correctAnswer) {
   if (Array.isArray(correctAnswer)) {
@@ -66,7 +34,7 @@ function compareAnswers(userAnswer, correctAnswer) {
 
 async function submitAnswers(req, res) {
   try {
-    const { studentId, wenId, submittedAt, answers, questions, signature } = req.body;
+    const { studentId, wenId, submittedAt, answers, questions } = req.body;
 
     if (!studentId || !wenId || !submittedAt || !answers || !questions) {
       return res.status(400).json({
@@ -76,16 +44,7 @@ async function submitAnswers(req, res) {
       });
     }
 
-    if (AUTH_ENABLED) {
-      const verifyResult = verifyHmacSignature(studentId, submittedAt, signature);
-      if (!verifyResult.valid) {
-        return res.status(401).json({
-          success: false,
-          error: 'AUTH_FAILED',
-          message: verifyResult.error,
-        });
-      }
-    }
+    // R90: 鉴权由路由层 optionalAuthMiddleware（JWT）统一处理，此处不再校验 HMAC 签名
 
     // 等待所有题目的写入完成（使用子查询保证原子性）
     const results = await Promise.all(

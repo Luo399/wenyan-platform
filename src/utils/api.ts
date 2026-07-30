@@ -1,32 +1,10 @@
 import { useAuthStore } from '@/stores/auth'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL as string
-const authSecret = import.meta.env.VITE_AUTH_SECRET as string | undefined
-export const authEnabled = !!authSecret && authSecret.length > 0
 export { apiBase }
 
-export async function generateHmacSignature(studentId: string, timestamp: string): Promise<string> {
-  if (!authSecret) {
-    throw new Error('AUTH_SECRET 未配置')
-  }
-
-  const payload = `${studentId}:${timestamp}`
-  const encoder = new TextEncoder()
-  const keyData = encoder.encode(authSecret)
-  const messageData = encoder.encode(payload)
-
-  const key = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-
-  const signature = await crypto.subtle.sign('HMAC', key, messageData)
-  const hashArray = Array.from(new Uint8Array(signature))
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-}
+// R90 已移除前端 HMAC 密钥与签名生成（VITE_AUTH_SECRET 是服务端 secret，不应进入客户端构建产物）
+// 提交答案的鉴权由 JWT Bearer token 承担（见 getAuthHeaders），后端 answerController 不再校验 HMAC 签名
 
 function getBaseUrl(): string {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || ''

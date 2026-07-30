@@ -1,49 +1,84 @@
 # 重构清单总览
 
-> 本目录是项目的完整重构清单，按优先级分为 7 个专题文件。
+> 本目录是项目的完整重构清单，按优先级分为 7 个专题文件 + 2 个滚动审查文件。
 > 每个文件可独立作为一次对话任务的输入，完成后更新状态标记。
 
 ## 文件索引
 
-| # | 专题 | 优先级 | 问题数 | 状态 | 文件 |
-|---|------|--------|--------|------|------|
-| 01 | 安全漏洞修复 | P0 | 11 | 未开始 | [01-security-critical.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/01-security-critical.md) |
-| 02 | 路由与鉴权系统 | P0 | 5 | 未开始 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md) |
-| 03 | 后端架构重构 | P0-P1 | 13 | 未开始 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md) |
-| 04 | 前端组件质量 | P1 | 10 | 未开始 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md) |
-| 05 | 前端架构与类型 | P1-P2 | 12 | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
-| 06 | 工程化与配置 | P1-P2 | 16 | 未开始 | [06-engineering-config.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/06-engineering-config.md) |
-| 07 | 数据管道优化 | P2 | 7 | 未开始 | [07-data-pipeline.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/07-data-pipeline.md) |
+### 一、专题清单（按模块划分）
 
-**合计：74 个问题**
+| #   | 专题                    | 优先级 | 问题数 | 状态   | 文件                                                                                                               |
+| --- | ----------------------- | ------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------ |
+| 01  | 安全漏洞修复            | P0     | 11     | 未开始 | [01-security-critical.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/01-security-critical.md)         |
+| 02  | 路由与鉴权系统          | P0     | 5      | 未开始 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md)                   |
+| 03  | 后端架构重构            | P0-P1  | 13     | 未开始 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md)   |
+| 04  | 前端组件质量（C01-C11） | P1-P2  | 11     | 已完成 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md)     |
+| 05  | 前端架构与类型          | P1-P2  | 12     | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
+| 06  | 工程化与配置            | P1-P2  | 16     | 未开始 | [06-engineering-config.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/06-engineering-config.md)       |
+| 07  | 数据管道优化            | P2     | 7      | 未开始 | [07-data-pipeline.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/07-data-pipeline.md)                 |
+
+专题合计：75 个问题
+
+### 二、滚动审查清单（C01-C11 完成后持续发现的新问题）
+
+| #   | 轮次   | 范围                                | 问题数 | 状态   | 文件                                                                                                   |
+| --- | ------ | ----------------------------------- | ------ | ------ | ------------------------------------------------------------------------------------------------------ |
+| 08  | 第二轮 | C01-C11 完成后的前端审查（R01-R50） | 50     | 未开始 | [08-frontend-round2.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/08-frontend-round2.md) |
+| 09  | 第三轮 | 更广泛文件审查（R51-R116）          | 66     | 未开始 | [09-frontend-round3.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/09-frontend-round3.md) |
+
+滚动审查合计：116 个问题
+
+**累计：191 个问题（专题 75 + 滚动审查 116）**
 
 ## 优先级说明
 
-| 级别 | 含义 | 行动要求 |
-|------|------|---------|
+| 级别   | 含义                | 行动要求               |
+| ------ | ------------------- | ---------------------- |
 | **P0** | 功能崩溃 / 安全漏洞 | 必须立即修复，阻断生产 |
-| **P1** | 生产构建前必须修复 | 上线前完成 |
-| **P2** | 技术债务 / 代码质量 | 迭代中逐步改善 |
-| **P3** | 优化建议 | 有空时处理 |
+| **P1** | 生产构建前必须修复  | 上线前完成             |
+| **P2** | 技术债务 / 代码质量 | 迭代中逐步改善         |
+| **P3** | 优化建议            | 有空时处理             |
 
 ## 执行顺序建议
+
+### 已完成
+
+```
+04-frontend-components.md（C01-C11 全部完成）
+```
+
+### 待执行（按优先级排序）
 
 ```
 第一批（P0 安全 + 路由，阻断生产）:
   01-security-critical.md  →  02-routing-auth.md
+  + 09-frontend-round3.md 中的 P0 安全问题（R90, R103, R108, R51, R52, R54）
 
 第二批（P0-P1 后端架构，依赖第一批）:
   03-backend-architecture.md
 
-第三批（P1 前端，彼此独立可并行）:
-  04-frontend-components.md  ↔  05-frontend-architecture.md
+第三批（P1 前端架构 + 第二/三轮审查 P1）:
+  05-frontend-architecture.md  ↔  08-frontend-round2.md（R01-R11 等 P1）
+  ↔  09-frontend-round3.md（R55-R57, R62, R64, R75, R82, R91, R96, R98, R101, R104, R109, R115 等 P1）
 
 第四批（P1-P2 工程化，可并行）:
   06-engineering-config.md
 
 第五批（P2 数据管道，独立模块）:
   07-data-pipeline.md
+
+第六批（P2-P3 滚动审查剩余项）:
+  08-frontend-round2.md 的 P2-P3（R07-R50）
+  09-frontend-round3.md 的 P2-P3（R53-R116）
 ```
+
+### 跨文件依赖关系
+
+- 09-frontend-round3.md 的 R51（ScenQuiz 异步 useDataLoader）依赖 R01（AdaptQuiz 同类问题）的模式参考
+- 09-frontend-round3.md 的 R53（PreQuizText textId）依赖 R52（同文件竞态 bug 修复）
+- 09-frontend-round3.md 的 R103（login 凭证）依赖 R90（前端密钥移除）
+- 09-frontend-round3.md 的 R107（submittedAt 服务端生成）依赖 R90
+- 09-frontend-round3.md 的 R111/R112（adapter 改进）依赖 R108（adapter 工厂重构）
 
 ## 状态标记规范
 
@@ -72,6 +107,7 @@ refactor/pipeline-01      # 数据管道第 1 项
 
 ```markdown
 ### 问题编号. 简短标题
+
 - **优先级**: P0 / P1 / P2
 - **状态**: [ ] 未开始
 - **文件**: 文件路径 + 行号范围
@@ -84,9 +120,16 @@ refactor/pipeline-01      # 数据管道第 1 项
 
 ## 进度追踪
 
-| 日期 | 完成专题 | 完成问题数 | 备注 |
-|------|---------|-----------|------|
-| - | - | 0/74 | 待开始 |
+| 日期                    | 完成专题                       | 完成问题数                  | 备注                                                                                                                                                             |
+| ----------------------- | ------------------------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-28 ~ 2026-07-29 | 04-frontend-components.md      | 11/11（C01-C11）            | 全部合并到 main，生产部署成功                                                                                                                                    |
+| 2026-07-30              | 09-frontend-round3.md P0       | 4/66（R51, R52, R54, R108） | useDataLoader 异步调用违规 ×3 + adapter 工厂重构，分支+CI 通过，PR 待合并                                                                                        |
+| 2026-07-30              | 09-frontend-round3.md R90/R103 | 0（已评估）                 | 后端三级账号体系已就绪；R90 前端 dead code+后端 HMAC 残留致 submit 401；R103 前端未传 password 致登录 400。方案已写入 09 文档，待决策实施                        |
+| 2026-07-30              | 09-frontend-round3.md R90      | 1/66（R90）                 | 前端 VITE_AUTH_SECRET dead code 清理 + 后端 HMAC 校验移除 + yml/env 配置清理，分支 security/round3-90-auth-secret-leak，type-check + 后端 53 测试通过，PR 待创建 |
+| -                       | 01-03, 05-07 专题              | 0/64                        | 待开始                                                                                                                                                           |
+| -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
+| -                       | 09-frontend-round3.md 剩余     | 0/61                        | R51/R52/R54/R90/R108 已完成，R103 已评估，剩余 61 项待开始                                                                                                       |
+| -                       | **合计**                       | **16/191**                  | 11（专题）+ 5（R51/R52/R54/R90/R108）                                                                                                                            |
 
 ## 使用方式
 
