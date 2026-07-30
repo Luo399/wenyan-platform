@@ -111,15 +111,21 @@ class VersionManager:
         snapshot_dir = os.path.join(self.version_dir, version_id)
         os.makedirs(snapshot_dir, exist_ok=True)
 
+        # 递归收集所有文件（含嵌套子目录）。manifest 使用相对路径
         manifest = self._build_manifest(source_dir)
         manifest_path = os.path.join(snapshot_dir, MANIFEST_FILE_NAME)
         with open(manifest_path, 'w', encoding='utf-8') as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
 
+        # 按相对路径复制文件，并创建对应子目录
         for entry in manifest['files']:
-            src = os.path.join(source_dir, entry['name'])
-            dst = os.path.join(snapshot_dir, entry['name'])
+            rel_path = entry['name']
+            src = os.path.join(source_dir, rel_path)
+            dst = os.path.join(snapshot_dir, rel_path)
             if os.path.isfile(src):
+                dst_dir = os.path.dirname(dst)
+                if dst_dir:
+                    os.makedirs(dst_dir, exist_ok=True)
                 _safe_link(src, dst)
 
         meta: Dict[str, Any] = {
@@ -182,7 +188,7 @@ class VersionManager:
         overwrite: bool = False,
     ) -> int:
         """
-        从快照恢复到目标目录
+        从快照恢复到目标目录（支持嵌套子目录）
 
         :param version_id: 版本 ID
         :param target_dir: 恢复到的目录
@@ -195,16 +201,39 @@ class VersionManager:
 
         os.makedirs(target_dir, exist_ok=True)
         restored = 0
-        for name in os.listdir(snapshot_dir):
-            if name in (META_FILE_NAME, MANIFEST_FILE_NAME):
-                continue
-            src = os.path.join(snapshot_dir, name)
-            dst = os.path.join(target_dir, name)
+
+        # 优先读取 manifest 中的文件清单（完整相对路径）
+        manifest_path = os.path.join(snapshot_dir, MANIFEST_FILE_NAME)
+        rel_paths: List[str] = []
+        if os.path.isfile(manifest_path):
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = json.load(f)
+                rel_paths = [entry['name'] for entry in manifest.get('files', [])]
+            except (json.JSONDecodeError, IOError, KeyError) as e:
+                logger.warning(f"读取 manifest 失败，回退到目录扫描: {str(e)}")
+                rel_paths = []
+
+        # 回退：老版本没有 manifest 或清单或为空，使用目录扫描
+        if not rel_paths:
+            for root, _dirs, files in os.walk(snapshot_dir):
+                for fname in files:
+                    if fname in (META_FILE_NAME, MANIFEST_FILE_NAME):
+                        continue
+                    abs_path = os.path.join(root, fname)
+                    rel_paths.append(os.path.relpath(abs_path, snapshot_dir))
+
+        for rel_path in rel_paths:
+            src = os.path.join(snapshot_dir, rel_path)
+            dst = os.path.join(target_dir, rel_path)
             if not os.path.isfile(src):
                 continue
+            dst_dir = os.path.dirname(dst)
+            if dst_dir:
+                os.makedirs(dst_dir, exist_ok=True)
             if os.path.exists(dst) and not overwrite:
-                logger.warning(f"跳过已存在文件: {name}")
-                continue
+                    logger.warning(f"跳过已存在文件: {rel_path}")
+                    continue
             shutil.copy2(src, dst)
             restored += 1
         logger.info(f"已从版本 {version_id} 恢复 {restored} 个文件到 {target_dir}")
@@ -234,31 +263,51 @@ class VersionManager:
         }
 
     def _list_snapshot_files(self, version_id: str) -> set:
-        """列出快照中实际存在的文件名集合"""
+        """列出快照中实际文件的相对路径集合（支持嵌套子目录）"""
         snapshot_dir = os.path.join(self.version_dir, version_id)
         if not os.path.isdir(snapshot_dir):
             return set()
-        return {
-            name for name in os.listdir(snapshot_dir)
-            if name not in (META_FILE_NAME, MANIFEST_FILE_NAME)
-            and os.path.isfile(os.path.join(snapshot_dir, name))
-        }
+
+        # 优先读取 manifest，保证与实际快照文件一致
+        manifest_path = os.path.join(snapshot_dir, MANIFEST_FILE_NAME)
+        if os.path.isfile(manifest_path):
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = json.load(f)
+                return {entry['name'] for entry in manifest.get('files', [])}
+            except (json.JSONDecodeError, IOError, KeyError) as e:
+                logger.warning(f"读取 manifest 失败，回退到目录扫描: {str(e)}")
+
+        # 回退：os.walk 扫描所有文件（相对路径）
+        result: set = set()
+        for root, _dirs, files in os.walk(snapshot_dir):
+            for fname in files:
+                if fname in (META_FILE_NAME, MANIFEST_FILE_NAME):
+                    continue
+                abs_path = os.path.join(root, fname)
+                result.add(os.path.relpath(abs_path, snapshot_dir))
+        return result
 
     # ------------------------------------------------------------------
     # 内部工具
     # ------------------------------------------------------------------
     @staticmethod
     def _build_manifest(source_dir: str) -> Dict[str, Any]:
-        """生成文件清单与统计信息"""
+        """生成文件清单与统计信息（递归扫描子目录，使用相对路径）"""
         files: List[Dict[str, Any]] = []
         total_size = 0
-        for name in sorted(os.listdir(source_dir)):
-            full = os.path.join(source_dir, name)
-            if not os.path.isfile(full):
-                continue
-            size = os.path.getsize(full)
-            total_size += size
-            files.append({'name': name, 'size': size})
+        # os.walk 递归扫描所有嵌套文件，relpath 记录层级
+        for root, _dirs, file_names in os.walk(source_dir):
+            for fname in sorted(file_names):
+                abs_path = os.path.join(root, fname)
+                if not os.path.isfile(abs_path):
+                    continue
+                rel_path = os.path.relpath(abs_path, source_dir)
+                size = os.path.getsize(abs_path)
+                total_size += size
+                files.append({'name': rel_path, 'size': size})
+        # 按相对路径排序，保证 manifest 稳定
+        files.sort(key=lambda item: item['name'])
         return {
             'file_count': len(files),
             'total_size': total_size,
