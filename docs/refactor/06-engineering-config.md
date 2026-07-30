@@ -10,6 +10,7 @@
 > - **E11**：统一入口为 `server.js`（修正 `ecosystem.config.js` 死配置 `src/app.js`）；deploy 仍用 `pm2 start server.js --name wenyan-backend[-test]`，未改用 ecosystem（避免 test/prod 进程名差异）。
 > - **E12**：启用 `recommendedTypeChecked`，可能暴露未处理 Promise；若 CI lint 失败则回退为 `recommended` 并标记后续处理。
 > - **E13**：删除一次性脚本 6 个（`fix-cors-origin.sh`、`fix-and-start-backend.sh`、`fix-test-env.sh`、`fix-level2-quiz-answers.js`、`push-and-wait.js`、`upload-to-oss.js`）并同步更新引用注释。
+> - **E02**：CI 添加 `Run Tests` 步骤；补充缺失依赖 `@vue/test-utils`（组件测试此前因缺该依赖无法 import）与 `jsdom`（DOM 环境）。因仓库存在历史遗留失败用例（如 `ApiError` 构造签名 `(status, errorCode, message)` 与测试 `new ApiError(msg, code)` 不匹配），test 步骤暂设 `continue-on-error: true` 非阻塞，待后续专题修复测试后改为阻塞（lint 保持阻塞，符合 E03）。
 
 ---
 
