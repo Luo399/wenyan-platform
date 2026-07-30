@@ -83,10 +83,46 @@ export function setQuizRecords<T>(studentId: string, records: T[]): void {
 
 /**
  * 追加单条答题记录到已有列表末尾
- * @returns 追加后的完整答题记录数组
+ *
+ * 等价于：getQuizRecords → push → setQuizRecords 的原子封装，
+ * 保证读-改-写流程的统一性，避免组件层重复样板代码。
+ *
+ * R98: 修复 JSON 损坏时数据丢失——原实现 getQuizRecords 在解析失败时返回 []，
+ * 随后 setQuizRecords 会用 [record] 覆盖损坏数据，导致历史记录永久丢失。
+ * 现改为：检测到 JSON 损坏时跳过追加并返回空数组，保留原始数据等待人工处理。
+ *
+ * @typeParam T 记录类型
+ * @param studentId 学生学号
+ * @param record 单条答题记录
+ * @returns 追加后的完整答题记录数组（便于上层日志或后续操作）；损坏时返回空数组
  */
 export function appendQuizRecord<T>(studentId: string, record: T): T[] {
-  const records = getQuizRecords<T>(studentId)
+  if (!studentId) return []
+
+  const key = buildStorageKey(studentId)
+  const raw = localStorage.getItem(key)
+
+  let records: T[]
+  if (!raw) {
+    // 无历史数据，正常初始化
+    records = []
+  } else {
+    // 有历史数据，需校验完整性
+    try {
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        // R98: 数据结构异常（非数组），跳过追加避免覆盖
+        debugLog('[localStorage] 原数据非数组，跳过追加以避免覆盖:', key)
+        return []
+      }
+      records = parsed
+    } catch (err) {
+      // R98: JSON 损坏，跳过追加避免历史记录永久丢失
+      debugLog('[localStorage] 原数据 JSON 损坏，跳过追加以避免覆盖:', key, err)
+      return []
+    }
+  }
+
   records.push(record)
   setQuizRecords(studentId, records)
   return records

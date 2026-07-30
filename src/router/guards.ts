@@ -10,6 +10,7 @@
 
 import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-router'
 import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { debugLog } from '@/utils/debug'
 
@@ -56,14 +57,18 @@ export function setupAuthGuard(router: Router): void {
  *
  * R38: 不再直接解构 store 方法（会丢失 this 上下文，虽然 pinia setup store 不依赖 this，
  * 但直接解构方法仍是反模式），改为包装调用并返回计算属性。
+ *
+ * R115: 用 storeToRefs 包裹响应式属性（isLoggedIn/user/error），
+ * 避免直接解构丢失响应式导致调用方拿到初始快照。
  */
 export function useAuthGuard() {
   const authStore = useAuthStore()
+  const { isLoggedIn, user, error } = storeToRefs(authStore)
 
   return {
-    isLoggedIn: authStore.isLoggedIn,
-    user: authStore.user,
-    error: authStore.error,
+    isLoggedIn,
+    user,
+    error,
     hasError: computed(() => authStore.error !== null),
     login: (studentId: string, password: string, studentName?: string) =>
       authStore.login(studentId, password, studentName),

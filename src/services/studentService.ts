@@ -126,13 +126,23 @@ export async function getAllStudents(options?: {
 /**
  * 获取单个学生信息
  * @param studentId - 学号
+ *
+ * R101: 修复 catch {} 静默吞掉所有错误的问题——
+ * 原实现网络错误、超时、服务端 500 都被当作"学生不存在"返回 null，
+ * 导致 checkStudentExists 在网络故障时误判学生不存在。
+ * 现改为：仅 404（学生不存在）返回 null；其他错误重新抛出由调用方处理。
  */
 export async function getStudent(studentId: string): Promise<StudentInfo | null> {
   try {
     const response = await get<StudentInfo>(`/api/students/${studentId}`)
     return response.data || null
-  } catch {
-    return null
+  } catch (err) {
+    // 404 表示学生不存在，返回 null 是语义正确的
+    if (err instanceof ApiError && err.status === 404) {
+      return null
+    }
+    // 其他错误（网络故障、超时、5xx 等）向上抛出，避免误判
+    throw err
   }
 }
 
