@@ -6,6 +6,11 @@
   2. 响应全局 BGM store 的状态变化
   3. 默认自动播放，初始音量为 20
   4. 提供播放/暂停控制和音量调节
+
+  可访问性（R24）：
+  - 按钮使用真实 <button>，带 aria-label / aria-pressed
+  - volume-slider 带 aria-label / aria-valuemin/max/valuenow，用 :value + @input 而非 v-model 保证 aria 同步
+  - audio 元素 aria-hidden，用控件状态 ARIA 呈现给屏幕阅读器
 -->
 <template>
   <div class="repeat-bgm">
@@ -17,39 +22,54 @@
 
     <!-- 正常状态 -->
     <div v-else-if="currentBgmFile" class="bgm-controls">
-      <!-- 音频元素 -->
+      <!-- 音频元素：aria-hidden，用按钮 ARIA 呈现状态 -->
       <audio
         ref="audioRef"
         :src="bgmUrl"
         loop
+        aria-hidden="true"
         @loadedmetadata="handleLoadedMetadata"
         @error="handleAudioError"
-        @ended="handleAudioEnded"
       />
 
-      <!-- 播放/暂停按钮 -->
+      <!-- 播放/暂停按钮：aria-pressed 呈现 toggle 状态 -->
       <button
+        type="button"
         class="bgm-btn"
         @click="handleTogglePlay"
-        :title="isPlaying ? '暂停背景音乐' : '播放背景音乐'"
+        :aria-pressed="isPlaying"
+        :aria-label="isPlaying ? '暂停背景音乐' : '播放背景音乐'"
       >
-        <i v-if="isPlaying" class="fas fa-pause"></i>
-        <i v-else class="fas fa-play"></i>
+        <i :class="isPlaying ? 'fas fa-pause' : 'fas fa-play'" aria-hidden="true"></i>
         <span class="btn-text">{{ isPlaying ? '暂停' : '播放' }}背景音乐</span>
       </button>
 
       <!-- 音量控制 -->
       <div class="volume-control">
-        <button class="volume-btn" @click="handleToggleMute" :title="isMuted ? '取消静音' : '静音'">
-          <i v-if="isMuted" class="fas fa-volume-mute"></i>
-          <i v-else-if="currentVolume === 0" class="fas fa-volume-off"></i>
-          <i v-else class="fas fa-volume-up"></i>
+        <button
+          type="button"
+          class="volume-btn"
+          @click="handleToggleMute"
+          :aria-pressed="isMuted"
+          :aria-label="isMuted ? '取消静音' : '静音'"
+        >
+          <i :class="muteIconClass" aria-hidden="true"></i>
         </button>
+        <!--
+          R24: range slider 完整 ARIA
+            - aria-label: 用途说明
+            - aria-valuemin/max/valuenow: 屏幕阅读器读"音量 20%"
+        -->
         <input
+          ref="sliderRef"
           type="range"
           min="0"
           max="100"
           :value="isMuted ? 0 : currentVolume"
+          :aria-label="`音量 ${isMuted ? 0 : currentVolume}%`"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-valuenow="isMuted ? 0 : currentVolume"
           @input="handleVolumeChange"
           class="volume-slider"
         />
@@ -75,33 +95,23 @@ const audioRef = ref<HTMLAudioElement | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-// 计算当前BGM文件
-const currentBgmFile = computed(() => {
-  return bgmStore.currentBgmFile
+// R25: 派生变量全部收敛成显式 computed（死代码检查时更清晰，也避免 <i :class> 的 inline 三元长表达式）
+const currentBgmFile = computed(() => bgmStore.currentBgmFile)
+const isPlaying = computed(() => bgmStore.isPlaying)
+const currentVolume = computed(() => bgmStore.volume)
+const isMuted = computed(() => bgmStore.isMuted)
+const muteIconClass = computed(() => {
+  if (isMuted.value) return 'fas fa-volume-mute'
+  if (currentVolume.value === 0) return 'fas fa-volume-off'
+  return 'fas fa-volume-up'
 })
 
-// 计算当前播放状态
-const isPlaying = computed(() => {
-  return bgmStore.isPlaying
-})
-
-// 当前音量（从store获取）
-const currentVolume = computed(() => {
-  return bgmStore.volume
-})
-
-// 是否静音
-const isMuted = computed(() => {
-  return bgmStore.isMuted
-})
-
-// BGM URL
 const bgmUrl = computed(() => {
   if (!currentBgmFile.value) return ''
   return getAssetUrl('audio', currentBgmFile.value)
 })
 
-// 监听路由变化，自动更新wenId
+// 监听路由变化，自动更新 wenId
 watch(
   () => route.params.id,
   (newId) => {
@@ -114,22 +124,24 @@ watch(
   { immediate: true },
 )
 
-// 监听BGM文件变化，重新加载音频
+// 监听 BGM 文件变化：重新加载音频（保留音量/静音状态）
 watch(currentBgmFile, (newFile, oldFile) => {
   if (newFile && newFile !== oldFile && audioRef.value) {
     debugLog('[RepeatBgm] BGM文件变化:', oldFile, '->', newFile)
     audioRef.value.pause()
+    // 先同步音量/静音，避免切歌后音量跳变
+    audioRef.value.volume = currentVolume.value / 100
+    audioRef.value.muted = isMuted.value
     audioRef.value.load()
     bgmStore.pause()
   }
 })
 
-// 监听store播放状态变化
+// 监听 store 播放状态变化：sync 到 audio 元素
 watch(
   () => bgmStore.isPlaying,
   (playing) => {
     if (!audioRef.value) return
-
     if (playing) {
       audioRef.value.play().catch((err) => {
         debugWarn('[RepeatBgm] 播放失败:', err)
@@ -145,9 +157,7 @@ watch(
 watch(
   () => bgmStore.volume,
   (newVolume) => {
-    if (audioRef.value) {
-      audioRef.value.volume = newVolume / 100
-    }
+    if (audioRef.value) audioRef.value.volume = newVolume / 100
   },
 )
 
@@ -155,32 +165,22 @@ watch(
 watch(
   () => bgmStore.isMuted,
   (muted) => {
-    if (audioRef.value) {
-      audioRef.value.muted = muted
-    }
+    if (audioRef.value) audioRef.value.muted = muted
   },
 )
 
 function handleLoadedMetadata() {
-  debugLog('[RepeatBgm] ✅ 背景音乐加载完成:', currentBgmFile.value)
-
-  if (audioRef.value) {
-    audioRef.value.volume = currentVolume.value / 100
-    audioRef.value.muted = isMuted.value
-
-    // 默认自动播放
-    bgmStore.play()
-  }
+  debugLog('[RepeatBgm] 背景音乐加载完成:', currentBgmFile.value)
+  if (!audioRef.value) return
+  audioRef.value.volume = currentVolume.value / 100
+  audioRef.value.muted = isMuted.value
+  // 默认自动播放（浏览器可能拦截，失败则回到 pause 状态）
+  bgmStore.play()
 }
 
 function handleAudioError() {
-  debugError('[RepeatBgm] ❌ 音频加载失败:', bgmUrl.value)
+  debugError('[RepeatBgm] 音频加载失败:', bgmUrl.value)
   error.value = '背景音乐加载失败'
-}
-
-function handleAudioEnded() {
-  // 循环播放不需要特殊处理，audio元素已有loop属性
-  debugLog('[RepeatBgm] 音频播放结束，将自动循环')
 }
 
 function handleTogglePlay() {
@@ -199,9 +199,7 @@ function handleVolumeChange(event: Event) {
 
 function retry() {
   error.value = null
-  if (audioRef.value) {
-    audioRef.value.load()
-  }
+  if (audioRef.value) audioRef.value.load()
 }
 
 onMounted(() => {
@@ -212,7 +210,9 @@ onUnmounted(() => {
   debugLog('[RepeatBgm] 组件卸载')
   if (audioRef.value) {
     audioRef.value.pause()
-    audioRef.value.src = ''
+    // R26: 卸载时先解绑事件监听再清空 src，避免某些浏览器空 src 触发一次 error
+    audioRef.value.removeAttribute('src')
+    audioRef.value.load()
   }
 })
 </script>
@@ -223,7 +223,6 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-xs);
-  /* 使用设计 token 衬线字体 */
   font-family: var(--font-family-serif);
 }
 
@@ -233,13 +232,12 @@ onUnmounted(() => {
   gap: var(--spacing-md);
 }
 
-/* 背景音乐按钮（文字按钮：朱红底 + 橄榄绿边框 + 药丸圆角） */
+/* 背景音乐按钮（朱红底 + 橄榄绿边框 + 药丸圆角） */
 .bgm-btn {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
   padding: var(--spacing-xs) var(--spacing-md);
-  /* 朱红主色底 */
   background: var(--color-primary);
   color: var(--color-white);
   border: var(--border-width-thin) solid var(--color-border);
@@ -247,12 +245,19 @@ onUnmounted(() => {
   cursor: pointer;
   font-size: var(--font-size-small);
   transition: all 0.3s ease;
+  /* R27: 焦点可见状态 */
+  outline: none;
 }
 
-.bgm-btn:hover {
+.bgm-btn:hover,
+.bgm-btn:focus-visible {
   transform: translateY(-2px);
-  /* 设计 token 小阴影 */
   box-shadow: var(--shadow-small);
+}
+
+.bgm-btn:focus-visible {
+  outline: var(--border-width-thin) solid var(--color-white);
+  outline-offset: 2px;
 }
 
 .bgm-btn:active {
@@ -273,32 +278,51 @@ onUnmounted(() => {
   padding: var(--spacing-xs);
   background: transparent;
   border: none;
-  /* 灰色次要文字 */
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: color 0.2s;
+  transition:
+    color 0.2s,
+    outline-color 0.2s;
+  border-radius: var(--radius-small);
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 避免纯 icon 按钮过小，点击区域 ≥ 32px WCAG */
+  min-width: var(--control-min-size);
+  min-height: var(--control-min-size);
 }
 
-.volume-btn:hover {
-  /* 黑色主文字 */
+.volume-btn:hover,
+.volume-btn:focus-visible {
   color: var(--color-text);
+}
+
+.volume-btn:focus-visible {
+  outline: var(--border-width-thin) solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .volume-slider {
   width: 80px;
   height: 4px;
   appearance: none;
-  /* 占位灰色轨道 */
   background: var(--color-placeholder);
   border-radius: 2px;
   outline: none;
+  cursor: pointer;
+}
+
+/* R27: 滑块 focus ring */
+.volume-slider:focus-visible {
+  outline: var(--border-width-thin) solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .volume-slider::-webkit-slider-thumb {
   appearance: none;
   width: 12px;
   height: 12px;
-  /* 朱红主色滑块 */
   background: var(--color-primary);
   border-radius: 50%;
   cursor: pointer;
@@ -307,7 +331,6 @@ onUnmounted(() => {
 .volume-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  /* 朱红主色滑块 */
   background: var(--color-primary);
   border-radius: 50%;
   cursor: pointer;

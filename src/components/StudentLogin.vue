@@ -2,28 +2,28 @@
   StudentLogin.vue - 学生学号输入组件
 
   功能说明：
-  - 提供学号输入框，要求4位数字
+  - 提供学号输入框，接受任意位数字学号
   - 验证输入合法性
   - 保存学号到 Pinia Store
 -->
 <template>
   <div class="student-login">
     <h2>请输入您的学号</h2>
-    <p class="subtitle">学号为4位数字</p>
+    <p class="subtitle">请输入学号数字</p>
 
     <div class="input-group">
       <input
         v-model="inputId"
         type="text"
-        maxlength="4"
-        placeholder="请输入4位学号"
+        inputmode="numeric"
+        placeholder="请输入学号"
         @keyup.enter="handleSubmit"
         :class="{ error: hasError }"
       />
       <button @click="handleSubmit" :disabled="!isValid">确认</button>
     </div>
 
-    <p v-if="hasError" class="error-message">学号必须为4位数字</p>
+    <p v-if="hasError" class="error-message">学号必须为数字</p>
   </div>
 </template>
 
@@ -39,26 +39,23 @@ const inputId = ref('')
 const hasError = ref(false)
 
 /**
- * 验证输入是否为4位数字
+ * 验证输入是否为非空纯数字（兼容 1-5 测试账号与 2024001 正式学号）
  */
 const isValid = computed(() => {
-  return /^\d{4}$/.test(inputId.value)
+  return /^\d+$/.test(inputId.value)
 })
 
 /**
  * 提交学号
  */
 function handleSubmit() {
-  // 验证格式
   if (!isValid.value) {
     hasError.value = true
     return
   }
 
   hasError.value = false
-  // 保存到 Store
   studentStore.setStudentId(inputId.value)
-  // 清空输入
   inputId.value = ''
 }
 </script>

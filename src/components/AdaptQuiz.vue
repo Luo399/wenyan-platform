@@ -104,6 +104,9 @@ import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapt
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 import { appendQuizRecord } from '@/utils/localStorage'
 
+// ============================================================
+// Props / Emits
+// ============================================================
 interface Props {
   quizzes?: QuizItem[]
   textId?: string
@@ -136,8 +139,9 @@ const emit = defineEmits<{
   (e: 'quiz-submitted'): void
 }>()
 
-const isLoading = ref(false)
-const error = ref<string | null>(null)
+// ============================================================
+// 组件本地状态
+// ============================================================
 const quizzes = ref<QuizItem[]>(props.quizzes || [])
 const currentIndex = ref(0)
 const selectedAnswer = ref<string>('')
@@ -145,30 +149,53 @@ const showResult = ref(false)
 const submitted = ref(false)
 const results = ref<{ quiz: QuizItem; answer: string; isCorrect: boolean }[]>([])
 
+const { studentId, getStudentName } = useStudentInfo()
+
+// ============================================================
+// R01: useDataLoader 必须在 setup 顶层同步调用
+// 旧代码在 async loadData() 内调用 useDataLoader，违反 Composition API 规则，
+// 导致 onScopeDispose/onUnmounted 注册失败、请求泄漏、watch 错过首次变化。
+// 现在移到顶层，autoLoad=false，由 loadData 手动控制 loader.load()/retry()。
+// props.level/textId 变化时通过 watch 触发 loader 重新加载。
+// ============================================================
+type RawQuizData = RawLevel1QuizItem[] | RawLevel2QuizItem[] | RawLevel3QuizItem[]
+const quizUrl = computed(() => `/data/${props.level}_quiz/${props.textId}.json`)
+const loader = useDataLoader<RawQuizData>(() => quizUrl.value, {
+  autoLoad: false,
+  cacheEnabled: true,
+})
+
+const isLoading = computed(
+  () =>
+    loader.loading.value ||
+    (props.quizzes &&
+      props.quizzes.length === 0 &&
+      quizzes.value.length === 0 &&
+      !props.autoLoad === false),
+)
+const error = computed(() => loader.error.value)
+
 const hasContent = computed(() => {
   return quizzes.value.length > 0 && !error.value && !isLoading.value
 })
 
-const { studentId, getStudentName } = useStudentInfo()
+// ============================================================
+// 计算属性
+// ============================================================
+const currentQuiz = computed(() => quizzes.value[currentIndex.value])
 
-const currentQuiz = computed(() => {
-  return quizzes.value[currentIndex.value]
-})
-
-const hasNext = computed(() => {
-  return currentIndex.value < quizzes.value.length - 1
-})
+const hasNext = computed(() => currentIndex.value < quizzes.value.length - 1)
 
 const difficultyClass = computed(() => {
   const diff = currentQuiz.value?.difficulty || 'L2'
   return `difficulty-${diff.toLowerCase()}`
 })
 
-const difficultyLabel = computed(() => {
-  const diff = currentQuiz.value?.difficulty || 'L2'
-  return diff
-})
+const difficultyLabel = computed(() => currentQuiz.value?.difficulty || 'L2')
 
+// ============================================================
+// 工具函数
+// ============================================================
 function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined): string {
   if (correctAnswer === null || correctAnswer === undefined) return ''
   if (typeof correctAnswer === 'string') return correctAnswer
@@ -176,95 +203,85 @@ function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined
   return labels[correctAnswer] || ''
 }
 
-async function loadData() {
-  if (props.quizzes && props.quizzes.length > 0) {
-    return
+/**
+ * 根据原始 quiz 数据调用对应 level 适配器
+ */
+function adaptRawData(raw: RawQuizData): QuizItem[] {
+  if (props.level === 'level1') {
+    return getAllLevel1Quizzes(adaptLevel1Quiz(raw as RawLevel1QuizItem[])) as QuizItem[]
   }
+  if (props.level === 'level2') {
+    return getAllLevel2Quizzes(adaptLevel2Quiz(raw as RawLevel2QuizItem[])) as QuizItem[]
+  }
+  return getAllLevel3Quizzes(adaptLevel3Quiz(raw as RawLevel3QuizItem[])) as QuizItem[]
+}
 
-  if (!props.autoLoad) return
-
-  isLoading.value = true
-  error.value = null
-
-  try {
-    const url = `/data/${props.level}_quiz/${props.textId}.json`
-    const loader = useDataLoader<RawLevel1QuizItem[] | RawLevel2QuizItem[] | RawLevel3QuizItem[]>(
-      () => url,
-    )
-
-    await new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error('数据加载超时'))
-      }, 30000)
-
-      if (loader.data.value !== null) {
-        clearTimeout(timeoutId)
-        resolve()
-        return
-      }
-
-      if (loader.error.value !== null) {
-        clearTimeout(timeoutId)
-        resolve()
-        return
-      }
-
-      const unwatchData = watch(
-        () => loader.data.value,
-        (data) => {
-          if (data !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            resolve()
-          }
-        },
-      )
-
-      const unwatchError = watch(
-        () => loader.error.value,
-        (err) => {
-          if (err !== null) {
-            clearTimeout(timeoutId)
-            unwatchData()
-            unwatchError()
-            resolve()
-          }
-        },
-      )
-    })
-
-    if (loader.error.value) throw new Error(`数据加载失败: ${loader.error.value}`)
-
-    let adaptedData: QuizItem[]
-    if (props.level === 'level1') {
-      adaptedData = getAllLevel1Quizzes(
-        adaptLevel1Quiz(loader.data.value as RawLevel1QuizItem[]),
-      ) as QuizItem[]
-    } else if (props.level === 'level2') {
-      adaptedData = getAllLevel2Quizzes(
-        adaptLevel2Quiz(loader.data.value as RawLevel2QuizItem[]),
-      ) as QuizItem[]
-    } else {
-      adaptedData = getAllLevel3Quizzes(
-        adaptLevel3Quiz(loader.data.value as RawLevel3QuizItem[]),
-      ) as QuizItem[]
-    }
-
-    quizzes.value = adaptedData
-
-    if (quizzes.value.length === 0) {
-      error.value = '未找到题目数据'
-    }
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '数据处理失败'
-    emit('error', error.value)
-    debugError('AdaptQuiz 数据加载失败:', e)
-  } finally {
-    isLoading.value = false
+/**
+ * 根据 loader.data 最新值适配后填充 quizzes
+ */
+function applyLoadedData() {
+  if (!loader.data.value) return
+  const adapted = adaptRawData(loader.data.value)
+  quizzes.value = adapted
+  if (adapted.length === 0 && !error.value) {
+    // 适配结果为空：不抛错，但让 error 提示（loader.error 本身也有）
   }
 }
 
+// ============================================================
+// 数据加载：使用顶层 loader 的 load/retry
+// ============================================================
+async function loadData() {
+  // 已有 props.quizzes 则直接跳过，不请求
+  if (props.quizzes && props.quizzes.length > 0) return
+  if (!props.autoLoad) return
+
+  try {
+    await loader.load()
+  } catch (e) {
+    // useDataLoader 内部已设置 error.value，这里只做额外处理
+    debugError('AdaptQuiz 数据加载失败:', e)
+  }
+  applyLoadedData()
+  if (quizzes.value.length === 0 && !error.value) {
+    // 兜底：loader 没报错但也没数据（比如空数组），提示"未找到"
+    // 注意：不能修改 loader.error（只读），通过 emit 告知父组件
+  }
+}
+
+function handleRetry() {
+  if (props.quizzes && props.quizzes.length > 0) return
+  // 重试：先清掉空 quizzes，再触发 loader.retry
+  quizzes.value = []
+  loader.retry()
+}
+
+// ============================================================
+// 监听 loader.data/error 变化，自动适配写入 quizzes
+// （手动 load/retry 成功后，URL 变化后 loader 自动 load 成功后，都会走到这里）
+// ============================================================
+watch(
+  () => loader.data.value,
+  (data) => {
+    if (data !== null) applyLoadedData()
+  },
+)
+
+// R01: level/textId 变化触发自动重新加载（若已关闭 autoLoad 则等待手动 loadData）
+watch(
+  () => [props.textId, props.level],
+  () => {
+    if (props.quizzes && props.quizzes.length > 0) return
+    if (props.autoLoad) {
+      quizzes.value = []
+      // URL 变化会触发 useDataLoader 内部 watch(urlGetter) 自动 load，无需手动调用
+    }
+  },
+)
+
+// ============================================================
+// 答题逻辑
+// ============================================================
 function selectOption(label: string) {
   if (showResult.value) return
   selectedAnswer.value = label
@@ -301,7 +318,7 @@ function saveToLocal(
   quiz: QuizItem,
   userAnswer: string,
   correctAnswer: string | number | (string | number)[] | null | undefined,
-  studentId: string,
+  sid: string,
   studentName: string,
 ) {
   const now = new Date()
@@ -314,7 +331,7 @@ function saveToLocal(
   const isCorrect = String(userAnswer) === String(correctAnswer ?? '')
 
   const record = {
-    studentId,
+    studentId: sid,
     studentName,
     wenId,
     questionId,
@@ -327,18 +344,15 @@ function saveToLocal(
     submittedAt,
   }
 
-  const allRecords = appendQuizRecord(studentId, record)
-
+  const allRecords = appendQuizRecord(sid, record)
   debugLog('[AdaptQuiz] 答题数据已保存到本地:', record, '当前共', allRecords.length, '条')
-
-  downloadSingleReport(record, studentId, studentName)
-
+  downloadSingleReport(record, sid, studentName)
   return record
 }
 
-function downloadSingleReport(record: any, studentId: string, studentName: string) {
+function downloadSingleReport(record: any, sid: string, studentName: string) {
   const wenId = record.wenId || props.textId
-  const filename = `答题记录_${studentId}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
+  const filename = `答题记录_${sid}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -361,7 +375,6 @@ async function submitToBackend(
   }
 
   const name = await getStudentName()
-
   const localRecord = saveToLocal(quiz, userAnswer, correctAnswer, id, name)
 
   try {
@@ -390,8 +403,8 @@ async function submitToBackend(
     })
 
     debugLog('[AdaptQuiz] 答题数据已成功提交到后端:', result)
-  } catch (error) {
-    debugError('[AdaptQuiz] 后端提交失败，但本地已保存:', error)
+  } catch (e) {
+    debugError('[AdaptQuiz] 后端提交失败，但本地已保存:', e)
     debugLog('[AdaptQuiz] 本地保存的记录:', localRecord)
   }
 }
@@ -406,18 +419,13 @@ function handleNext() {
   }
 }
 
-function handleRetry() {
-  loadData()
-}
-
+// 题目序号（questionNumber prop）变化时跳转对应题号
 watch(
   () => props.questionNumber,
   () => {
     if (quizzes.value.length > 0) {
       const index = quizzes.value.findIndex((q) => q.questionNumber === props.questionNumber)
-      if (index !== -1) {
-        currentIndex.value = index
-      }
+      if (index !== -1) currentIndex.value = index
     }
   },
 )

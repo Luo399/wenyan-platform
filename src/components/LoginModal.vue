@@ -1,38 +1,65 @@
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" @click.self="handleOverlayClick">
+      <!--
+        R44/R45: modal 基础 ARIA
+        - modal-overlay: role=dialog + aria-modal=true + aria-labelledby 指向标题
+        - @keydown: Tab/Shift+Tab 循环（focus trap），ESC 关闭
+      -->
+      <div
+        v-if="visible"
+        class="modal-overlay"
+        ref="overlayRef"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-modal-title"
+        aria-describedby="login-modal-subtitle"
+        @click.self="handleOverlayClick"
+        @keydown="handleModalKeydown"
+      >
         <div class="modal-container" ref="modalRef">
           <!-- 关闭按钮 -->
-          <button class="close-btn" @click="handleClose" aria-label="关闭">
-            <span class="close-icon">×</span>
+          <button class="close-btn" type="button" @click="handleClose" aria-label="关闭登录对话框">
+            <span class="close-icon" aria-hidden="true">×</span>
           </button>
 
           <!-- 标题 -->
           <div class="modal-header">
-            <h2 class="modal-title">用户登录</h2>
-            <p class="modal-subtitle">请输入学号和密码进行登录</p>
+            <h2 id="login-modal-title" class="modal-title">用户登录</h2>
+            <p id="login-modal-subtitle" class="modal-subtitle">请输入学号和密码进行登录</p>
           </div>
 
           <!-- 表单 -->
-          <form class="login-form" @submit.prevent="handleSubmit">
+          <form class="login-form" @submit.prevent="handleSubmit" novalidate>
             <!-- 学号输入 -->
             <div class="form-group">
               <label for="studentId" class="form-label">学号</label>
               <input
+                ref="firstFocusableRef"
                 id="studentId"
                 v-model="studentId"
                 type="text"
+                inputmode="numeric"
+                autocomplete="username"
                 class="form-input"
                 :class="{ error: hasError && !studentId }"
+                :aria-invalid="Boolean(hasError && !studentId)"
+                :aria-describedby="hasError && !studentId ? 'studentId-error' : undefined"
                 placeholder="请输入学号"
                 :disabled="isLoading"
                 @input="handleStudentIdInput"
               />
-              <span v-if="hasError && !studentId" class="error-message"> 请输入学号 </span>
+              <span
+                v-if="hasError && !studentId"
+                id="studentId-error"
+                role="alert"
+                class="error-message"
+              >
+                请输入学号
+              </span>
             </div>
 
-            <!-- R103: 密码输入 -->
+            <!-- 密码输入 -->
             <div class="form-group">
               <label for="password" class="form-label">密码</label>
               <input
@@ -41,15 +68,25 @@
                 type="password"
                 class="form-input"
                 :class="{ error: hasError && !password }"
+                :aria-invalid="Boolean(hasError && !password)"
+                :aria-describedby="hasError && !password ? 'password-error' : undefined"
                 placeholder="请输入密码"
                 :disabled="isLoading"
                 autocomplete="current-password"
+                @input="clearValidation"
               />
-              <span v-if="hasError && !password" class="error-message"> 请输入密码 </span>
+              <span
+                v-if="hasError && !password"
+                id="password-error"
+                role="alert"
+                class="error-message"
+              >
+                请输入密码
+              </span>
             </div>
 
             <!-- 学生姓名显示 -->
-            <div v-if="studentName" class="student-name-display">
+            <div v-if="studentName" class="student-name-display" role="status">
               <span class="name-label">学生姓名：</span>
               <span class="name-value">{{ studentName }}</span>
             </div>
@@ -57,14 +94,19 @@
             <!-- 记住登录状态 -->
             <div class="form-group remember-group">
               <label class="checkbox-label">
-                <input v-model="rememberMe" type="checkbox" class="checkbox-input" />
+                <input
+                  v-model="rememberMe"
+                  type="checkbox"
+                  class="checkbox-input"
+                  :disabled="isLoading"
+                />
                 <span class="checkbox-text">记住登录状态</span>
               </label>
             </div>
 
-            <!-- 错误提示 -->
-            <div v-if="authStore.error" class="error-box">
-              <span class="error-icon">⚠</span>
+            <!-- 错误提示（来自 store） -->
+            <div v-if="authStore.error" class="error-box" role="alert" aria-live="assertive">
+              <span class="error-icon" aria-hidden="true">⚠</span>
               <span class="error-text">{{ authStore.error }}</span>
             </div>
 
@@ -74,15 +116,18 @@
               class="login-btn"
               :disabled="isLoading || !studentId || !password"
             >
-              <span v-if="isLoading" class="loading-spinner"></span>
+              <span v-if="isLoading" class="loading-spinner" aria-hidden="true"></span>
               <span>{{ isLoading ? '登录中...' : '登录' }}</span>
             </button>
           </form>
 
-          <!-- 测试账号提示 -->
-          <div class="test-account-hint">
+          <!--
+            R31: 测试账号提示默认仅在开发环境 + VITE_TEST_ACCOUNTS 配置时展示
+            生产环境构建默认不显示，避免泄露测试账号
+          -->
+          <div v-if="showTestHint" class="test-account-hint">
             <p>测试账号：</p>
-            <p class="test-accounts">1 | 2 | 3 | 4 | 5</p>
+            <p class="test-accounts">{{ testAccountsText }}</p>
             <p class="format-hint">学号格式：数字（如：1、2024001）</p>
             <p class="format-hint">默认密码：123456（教师重置后同此值）</p>
           </div>
@@ -93,10 +138,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentQuery } from '@/composables/useStudentQuery'
 import { debugError } from '@/utils/debug'
+
+// ============================================================
+// R31: 测试账号通过环境变量控制；生产默认不展示
+// 开发环境：VITE_TEST_ACCOUNTS 空数组则不展示，有值（"1,2,3"）则展示
+// 生产环境：import.meta.env.DEV=false，除非显式把 showTestHint 置 true
+// ============================================================
+const VITE_TEST_ACCOUNTS = import.meta.env.VITE_TEST_ACCOUNTS as string | undefined
+const parsedTestAccounts =
+  VITE_TEST_ACCOUNTS?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean) ?? []
+const showTestHint = computed(() => import.meta.env.DEV && parsedTestAccounts.length > 0)
+const testAccountsText = computed(() => parsedTestAccounts.join(' | '))
 
 // Props
 interface Props {
@@ -111,12 +169,16 @@ const emit = defineEmits<{
   (e: 'login-success'): void
 }>()
 
-// Refs
+// ============================================================
+// Refs: focus trap 用到 modal 容器 + 第一个可聚焦元素
+// ============================================================
 const modalRef = ref<HTMLElement | null>(null)
+const overlayRef = ref<HTMLDivElement | null>(null)
+const firstFocusableRef = ref<HTMLInputElement | null>(null)
 
 // State
 const studentId = ref('')
-const password = ref('') // R103: 新增密码输入
+const password = ref('')
 const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
@@ -131,44 +193,90 @@ const { queryStudentName } = useStudentQuery()
 // 计算属性
 const isLoading = authStore.isLoading
 
-// 监听错误变化
+/**
+ * R30: 手写 debounce（避免引入 lodash-es）
+ * - 300ms 内重复输入只保留最后一次，停止输入 300ms 后发起请求
+ * - 同时处理"请求序号"的竞态：后输入的响应即使后发出，也保证不会被先到的旧请求覆盖
+ */
+function debounce<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const debounced = function (this: unknown, ...args: Parameters<T>) {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => fn.apply(this, args), waitMs)
+  } as T & { cancel: () => void; flush: () => void }
+  debounced.cancel = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+  debounced.flush = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+  return debounced
+}
+
+// R30 防抖 + 竞态控制
+const QUERY_DEBOUNCE_MS = 300 as const
+let lastQuerySeq = 0
+async function queryNameInternal(id: string) {
+  const trimmed = id.trim()
+  if (trimmed.length < 1) {
+    studentName.value = ''
+    return
+  }
+  const seq = ++lastQuerySeq
+  const name = await queryStudentName(trimmed)
+  // 只保留"最后一次请求"的响应，避免先发的请求晚到后覆盖新结果
+  if (seq === lastQuerySeq) {
+    studentName.value = name
+  }
+}
+const debouncedQueryName = debounce(queryNameInternal, QUERY_DEBOUNCE_MS)
+
+// R33: authStore.error 为 falsy 时 hasError 自动置 false，解决"错误永远残留"的反模式
 watch(
   () => authStore.error,
   (newError) => {
-    if (newError) {
-      hasError.value = true
-    }
+    hasError.value = !!newError
   },
 )
 
-// 监听可见性变化
+// 监听可见性变化：打开时清空表单，focus 到第一个输入；关闭时清理资源
 watch(
   () => props.visible,
-  (newVisible) => {
+  async (newVisible) => {
     if (newVisible) {
       studentId.value = ''
-      password.value = '' // R103: 打开时清空密码
+      password.value = ''
       studentName.value = ''
       hasError.value = false
+      lastQuerySeq = 0
       authStore.clearError()
-      setTimeout(() => {
-        const input = document.getElementById('studentId')
-        input?.focus()
-      }, 300)
+      // 记录 modal 打开前被 focus 的元素，关闭时归还给它（WAI-ARIA 规范）
+      capturePreviouslyFocused()
+      await nextTick()
+      // 比 setTimeout 更可靠地 focus；nextTick 后 DOM 已渲染
+      const el = firstFocusableRef.value || document.getElementById('studentId')
+      if (el && typeof (el as HTMLElement).focus === 'function') {
+        ;(el as HTMLElement).focus()
+      }
+    } else {
+      // 关闭：取消未完成的 debounce，避免关闭后还在异步回调里 mutate state
+      debouncedQueryName.cancel()
+      lastQuerySeq = 0
+      restorePreviouslyFocused()
     }
   },
 )
 
-// 学号输入处理
+// 学号输入处理：本地先清错误，然后异步防抖查询姓名
 async function handleStudentIdInput(): Promise<void> {
   clearValidation()
-
-  // 当学号长度 >= 1 时查询学生姓名
-  if (studentId.value.trim().length >= 1) {
-    studentName.value = await queryStudentName(studentId.value)
-  } else {
-    studentName.value = ''
-  }
+  debouncedQueryName(studentId.value)
 }
 
 // 清除验证状态
@@ -183,8 +291,6 @@ async function handleSubmit(): Promise<void> {
     hasError.value = true
     return
   }
-
-  // R103: 密码必填校验
   if (!password.value) {
     hasError.value = true
     return
@@ -192,9 +298,10 @@ async function handleSubmit(): Promise<void> {
 
   if (isSubmitting.value) return
   isSubmitting.value = true
+  // 提交时取消尚未完成的学生姓名查询（不需要了）
+  debouncedQueryName.cancel()
 
   try {
-    // R103: 传 password 参数（必填），studentName 仅用于显示回退
     await authStore.login(studentId.value.trim(), password.value, studentName.value)
     emit('login-success')
     handleClose()
@@ -215,10 +322,78 @@ function handleOverlayClick(): void {
   emit('close')
 }
 
-// ESC 键关闭
+// ESC 键关闭（全局监听版本；handleModalKeydown 已经负责 focus trap+ESC，这里保留兜底）
 function handleKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape' && props.visible) {
     emit('close')
+  }
+}
+
+// ============================================================
+// R32: Focus trap
+// 按 WAI-ARIA dialog 规范：Tab / Shift+Tab 在 modal 内部"第一↔最后"个可聚焦元素循环
+// ============================================================
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'area[href]',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  'button:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+let previouslyFocused: HTMLElement | null = null
+
+function capturePreviouslyFocused() {
+  const active = document.activeElement
+  previouslyFocused = active instanceof HTMLElement ? active : null
+}
+
+function restorePreviouslyFocused() {
+  try {
+    previouslyFocused?.focus?.()
+  } catch {
+    /* ignore */
+  }
+  previouslyFocused = null
+}
+
+function getFocusableInModal(): HTMLElement[] {
+  const root = modalRef.value
+  if (!root) return []
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute('disabled'),
+  )
+}
+
+function handleModalKeydown(e: KeyboardEvent) {
+  // 全局 ESC 监听也会处理；这里再处理一次保证 focus trap 内生效
+  if (e.key === 'Escape') {
+    emit('close')
+    return
+  }
+  if (e.key !== 'Tab') return
+  const focusables = getFocusableInModal()
+  if (focusables.length === 0) return
+  const first = focusables[0]
+  const last = focusables[focusables.length - 1]
+  // 上一步已排除 length===0，first / last 一定非 undefined
+  if (!first || !last) return
+  const active = document.activeElement as HTMLElement | null
+
+  if (e.shiftKey) {
+    // Shift+Tab：在第一个元素上 Tab Shift 要回到最后
+    if (!active || active === first || !modalRef.value?.contains(active)) {
+      e.preventDefault()
+      last.focus()
+    }
+  } else {
+    // Tab：在最后一个元素上 Tab 要回到第一个
+    if (!active || active === last || !modalRef.value?.contains(active)) {
+      e.preventDefault()
+      first.focus()
+    }
   }
 }
 
@@ -229,6 +404,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  debouncedQueryName.cancel()
 })
 </script>
 
@@ -499,20 +675,27 @@ onUnmounted(() => {
 
 .test-account-hint p {
   margin: 0;
-  font-size: 0.75rem;
+  /* R28: 辅助小字统一用 font-size-xs token */
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
-.test-accounts {
-  margin-top: 0.25rem !important;
-  color: var(--color-primary) !important;
+/*
+ * R29: 移除 !important
+ * scoped 选择器 + 更具体的上下文（.test-account-hint .test-accounts）
+ * 已经拥有足够特异性，不需要 !important 就能覆盖父级 p 的样式
+ */
+.test-account-hint .test-accounts {
+  margin-top: 0.25rem;
+  color: var(--color-primary);
   font-family: monospace;
 }
 
-.format-hint {
-  margin-top: var(--spacing-xs) !important;
-  color: var(--color-text-secondary) !important;
-  font-size: 0.625rem !important;
+.test-account-hint .format-hint {
+  margin-top: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  /* R28: 提示类说明文字统一用 font-size-caption token */
+  font-size: var(--font-size-caption);
 }
 
 /* 响应式设计 */

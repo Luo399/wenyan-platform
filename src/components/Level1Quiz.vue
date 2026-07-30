@@ -69,7 +69,7 @@
       </div>
 
       <div class="quiz-actions">
-        <button :disabled="!allAnswered" class="submit-btn" @click="submitAnswers">提交答案</button>
+        <button :disabled="!allAnswered" class="submit-btn" @click="handleSubmit">提交答案</button>
       </div>
 
       <div v-if="showResult" class="result-panel">
@@ -87,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useStudentInfo } from '@/composables/useStudentInfo'
 import { submitAnswers as submitAnswersApi } from '@/services/apiService'
@@ -97,6 +97,11 @@ import BaseEmpty from '@/components/common/BaseEmpty.vue'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 import { appendQuizRecord } from '@/utils/localStorage'
 
+// ============================================================
+// R13: correct_answer 类型规范 + 归一化工具
+// 后端 JSON 可能写成 number 或 string（"0"/"1"/...），这里显式声明联合，
+// 并提供 normalizeCorrectAnswer 在读取时统一转 number。
+// ============================================================
 interface Level1QuizItem {
   text_id: string
   question_number: number
@@ -105,10 +110,20 @@ interface Level1QuizItem {
   option_b: string
   option_c: string
   option_d: string
-  correct_answer: number
+  correct_answer: number | string
   correct_index?: number
   explanation: string
   difficulty: string
+}
+
+/**
+ * 将 correct_answer（string | number）归一化为从 0 开始的选项索引。
+ * 无法解析时返回 0（容错，避免全串 NaN）。
+ */
+function normalizeCorrectAnswer(value: number | string | undefined | null): number {
+  if (value === undefined || value === null) return 0
+  const num = typeof value === 'number' ? value : parseInt(String(value), 10)
+  return Number.isFinite(num) ? num : 0
 }
 
 interface Props {
@@ -151,6 +166,7 @@ const {
   },
 })
 
+// P2 顺手修 oxlint unicorn/no-new-array：用 Array.from 替代 new Array(n).fill()
 const selectedAnswers = ref<(number | null)[]>([])
 const submitted = ref<boolean[]>([])
 const showResult = ref(false)
@@ -158,10 +174,9 @@ const showResult = ref(false)
 const { studentId, getStudentName } = useStudentInfo()
 
 function initState() {
-  const data = quizList.value
-  const length = data?.length || 0
-  selectedAnswers.value = new Array(length).fill(null)
-  submitted.value = new Array(length).fill(false)
+  const length = quizList.value?.length || 0
+  selectedAnswers.value = Array.from({ length }, () => null)
+  submitted.value = Array.from({ length }, () => false)
   showResult.value = false
 }
 
@@ -182,15 +197,15 @@ function getOptions(quiz: Level1QuizItem) {
   ]
 }
 
+/**
+ * R13: 统一使用 normalizeCorrectAnswer，
+ * 避免 parseInt(String(...)) 到处分散 + correct_index 优先逻辑写两次。
+ */
 function getCorrectIndex(quiz: Level1QuizItem): number {
   if (quiz.correct_index !== undefined) {
     return quiz.correct_index
   }
-  if (typeof quiz.correct_answer === 'number') {
-    return quiz.correct_answer
-  }
-  const parsed = parseInt(String(quiz.correct_answer), 10)
-  return isNaN(parsed) ? 0 : parsed
+  return normalizeCorrectAnswer(quiz.correct_answer)
 }
 
 function selectOption(quizIndex: number, optIndex: number) {
@@ -214,7 +229,11 @@ const correctCount = computed(() => {
   return count
 })
 
-function submitAnswers() {
+/**
+ * R14（顺手修 P3）: 本地函数改名为 handleSubmit，
+ * 避免和顶部 import 的 submitAnswersApi 造成"同名易混淆"。
+ */
+function handleSubmit() {
   if (!allAnswered.value) return
 
   submitted.value = submitted.value.map(() => true)
@@ -229,24 +248,24 @@ function submitAnswers() {
   emit('submit', answersRecord)
   emit('complete', { correct: correctCount.value, total: quizList.value?.length || 0 })
 
-  // 自动提交到后端
   submitToBackend(answersRecord)
 }
 
 /**
  * 保存答题数据到本地存储
  */
-function saveToLocal(answers: Record<number, number>, studentId: string, studentName: string) {
+function saveToLocal(answers: Record<number, number>, id: string, studentName: string) {
   if (!quizList.value?.length) return
 
   const now = new Date()
   const submittedAt = now.toISOString()
 
-  // 构建答题记录
   const records = quizList.value.map((quiz, index) => {
     const userAnswer = answers[index]
-    const correctAnswer = quiz.correct_answer
-    const isCorrect = String(userAnswer) === String(correctAnswer)
+    const correctAnswer = normalizeCorrectAnswer(quiz.correct_answer)
+    // R13: 统一用数值比较，避免 String(userAnswer) === String(correctAnswer)
+    // （当类型混乱时字符串比较会出现 "1" !== 1 的伪负例）
+    const isCorrect = Number(userAnswer) === correctAnswer
     const questionId = `${props.wenId}_level1_q${quiz.question_number || index + 1}`
 
     return {
@@ -261,7 +280,7 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
   })
 
   const report = {
-    studentId,
+    studentId: id,
     studentName,
     wenId: props.wenId,
     submittedAt,
@@ -273,13 +292,11 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
     records,
   }
 
-  // 保存到 localStorage（通过 utils/localStorage 封装，避免组件直接操作 storage）
-  const allRecords = appendQuizRecord(studentId, report)
+  const allRecords = appendQuizRecord(id, report)
 
   debugLog('[Level1Quiz] 答题数据已保存到本地:', report, '当前共', allRecords.length, '条')
 
-  // 自动下载报告
-  downloadReport(report, studentId, studentName)
+  downloadReport(report, id, studentName)
 
   return report
 }
@@ -287,8 +304,8 @@ function saveToLocal(answers: Record<number, number>, studentId: string, student
 /**
  * 下载答题报告
  */
-function downloadReport(report: any, studentId: string, studentName: string) {
-  const filename = `答题报告_${studentId}_${studentName}_${props.wenId}_${new Date().toISOString().slice(0, 10)}.json`
+function downloadReport(report: unknown, id: string, studentName: string) {
+  const filename = `答题报告_${id}_${studentName}_${props.wenId}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
 
   if (typeof URL.createObjectURL === 'function') {
@@ -320,23 +337,20 @@ async function submitToBackend(answers: Record<number, number>) {
   }
 
   const name = await getStudentName()
-
-  // 先保存到本地（确保数据不丢失）
   const localReport = saveToLocal(answers, id, name)
 
   try {
-    // 构建题目信息（包含正确答案和题目ID）
     const questions = quizList.value.map((quiz, index) => ({
       id: `${props.wenId}_level1_q${quiz.question_number || index + 1}`,
-      correctAnswer: quiz.correct_answer,
+      correctAnswer: normalizeCorrectAnswer(quiz.correct_answer),
     }))
 
-    // 构建答案映射
     const answerMap: Record<string, number> = {}
     Object.entries(answers).forEach(([index, answer]) => {
-      const quiz = quizList.value![parseInt(index)]
+      const idxNum = parseInt(index)
+      const quiz = quizList.value?.[idxNum]
       if (quiz) {
-        const key = `${props.wenId}_level1_q${quiz.question_number || parseInt(index) + 1}`
+        const key = `${props.wenId}_level1_q${quiz.question_number || idxNum + 1}`
         answerMap[key] = answer
       }
     })
@@ -358,8 +372,8 @@ async function submitToBackend(answers: Record<number, number>) {
     )
 
     debugLog('[Level1Quiz] 答题数据已成功提交到后端:', result)
-  } catch (error) {
-    debugError('[Level1Quiz] 后端提交失败，但本地已保存:', error)
+  } catch (err) {
+    debugError('[Level1Quiz] 后端提交失败，但本地已保存:', err)
     debugLog('[Level1Quiz] 本地保存的报告:', localReport)
   }
 }
@@ -368,7 +382,7 @@ function resetQuiz() {
   initState()
 }
 
-onMounted(() => {})
+// R11: 删除空 onMounted(() => {})
 </script>
 
 <style scoped>
@@ -413,20 +427,20 @@ onMounted(() => {})
   font-weight: var(--font-weight-semibold);
 }
 
-/* 难度标签配色（语义色，无对应 token，保持原值） */
+/* R12: 难度标签配色统一走语义 token，不再硬编码 HEX */
 .difficulty-tag.L1 {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .difficulty-tag.L2 {
-  background-color: #dbeafe;
+  background-color: var(--color-info-bg);
   color: var(--color-primary);
 }
 
 .difficulty-tag.L3 {
-  background-color: #fee2e2;
-  color: #991b1b;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .question-text {
@@ -468,15 +482,15 @@ onMounted(() => {})
   border-color: var(--color-primary);
 }
 
-/* 正确状态：语义色绿色 */
+/* R12: 正确状态 - 走成功语义 token */
 .option-btn.correct {
-  background-color: #f0fdf4;
-  border-color: #22c55e;
+  background-color: var(--color-success-bg-soft);
+  border-color: var(--color-success-light);
 }
 
-/* 错误状态：语义色红色 */
+/* R12: 错误状态 - 走错误语义 token */
 .option-btn.wrong {
-  background-color: #fef2f2;
+  background-color: var(--color-danger-bg-soft);
   border-color: var(--color-primary);
 }
 
@@ -503,8 +517,9 @@ onMounted(() => {})
   color: var(--color-white);
 }
 
+/* R12: correct/wrong 选项字母底色走语义 token */
 .option-btn.correct .option-letter {
-  background-color: #22c55e;
+  background-color: var(--color-success-light);
   color: var(--color-white);
 }
 
@@ -526,8 +541,9 @@ onMounted(() => {})
   font-weight: bold;
 }
 
+/* R12: 正确/错误图标颜色走语义 token */
 .correct-icon {
-  color: #22c55e;
+  color: var(--color-success-light);
 }
 
 .wrong-icon {
