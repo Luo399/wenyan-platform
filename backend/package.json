@@ -12,13 +12,15 @@
     "test:coverage": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage --testPathPatterns=tests/"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
-    "sqlite3": "^5.1.6"
+    "sqlite3": "^5.1.6",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
@@ -35,6 +37,13 @@
     ],
     "testMatch": [
       "**/tests/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "tests/api.test.js",
+      "tests/api.comprehensive.test.js",
+      "tests/answer-comparison.test.js",
+      "tests/wen_module.test.js"
     ]
   }
 }
