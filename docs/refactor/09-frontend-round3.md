@@ -91,18 +91,19 @@
 ### R55. DialogText watch 与 nextDialog/prevDialog 重复触发 typeText（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**: `src/components/DialogText.vue`（第 217-242, 282-287 行）
 - **问题描述**: `nextDialog`/`prevDialog` 内手动调用 `typeText`，同时 `watch(currentIndex)` 也会触发 `typeText`，导致打字机双重触发，文字闪烁/错乱
 - **修复方案**: 统一由 watch 处理 typeText 触发，删除 next/prev 中的手动调用（或反之）
 - **验证方式**: 切换对话时打字机效果只触发一次，文字流畅无闪烁
 - **分支建议**: `bugfix/round3-55-dialogtext-typetext-dup`
 - **依赖**: R54
+- **实施记录（2026-07-30）**: 删除 nextDialog/prevDialog 内手动 typeText 调用，仅保留 emit；typeText 统一由 watch(currentIndex) 触发
 
 ### R56. DialogText / DialogueCard 创建新 Audio 前未清理旧实例导致内存泄漏（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**:
   - `src/components/DialogText.vue`（第 245-268 行 `toggleAudio`）
   - `src/components/DialogueCard.vue`（第 155-177 行 `playAudio`）
@@ -122,11 +123,12 @@
 - **验证方式**: 连续点击多个对话的播放按钮不会出现音频叠加；组件卸载无音频残留
 - **分支建议**: `bugfix/round3-56-audio-leak`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: DialogText.toggleAudio 与 DialogueCard.playAudio 创建新 Audio 前统一执行 pause + onended=null + 置空
 
 ### R57. ScenQuiz loadQuizzes 函数超长且 level1/2/3 三段逻辑重复（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**: `src/components/ScenQuiz.vue`（第 199-302 行）
 - **问题描述**: `loadQuizzes` 函数约 100 行，远超 20 行限制，且 level1/2/3 三段逻辑高度重复（违反 DRY），仅 adapter 函数名与类型断言不同
 - **修复方案**:
@@ -136,6 +138,11 @@
 - **验证方式**: `npm run test` 通过；函数行数 < 20
 - **分支建议**: `refactor/round3-57-scenquiz-split`
 - **依赖**: R51
+- **实施记录（2026-07-30）**:
+  - 抽取 `watchLoader<T>(loader, timeoutMsg, onLoaded)` 通用函数，复用 watch+timeout 逻辑
+  - 新增 `adaptAndStoreQuizzes(level, raw)` 通过 typeMap/getAllMap 动态选择 adapter
+  - `loadQuizzes` 从 ~100 行缩减到 ~7 行；`loadScenarios` 同步简化
+  - 注：R51 顶层化未做（R51 已关闭，保持现状）
 
 ### R58. StepThreeView isSubmitted 在 v-for 中 O(n²) 复杂度（P2）
 
@@ -187,13 +194,14 @@
 ### R62. CultureCards 用 div @click 作为可交互元素无键盘支持（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**: `src/components/CultureCards.vue`（第 27-33 行）
 - **问题描述**: 卡片用 `<div @click="handleCardClick(card)">`，无 `role="button"`、`tabindex="0"`、键盘事件（Enter/Space）处理，键盘用户无法操作，违反 WCAG 2.1 Level A
 - **修复方案**: 改用 `<button>` 元素，或加 `role="button" tabindex="0" @keydown.enter="handleCardClick(card)" @keydown.space="handleCardClick(card)"`
 - **验证方式**: 仅用键盘能选中并打开文化卡片
 - **分支建议**: `a11y/round3-62-culturecards-keyboard`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: 加 `:role="isUnlocked ? 'button' : undefined"`、`:tabindex="isUnlocked ? 0 : -1"`、`aria-label`、`@keydown.enter`、`@keydown.space.prevent`；新增 `.card-item:focus-visible` 样式
 
 ### R63. CultureCards isUnlocked 恒返回 true（dead code）（P2）
 
@@ -209,7 +217,7 @@
 ### R64. AudioPlayer / VideoPlayer 进度条不可键盘操作（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**:
   - `src/components/AudioPlayer.vue`（第 47-51 行）
   - `src/components/VideoPlayer.vue`（第 53-59 行）
@@ -232,6 +240,7 @@
 - **验证方式**: Tab 键可聚焦进度条；左右箭头可调整进度
 - **分支建议**: `a11y/round3-64-media-progress-keyboard`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: AudioPlayer/VideoPlayer 的 `.progress-wrapper` 加 role=slider/tabindex/aria-valuenow/aria-label/`@keydown.left`/`@keydown.right`；新增 `seekBy(delta)` 函数（步长 5%，clamp 到 0~1）；新增 `.progress-wrapper:focus-visible` 样式
 
 ### R65. AudioPlayer / VideoPlayer seek 未校验 percent 越界（P3）
 
@@ -838,7 +847,7 @@
 ### R109. level1/2/3QuizAdapter correct_answer `|| null` 对 0/'' 误判（P1 bug）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**:
   - `src/adapters/level1QuizAdapter.ts`（第 56 行）
   - `src/adapters/level2QuizAdapter.ts`（第 56 行）
@@ -848,6 +857,7 @@
 - **验证方式**: correct_answer 为 0 时正确保留；答题判定正确
 - **分支建议**: `bugfix/round3-109-adapter-correct-answer`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: 三个 adapter 的 `correctAnswer: item.correct_answer || null` → `item.correct_answer ?? null`
 
 ### R110. quizAdapter parseInt `|| 1` 对 0 误判（P2 bug）
 

@@ -128,10 +128,11 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md R103     | 1/66（R103）                | stores/auth.ts 加 password 参数 + 改调 /api/auth/student/login；LoginModal/StudentDisplay 加密码输入框；apiService.ts 删 dead login；PR #55 squash 合并到 feature-1，测试环境部署成功。强制改密流程延后 |
 | 2026-07-30              | 09-frontend-round3.md P1 批次  | 8/66（R75, R82, R91, R96, R98, R101, R104, R115） | P1 安全+数据完整性批次：R75/R82 被前序轮次覆盖；R91/R96/R98/R101/R104/R115 由 PR #58 squash 合并到 feature-1，测试环境部署成功 |
 | 2026-07-30              | 07-data-pipeline.md            | 7/7（P01-P07）              | config.py 重构提取 map_answer_to_index/post_process_quiz_generic 并消除副作用；validators.py 加 is_absolute_path/validate_no_absolute_path；新建 pyproject.toml 声明依赖与包结构；main.py 移除 sys.path.append；ci-checks.yml 新增 pipeline-test job；test_config.py/test_validators.py 补充单元测试；P02/P03 代码早已修复同步文档状态 |
+| 2026-07-30              | 09-frontend-round3.md P1 批次4 | 6/66（R55, R56, R57, R62, R64, R109） | P1 bug+a11y 批次：R55 DialogText typeText 去重；R56 Audio 内存泄漏；R57 ScenQuiz watchLoader 抽取；R62 CultureCards 键盘支持；R64 进度条键盘操作；R109 correct_answer ?? 修复。PR #60 squash 合并到 feature-1，前端测试部署成功（无 backend 改动，后端部署未触发属预期） |
 | -                       | 01-03, 05-06 专题              | 0/57                        | 待开始（07 已完成）                                                                                                                                             |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
-| -                       | 09-frontend-round3.md 剩余     | 0/52                        | R51/R52/R54/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R115 已完成（14 项），剩余 52 项待开始                                                                   |
-| -                       | **合计**                       | **32/191**                  | 专题 18（04 的 11 + 07 的 7）+ 滚动审查 14（R51/R52/R54/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R115）                                                       |
+| -                       | 09-frontend-round3.md 剩余     | 0/46                        | R51/R52/R54/R55/R56/R57/R62/R64/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R109/R115 已完成（20 项），剩余 46 项待开始                                           |
+| -                       | **合计**                       | **38/191**                  | 专题 18（04 的 11 + 07 的 7）+ 滚动审查 20（R51/R52/R54/R55/R56/R57/R62/R64/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R109/R115）                              |
 
 ## 使用方式
 
