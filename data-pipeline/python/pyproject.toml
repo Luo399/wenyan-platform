@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "wenyan-data-pipeline"
 version = "1.0.0"
 description = "Excel to JSON data pipeline for wenyan-platform"
-readme = "../README.md"
 requires-python = ">=3.9"
 authors = [{ name = "wenyan-platform" }]
 dependencies = [
