@@ -43,25 +43,8 @@ import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
-import { useStudentInfo } from '@/composables/useStudentInfo'
-import { submitAnswers } from '@/services/apiService'
-import type { ProcessedMultiRoleData } from '@/adapters/multiPoleAdapter'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 import { debugLog, debugError } from '@/utils/debug'
-
-interface Level1QuizItem {
-  text_id: string
-  question_number: number
-  question_text: string
-  option_a: string
-  option_b: string
-  option_c: string
-  option_d: string
-  correct_answer: number
-  correct_index?: number
-  explanation: string
-  difficulty: string
-}
 
 const route = useRoute()
 
