@@ -35,6 +35,13 @@ from .data_transformer import (
     safe_get
 )
 
+from .tencent_reader import (
+    get_default_export_dir,
+    resolve_export_dir,
+    find_latest_export,
+    list_exports,
+)
+
 __all__ = [
     # excel_reader
     'ExcelHeader',
@@ -45,14 +52,14 @@ __all__ = [
     'read_sheet_full',
     'get_english_sheets',
     'print_sheet_info',
-    
+
     # json_writer
     'save_json',
     'save_json_by_group',
     'save_json_items',
     'format_json',
     'validate_json',
-    
+
     # data_transformer
     'convert_letter_to_index',
     'group_by_column',
@@ -60,5 +67,11 @@ __all__ = [
     'remove_empty_fields',
     'merge_dicts',
     'ensure_list',
-    'safe_get'
+    'safe_get',
+
+    # tencent_reader
+    'get_default_export_dir',
+    'resolve_export_dir',
+    'find_latest_export',
+    'list_exports',
 ]

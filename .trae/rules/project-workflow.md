@@ -68,16 +68,24 @@ scene: git_push
 
 ## 5. 数据流与组件分层（禁止违规）
 - 数据来源分层：JSON 数据（OSS）→ `utils/` 解析封装 → `composables/` 行为封装 → `views/` 页面 → `components/` 视图组件。
-- 任何组件**不得**直接 `fetch('/data/...')`，必须走 `utils/` 中的封装（如未来抽离 `dataLoader.ts`）。
+- 任何组件**不得**直接 `fetch('/data/...')`，必须走 `utils/` 或 `composables/useDataLoader` 中的封装。
 - `useNavigation` 是唯一跳转入口，禁止在组件内直接 `router.push({ name: 'xxx' })`（除 `PoetryMenu` 这种"非顺序"入口外）。
-- 学生身份（学号）必须走 `useStudentStore`，禁止在组件内读 `localStorage`。
+- 学生身份（学号）必须走 `useStudentStore` / `useAuthStore`，禁止在组件内读 `localStorage`。
 - 提交答案必须走 `utils/api.ts` 的 `submitAnswers`，禁止在组件内直接 fetch `/api/submit`。
 
+### 5.1 数据管线分层（Python 侧）
+- 转换层：`generate_all_json.py`（utils + transformers）是 Excel → JSON 的**唯一事实源**。
+- 协调层：`data_processor/main.py` 负责调用转换层、增量检测、backend/data 同步、版本快照，**不再重复实现转换**。
+- 增量层：`IncrementalProcessor` 检测 `public/data/<subdir>/` 下文件级 diff。
+- 版本层：`VersionManager` 为 `public/data/` 创建目录快照。
+- 同步层：`_sync_public_to_backend` 将 `public/data/` 同步到 `backend/data/`（保留后端专属文件）。
+- 数据源：默认 Excel（`data-pipeline/source/`）；可选腾讯文档导出（`--source tencent`，从 `TENCENT_DOC_EXPORT_DIR` 读取）。
+
 ## 6. 命名与质量红线
-- 组件名必须 ≥ 2 个单词（PascalCase），单文件组件禁止以单词命名（已用 `eslint-disable vue/multi-word-component-names` 的 `Options.vue` / `Question.vue` 是历史债务，需在下一阶段整改）。
-- 视图文件 `RuleView1/2/3.vue` 与 `RuleView.vue` 高度重复（仅视频后缀不同），属于必须重构的代码异味——下一阶段合并为 `RuleVideoView.vue` + `videoKey` 参数。
-- 禁止在生产构建中保留 `console.log` 调试输出（`MultiRoleReading.vue`、`StepOneView.vue` 仍有，需清理）。
-- 禁止 `multi_role_reading` / `word_list` / `text_basic_info` JSON 中嵌入绝对路径，必须用相对路径或 `VITE_OSS_BASE_URL` 拼接。
+- 组件名必须 ≥ 2 个单词（PascalCase）。
+- 视图文件 `RuleView1/2/3.vue` 与 `RuleView.vue` 已合并为 `RuleVideoView.vue` + `videoKey` 参数（已完成）。
+- 禁止在生产构建中保留 `console.log` 调试输出（历史 `MultiRoleReading.vue`、`StepOneView.vue` 残留已清理）。
+- 禁止 `multi_role_reading` / `word_list` / `text_basic_info` JSON 中嵌入绝对路径，必须用相对路径或 `VITE_OSS_BASE_URL` 拼接（已合规）。
 
 ## 7. 部署红线（血泪教训）
 - **禁止 `npm ci` 用于后端部署**：lock 文件不同步会导致依赖安装失败，使用 `npm install --production`。
