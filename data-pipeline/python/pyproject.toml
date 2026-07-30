@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wenyan-data-pipeline"
+version = "1.0.0"
+description = "Excel to JSON data pipeline for wenyan-platform"
+readme = "../README.md"
+requires-python = ">=3.9"
+authors = [{ name = "wenyan-platform" }]
+dependencies = [
+    "openpyxl>=3.1.0",
+]
+
+[project.optional-dependencies]
+# 测试依赖：CI 与本地跑 pytest 时安装
+test = [
+    "pytest>=7.0",
+]
+
+[tool.setuptools]
+# 声明可导入的包（data_processor / utils / transformers）
+packages = ["data_processor", "utils", "transformers"]
+# 顶层模块（generate_all_json.py 作为可导入模块）
+py-modules = ["generate_all_json"]
+
+[tool.pytest.ini_options]
+# pytest 直接从 data-pipeline/python/ 解析包，无需 pip install 即可跑测试
+# （pythonpath 等价于在 conftest.py 里 sys.path.insert，但更标准）
+pythonpath = ["."]
+testpaths = ["."]
+# 只收集 test_*.py 文件，避免误收集其他文件
+python_files = ["test_*.py"]
+# 排除 test_modules.py：它是手动验证脚本（依赖 cwd 读取 Excel），
+# 非 unittest 真正单元测试，CI 中跳过以保持稳定
+addopts = "--ignore=data_processor/test_modules.py"

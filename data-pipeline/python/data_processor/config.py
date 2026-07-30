@@ -97,98 +97,88 @@ def transform_difficulty(value: Any) -> Optional[str]:
     return None
 
 
-def transform_correct_index(value: Any) -> Optional[int]:
-    """转换正确答案索引"""
-    if value is None:
+# A/B/C/D → 索引映射表，供 transform_correct_index 与 post_process 复用
+ANSWER_TO_INDEX: Dict[str, int] = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+
+
+def map_answer_to_index(answer: Any) -> Optional[int]:
+    """
+    将 A/B/C/D 转换为 0/1/2/3 索引
+
+    :param answer: 答案字母（大小写不敏感，前后空白容忍）
+    :return: 索引值，非 A/B/C/D 时返回 None
+    """
+    if answer is None:
         return None
-    val = str(value).strip().upper()
-    if val == 'A':
-        return 0
-    elif val == 'B':
-        return 1
-    elif val == 'C':
-        return 2
-    elif val == 'D':
-        return 3
-    return None
+    return ANSWER_TO_INDEX.get(str(answer).strip().upper())
+
+
+def transform_correct_index(value: Any) -> Optional[int]:
+    """转换正确答案索引（委托 map_answer_to_index）"""
+    return map_answer_to_index(value)
 
 
 def transform_correct_answer(value: Any) -> Optional[str]:
-    """转换正确答案选项"""
+    """转换正确答案选项（校验是否为合法 A/B/C/D）"""
     if value is None:
         return None
     val = str(value).strip().upper()
-    if val in ['A', 'B', 'C', 'D']:
-        return val
-    return None
+    return val if val in ANSWER_TO_INDEX else None
+
+
+# 各类题目的标准字段顺序（与后端契约一致）
+LEVEL1_QUIZ_FIELD_ORDER: List[str] = [
+    'text_id', 'question_number', 'question_text', 'option_a',
+    'option_b', 'option_c', 'option_d', 'correct_answer',
+    'correct_index', 'explanation', 'difficulty'
+]
+LEVEL2_QUIZ_FIELD_ORDER: List[str] = [
+    'text_id', 'question_number', 'question_text', 'option_a',
+    'option_b', 'option_c', 'option_d', 'audio_file',
+    'difficulty', 'correct_answer', 'correct_index',
+    'explanation', 'question_type', 'pre_dialog', 'icon_dialog'
+]
+
+
+def post_process_quiz_generic(data: Dict[str, Any], field_order: List[str]) -> Dict[str, Any]:
+    """
+    题目数据后处理通用函数（post_process_quiz / post_process_level2_quiz 共用）
+
+    1. 复制入参，避免直接修改原 dict 的副作用
+    2. 若缺少 correct_index 但有 correct_answer，自动计算
+    3. 过滤值为 None 的字段
+    4. 按 field_order 重排字段，剩余字段追加到末尾
+    """
+    # 复制入参，杜绝副作用（原实现直接 data['correct_index'] = ...）
+    data = dict(data)
+
+    # 若缺少 correct_index 但有 correct_answer，自动计算
+    if data.get('correct_index') is None and data.get('correct_answer'):
+        data['correct_index'] = map_answer_to_index(data['correct_answer'])
+
+    # 过滤 None 值字段
+    filtered_data = {k: v for k, v in data.items() if v is not None}
+
+    # 按期望顺序重新排列字段
+    result: Dict[str, Any] = {}
+    for key in field_order:
+        if key in filtered_data:
+            result[key] = filtered_data[key]
+    # 追加 field_order 未声明的剩余字段，避免数据丢失
+    for key in filtered_data:
+        if key not in result:
+            result[key] = filtered_data[key]
+    return result
 
 
 def post_process_quiz(data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    题目数据后处理函数
-    1. 根据 correct_answer 自动计算 correct_index
-    2. 过滤值为 None 的字段
-    3. 确保字段顺序与后端一致
-    """
-    # 如果没有 correct_index 但有 correct_answer，自动计算
-    if data.get('correct_index') is None and data.get('correct_answer'):
-        answer_map = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
-        data['correct_index'] = answer_map.get(data['correct_answer'])
-    
-    # 过滤 None 值字段
-    filtered_data = {k: v for k, v in data.items() if v is not None}
-    
-    # 确保字段顺序与后端一致（level1_quiz 顺序）
-    desired_order = [
-        'text_id', 'question_number', 'question_text', 'option_a', 
-        'option_b', 'option_c', 'option_d', 'correct_answer', 
-        'correct_index', 'explanation', 'difficulty'
-    ]
-    
-    # 按期望顺序重新排列字段
-    result = {}
-    for key in desired_order:
-        if key in filtered_data:
-            result[key] = filtered_data[key]
-    # 添加剩余字段
-    for key in filtered_data:
-        if key not in result:
-            result[key] = filtered_data[key]
-    
-    return result
+    """Level1 题目后处理（字段顺序见 LEVEL1_QUIZ_FIELD_ORDER）"""
+    return post_process_quiz_generic(data, LEVEL1_QUIZ_FIELD_ORDER)
 
 
 def post_process_level2_quiz(data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Level2 对话题目后处理函数
-    1. 根据 correct_answer 自动计算 correct_index
-    2. 过滤值为 None 的字段
-    """
-    # 如果没有 correct_index 但有 correct_answer，自动计算
-    if data.get('correct_index') is None and data.get('correct_answer'):
-        answer_map = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
-        data['correct_index'] = answer_map.get(data['correct_answer'])
-    
-    # 过滤 None 值字段
-    filtered_data = {k: v for k, v in data.items() if v is not None}
-    
-    # level2 特定的字段顺序
-    desired_order = [
-        'text_id', 'question_number', 'question_text', 'option_a', 
-        'option_b', 'option_c', 'option_d', 'audio_file', 
-        'difficulty', 'correct_answer', 'correct_index',
-        'explanation', 'question_type', 'pre_dialog', 'icon_dialog'
-    ]
-    
-    result = {}
-    for key in desired_order:
-        if key in filtered_data:
-            result[key] = filtered_data[key]
-    for key in filtered_data:
-        if key not in result:
-            result[key] = filtered_data[key]
-    
-    return result
+    """Level2 对话题目后处理（字段顺序见 LEVEL2_QUIZ_FIELD_ORDER）"""
+    return post_process_quiz_generic(data, LEVEL2_QUIZ_FIELD_ORDER)
 
 
 def filter_wen01(data: Dict) -> bool:
