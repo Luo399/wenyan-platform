@@ -724,8 +724,8 @@
 ### R103. services/apiService.ts login 仅靠 studentId 无密码凭证（P0 安全漏洞）
 
 - **优先级**: P0
-- **状态**: [ ] 未开始（已评估 2026-07-30，完整方案见下，待 UI 决策后实施）
-- **文件**: `src/services/apiService.ts`（第 314-317 行）
+- **状态**: [x] 已完成（分支 security/round3-103-login-credential，PR #55 合并 2026-07-30）
+- **文件**: `src/services/apiService.ts`（第 314-317 行，已删除 dead code）/ `src/stores/auth.ts` / `src/components/LoginModal.vue` / `src/components/StudentDisplay.vue`
 - **评估结论**: 后端三级账号体系已就绪——`backend/src/controllers/authController.js` `studentLogin` 要求 `student_id` + `password`（Zod schema 第 22-28 行 + `verifyPassword` 第 70 行 + JWT 签发）。问题在前端：`services/apiService.login`、`stores/auth.login`、`LoginModal`/`StudentDisplay` 三处都未传 `password`，调用 `/api/auth/login`（路由第 75 行指向 `studentLogin`）会 400（密码必填）。学生登录当前是坏的（功能 bug）。
 - **完整修复方案（前端 UI + 适配）**:
   1. `src/stores/auth.ts` 的 `login(studentId, password, studentName?)`：改 POST `/api/auth/student/login`（新端点，第 63 行）传 `{ student_id, password }`，不再用兼容端点 `/api/auth/login`
@@ -733,7 +733,7 @@
   3. `src/components/LoginModal.vue`：加密码输入框（第 168 行调用改 `authStore.login(studentId, password)`），默认密码提示（教师重置后为 `123456`）
   4. `src/components/StudentDisplay.vue` 第 159 行同步
   5. 处理 `must_reset_password`：登录返回 `must_reset_password=true` 时引导跳转改密（后端 `changePassword` 第 289 行已就绪，端点 `/api/auth/change-password`）
-- **需 UI 决策**: 密码框样式/占位、默认密码 `123456` 的提示文案、首次登录强制改密流程（弹窗 or 路由跳转）、改密 UI 放哪个视图
+- **需 UI 决策**: ~~密码框样式/占位、默认密码 `123456` 的提示文案、首次登录强制改密流程（弹窗 or 路由跳转）、改密 UI 放哪个视图~~ 已决策：最小改动加密码框，强制改密流程延后单独处理
 - **风险**: 中。涉及登录 UI 交互重构，需保证不破坏现有学号→姓名查询流程（`queryStudentName`）
 - **问题描述**: 任意人输入他人学号即可登录并获取 token，严重违反项目规则中的鉴权要求
 - **修复方案**:
@@ -742,6 +742,13 @@
 - **验证方式**: 仅凭学号无法登录
 - **分支建议**: `security/round3-103-login-credential`
 - **依赖**: R90
+- **实施记录（2026-07-30）**:
+  - `src/stores/auth.ts`：`login` 签名加 `password: string` 必填参数 + `studentName?` 可选（仅用于显示回退）；改 POST `/api/auth/student/login` 传 `{ student_id, password }`；用户信息构造优先用后端返回字段 `username`/`student_name`/`student_id`，`studentName` 仅作显示回退
+  - `src/components/LoginModal.vue`：新增密码输入框（`type="password"` + `autocomplete="current-password"`）与必填校验；登录按钮 `:disabled` 串联 `hasError && !password`；测试账号提示区补充「默认密码：123456（教师重置后同此值）」
+  - `src/components/StudentDisplay.vue`：弹窗同步加密码输入；`isValid` 计算属性串联密码非空校验；打开/关闭弹窗时清空密码字段，避免残留
+  - `src/services/apiService.ts`：删除 dead code `login` 函数（确认无调用方），保留 `LoginResponse` 接口供 `stores/auth.ts` 类型参考
+  - **延后项**：`must_reset_password=true` 强制改密流程未实现（后端 `changePassword` 已就绪，前端改密 UI 待后续单独 PR）
+  - 验证：`npm run type-check` 通过；`quality-check` + `backend-check` CI 双绿；PR #55 已合并到 feature-1
 
 ### R104. services/apiService.ts response.data! 非空断言导致运行时崩溃（P1）
 
@@ -948,12 +955,14 @@
 
 ### P0（必须立即修复，阻断功能/安全漏洞）
 
-- **R90** utils/api.ts 前端持有 VITE_AUTH_SECRET 密钥
-- **R103** services/apiService.ts login 仅靠 studentId 无密码
-- **R108** 三个 levelQuizAdapter 代码 100% 重复
-- **R51** ScenQuiz 异步调用 useDataLoader
-- **R52** PreQuizText 异步调用 useDataLoader + 竞态 bug
-- **R54** DialogText 异步调用 useDataLoader + 竞态 bug
+- [x] **R90** utils/api.ts 前端持有 VITE_AUTH_SECRET 密钥（PR #54）
+- [x] **R103** services/apiService.ts login 仅靠 studentId 无密码（PR #55）
+- [x] **R108** 三个 levelQuizAdapter 代码 100% 重复
+- [x] **R51** ScenQuiz 异步调用 useDataLoader（PR #51）
+- [x] **R52** PreQuizText 异步调用 useDataLoader + 竞态 bug（PR #52）
+- [x] **R54** DialogText 异步调用 useDataLoader + 竞态 bug（PR #53）
+
+> P0 全部 6 项已完成并合并到 feature-1，测试环境部署成功（2026-07-30）。下一批建议从 P1 开始。
 
 ### P1（上线前修复）
 
