@@ -369,7 +369,7 @@
 ### R75. auth.ts JWT 过期校验 NaN 风险（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（被 R35 覆盖；auth.ts isTokenExpired 已有 `if (typeof payload.exp !== 'number') return true` 校验，2026-07-30 确认）
 - **文件**: `src/stores/auth.ts`（第 162-168 行）
 - **问题描述**: `payload.exp` 未校验存在性，`exp * 1000` 在 exp 为 undefined 时得 NaN，`Date.now() > NaN` 恒为 false，会错误判定"未过期"
 - **修复方案**:
@@ -458,7 +458,7 @@
 ### R82. useDataLoader diagLog 生产环境可能泄露数据内容（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（被 R18/R19/R20 重构覆盖；diagLog 已移除，全部改为 debugLog（受 DEV 控制），`text.slice(0,100)` 输出已删除，2026-07-30 确认）
 - **文件**: `src/composables/useDataLoader.ts`（第 4-7, 178, 219, 228, 236, 239 行）
 - **问题描述**: `diagLog` 注释声称"始终输出用于调试"，且输出响应文本前 100 字（第 239 行），生产环境可能泄露数据内容与 URL
 - **修复方案**:
@@ -581,7 +581,7 @@
 ### R91. utils/api.ts 大量 any 类型滥用（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/api.ts`（第 51, 54, 63, 171, 185, 193, 201 行）
 - **问题描述**: `body?: any`、`ApiResponse<T = any>`、`normalizeResponse<T = any>(response: any)` 等多处 any，类型契约形同虚设
 - **修复方案**:
@@ -591,6 +591,11 @@
 - **验证方式**: `grep ": any" src/utils/api.ts` 无命中
 - **分支建议**: `refactor/round3-91-api-types`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `RequestConfig.body`: `any` → `unknown`
+  - `ApiResponse<T = unknown>`、`normalizeResponse<T = unknown>(response: unknown)`、`request/get/post/put/del<T = unknown>`
+  - `errorData` 收窄为 `Record<string, unknown> | null`，用 `typeof` 判断字段类型后再使用
+  - 附带修复：R91 类型收窄暴露的调用方错误——`stores/auth.ts` post 调用加 `AuthTokenResponse` 类型参数；`composables/useStudentQuery.ts` get 调用加 `{ name: string }` 类型参数
 
 ### R92. utils/api.ts request 函数超长（P2）
 
@@ -639,7 +644,7 @@
 ### R96. utils/asset.ts ossBase 类型断言导致环境变量缺失静默失败（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/asset.ts`（第 15 行）
 - **问题描述**: `ossBase` 使用 `as string` 类型断言，若 `VITE_OSS_BASE_URL` 未配置，实际为 undefined 但被断言为 string，`getAssetUrl` 拼出 `undefined/audio/xxx.mp3` 这种 URL，运行时才暴露错误
 - **修复方案**:
@@ -665,13 +670,16 @@
 ### R98. utils/localStorage.ts appendQuizRecord JSON 损坏时丢失原数据（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/localStorage.ts`（第 87-92 行）
 - **问题描述**: `appendQuizRecord` 调用 `getQuizRecords`，当原数据 JSON 损坏时返回空数组，随后 `setQuizRecords` 会用 `[record]` 覆盖原损坏数据，导致历史记录永久丢失
 - **修复方案**: 解析失败时不要继续写入；或在 `getQuizRecords` 提供区分"无数据"和"解析失败"的返回值（如 `{ ok: boolean, data: T[] }`），由调用方决定是否覆盖
 - **验证方式**: JSON 损坏时新记录不覆盖；有 debugError 日志
 - **分支建议**: `bugfix/round3-98-localstorage-corrupt`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `appendQuizRecord` 内联读取并校验原始 JSON：无数据初始化为 `[]`；解析失败或非数组时 `debugLog` 并返回 `[]`（不写入，保留原始数据）；成功才 push + setQuizRecords
+  - 函数名修正：`buildStorageKey` → `buildQuizStorageKey`（被 R34 重命名后遗漏）
 
 ### R99. utils/localStorage.ts 未处理 localStorage 不可用场景（P2）
 
@@ -698,13 +706,16 @@
 ### R101. utils/studentApi.ts getStudent 吞掉所有错误（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/studentApi.ts`（第 128-135 行）
 - **问题描述**: `catch {}` 静默吞掉网络错误、超时、服务端 500 等，调用方无法区分"学生不存在"和"请求失败"。`checkStudentExists` 依赖此函数，会把网络故障误判为"学生不存在"
 - **修复方案**: 区分 404 与其他错误；或返回 `{ data: StudentInfo | null, error?: Error }` 联合结构
 - **验证方式**: 网络故障时 `checkStudentExists` 不误判为"学生不存在"
 - **分支建议**: `bugfix/round3-101-studentapi-error`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `studentApi.ts` 已重构为 re-export 层，实际实现在 `services/studentService.ts`
+  - `getStudent` 改为：仅 404（学生不存在）返回 null；其他错误（网络故障、超时、5xx 等）向上抛出，避免误判
 
 ### R102. utils/studentApi.ts validateStudentName 黑名单不完整（P2）
 
@@ -753,13 +764,17 @@
 ### R104. services/apiService.ts response.data! 非空断言导致运行时崩溃（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
-- **文件**: `src/services/apiService.ts`（第 316, 388, 427 行）
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
+- **文件**: `src/services/apiService.ts`（第 382-386, 425-429 行）
 - **问题描述**: 服务端返回 `{ success: false, message: '...' }` 但无 `data` 时，`response.data!` 在运行时为 `undefined`，调用方当成有效响应使用会崩
 - **修复方案**: 先校验 `if (!response.success || !response.data) throw new ApiError(...)`，再返回 `data`
 - **验证方式**: 后端返回异常响应时显示友好错误而非崩溃
 - **分支建议**: `bugfix/round3-104-apiservice-nullcheck`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `submitAnswers`（第 381-387 行）：移除 `response.data!` 非空断言，改为 `if (!response.success || !response.data) throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')`，校验通过后才返回 `response.data`
+  - `submitSingleAnswer`（第 420-430 行）：同样移除非空断言，加 `ApiError` 校验
+  - `ApiError` 已从 `@/utils/api` 导入（第 18 行）
 
 ### R105. services/apiService.ts 文件头注释欺骗性（P2）
 
@@ -918,16 +933,21 @@
 ### R115. guards.ts useAuthGuard 解构丢失响应式（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
-- **文件**: `src/router/guards.ts`（第 56-63 行）
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
+- **文件**: `src/router/guards.ts`（第 64-76 行）
 - **问题描述**: `useAuthGuard` 中直接返回 `authStore.isLoggedIn`/`user`/`error` 等响应式属性，未用 `storeToRefs`，解构后丢失响应式，调用方拿到的是初始快照
 - **修复方案**:
   ```ts
   export function useAuthGuard() {
     const authStore = useAuthStore()
+    const { isLoggedIn, user, error } = storeToRefs(authStore)
     return {
-      ...storeToRefs(authStore), // 响应式属性
-      login: (id: string, name?: string) => authStore.login(id, name),
+      isLoggedIn,
+      user,
+      error,
+      hasError: computed(() => authStore.error !== null),
+      login: (studentId: string, password: string, studentName?: string) =>
+        authStore.login(studentId, password, studentName),
       logout: () => authStore.logout(),
     }
   }
@@ -935,6 +955,10 @@
 - **验证方式**: 登录状态变化时调用方正确响应
 - **分支建议**: `bugfix/round3-115-guard-reactive`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - 第 13 行导入 `storeToRefs`；第 66 行用 `storeToRefs(authStore)` 解构 `isLoggedIn`/`user`/`error`，保留响应式
+  - `login` 包装改为 3 参签名 `(studentId, password, studentName?)`，与 R103 后 `authStore.login` 签名一致
+  - 额外提供 `hasError: computed(() => authStore.error !== null)` 便于调用方模板判断
 
 ### R116. guards.ts async 守卫无 await + from 参数未使用（P3）
 
@@ -966,20 +990,22 @@
 
 ### P1（上线前修复）
 
-- **R91** api.ts 大量 any 类型
-- **R96** asset.ts ossBase 类型断言
-- **R98** localStorage.ts appendQuizRecord 数据丢失
-- **R101** studentApi.ts getStudent 吞掉错误
-- **R104** apiService.ts response.data! 非空断言
-- **R75** auth.ts JWT 过期校验 NaN 风险
-- **R82** useDataLoader diagLog 生产环境泄露数据
-- **R115** guards.ts useAuthGuard 解构丢失响应式
+- [x] **R91** api.ts 大量 any 类型（PR #58）
+- [x] **R96** asset.ts ossBase 类型断言（PR #58）
+- [x] **R98** localStorage.ts appendQuizRecord 数据丢失（PR #58）
+- [x] **R101** studentApi.ts getStudent 吞掉错误（PR #58）
+- [x] **R104** apiService.ts response.data! 非空断言（PR #58）
+- [x] **R75** auth.ts JWT 过期校验 NaN 风险（被 R35 覆盖）
+- [x] **R82** useDataLoader diagLog 生产环境泄露数据（被 R18/R19/R20 覆盖）
+- [x] **R115** guards.ts useAuthGuard 解构丢失响应式（PR #58）
 - **R55** DialogText 重复触发 typeText
 - **R56** DialogText/DialogueCard Audio 内存泄漏
 - **R57** ScenQuiz loadQuizzes 超长且重复
 - **R62** CultureCards 无键盘支持
 - **R64** AudioPlayer/VideoPlayer 进度条不可键盘操作
 - **R109** level1/2/3QuizAdapter correct_answer 误判
+
+> P1 安全 + 数据完整性批次（R75, R82, R91, R96, R98, R101, R104, R115）全部已完成并合并到 feature-1（2026-07-30，PR #58）。剩余 6 项 P1（R55, R56, R57, R62, R64, R109）为 bug + a11y 批次，待后续处理。
 
 ### P2（迭代改善）
 
@@ -991,11 +1017,11 @@
 
 ### 执行顺序建议
 
-**第一批（P0 安全 + 架构）**: R90 → R103（安全密钥与登录凭证）→ R108（adapter 工厂，消除重复）
+**第一批（P0 安全 + 架构）**: R90 → R103（安全密钥与登录凭证）→ R108（adapter 工厂，消除重复）✅
 
-**第二批（P0 useDataLoader 违规）**: R51 → R52 → R54（同模式批量修复）
+**第二批（P0 useDataLoader 违规）**: R51 → R52 → R54（同模式批量修复）✅
 
-**第三批（P1 安全 + 数据完整性）**: R91, R96, R98, R101, R104, R75, R82, R115
+**第三批（P1 安全 + 数据完整性）**: R91, R96, R98, R101, R104, R75, R82, R115 ✅（PR #58 squash 合并 2026-07-30）
 
 **第四批（P1 bug + a11y）**: R55, R56, R57, R62, R64, R109
 
