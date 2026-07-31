@@ -10,7 +10,7 @@
 | #   | 专题                    | 优先级 | 问题数 | 状态   | 文件                                                                                                               |
 | --- | ----------------------- | ------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------ |
 | 01  | 安全漏洞修复            | P0     | 11     | 未开始 | [01-security-critical.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/01-security-critical.md)         |
-| 02  | 路由与鉴权系统          | P0     | 5      | 未开始 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md)                   |
+| 02  | 路由与鉴权系统          | P0     | 5      | 已完成 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md)                   |
 | 03  | 后端架构重构            | P0-P1  | 13     | 未开始 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md)   |
 | 04  | 前端组件质量（C01-C11） | P1-P2  | 11     | 已完成 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md)     |
 | 05  | 前端架构与类型          | P1-P2  | 12     | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
@@ -51,8 +51,9 @@
 
 ```
 第一批（P0 安全 + 路由，阻断生产）:
-  01-security-critical.md  →  02-routing-auth.md
+  01-security-critical.md
   + 09-frontend-round3.md 中的 P0 安全问题（R90, R103, R108, R51, R52, R54）
+  注：02-routing-auth.md 已完成（R01-R04 早期修复 + R05 本次）
 
 第二批（P0-P1 后端架构，依赖第一批）:
   03-backend-architecture.md
@@ -126,10 +127,11 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md P0       | 4/66（R51, R52, R54, R108） | useDataLoader 异步调用违规 ×3 + adapter 工厂重构，分支+CI 通过，PR 待合并                                                                                        |
 | 2026-07-30              | 09-frontend-round3.md R90      | 1/66（R90）                 | 前端 VITE_AUTH_SECRET dead code 清理 + 后端 HMAC 校验移除 + yml/env 配置清理，PR #54 squash 合并到 feature-1，测试环境部署成功                                    |
 | 2026-07-30              | 09-frontend-round3.md R103     | 1/66（R103）                | stores/auth.ts 加 password 参数 + 改调 /api/auth/student/login；LoginModal/StudentDisplay 加密码输入框；apiService.ts 删 dead login；PR #55 squash 合并到 feature-1，测试环境部署成功。强制改密流程延后 |
-| -                       | 01-03, 05-07 专题              | 0/64                        | 待开始                                                                                                                                                           |
+| 2026-07-31              | 02-routing-auth.md             | 5/5（R01-R05）              | R01-R04 在早期提交已修复（单一 routes 数组、setupAuthGuard 调用、requiresAuth meta、RouteName 对齐），本次同步状态标记；R05 删除 idTransformMap/transformId 死代码并简化 useNavigation.getTargetId，分支 refactor/routing-05 待合并 |
+| -                       | 01, 03, 05-07 专题             | 0/59                        | 待开始                                                                                                                                                           |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
 | -                       | 09-frontend-round3.md 剩余     | 0/60                        | R51/R52/R54/R90/R103/R108 已完成，剩余 60 项待开始                                                                                                               |
-| -                       | **合计**                       | **17/191**                  | 11（专题）+ 6（R51/R52/R54/R90/R103/R108）                                                                                                                       |
+| -                       | **合计**                       | **22/191**                  | 11（04 专题）+ 5（02 专题：R01-R04 早期修复同步标记 + R05 本次）+ 6（R51/R52/R54/R90/R103/R108）           |
 
 ## 使用方式
 
