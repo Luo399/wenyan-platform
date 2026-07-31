@@ -130,11 +130,7 @@ function scheduleWorkerIdleGcIfNeeded(): void {
 
   workerIdleGcTimer = setTimeout(() => {
     workerIdleGcTimer = null
-    if (
-      jsonParserWorker !== null &&
-      activeConsumerCount === 0 &&
-      runningJsonTaskCount === 0
-    ) {
+    if (jsonParserWorker !== null && activeConsumerCount === 0 && runningJsonTaskCount === 0) {
       terminateJsonParserWorker()
     }
   }, WORKER_IDLE_GC_DELAY)
@@ -177,11 +173,11 @@ function parseJsonWithWorker(text: string, timeout = WORKER_TIMEOUT): Promise<un
     const worker = getJsonParserWorker()
     // 任务计数：若 GC 定时器正在等待且当前计数 > 0，则不应回收
     runningJsonTaskCount++
-    const taskId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : Date.now() + Math.random()
+    const taskId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : Date.now() + Math.random()
 
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
     let resolved = false
 
     const finalize = () => {
@@ -210,7 +206,7 @@ function parseJsonWithWorker(text: string, timeout = WORKER_TIMEOUT): Promise<un
       finalize()
     }
 
-    timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       reject(new Error(`JSON 解析超时 (${timeout}ms)`))
       finalize()
     }, timeout)
@@ -368,7 +364,6 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
       setCachedData(url, data.value)
     }
   }
-
 
   /**
    * R84: fetch + 解析 JSON（从 load 拆分，保持单一职责）

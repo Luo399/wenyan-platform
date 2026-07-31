@@ -395,11 +395,14 @@ export async function submitAnswers(
       studentName,
       wenId,
       submittedAt: new Date().toISOString(),
-      answers: (paramsOrData as { answers: Record<string, string | number | (string | number)[]> }).answers,
+      answers: (paramsOrData as { answers: Record<string, string | number | (string | number)[]> })
+        .answers,
       questions: (paramsOrData as { questions: QuestionForSubmit[] }).questions,
     }
   } else {
-    throw new Error('submitAnswers 参数错误：需传完整 SubmitAnswersParams 或 (answers+wenId+studentId)')
+    throw new Error(
+      'submitAnswers 参数错误：需传完整 SubmitAnswersParams 或 (answers+wenId+studentId)',
+    )
   }
 
   const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })

@@ -6,7 +6,6 @@
  */
 
 import { LEVEL1_ADAPTER } from './levelQuizAdapter'
-export type { RawLevelQuizItem as RawLevel1QuizItem, ProcessedLevelQuizItem as ProcessedLevel1QuizItem } from './levelQuizAdapter'
 import type { RawLevelQuizItem, ProcessedLevelQuizItem } from './levelQuizAdapter'
 
 // 兼容旧类型命名
@@ -14,9 +13,7 @@ export type RawLevel1QuizItem = RawLevelQuizItem
 export type ProcessedLevel1QuizItem = ProcessedLevelQuizItem
 
 /** 适配 Level1 测验数据 */
-export function adaptLevel1Quiz(
-  rawData: RawLevelQuizItem[] | null,
-): ProcessedLevelQuizItem[] {
+export function adaptLevel1Quiz(rawData: RawLevelQuizItem[] | null): ProcessedLevelQuizItem[] {
   return LEVEL1_ADAPTER.adapt(rawData)
 }
 
@@ -29,8 +26,6 @@ export function getLevel1QuizByQuestionNumber(
 }
 
 /** 返回所有 Level1 题目（新数组） */
-export function getAllLevel1Quizzes(
-  data: ProcessedLevelQuizItem[],
-): ProcessedLevelQuizItem[] {
+export function getAllLevel1Quizzes(data: ProcessedLevelQuizItem[]): ProcessedLevelQuizItem[] {
   return LEVEL1_ADAPTER.getAll(data)
 }

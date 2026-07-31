@@ -12,7 +12,11 @@
  */
 
 import type { TextBasicInfo, WordItem } from '@/services/apiService'
-import { buildContentHtmlWithAnnotations, parseTimeToSeconds, parseTimeRange } from '@/utils/adapterUtils'
+import {
+  buildContentHtmlWithAnnotations,
+  parseTimeToSeconds,
+  parseTimeRange,
+} from '@/utils/adapterUtils'
 
 // ============================================================
 // 原始数据接口（保持与原JSON格式兼容）

@@ -15,7 +15,13 @@ import {
   timeToSeconds,
 } from './timeUtils'
 
-export { parseTimeToSeconds, parseTimeRange, parseSecondsToTime, parseTimeRangeAsTuple, timeToSeconds }
+export {
+  parseTimeToSeconds,
+  parseTimeRange,
+  parseSecondsToTime,
+  parseTimeRangeAsTuple,
+  timeToSeconds,
+}
 
 /**
  * HTML转义函数，防止XSS攻击

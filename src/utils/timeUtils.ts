@@ -48,7 +48,10 @@ export const timeToSeconds = parseTimeToSeconds
  * 秒数 → 展示字符串：秒 < 3600 时 "MM:SS"，否则 "HH:MM:SS"
  * - 可通过 forceHours 强制带小时（用于对其展示）
  */
-export function parseSecondsToTime(seconds: number, options: { forceHours?: boolean } = {}): string {
+export function parseSecondsToTime(
+  seconds: number,
+  options: { forceHours?: boolean } = {},
+): string {
   const { forceHours = false } = options
   if (!Number.isFinite(seconds) || seconds < 0) return '00:00'
   const secs = Math.floor(seconds)
@@ -96,6 +99,9 @@ export function parseTimeRangeAsTuple(timeRange: string | null | undefined): [nu
  * 兼容旧导入的默认 parseTimeRange 导出（保持返回对象，与 adapterUtils 历史用法一致）
  * - 需要元组形式时显式使用 parseTimeRangeAsTuple
  */
-export function parseTimeRange(timeRange: string | null | undefined): { start: number; end: number } {
+export function parseTimeRange(timeRange: string | null | undefined): {
+  start: number
+  end: number
+} {
   return parseTimeRangeAsObject(timeRange)
 }
