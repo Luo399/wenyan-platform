@@ -1372,8 +1372,8 @@ onMounted(() => {
 }
 
 /* R07: 模态框 / 表单 / 表格 / 按钮组 / AnswerDetail / DeleteConfirm 等共享样式
-   统一抽到 src/assets/styles/components.css，这里不重复 :deep() 。
-   剩余 3 处 :deep() 仅在 768px 断点下做响应式微调（<5 条，符合 R07 验证标准）。 */
+   统一抽到 src/assets/styles/components.css，这里不重复 deep 穿透。
+   剩余 3 处 deep 穿透仅在 768px 断点下做响应式微调（<5 条，符合 R07 验证标准）。 */
 
 /* 学生详情弹窗（AnswerQueryView 独有） */
 .detail-row {
@@ -1393,8 +1393,8 @@ onMounted(() => {
 /* R07: StudentFormModal/DeleteConfirmModal/AnswerDetailModal 的共享样式
    （student-form / form-actions / cancel-btn / submit-btn / danger-btn /
    spinner-small / answer-* / score-badge / confirm-content / warning-icon /
-   sub-text 等）统一抽到 components.css，这里不再重复 :deep()。
-   剩余 3 处 :deep() 仅在 768px 断点做响应式微调（符合验证标准 <5 条）。 */
+   sub-text 等）统一抽到 components.css，这里不再重复 deep 穿透。
+   剩余 3 处 deep 穿透仅在 768px 断点做响应式微调（符合验证标准 <5 条）。 */
 
 @media (max-width: 768px) {
   .answer-query-container {
