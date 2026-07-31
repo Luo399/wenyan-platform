@@ -11,7 +11,7 @@
 | --- | ----------------------- | ------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------ |
 | 01  | 安全漏洞修复            | P0     | 11     | 未开始 | [01-security-critical.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/01-security-critical.md)         |
 | 02  | 路由与鉴权系统          | P0     | 5      | 未开始 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md)                   |
-| 03  | 后端架构重构            | P0-P1  | 13     | 进行中 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md)   |
+| 03  | 后端架构重构            | P0-P1  | 13     | 已完成 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md)   |
 | 04  | 前端组件质量（C01-C11） | P1-P2  | 11     | 已完成 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md)     |
 | 05  | 前端架构与类型          | P1-P2  | 12     | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
 | 06  | 工程化与配置            | P1-P2  | 16     | 未开始 | [06-engineering-config.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/06-engineering-config.md)       |
@@ -131,10 +131,11 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md P1 批次4 | 6/66（R55, R56, R57, R62, R64, R109） | P1 bug+a11y 批次：R55 DialogText typeText 去重；R56 Audio 内存泄漏；R57 ScenQuiz watchLoader 抽取；R62 CultureCards 键盘支持；R64 进度条键盘操作；R109 correct_answer ?? 修复。PR #60 squash 合并到 feature-1，前端测试部署成功（无 backend 改动，后端部署未触发属预期） |
 | 2026-07-30              | 09-frontend-round3.md P2/P3    | 46/66（P2: 37 项 + P3: 9 项） | P2/P3 全量优化：utils(api/asset/localStorage/format) 类型安全+异常包裹；stores+composables auth/student/bgm/useNavigation/useDataLoader/useQuizProgress 重构；adapters quizAdapter/level1-3 类型+拆分；components PreQuizText/StepThreeView/CultureCards/BlockRenderer/BackContinue/DialogText/DialogueCard/ScenQuiz a11y+DRY+性能；services+router apiService/router/guards 类型+清理。分支 trae/agent-round3-p2p3，PR 待创建 |
 | 2026-07-31              | 03-backend-architecture.md    | 8/13（B04-B09, B11-B12）     | B04 compareAnswers 提取到 answerUtils.js；B05+B06 answerController 改为薄层+消除重复；B07 database.js 去 UNIQUE 矛盾+WAL+外键+索引+迁移；B08 删除 token.js 死代码；B09 JWT payload 字段对齐；B11 console.error→logger.error；B12 日志轮转实现。分支 feature-1，CI+部署通过 |
-| -                       | 01-03, 05-06 专题              | 0/57                        | 待开始（07 已完成）                                                                                                                                             |
+| 2026-07-31              | 03-backend-architecture.md    | 5/13（B01-B03, B10, B13）    | B01 errorHandler 已修复（requestLogger 定义+无重复）；B02 answerController 薄层化已消除未定义变量；B03 service 层导入已修正（db/dbPromise 导出匹配）；B10 requireRole RBAC 已实现并用于路由；B13 initAllTables 已 Promise 化（runSql+.then 链）。前序修复中已一并完成，本次确认状态 |
+| -                       | 01-02, 05-06 专题              | 0/49                        | 待开始                                                                                                                                             |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
 | -                       | 09-frontend-round3.md 剩余     | 0/0                         | 09 专题 R51-R116 共 66 项全部完成                                                                                                                                |
-| -                       | **合计**                       | **92/191**                  | 专题 26（04 的 11 + 07 的 7 + 03 的 8）+ 滚动审查 66（R51-R116 全部）                                                                                                     |
+| -                       | **合计**                       | **97/191**                  | 专题 31（04 的 11 + 07 的 7 + 03 的 13）+ 滚动审查 66（R51-R116 全部）                                                                                                     |
 
 ## 使用方式
 

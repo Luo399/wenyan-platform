@@ -6,7 +6,8 @@
 
 ## B01. errorHandler.js 模块加载即崩溃（requestLogger 未定义）
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/middleware/errorHandler.js`（第 59 行）
 - **问题描述**:
   1. `errorHandler` 被 `function` 声明了两次（第 15-39 行和第 49-56 行），第二个覆盖第一个
@@ -21,7 +22,8 @@
 
 ## B02. answerController.js submitAnswers 引用未定义变量 result
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/controllers/answerController.js`（第 77-140 行）
 - **问题描述**:
   1. 第 77-134 行构建 `insertPromises` 数组但从未调用 `Promise.all` 等待
@@ -39,7 +41,8 @@
 
 ## B03. services/ 层完全无法加载（引用不存在的导出）
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/services/answerService.js`（第 6、7、10 行）
   - `backend/src/services/studentService.js`（第 6 行）
@@ -146,7 +149,8 @@
 
 ## B10. authMiddleware 缺少角色鉴权（RBAC）
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/middleware/authMiddleware.js`（第 24-48 行）
 - **问题描述**: 只做 token 校验，完全没有角色检查。任何 student token 可访问管理端接口
 - **修复方案**:
@@ -188,7 +192,8 @@
 
 ## B13. database.js initAllTables 回调风格未 Promise 化
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/config/database.js`（第 19-60 行）
 - **问题描述**: `initAllTables` 仍是两层嵌套回调，未使用已封装的 `dbPromise.js` 的 `dbRun`
 - **修复方案**: 改用 `await dbRun(db, sql)` 风格
