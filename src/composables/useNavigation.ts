@@ -3,7 +3,7 @@
  *
  * 功能：
  * - 提供统一的跳转函数
- * - 自动处理 ID 转换
+ * - 当前所有页面共用 poemId，跨页跳转直接透传 currentId
  * - 支持自定义 ID（用于跨页面跳转）
  * - 提供 goHome() 用于非顺序页面（如 BlockDemoView / NotFoundView）返回首页
  *
@@ -22,13 +22,7 @@
 
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  type RouteName,
-  getNextPage,
-  getPrevPage,
-  transformId,
-  pageSequence,
-} from '@/config/navigation'
+import { type RouteName, getNextPage, getPrevPage, pageSequence } from '@/config/navigation'
 import { debugError, debugWarn } from '@/utils/debug'
 
 export function useNavigation(currentRouteName?: RouteName, currentId?: string) {
@@ -51,24 +45,20 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
   }
 
   /**
-   * 获取转换后的 ID
+   * 获取目标页面的 ID
    *
-   * 当 currentRouteName 为空（非顺序页面调用）时，
-   * 使用 'home' 作为 transformId 的来源页，避免 undefined 透传。
+   * 当前所有页面共用 poemId（数字格式），无需跨页 ID 转换：
+   * 直接透传 currentId，缺失时回落到默认值 '1'。
    */
-  function getTargetId(targetRouteName: RouteName): string {
-    const fromPage = currentRouteName || 'home'
-    const newId = transformId(fromPage, targetRouteName, currentId || '')
-    return newId || currentId || getDefaultId(targetRouteName)
+  function getTargetId(): string {
+    return currentId || getDefaultId()
   }
 
   /**
    * 获取页面的默认 ID
    */
-  function getDefaultId(routeName: RouteName): string {
-    // 保留对 pageSequence 的使用痕迹（findIndex 调用避免 unused 报错），
-    // 但不存结果到局部变量：所有页面现在都使用 poemId（数字格式），默认 1
-    void pageSequence.findIndex((p) => p.name === routeName)
+  function getDefaultId(): string {
+    // 所有页面共用 poemId（数字格式），默认值为 '1'
     return '1'
   }
 
@@ -87,7 +77,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       debugWarn('已是最后一页')
       return
     }
-    const id = targetId ?? getTargetId(nextPage.name)
+    const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
     router.push(path)
   }
@@ -109,7 +99,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       goHome()
       return
     }
-    const id = targetId ?? getTargetId(prevPage.name)
+    const id = targetId ?? getTargetId()
     const path = prevPage.getPath(id)
     router.push(path)
   }
@@ -123,7 +113,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       debugError(`页面 ${routeName} 不存在`)
       return
     }
-    const targetId = id ?? getTargetId(routeName)
+    const targetId = id ?? getTargetId()
     const path = page.getPath(targetId)
     router.push(path)
   }

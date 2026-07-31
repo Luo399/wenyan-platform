@@ -10,7 +10,7 @@
 | #   | 专题                    | 优先级 | 问题数 | 状态   | 文件                                                                                                               |
 | --- | ----------------------- | ------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------ |
 | 01  | 安全漏洞修复            | P0     | 11     | 未开始 | [01-security-critical.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/01-security-critical.md)         |
-| 02  | 路由与鉴权系统          | P0     | 5      | 未开始 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md)                   |
+| 02  | 路由与鉴权系统          | P0     | 5      | 已完成 | [02-routing-auth.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/02-routing-auth.md)                   |
 | 03  | 后端架构重构            | P0-P1  | 13     | 已完成 | [03-backend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/03-backend-architecture.md)   |
 | 04  | 前端组件质量（C01-C11） | P1-P2  | 11     | 已完成 | [04-frontend-components.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/04-frontend-components.md)     |
 | 05  | 前端架构与类型          | P1-P2  | 12     | 未开始 | [05-frontend-architecture.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/05-frontend-architecture.md) |
@@ -44,32 +44,28 @@
 ### 已完成
 
 ```
+02-routing-auth.md（R01-R05 全部完成）
+03-backend-architecture.md（B01-B13 全部完成）
 04-frontend-components.md（C01-C11 全部完成）
+07-data-pipeline.md（P01-P07 全部完成）
+09-frontend-round3.md（R51-R116 共 66 项全部完成）
 ```
 
 ### 待执行（按优先级排序）
 
 ```
-第一批（P0 安全 + 路由，阻断生产）:
-  01-security-critical.md  →  02-routing-auth.md
-  + 09-frontend-round3.md 中的 P0 安全问题（R90, R103, R108, R51, R52, R54）
+第一批（P0 安全，阻断生产）:
+  01-security-critical.md
+  注：02-routing-auth.md / 03-backend-architecture.md / 09 轮 P0 已全部完成
 
-第二批（P0-P1 后端架构，依赖第一批）:
-  03-backend-architecture.md
-
-第三批（P1 前端架构 + 第二/三轮审查 P1）:
+第二批（P1 前端架构 + 第二轮审查 P1）:
   05-frontend-architecture.md  ↔  08-frontend-round2.md（R01-R11 等 P1）
-  ↔  09-frontend-round3.md（R55-R57, R62, R64, R75, R82, R91, R96, R98, R101, R104, R109, R115 等 P1）
 
-第四批（P1-P2 工程化，可并行）:
+第三批（P1-P2 工程化，可并行）:
   06-engineering-config.md
 
-第五批（P2 数据管道，独立模块）:
-  07-data-pipeline.md
-
-第六批（P2-P3 滚动审查剩余项）:
-  08-frontend-round2.md 的 P2-P3（R07-R50）
-  09-frontend-round3.md 的 P2-P3（R53-R116）
+第四批（P2-P3 滚动审查剩余项）:
+  08-frontend-round2.md 的 P2-P3（R07-R50，共 50 项）
 ```
 
 ### 跨文件依赖关系
@@ -132,10 +128,11 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md P2/P3    | 46/66（P2: 37 项 + P3: 9 项） | P2/P3 全量优化：utils(api/asset/localStorage/format) 类型安全+异常包裹；stores+composables auth/student/bgm/useNavigation/useDataLoader/useQuizProgress 重构；adapters quizAdapter/level1-3 类型+拆分；components PreQuizText/StepThreeView/CultureCards/BlockRenderer/BackContinue/DialogText/DialogueCard/ScenQuiz a11y+DRY+性能；services+router apiService/router/guards 类型+清理。分支 trae/agent-round3-p2p3，PR 待创建 |
 | 2026-07-31              | 03-backend-architecture.md    | 8/13（B04-B09, B11-B12）     | B04 compareAnswers 提取到 answerUtils.js；B05+B06 answerController 改为薄层+消除重复；B07 database.js 去 UNIQUE 矛盾+WAL+外键+索引+迁移；B08 删除 token.js 死代码；B09 JWT payload 字段对齐；B11 console.error→logger.error；B12 日志轮转实现。分支 feature-1，CI+部署通过 |
 | 2026-07-31              | 03-backend-architecture.md    | 5/13（B01-B03, B10, B13）    | B01 errorHandler 已修复（requestLogger 定义+无重复）；B02 answerController 薄层化已消除未定义变量；B03 service 层导入已修正（db/dbPromise 导出匹配）；B10 requireRole RBAC 已实现并用于路由；B13 initAllTables 已 Promise 化（runSql+.then 链）。前序修复中已一并完成，本次确认状态 |
-| -                       | 01-02, 05-06 专题              | 0/49                        | 待开始                                                                                                                                             |
+| 2026-07-31              | 02-routing-auth.md             | 5/5（R01-R05）              | R01-R04 在早期提交已修复（单一 routes 数组、setupAuthGuard 调用、requiresAuth meta、RouteName 对齐），本次同步状态标记；R05 删除 idTransformMap/transformId 死代码并简化 useNavigation.getTargetId，分支 refactor/routing-05 待合并 |
+| -                       | 01, 05-06 专题                 | 0/39                        | 待开始（01: 11 + 05: 12 + 06: 16 = 39 项，另 08 轮 50 项）                                                                                                        |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
 | -                       | 09-frontend-round3.md 剩余     | 0/0                         | 09 专题 R51-R116 共 66 项全部完成                                                                                                                                |
-| -                       | **合计**                       | **97/191**                  | 专题 31（04 的 11 + 07 的 7 + 03 的 13）+ 滚动审查 66（R51-R116 全部）                                                                                                     |
+| -                       | **合计**                       | **102/191**                 | 专题 36（04:11 + 07:7 + 03:13 + 02:5）+ 滚动审查 66（R51-R116 全部）                                                                                              |
 
 ## 使用方式
 

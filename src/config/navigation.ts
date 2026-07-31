@@ -30,15 +30,12 @@
  * - 解耦后端数据库与前端路由设计
  * - 同一篇课文可能有多个版本的学习内容（音频、视频、习题）
  *
- * ID 转换场景示例：
- * - rules(poemId=1) -> audio: 1 -> WEN_01
- * - audio(WEN_01) -> detail: WEN_01 -> 1
- * - rules(poemId=2) -> audio: 2 -> WEN_02
+ * 当前所有页面共用 poemId（数字格式），无需跨页 ID 转换；
+ * 若未来新增使用其他 ID 格式的页面（如 wenId），再引入转换层即可。
  *
- * 如果未来需要新增页面类型，只需：
+ * 新增页面只需：
  * 1. 在 pageSequence 添加新配置
- * 2. 在 idTransformMap 添加转换规则
- * 3. 组件无需修改跳转逻辑
+ * 2. 组件无需修改跳转逻辑
  */
 
 // 页面路由名称定义
@@ -131,67 +128,7 @@ export function getPrevPage(currentName: RouteName): PageConfig | null {
   return pageSequence[currentIndex - 1] ?? null
 }
 
-/**
- * ID 映射表：不同页面间 ID 的转换规则
- *
- * 例如：
- * - rules 页面用 poemId (1, 2, 3)
- * - stepone 页面用 poemId (1, 2, 3)
- * - detail 页面用 poemId (1, 2, 3)
- *
- * 如果某页面不需要转换，可以返回 null 表示使用原 ID
- */
-export const idTransformMap: Record<RouteName, (id: string) => string | null> = {
-  home: () => null,
-  rules: (id) => {
-    return id || null
-  },
-  stepone: (id) => {
-    return id || null
-  },
-  steptwo: (id) => {
-    return id || null
-  },
-  stepthree: (id) => {
-    return id || null
-  },
-  rule1: (id) => {
-    return id || null
-  },
-  rule2: (id) => {
-    return id || null
-  },
-  rule3: (id) => {
-    return id || null
-  },
-  detail: (id) => {
-    return id || null
-  },
-}
-
-/**
- * 获取转换后的 ID
- *
- * @param fromPage 来源页面名称
- * @param toPage 目标页面名称
- * @param currentId 当前页面使用的 ID
- * @returns 目标页面应使用的 ID，如果返回 null 则使用原 ID
- */
-export function transformId(
-  fromPage: RouteName,
-  toPage: RouteName,
-  currentId: string,
-): string | null {
-  // 如果是同一个页面类型的不同实例（如 detail/1 -> detail/2），保持原样
-  if (fromPage === toPage) {
-    return currentId
-  }
-
-  // 查找转换函数
-  const transformer = idTransformMap[toPage]
-  if (!transformer) {
-    return currentId
-  }
-
-  return transformer(currentId)
-}
+// 历史的 idTransformMap / transformId 已删除：
+// 所有页面共用 poemId（数字格式），9 个转换函数全是 `(id) => id || null` no-op，
+// 调用链 transformId -> useNavigation.getTargetId 实际只做"透传 currentId"。
+// 如未来出现使用其他 ID 格式的页面（如 wenId），再按需引入转换层。
