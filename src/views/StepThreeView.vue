@@ -126,7 +126,7 @@ import { debugLog } from '@/utils/debug'
 interface QuizItem {
   question_id: string
   module: string
-  question_type: 'radio' | 'checkbox' | string
+  question_type: 'radio' | 'checkbox'
   question_text: string
   options: string[]
   correct_answer: number
