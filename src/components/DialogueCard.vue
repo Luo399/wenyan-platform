@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onUnmounted, watch } from 'vue'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 
@@ -107,13 +107,12 @@ const isPlaying = ref(false)
 let typeInterval: ReturnType<typeof setInterval> | null = null
 let audio: HTMLAudioElement | null = null
 
+// R71: 基于说话者名动态生成 class，避免硬编码角色名
 const speakerClass = computed(() => {
   const speaker = speakerName.value
   if (!speaker) return ''
-  if (speaker.includes('陈胜')) return 'speaker-chen'
-  if (speaker.includes('吴广')) return 'speaker-wu'
-  if (speaker.includes('戍卒')) return 'speaker-soldier'
-  return ''
+  const slug = speaker.replace(/[\s：:，,]/g, '').toLowerCase()
+  return `speaker-${slug}`
 })
 
 // 打字机效果
@@ -188,8 +187,9 @@ function pauseAudio() {
 }
 
 // 获取头像URL
+// R70: 用 getAssetUrl 替代硬编码 /img/
 function getIconUrl(iconName: string): string {
-  return `/img/${iconName}`
+  return getAssetUrl('images', iconName)
 }
 
 // 处理图片加载失败
@@ -198,22 +198,16 @@ function handleImageError(e: Event) {
   target.style.display = 'none'
 }
 
-// 监听内容变化
-watch(dialogContent, () => {
+// R74: watch immediate 替代 watch + onMounted 的重复逻辑
+function syncDisplayedText() {
   if (props.autoType) {
     typeText()
   } else {
     displayedText.value = dialogContent.value || ''
   }
-})
+}
 
-onMounted(() => {
-  if (props.autoType) {
-    typeText()
-  } else {
-    displayedText.value = dialogContent.value || ''
-  }
-})
+watch(dialogContent, syncDisplayedText, { immediate: true })
 
 onUnmounted(() => {
   if (typeInterval) {

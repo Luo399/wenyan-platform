@@ -42,5 +42,6 @@ if (import.meta.env.DEV && !ossBase) {
  * getAssetUrl('video', 'WEN_01_intro.mp4')
  */
 export function getAssetUrl(type: 'audio' | 'images' | 'video', fileName: string): string {
-  return `${ossBase}/${type}/${fileName}`
+  // R97: 对文件名做 URL 编码，避免含空格/中文/#/? 等字符时破坏 URL
+  return `${ossBase}/${type}/${encodeURIComponent(fileName)}`
 }

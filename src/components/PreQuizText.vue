@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="pre-quiz-text">
     <div class="pre-quiz-container" v-if="hasContent">
       <div class="pre-quiz-header">
@@ -53,6 +53,8 @@ interface Props {
   buttonText?: string
   showFooter?: boolean
   autoLoad?: boolean
+  // R53: 接收 wenId 避免硬编码 WEN_01
+  wenId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -61,6 +63,7 @@ const props = withDefaults(defineProps<Props>(), {
   buttonText: '开始答题',
   showFooter: true,
   autoLoad: true,
+  wenId: 'WEN_01',
 })
 
 const emit = defineEmits<{
@@ -86,7 +89,7 @@ async function loadData() {
   error.value = null
 
   try {
-    const url = `/data/level3_scenario_text/WEN_01.json`
+    const url = `/data/level3_scenario_text/${props.wenId}.json`
     const { data: rawData, error: loadError } = useDataLoader<RawScenarioText[]>(() => url)
 
     if (loadError.value) {

@@ -255,8 +255,9 @@ export async function getTextBatch(textIds: string[]): Promise<
 
 /**
  * 转换参数为查询字符串格式
+ * R105: Record<string, any> → Record<string, unknown>
  */
-function toQueryParams(params: Record<string, any>): Record<string, string> {
+function toQueryParams(params: Record<string, unknown>): Record<string, string> {
   const result: Record<string, string> = {}
   for (const key in params) {
     if (params[key] != null) {
@@ -354,8 +355,10 @@ export interface SubmitAnswersResponse {
 
 /**
  * 提交答题结果
+ * R105: 修正注释，明确参数结构与返回值
+ * R107: submittedAt 优先用调用方传入的值，兜底客户端时间戳
  *
- * @param submitData - 答题数据（包含answers和questions）
+ * @param submitData - 答题数据（answers + questions）
  * @param wenId - 课文ID
  * @param studentId - 学生ID
  * @param studentName - 学生姓名（可选）
@@ -363,7 +366,11 @@ export interface SubmitAnswersResponse {
  * @returns 提交结果
  */
 export async function submitAnswers(
-  submitData: { answers: Record<string, any>; questions: QuestionForSubmit[] },
+  // R106: answers 类型与 SubmitAnswersParams 保持一致，移除 any
+  submitData: {
+    answers: Record<string, string | number | (string | number)[]>
+    questions: QuestionForSubmit[]
+  },
   wenId: string,
   studentId: string,
   studentName?: string,
@@ -373,6 +380,7 @@ export async function submitAnswers(
     studentId,
     studentName,
     wenId,
+    // R107: 客户端生成时间戳仅作兜底，后端应以服务器接收时间为准
     submittedAt: new Date().toISOString(),
     answers: submitData.answers,
     questions: submitData.questions,

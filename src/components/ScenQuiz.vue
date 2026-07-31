@@ -1,12 +1,17 @@
 <template>
   <div class="scen-quiz">
     <div class="scen-quiz-container" v-if="hasMatchingData">
-      <div class="section-tabs">
+      <!-- R72: tab 容器加 role=tablist，按钮加 role/tab/aria-selected/aria-controls -->
+      <div class="section-tabs" role="tablist" aria-label="题目选择">
         <button
           v-for="item in matchedItems"
           :key="item.questionNumber"
           class="tab-btn"
           :class="{ active: currentQuestionNumber === item.questionNumber }"
+          role="tab"
+          :aria-selected="currentQuestionNumber === item.questionNumber"
+          :aria-controls="`scen-quiz-panel-${item.questionNumber}`"
+          :tabindex="currentQuestionNumber === item.questionNumber ? 0 : -1"
           @click="selectQuestion(item.questionNumber)"
         >
           <span class="tab-number">{{ item.questionNumber }}</span>
@@ -67,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import PreQuizText from './PreQuizText.vue'
 import AdaptQuiz from './AdaptQuiz.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
@@ -274,23 +279,14 @@ function handleRetry() {
   loadData()
 }
 
+// R73: 合并 onMounted + 两个 watch 为单个 immediate watch，避免首次加载重复调用 loadData
 watch(
-  () => props.quizLevel,
+  () => [props.quizLevel, props.textId],
   () => {
     loadData()
   },
+  { immediate: true },
 )
-
-watch(
-  () => props.textId,
-  () => {
-    loadData()
-  },
-)
-
-onMounted(() => {
-  loadData()
-})
 
 defineExpose({
   reload: loadData,

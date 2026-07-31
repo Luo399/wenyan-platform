@@ -24,7 +24,7 @@
 | #   | 轮次   | 范围                                | 问题数 | 状态   | 文件                                                                                                   |
 | --- | ------ | ----------------------------------- | ------ | ------ | ------------------------------------------------------------------------------------------------------ |
 | 08  | 第二轮 | C01-C11 完成后的前端审查（R01-R50） | 50     | 未开始 | [08-frontend-round2.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/08-frontend-round2.md) |
-| 09  | 第三轮 | 更广泛文件审查（R51-R116）          | 66     | 进行中 | [09-frontend-round3.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/09-frontend-round3.md) |
+| 09  | 第三轮 | 更广泛文件审查（R51-R116）          | 66     | 已完成 | [09-frontend-round3.md](file:///e:/cpp_discipline/wenyan-platform/docs/refactor/09-frontend-round3.md) |
 
 滚动审查合计：116 个问题
 
@@ -129,10 +129,11 @@ refactor/pipeline-01      # 数据管道第 1 项
 | 2026-07-30              | 09-frontend-round3.md P1 批次  | 8/66（R75, R82, R91, R96, R98, R101, R104, R115） | P1 安全+数据完整性批次：R75/R82 被前序轮次覆盖；R91/R96/R98/R101/R104/R115 由 PR #58 squash 合并到 feature-1，测试环境部署成功 |
 | 2026-07-30              | 07-data-pipeline.md            | 7/7（P01-P07）              | config.py 重构提取 map_answer_to_index/post_process_quiz_generic 并消除副作用；validators.py 加 is_absolute_path/validate_no_absolute_path；新建 pyproject.toml 声明依赖与包结构；main.py 移除 sys.path.append；ci-checks.yml 新增 pipeline-test job；test_config.py/test_validators.py 补充单元测试；P02/P03 代码早已修复同步文档状态 |
 | 2026-07-30              | 09-frontend-round3.md P1 批次4 | 6/66（R55, R56, R57, R62, R64, R109） | P1 bug+a11y 批次：R55 DialogText typeText 去重；R56 Audio 内存泄漏；R57 ScenQuiz watchLoader 抽取；R62 CultureCards 键盘支持；R64 进度条键盘操作；R109 correct_answer ?? 修复。PR #60 squash 合并到 feature-1，前端测试部署成功（无 backend 改动，后端部署未触发属预期） |
+| 2026-07-30              | 09-frontend-round3.md P2/P3    | 46/66（P2: 37 项 + P3: 9 项） | P2/P3 全量优化：utils(api/asset/localStorage/format) 类型安全+异常包裹；stores+composables auth/student/bgm/useNavigation/useDataLoader/useQuizProgress 重构；adapters quizAdapter/level1-3 类型+拆分；components PreQuizText/StepThreeView/CultureCards/BlockRenderer/BackContinue/DialogText/DialogueCard/ScenQuiz a11y+DRY+性能；services+router apiService/router/guards 类型+清理。分支 trae/agent-round3-p2p3，PR 待创建 |
 | -                       | 01-03, 05-06 专题              | 0/57                        | 待开始（07 已完成）                                                                                                                                             |
 | -                       | 08-frontend-round2.md          | 0/50                        | 待开始                                                                                                                                                           |
-| -                       | 09-frontend-round3.md 剩余     | 0/46                        | R51/R52/R54/R55/R56/R57/R62/R64/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R109/R115 已完成（20 项），剩余 46 项待开始                                           |
-| -                       | **合计**                       | **38/191**                  | 专题 18（04 的 11 + 07 的 7）+ 滚动审查 20（R51/R52/R54/R55/R56/R57/R62/R64/R75/R82/R90/R91/R96/R98/R101/R103/R104/R108/R109/R115）                              |
+| -                       | 09-frontend-round3.md 剩余     | 0/0                         | 09 专题 R51-R116 共 66 项全部完成                                                                                                                                |
+| -                       | **合计**                       | **84/191**                  | 专题 18（04 的 11 + 07 的 7）+ 滚动审查 66（R51-R116 全部）                                                                                                     |
 
 ## 使用方式
 

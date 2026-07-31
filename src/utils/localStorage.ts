@@ -36,11 +36,18 @@ function buildQuizStorageKey(studentId: string): string {
 
 /**
  * 安全读取并 JSON.parse 一个 localStorage key
+ * R99: 包裹 getItem 异常（隐私模式/配额满/SecurityError）
  * @param key localStorage key
  * @param fallback 解析失败时的返回值
  */
 function safeReadJson<T>(key: string, fallback: T): T {
-  const raw = localStorage.getItem(key)
+  let raw: string | null
+  try {
+    raw = localStorage.getItem(key)
+  } catch (err) {
+    debugLog('[localStorage] getItem 异常:', key, err)
+    return fallback
+  }
   if (raw === null) return fallback
   try {
     return JSON.parse(raw) as T
@@ -133,7 +140,12 @@ export function appendQuizRecord<T>(studentId: string, record: T): T[] {
  */
 export function clearQuizRecords(studentId: string): void {
   if (!studentId) return
-  localStorage.removeItem(buildQuizStorageKey(studentId))
+  // R99: 包裹 removeItem 异常
+  try {
+    localStorage.removeItem(buildQuizStorageKey(studentId))
+  } catch (err) {
+    debugLog('[localStorage] removeItem 异常:', err)
+  }
 }
 
 // ============================================================
@@ -145,7 +157,14 @@ export function clearQuizRecords(studentId: string): void {
  * - 只返回格式合法的学号（≥1 位数字），保证恢复登录态时不脏读
  */
 export function getStudentId(): string {
-  const saved = localStorage.getItem(STORAGE_KEY_STUDENT_ID)
+  // R99: 包裹 getItem 异常
+  let saved: string | null
+  try {
+    saved = localStorage.getItem(STORAGE_KEY_STUDENT_ID)
+  } catch (err) {
+    debugLog('[localStorage] getItem 异常:', err)
+    return ''
+  }
   if (saved && /^\d+$/.test(saved)) return saved
   return ''
 }
@@ -154,14 +173,23 @@ export function getStudentId(): string {
  * 写入持久化学号
  */
 export function setStudentId(id: string): void {
-  localStorage.setItem(STORAGE_KEY_STUDENT_ID, id)
+  // R99: 包裹 setItem 异常
+  try {
+    localStorage.setItem(STORAGE_KEY_STUDENT_ID, id)
+  } catch (err) {
+    debugLog('[localStorage] setItem 异常:', err)
+  }
 }
 
 /**
  * 清除持久化学号
  */
 export function clearStudentId(): void {
-  localStorage.removeItem(STORAGE_KEY_STUDENT_ID)
+  try {
+    localStorage.removeItem(STORAGE_KEY_STUDENT_ID)
+  } catch (err) {
+    debugLog('[localStorage] removeItem 异常:', err)
+  }
 }
 
 // ============================================================
@@ -178,7 +206,13 @@ export interface AuthStorageData {
  * - token 不存在：认为未登录，返回全 null（不单独读 user）
  */
 export function getAuthData(): AuthStorageData {
-  const token = localStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
+  let token: string | null
+  try {
+    token = localStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
+  } catch (err) {
+    debugLog('[localStorage] getItem 异常:', err)
+    return { token: null, user: null }
+  }
   if (!token) return { token: null, user: null }
 
   const user = safeReadJson<User | null>(STORAGE_KEY_AUTH_USER, null)
@@ -194,7 +228,11 @@ export function setAuthData(token: string | null, user: User | null): void {
     clearAuthData()
     return
   }
-  localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, token)
+  try {
+    localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, token)
+  } catch (err) {
+    debugLog('[localStorage] setItem 异常:', err)
+  }
   safeWriteJson(STORAGE_KEY_AUTH_USER, user)
 }
 
@@ -202,6 +240,10 @@ export function setAuthData(token: string | null, user: User | null): void {
  * 清除登录态
  */
 export function clearAuthData(): void {
-  localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN)
-  localStorage.removeItem(STORAGE_KEY_AUTH_USER)
+  try {
+    localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN)
+    localStorage.removeItem(STORAGE_KEY_AUTH_USER)
+  } catch (err) {
+    debugLog('[localStorage] removeItem 异常:', err)
+  }
 }

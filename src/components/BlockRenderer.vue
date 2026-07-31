@@ -33,7 +33,9 @@ import MultiRoleReading from './MultiRoleReading.vue'
 import VideoPlayer from './VideoPlayer.vue'
 
 // 组件映射表
-const componentMap: Record<string, any> = {
+// R67: 用 Component 类型替代 any，保持类型安全
+import type { Component } from 'vue'
+const componentMap: Record<string, Component> = {
   // 对话文本块（Block模式）- 使用DialogueCard组件
   dialogue: DialogueCard,
 
@@ -95,37 +97,5 @@ const emit = defineEmits<{
 .block-renderer:last-child {
   margin-bottom: 0;
 }
-
-/* 块类型特定样式 */
-.block-type-dialogue {
-  /* 对话文本块样式（Block模式） */
-}
-
-.block-type-dialog {
-  /* 对话文本块样式（旧版） */
-}
-
-.block-type-quiz {
-  /* 测验块样式 */
-}
-
-.block-type-wordlist {
-  /* 字词注释块样式 */
-}
-
-.block-type-multi-role-reading {
-  /* 多角色朗读块样式 */
-}
-
-.block-type-video {
-  /* 视频块样式 */
-}
-
-.block-type-audio-image-text {
-  /* 音频图片文本块样式 */
-}
-
-.block-type-plain-text {
-  /* 纯文本块样式 */
-}
+/* R68: 移除空的块类型特定样式占位，需要时再添加 */
 </style>

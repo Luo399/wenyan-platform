@@ -15,6 +15,7 @@ import {
   setStudentId as saveStudentIdToStorage,
   clearStudentId as removeStudentIdFromStorage,
 } from '@/utils/localStorage'
+import { debugWarn } from '@/utils/debug'
 
 export const useStudentStore = defineStore('student', () => {
   // ============================================================
@@ -40,11 +41,16 @@ export const useStudentStore = defineStore('student', () => {
 
   /**
    * 设置学号
+   * R78: 校验输入为非空字符串，避免空串/非字符串写入 store 与 localStorage
    * @param id - 学号（纯数字，长度不限，与 LoginModal 测试账号 1-5 及正式学号 2024001 均兼容）
    */
   function setStudentId(id: string) {
-    studentId.value = id
-    saveStudentIdToStorage(id)
+    if (typeof id !== 'string' || !id.trim()) {
+      debugWarn('[studentStore] setStudentId 忽略非法输入:', id)
+      return
+    }
+    studentId.value = id.trim()
+    saveStudentIdToStorage(studentId.value)
   }
 
   /**

@@ -10,6 +10,8 @@
 export function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
+  // R100: 校验无效日期，避免 UI 显示 "Invalid Date"
+  if (isNaN(date.getTime())) return '-'
   return date.toLocaleString('zh-CN')
 }
 
