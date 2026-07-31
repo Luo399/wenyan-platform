@@ -2,59 +2,18 @@
 // 学生信息管理 Service
 // 说明：学生相关的业务 API 统一放在 services 层；旧的
 //       utils/studentApi.ts 作为 re-export 兼容层存在。
+// 学生相关类型统一在 @/types/student 声明。
 // ============================================================
 
 import { get, post, put, del, ApiError } from '@/utils/api'
-
-/**
- * 学生信息接口
- */
-export interface StudentInfo {
-  student_id: string
-  name: string
-  class?: number
-  created_at?: string
-}
-
-/**
- * 新增学生参数
- */
-export interface CreateStudentParams {
-  studentId: string
-  name: string
-  class?: number
-}
-
-/**
- * 修改学生参数
- */
-export interface UpdateStudentParams {
-  name: string
-  class?: number
-}
-
-/**
- * 删除学生响应
- */
-export interface DeleteStudentResponse {
-  studentId: string
-}
-
-/**
- * 批量删除学生响应
- */
-export interface BatchDeleteStudentResponse {
-  deletedCount: number
-  studentIds: string[]
-}
-
-/**
- * 学生表单验证错误
- */
-export interface StudentValidationError {
-  field: string
-  message: string
-}
+import type {
+  StudentInfo,
+  CreateStudentParams,
+  UpdateStudentParams,
+  DeleteStudentResponse,
+  BatchDeleteStudentResponse,
+  StudentValidationError,
+} from '@/types/student'
 
 /**
  * 学生数据验证函数
@@ -322,4 +281,14 @@ export async function searchStudents(
     (s) =>
       s.student_id.toLowerCase().includes(searchTerm) || s.name.toLowerCase().includes(searchTerm),
   )
+}
+
+// 保持类型兼容：从集中类型文件 re-export，避免外部 import 失效
+export type {
+  StudentInfo,
+  CreateStudentParams,
+  UpdateStudentParams,
+  DeleteStudentResponse,
+  BatchDeleteStudentResponse,
+  StudentValidationError,
 }

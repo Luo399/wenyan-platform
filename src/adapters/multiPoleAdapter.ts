@@ -8,7 +8,13 @@
  * - 原始数据类型（Raw）允许 null 值，反映真实数据状态
  * - 处理后的数据类型（Processed）不允许 null 值，提供类型安全边界
  * - 适配器统一填充默认值，组件无需处理空值逻辑
+ *
+ * 时间工具已统一在 @/utils/timeUtils：
+ *  - parseTimeRangeAsTuple 返回 [start, end]（本文件原有返回类型）
+ *  - timeToSeconds / parseSecondsToTime 已重导出
  */
+
+import { parseTimeRangeAsTuple, timeToSeconds, parseSecondsToTime } from '@/utils/timeUtils'
 
 // 原始数据接口（允许 null，与 JSON 结构一一对应）
 export interface RawMultiRoleSegment {
@@ -101,7 +107,7 @@ function processSegments(rawSegments: RawMultiRoleSegment[]): ProcessedMultiRole
     // 安全获取字段值，null 转为默认值
     const sentenceIndex = segment.sentence_index ?? 0
     const timeRange = segment.time_range ?? '00:00-00:00'
-    const [start, end] = parseTimeRange(timeRange)
+    const [start, end] = parseTimeRangeAsTuple(timeRange)
 
     return {
       sentence_index: sentenceIndex,
@@ -118,59 +124,24 @@ function processSegments(rawSegments: RawMultiRoleSegment[]): ProcessedMultiRole
   })
 }
 
-/**
- * 解析时间范围字符串（格式："00:00-00:16"）
- * @param timeRange - 时间范围字符串（允许 null）
- * @returns [开始时间(秒), 结束时间(秒)]
- */
-export function parseTimeRange(timeRange: string | null): [number, number] {
-  // null 值保护
-  if (!timeRange) {
-    return [0, 0]
-  }
-
-  const parts = timeRange.split('-')
-  if (parts.length !== 2) {
-    return [0, 0]
-  }
-
-  const startPart = parts[0]?.trim() || '0:00'
-  const endPart = parts[1]?.trim() || '0:00'
-
-  const start = timeToSeconds(startPart)
-  const end = timeToSeconds(endPart)
-
-  return [start, end]
-}
-
-/**
- * 将时间字符串转换为秒数（格式："00:00"）
- * @param timeStr - 时间字符串
- * @returns 秒数
- */
-export function timeToSeconds(timeStr: string | null): number {
-  if (!timeStr) return 0
-
-  const parts = timeStr.split(':')
-  if (parts.length === 2) {
-    const minutes = parseInt(parts[0] ?? '0', 10) || 0
-    const seconds = parseFloat(parts[1] ?? '0') || 0
-    return minutes * 60 + seconds
-  } else if (parts.length === 1) {
-    return parseFloat(parts[0] ?? '0') || 0
-  }
-  return 0
-}
-
+// 旧本地 parseTimeRange / timeToSeconds / parseSecondsToTime
+// 已统一到 @/utils/timeUtils：
+//   - 元组返回：parseTimeRangeAsTuple
+//   - 对象返回：parseTimeRange（from adapterUtils / timeUtils）
+//   - 时间解析：timeToSeconds / parseTimeToSeconds
+//   - 秒格式化：parseSecondsToTime
+// 此处保留 parseTimeRange 的"本地别名"并指向 parseTimeRangeAsTuple，
+// 避免外部已有 import 失效。
+export const parseTimeRange = parseTimeRangeAsTuple
+export { timeToSeconds, parseSecondsToTime }
 /**
  * 将秒数格式化为时间字符串（格式："00:00"）
+ * - 别名：parseSecondsToTime（统一在 timeUtils，支持 HH:MM:SS）
  * @param seconds - 秒数
  * @returns 格式化的时间字符串
  */
 export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  return parseSecondsToTime(seconds)
 }
 
 /**

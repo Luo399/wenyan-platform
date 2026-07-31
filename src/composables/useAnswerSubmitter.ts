@@ -23,7 +23,8 @@
 
 import { ref, type Ref } from 'vue'
 import { useStudentInfo } from '@/composables/useStudentInfo'
-import { post } from '@/utils/api'
+import { submitAnswers as apiSubmitAnswers } from '@/services/apiService'
+import type { SubmitAnswersResponse } from '@/services/apiService'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 /**
@@ -388,47 +389,47 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
   }
 
   /**
-   * 提交答案到后端
-   * @param wenId - 课文ID
-   * @returns 提交结果
-   */
-  async function submitAnswers(wenId: string): Promise<SubmitResponse> {
-    const payload = buildSubmitPayload(wenId)
+ * 提交答案到后端（统一走 apiService.submitAnswers 入口）
+ * @param wenId - 课文ID
+ * @returns 提交结果
+ */
+async function submitAnswers(wenId: string): Promise<SubmitResponse> {
+  const payload = buildSubmitPayload(wenId)
 
-    if (!payload) {
-      throw new Error('无法构建提交载荷')
-    }
-
-    const studentName = await getStudentName()
-    if (studentName && studentName.trim()) {
-      payload.studentName = studentName
-    }
-
-    isSubmitting.value = true
-    submitError.value = null
-
-    try {
-      const apiResponse = await post<SubmitResponse['data']>('/api/submit', payload)
-
-      if (apiResponse.success) {
-        debugLog('[useAnswerSubmitter] 答案提交成功')
-        return {
-          success: true,
-          message: apiResponse.message || '提交成功',
-          data: apiResponse.data,
-        }
-      } else {
-        throw new Error(apiResponse.message || '提交失败')
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '提交失败'
-      submitError.value = errorMessage
-      debugError('[useAnswerSubmitter] 提交失败:', error)
-      throw error
-    } finally {
-      isSubmitting.value = false
-    }
+  if (!payload) {
+    throw new Error('无法构建提交载荷')
   }
+
+  const studentName = await getStudentName()
+  if (studentName && studentName.trim()) {
+    payload.studentName = studentName
+  }
+
+  isSubmitting.value = true
+  submitError.value = null
+
+  try {
+    const apiResponse: SubmitAnswersResponse = await apiSubmitAnswers(payload)
+
+    if (apiResponse.success) {
+      debugLog('[useAnswerSubmitter] 答案提交成功')
+      return {
+        success: true,
+        message: apiResponse.message || '提交成功',
+        data: apiResponse.data,
+      }
+    } else {
+      throw new Error(apiResponse.message || '提交失败')
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '提交失败'
+    submitError.value = errorMessage
+    debugError('[useAnswerSubmitter] 提交失败:', error)
+    throw error
+  } finally {
+    isSubmitting.value = false
+  }
+}
 
   return {
     answers,

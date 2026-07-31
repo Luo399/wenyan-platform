@@ -136,6 +136,7 @@ import BaseEmpty from '@/components/common/BaseEmpty.vue'
 import BaseTimeout from '@/components/common/BaseTimeout.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { debugLog, debugError } from '@/utils/debug'
+import { parseTimeRange, parseSecondsToTime } from '@/utils/timeUtils'
 
 // 段落数据类型定义
 export interface MultiRoleSegment {
@@ -274,42 +275,17 @@ const currentSegmentIndex = computed(() => {
 })
 
 /**
- * 解析单个时间字符串为秒数
- * @param timeStr - 时间字符串，如 "00:00" 或 "01:23.45" 或 "123.45"
- * @returns 秒数
- */
-function parseTime(timeStr: string): number {
-  const parts = timeStr.trim().split(':')
-  if (parts.length === 2) {
-    const mins = parseInt(parts[0] ?? '0', 10) || 0
-    const secs = parseFloat(parts[1] ?? '0') || 0
-    return mins * 60 + secs
-  } else if (parts.length === 1) {
-    // 只有秒数的格式
-    return parseFloat(parts[0] ?? '0') || 0
-  }
-  return 0
-}
-
-/**
- * 格式化时间显示
+ * 格式化时间显示（统一走 parseSecondsToTime）
  */
 function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  return parseSecondsToTime(seconds)
 }
 
 /**
- * 从 time_range 解析开始和结束时间
+ * （parseTime/parseTimeRange 已删除，统一使用 timeUtils）：
+ *  - parseTime(timeStr) → parseTimeToSeconds(timeStr)（from timeUtils）
+ *  - parseTimeRange(timeRange) → parseTimeRange(timeRange)（from timeUtils，返回 {start, end}）
  */
-function parseTimeRange(timeRange: string): { start: number; end: number } {
-  const [startStr, endStr] = timeRange.split('-')
-  return {
-    start: parseTime(startStr ?? '0'),
-    end: parseTime(endStr ?? '0'),
-  }
-}
 
 /**
  * 格式化错误消息（保留原 404 友好提示与"请提供课文ID"语义）

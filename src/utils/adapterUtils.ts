@@ -2,9 +2,20 @@
  * 适配器工具函数
  *
  * 提供适配器层共用的工具函数，避免代码重复
+ * 时间相关函数（parseTime* / timeToSeconds / parseSecondsToTime）
+ * 统一在 @/utils/timeUtils 维护，此处仅 re-export 保持兼容。
  */
 
 import { debugWarn } from './debug'
+import {
+  parseTimeToSeconds,
+  parseTimeRange,
+  parseSecondsToTime,
+  parseTimeRangeAsTuple,
+  timeToSeconds,
+} from './timeUtils'
+
+export { parseTimeToSeconds, parseTimeRange, parseSecondsToTime, parseTimeRangeAsTuple, timeToSeconds }
 
 /**
  * HTML转义函数，防止XSS攻击
@@ -25,50 +36,6 @@ export function escapeHtml(str: string): string {
 }
 
 /**
- * 解析时间字符串为秒数
- *
- * @param timeStr - 时间字符串，格式如 "00:12" 或 "1:30"
- * @returns 秒数，无效输入返回0
- */
-export function parseTimeToSeconds(timeStr: string): number {
-  if (!timeStr || typeof timeStr !== 'string') {
-    return 0
-  }
-
-  const parts = timeStr.split(':').map(Number)
-
-  if (parts.length < 2 || parts.length > 3 || parts.some(isNaN)) {
-    debugWarn(`[adapterUtils] 无效的时间格式: ${timeStr}`)
-    return 0
-  }
-
-  if (parts.length === 3) {
-    return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0)
-  }
-
-  return (parts[0] ?? 0) * 60 + (parts[1] ?? 0)
-}
-
-/**
- * 解析时间范围字符串
- *
- * @param timeRange - 时间范围字符串，格式如 "00:00-00:15"
- * @returns { start: number, end: number } - 起始和结束秒数
- */
-export function parseTimeRange(timeRange: string): { start: number; end: number } {
-  if (!timeRange || typeof timeRange !== 'string') {
-    return { start: 0, end: 0 }
-  }
-
-  const [startStr, endStr] = timeRange.split('-')
-
-  return {
-    start: parseTimeToSeconds(startStr ?? ''),
-    end: parseTimeToSeconds(endStr ?? ''),
-  }
-}
-
-/**
  * 转义正则表达式特殊字符
  *
  * @param str - 需要转义的字符串
@@ -82,36 +49,74 @@ export function escapeRegex(str: string): string {
 }
 
 /**
+ * 构建 HTML：处理斜杠移除与换行 → <p>/<br> 转换（对已转义的原文安全）
+ */
+function wrapParagraphsWithSlashesRemoved(html: string, removeSlashes: boolean): string {
+  let result = removeSlashes ? html.replace(/\//g, '') : html
+  result = result.replace(/\n\n/g, '</p><p>')
+  result = result.replace(/\n/g, '<br>')
+  return `<p>${result}</p>`
+}
+
+/**
  * 构建带注释的HTML内容
  *
  * @param content - 原始内容
  * @param annotations - 注释列表，格式: { word: string, meaning: string }[]
+ * @param options - 格式化选项：
+ *   - removeSlashes: 是否移除原文中的斜杠符号（默认 false）
+ *   - wrapParagraphs: 是否将换行转换为 <p>/<br> 包裹（默认 false）
  * @returns 带注释的HTML字符串
  */
 export function buildContentHtmlWithAnnotations(
   content: string,
-  annotations: Array<{ word: string; meaning: string }>,
+  annotations: Array<{ word: string; meaning: string }> | null | undefined,
+  options: { removeSlashes?: boolean; wrapParagraphs?: boolean } = {},
 ): string {
-  if (!content || !annotations || annotations.length === 0) {
-    return escapeHtml(content || '')
+  const { removeSlashes = false, wrapParagraphs = false } = options
+
+  const hasAnnotations = annotations && annotations.length > 0
+
+  if (!content) {
+    return ''
   }
 
-  const sortedAnnotations = [...annotations].sort((a, b) => b.word.length - a.word.length)
+  // 没有注释时：对原文做转义，再按选项做格式化
+  if (!hasAnnotations) {
+    const escaped = escapeHtml(content)
+    if (!wrapParagraphs) {
+      // 仅需 removeSlashes 时（注意 escapeHtml 不会把 / 转义掉，可直接在 escaped 上操作）
+      return removeSlashes ? escaped.replace(/\//g, '') : escaped
+    }
+    return wrapParagraphsWithSlashesRemoved(escaped, removeSlashes)
+  }
 
+  // 有注释时：先处理斜杠 → 占位符替换注释 → 转义输出 → 套段落格式
+  let workingContent = removeSlashes ? content.replace(/\//g, '') : content
+
+  const sortedAnnotations = [...annotations!].sort((a, b) => b.word.length - a.word.length)
+
+  // 占位符策略：避免已注入的 span 被后续词汇匹配破坏
   const placeholderMap = new Map<string, { word: string; meaning: string }>()
-  let result = content
-
   for (const item of sortedAnnotations) {
     const placeholder = `__ANNOTATION_${placeholderMap.size}__`
     placeholderMap.set(placeholder, item)
-    result = result.split(item.word).join(placeholder)
+    workingContent = workingContent.split(item.word).join(placeholder)
   }
 
+  // 先对基础内容做 HTML 转义，再把占位符换回带注释的 span（span 内部已自行转义）
+  let result = escapeHtml(workingContent)
   for (const [placeholder, item] of placeholderMap) {
     const escapedWord = escapeHtml(item.word)
     const escapedMeaning = escapeHtml(item.meaning)
     const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
-    result = result.split(placeholder).join(replacement)
+    result = result.split(escapeHtml(placeholder)).join(replacement)
+  }
+
+  if (wrapParagraphs) {
+    result = result.replace(/\n\n/g, '</p><p>')
+    result = result.replace(/\n/g, '<br>')
+    result = `<p>${result}</p>`
   }
 
   return result

@@ -355,39 +355,54 @@ export interface SubmitAnswersResponse {
 
 /**
  * 提交答题结果
- * R105: 修正注释，明确参数结构与返回值
- * R107: submittedAt 优先用调用方传入的值，兜底客户端时间戳
  *
- * @param submitData - 答题数据（answers + questions）
- * @param wenId - 课文ID
- * @param studentId - 学生ID
+ * 支持两种调用方式：
+ * 1. 传完整 SubmitAnswersParams：由上层（如 useAnswerSubmitter）控制 submittedAt 等业务字段
+ * 2. 传拆散参数：submitAnswers 自动生成 submittedAt
+ *
+ * @param paramsOrData - SubmitAnswersParams 或 {answers, questions}
+ * @param wenId - 课文ID（第二种方式必填）
+ * @param studentId - 学生ID（第二种方式必填）
  * @param studentName - 学生姓名（可选）
  * @param timeout - 超时时间
  * @returns 提交结果
  */
 export async function submitAnswers(
-  // R106: answers 类型与 SubmitAnswersParams 保持一致，移除 any
-  submitData: {
-    answers: Record<string, string | number | (string | number)[]>
-    questions: QuestionForSubmit[]
-  },
-  wenId: string,
-  studentId: string,
+  paramsOrData:
+    | SubmitAnswersParams
+    | {
+        answers: Record<string, string | number | (string | number)[]>
+        questions: QuestionForSubmit[]
+      },
+  wenId?: string,
+  studentId?: string,
   studentName?: string,
   timeout?: number,
 ): Promise<SubmitAnswersResponse> {
-  const params: SubmitAnswersParams = {
-    studentId,
-    studentName,
-    wenId,
-    // R107: 客户端生成时间戳仅作兜底，后端应以服务器接收时间为准
-    submittedAt: new Date().toISOString(),
-    answers: submitData.answers,
-    questions: submitData.questions,
+  let params: SubmitAnswersParams
+
+  // 通过 studentId + submittedAt 字段判断是否为完整 params 格式
+  if (
+    typeof paramsOrData === 'object' &&
+    paramsOrData !== null &&
+    'studentId' in paramsOrData &&
+    'submittedAt' in paramsOrData
+  ) {
+    params = paramsOrData as SubmitAnswersParams
+  } else if (wenId && studentId) {
+    params = {
+      studentId,
+      studentName,
+      wenId,
+      submittedAt: new Date().toISOString(),
+      answers: (paramsOrData as { answers: Record<string, string | number | (string | number)[]> }).answers,
+      questions: (paramsOrData as { questions: QuestionForSubmit[] }).questions,
+    }
+  } else {
+    throw new Error('submitAnswers 参数错误：需传完整 SubmitAnswersParams 或 (answers+wenId+studentId)')
   }
 
   const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
-  // R104: 移除 response.data! 非空断言，先校验 success 与 data 存在性，避免运行时崩溃
   if (!response.success || !response.data) {
     throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')
   }

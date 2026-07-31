@@ -1,77 +1,36 @@
-import { debugWarn } from '../utils/debug'
+/**
+ * Level1 Quiz Adapter（兼容层，re-export 自公共工厂）
+ *
+ * 原独立实现已合并到 levelQuizAdapter.ts 的 createLevelQuizAdapter 工厂，
+ * 本文件仅保留同名导出以保持向后兼容。
+ */
 
-export interface RawLevel1QuizItem {
-  text_id: string | null
-  question_number: number | null
-  question_text: string | null
-  option_a: string | null
-  option_b: string | null
-  option_c: string | null
-  option_d: string | null
-  audio_file: string | null
-  difficulty: string | null
-  correct_answer: string | null
-  explanation: string | null
-  question_type: string | null
+import { LEVEL1_ADAPTER } from './levelQuizAdapter'
+export type { RawLevelQuizItem as RawLevel1QuizItem, ProcessedLevelQuizItem as ProcessedLevel1QuizItem } from './levelQuizAdapter'
+import type { RawLevelQuizItem, ProcessedLevelQuizItem } from './levelQuizAdapter'
+
+// 兼容旧类型命名
+export type RawLevel1QuizItem = RawLevelQuizItem
+export type ProcessedLevel1QuizItem = ProcessedLevelQuizItem
+
+/** 适配 Level1 测验数据 */
+export function adaptLevel1Quiz(
+  rawData: RawLevelQuizItem[] | null,
+): ProcessedLevelQuizItem[] {
+  return LEVEL1_ADAPTER.adapt(rawData)
 }
 
-export interface ProcessedLevel1QuizItem {
-  textId: string
-  questionId: string
-  module: string
-  questionNumber: number
-  questionText: string
-  options: { label: string; value: string }[]
-  audioFile: string | null
-  difficulty: string
-  correctAnswer: string | null
-  explanation: string
-  questionType: string
-}
-
-export function adaptLevel1Quiz(rawData: RawLevel1QuizItem[] | null): ProcessedLevel1QuizItem[] {
-  if (!rawData || !Array.isArray(rawData)) {
-    debugWarn('Level1测验数据为空或格式异常')
-    return []
-  }
-
-  return rawData
-    .filter((item) => item && item.text_id)
-    .map((item, index) => {
-      const textId = item.text_id || ''
-      // R111: questionId 优先用后端 question_number，index+1 仅作 fallback
-      const seq = item.question_number ?? index + 1
-      return {
-        textId,
-        questionId: `${textId}_A${seq}`,
-        module: 'A',
-        questionNumber: item.question_number || 0,
-        questionText: item.question_text || '',
-        // R112: 过滤空选项，避免渲染空按钮
-        options: [
-          { label: 'A', value: item.option_a || '' },
-          { label: 'B', value: item.option_b || '' },
-          { label: 'C', value: item.option_c || '' },
-          { label: 'D', value: item.option_d || '' },
-        ].filter((opt) => opt.value.trim() !== ''),
-        audioFile: item.audio_file || null,
-        difficulty: item.difficulty || 'L1',
-        // R109: 用 ?? 避免空字符串/0 被误判为 falsy 而丢失正确答案
-        correctAnswer: item.correct_answer ?? null,
-        explanation: item.explanation || '',
-        questionType: item.question_type || 'radio',
-      }
-    })
-    .filter((item) => item.questionText.trim())
-}
-
+/** 按题号查找 Level1 题目 */
 export function getLevel1QuizByQuestionNumber(
-  data: ProcessedLevel1QuizItem[],
+  data: ProcessedLevelQuizItem[],
   questionNumber: number,
-): ProcessedLevel1QuizItem | null {
-  return data.find((item) => item.questionNumber === questionNumber) || null
+): ProcessedLevelQuizItem | null {
+  return LEVEL1_ADAPTER.getByQuestionNumber(data, questionNumber)
 }
 
-export function getAllLevel1Quizzes(data: ProcessedLevel1QuizItem[]): ProcessedLevel1QuizItem[] {
-  return [...data]
+/** 返回所有 Level1 题目（新数组） */
+export function getAllLevel1Quizzes(
+  data: ProcessedLevelQuizItem[],
+): ProcessedLevelQuizItem[] {
+  return LEVEL1_ADAPTER.getAll(data)
 }

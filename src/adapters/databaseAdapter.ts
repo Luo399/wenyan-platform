@@ -12,7 +12,7 @@
  */
 
 import type { TextBasicInfo, WordItem } from '@/services/apiService'
-import { escapeHtml, parseTimeToSeconds, escapeRegex } from '@/utils/adapterUtils'
+import { buildContentHtmlWithAnnotations, parseTimeToSeconds, parseTimeRange } from '@/utils/adapterUtils'
 
 // ============================================================
 // 原始数据接口（保持与原JSON格式兼容）
@@ -133,7 +133,11 @@ export function adaptTextBasicInfoFromApi(rawData: TextBasicInfo): ProcessedText
     original_text: rawData.original_text,
     illustration: rawData.illustration,
     bgm: rawData.bgm,
-    contentHtml: buildContentHtml(rawData.original_text),
+    // 无注释版本：移除斜杠并处理换行包裹
+    contentHtml: buildContentHtmlWithAnnotations(rawData.original_text, null, {
+      removeSlashes: true,
+      wrapParagraphs: true,
+    }),
   }
 }
 
@@ -202,8 +206,17 @@ export function adaptWordListPairFromApi(
   const processedBasicInfo = adaptTextBasicInfoFromApi(rawBasicInfo)
   const processedWordList = adaptWordListFromApi(rawWordList)
 
-  // 更新文本基础信息的HTML内容，添加字词注释
-  const contentHtml = buildContentHtmlWithAnnotations(rawBasicInfo.original_text, processedWordList)
+  // 字段映射：ProcessedWordItem.word + basic_meaning → {word, meaning}
+  const annotations = processedWordList.map((w) => ({
+    word: w.word,
+    meaning: w.basic_meaning,
+  }))
+
+  // 更新文本基础信息的HTML内容，添加字词注释（移除斜杠 + 段落包裹）
+  const contentHtml = buildContentHtmlWithAnnotations(rawBasicInfo.original_text, annotations, {
+    removeSlashes: true,
+    wrapParagraphs: true,
+  })
 
   return {
     basicInfo: {
@@ -219,22 +232,6 @@ export function adaptWordListPairFromApi(
 // ============================================================
 
 /**
- * 解析时间范围字符串（如 '00:00-00:16'）
- *
- * @param timeRange 时间范围字符串
- */
-function parseTimeRange(timeRange: string): { start: number; end: number } {
-  if (!timeRange || typeof timeRange !== 'string') {
-    return { start: 0, end: 0 }
-  }
-  const [startStr, endStr] = timeRange.split('-')
-  return {
-    start: parseTimeToSeconds(startStr ?? ''),
-    end: parseTimeToSeconds(endStr ?? ''),
-  }
-}
-
-/**
  * 生成选项标签（A, B, C, D...）
  *
  * @param count 选项数量
@@ -247,51 +244,5 @@ function generateOptionLabels(count: number): string[] {
   return labels
 }
 
-/**
- * 构建带换行的HTML内容
- *
- * @param originalText 原始文本
- */
-function buildContentHtml(originalText: string): string {
-  // 移除原文中的斜杠符号
-  let content = originalText.replace(/\//g, '')
-
-  // 处理换行符
-  content = content.replace(/\n\n/g, '</p><p>')
-  content = content.replace(/\n/g, '<br>')
-  content = `<p>${content}</p>`
-
-  return content
-}
-
-/**
- * 构建带字词注释的HTML内容
- *
- * @param originalText 原始文本
- * @param wordList 字词列表
- */
-function buildContentHtmlWithAnnotations(
-  originalText: string,
-  wordList: ProcessedWordItem[],
-): string {
-  // 移除原文中的斜杠符号
-  let content = originalText.replace(/\//g, '')
-
-  // 处理所有词汇（按长度降序已排序）
-  for (const item of wordList) {
-    // 先转义正则特殊字符（用于正则匹配），再转义HTML（用于输出）
-    const escapedRegex = escapeRegex(item.word)
-    const escapedWord = escapeHtml(item.word)
-    const escapedMeaning = escapeHtml(item.basic_meaning)
-    const regex = new RegExp(escapedRegex, 'g')
-    const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
-    content = content.replace(regex, replacement)
-  }
-
-  // 处理换行符
-  content = content.replace(/\n\n/g, '</p><p>')
-  content = content.replace(/\n/g, '<br>')
-  content = `<p>${content}</p>`
-
-  return content
-}
+// parseTimeRange / buildContentHtml* / buildContentHtmlWithAnnotations
+// 已统一到 @/utils/adapterUtils，不再重复定义
