@@ -28,17 +28,6 @@ export interface User {
   role: 'student' | 'teacher' | 'admin'
 }
 
-/**
- * 认证状态接口
- */
-export interface AuthState {
-  user: User | null
-  token: string | null
-  isLoggedIn: boolean
-  isLoading: boolean
-  error: string | null
-}
-
 /** R35: 后端返回 user 的原始字段（下划线命名） */
 interface RawBackendUser {
   id: string
@@ -87,6 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * 登录（正式端点 /api/auth/student/login）
+   * R77: 拆分为 requestLogin + applyLoginResult，保持单一职责
    */
   async function login(studentId: string, password: string, studentName?: string): Promise<void> {
     isLoading.value = true
@@ -102,27 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error(response.message || '登录失败')
       }
 
-      // R36: 去除 ! 断言，显式检查
-      const result = response.data
-      if (!result?.token) {
-        throw new Error('登录响应缺少 token')
-      }
-
-      const rawUser = result.user as RawBackendUser | undefined
-      if (!rawUser) {
-        throw new Error('登录成功但未返回用户信息')
-      }
-
-      // 保存 token + user 并持久化（R34: 改用 setAuthData）
-      token.value = result.token as string
-      user.value = {
-        id: rawUser.id,
-        username: rawUser.username || rawUser.student_name || studentName || studentId,
-        studentId: rawUser.student_id || rawUser.studentId || studentId,
-        role: rawUser.role || 'student',
-      }
-      setAuthData(token.value, user.value)
-
+      applyLoginResult(response.data, studentId, studentName)
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
@@ -131,6 +101,33 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       isLoading.value = false
     }
+  }
+
+  /**
+   * R77: 校验登录响应并写入 store + 持久化
+   */
+  function applyLoginResult(
+    result: AuthTokenResponse | undefined,
+    studentId: string,
+    studentName?: string,
+  ): void {
+    if (!result?.token) {
+      throw new Error('登录响应缺少 token')
+    }
+
+    const rawUser = result.user as RawBackendUser | undefined
+    if (!rawUser) {
+      throw new Error('登录成功但未返回用户信息')
+    }
+
+    token.value = result.token as string
+    user.value = {
+      id: rawUser.id,
+      username: rawUser.username || rawUser.student_name || studentName || studentId,
+      studentId: rawUser.student_id || rawUser.studentId || studentId,
+      role: rawUser.role || 'student',
+    }
+    setAuthData(token.value, user.value)
   }
 
   /**

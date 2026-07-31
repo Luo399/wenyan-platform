@@ -209,42 +209,24 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
     let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     try {
-      // R19: 超时使用特定 reason abort，便于和"主动取消"区分
       timeoutId = setTimeout(() => {
         debugLog('[useDataLoader] 请求超时触发')
         abortController?.abort(TIMEOUT_ABORT_REASON)
       }, timeout)
 
-      debugLog('[useDataLoader] 发起请求:', url)
-
-      const response = await fetch(url, {
-        signal: abortController.signal,
-        headers: { Accept: 'application/json' },
-      })
-
+      const parsed = await fetchAndParse(url, abortController)
       clearTimeout(timeoutId)
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      // 使用 arrayBuffer + TextDecoder 防乱码
-      const buffer = await response.arrayBuffer()
-      const text = new TextDecoder('utf-8').decode(buffer)
-
-      // Worker 解析 JSON（失败抛错，外层 catch 统一处理）
-      const parsed = (await parseJsonWithWorker(text)) as unknown
       data.value = transform ? transform(parsed) : (parsed as T)
 
       if (cacheEnabled) {
         setCachedData(url, data.value)
       }
 
-      const duration = Date.now() - startTime
-      debugLog(`[useDataLoader] 请求完成，耗时: ${duration}ms`)
+      debugLog(`[useDataLoader] 请求完成，耗时: ${Date.now() - startTime}ms`)
 
       loading.value = false
-      // R20: 请求成功路径务必重置 retryAttempts，否则"失败→重试成功→再失败"将丢失一次重试机会
+      // R20: 请求成功路径务必重置 retryAttempts
       retryAttempts = 0
       onLoadSuccess?.(data.value)
     } catch (err) {
@@ -252,40 +234,69 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
         clearTimeout(timeoutId)
       }
       cancelPendingRetry()
+      handleLoadError(err, startTime)
+    }
+  }
 
-      const duration = Date.now() - startTime
+  /**
+   * R84: fetch + 解析 JSON（从 load 拆分，保持单一职责）
+   * R19: 超时使用特定 reason abort，便于和"主动取消"区分
+   */
+  async function fetchAndParse(url: string, controller: AbortController): Promise<unknown> {
+    debugLog('[useDataLoader] 发起请求:', url)
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    })
 
-      // R19: 区分是超时触发的 abort 还是主动取消
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        const reason = abortController?.signal?.reason
-        if (reason === TIMEOUT_ABORT_REASON) {
-          isTimeout.value = true
-          error.value = '请求超时'
-          debugLog('[useDataLoader] 请求超时，耗时:', `${duration}ms`)
-        } else {
-          // 主动取消（切 URL / 卸载组件 / retry）：不打错误标记，不暴露给 UI
-          debugLog('[useDataLoader] 请求被主动取消（切换URL或卸载组件）')
-          loading.value = false
-          return
-        }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    // 使用 arrayBuffer + TextDecoder 防乱码
+    const buffer = await response.arrayBuffer()
+    const text = new TextDecoder('utf-8').decode(buffer)
+
+    // Worker 解析 JSON（失败抛错，外层 catch 统一处理）
+    return parseJsonWithWorker(text)
+  }
+
+  /**
+   * R84: 错误处理 + 重试调度（从 load 拆分）
+   */
+  function handleLoadError(err: unknown, startTime: number): void {
+    const duration = Date.now() - startTime
+
+    // R19: 区分是超时触发的 abort 还是主动取消
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      const reason = abortController?.signal?.reason
+      if (reason === TIMEOUT_ABORT_REASON) {
+        isTimeout.value = true
+        error.value = '请求超时'
+        debugLog('[useDataLoader] 请求超时，耗时:', `${duration}ms`)
       } else {
-        error.value = err instanceof Error ? err.message : '加载失败'
-        debugLog('[useDataLoader] 请求失败:', error.value)
-      }
-
-      // 自动重试（仅非超时场景，且还有剩余重试次数）
-      if (!isTimeout.value && retryAttempts < retryCount) {
-        retryAttempts++
-        const backoff = Math.min(Math.pow(2, retryAttempts) * 1000, 10000) // 指数退避，最大10秒
-        debugLog(`[useDataLoader] 第 ${retryAttempts} 次重试，等待 ${backoff}ms...`)
-        pendingRetryTimer = setTimeout(() => load(), backoff)
+        // 主动取消（切 URL / 卸载组件 / retry）：不打错误标记，不暴露给 UI
+        debugLog('[useDataLoader] 请求被主动取消（切换URL或卸载组件）')
+        loading.value = false
         return
       }
-
-      loading.value = false
-      retryAttempts = 0
-      onLoadError?.(error.value!)
+    } else {
+      error.value = err instanceof Error ? err.message : '加载失败'
+      debugLog('[useDataLoader] 请求失败:', error.value)
     }
+
+    // 自动重试（仅非超时场景，且还有剩余重试次数）
+    if (!isTimeout.value && retryAttempts < retryCount) {
+      retryAttempts++
+      const backoff = Math.min(Math.pow(2, retryAttempts) * 1000, 10000)
+      debugLog(`[useDataLoader] 第 ${retryAttempts} 次重试，等待 ${backoff}ms...`)
+      pendingRetryTimer = setTimeout(() => load(), backoff)
+      return
+    }
+
+    loading.value = false
+    retryAttempts = 0
+    onLoadError?.(error.value!)
   }
 
   function retry() {

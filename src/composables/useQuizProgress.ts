@@ -76,8 +76,13 @@ export function useQuizProgress(
 
   const hasCompletionRecord = computed(() => {
     const key = getCompletionKey(completionKeyPrefix)
-    const record = sessionStorage.getItem(key)
-    return !!record
+    // R89: 包裹 sessionStorage 读取异常
+    try {
+      return !!sessionStorage.getItem(key)
+    } catch (err) {
+      debugWarn('[useQuizProgress] sessionStorage 读取失败:', err)
+      return false
+    }
   })
 
   function saveCompletionRecord(): void {
@@ -88,14 +93,23 @@ export function useQuizProgress(
       totalQuestions: totalQuestionsRef.value,
       answeredCount: completedCount.value,
     }
-    sessionStorage.setItem(key, JSON.stringify(record))
-    debugLog(`[useQuizProgress] 完成记录已保存:`, record)
+    // R89: 包裹 sessionStorage 写入异常
+    try {
+      sessionStorage.setItem(key, JSON.stringify(record))
+      debugLog(`[useQuizProgress] 完成记录已保存:`, record)
+    } catch (err) {
+      debugWarn('[useQuizProgress] sessionStorage 写入失败:', err)
+    }
   }
 
   function clearCompletionRecord(): void {
     const key = getCompletionKey(completionKeyPrefix)
-    sessionStorage.removeItem(key)
-    debugLog(`[useQuizProgress] 完成记录已清除`)
+    try {
+      sessionStorage.removeItem(key)
+      debugLog(`[useQuizProgress] 完成记录已清除`)
+    } catch (err) {
+      debugWarn('[useQuizProgress] sessionStorage 删除失败:', err)
+    }
   }
 
   function getStudentInfo(): { studentId: string; studentName: string } {
@@ -268,10 +282,16 @@ export function useQuizProgress(
         newValue: newVal,
       })
 
+      // R88: 题目总数变化时重置进度，避免旧答案/已完成计数与新总数不匹配
       submittedList.value = Array.from({ length: newVal }, () => false)
 
       if (newVal === 0) {
         resetProgress()
+      } else if (oldVal !== undefined && newVal !== oldVal) {
+        // 总数变化（非首次）：清空旧答案，重置计数与游标
+        answers.value = []
+        completedCount.value = 0
+        currentIndex.value = 0
       }
     },
     { immediate: true },

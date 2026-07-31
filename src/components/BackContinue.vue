@@ -31,6 +31,7 @@
 <script setup lang="ts">
 /**
  * BackContinue Props 定义
+ * R69: 移除 backEvent/continueEvent 回调 props，统一用 emit，避免双机制歧义
  */
 interface Props {
   /** 返回按钮文本 */
@@ -39,10 +40,6 @@ interface Props {
   continueText?: string
   /** 是否显示继续按钮 */
   showContinue?: boolean
-  /** 自定义返回事件（默认使用 router.back()） */
-  backEvent?: () => void
-  /** 自定义继续事件 */
-  continueEvent?: () => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -62,22 +59,14 @@ const emit = defineEmits<{
  * 处理返回按钮点击
  */
 function handleBack() {
-  if (props.backEvent) {
-    props.backEvent()
-  } else {
-    emit('back')
-  }
+  emit('back')
 }
 
 /**
  * 处理继续按钮点击
  */
 function handleContinue() {
-  if (props.continueEvent) {
-    props.continueEvent()
-  } else {
-    emit('continue')
-  }
+  emit('continue')
 }
 </script>
 

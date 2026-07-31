@@ -120,9 +120,10 @@ const {
   },
 })
 
-// 解锁状态判断（可根据实际业务逻辑调整）
-function isUnlocked(card: CultureCard): boolean {
-  // 默认全部解锁，后续可接入用户进度数据
+// 解锁状态判断
+// R63: 当前恒 true 为占位实现；接入用户进度数据后再按 card.unlock_condition 判断
+// 保留函数避免调用方多处修改，后续只需改这里
+function isUnlocked(_card: CultureCard): boolean {
   return true
 }
 

@@ -39,18 +39,21 @@ export function adaptLevel1Quiz(rawData: RawLevel1QuizItem[] | null): ProcessedL
     .filter((item) => item && item.text_id)
     .map((item, index) => {
       const textId = item.text_id || ''
+      // R111: questionId 优先用后端 question_number，index+1 仅作 fallback
+      const seq = item.question_number ?? index + 1
       return {
         textId,
-        questionId: `${textId}_A${index + 1}`,
+        questionId: `${textId}_A${seq}`,
         module: 'A',
         questionNumber: item.question_number || 0,
         questionText: item.question_text || '',
+        // R112: 过滤空选项，避免渲染空按钮
         options: [
           { label: 'A', value: item.option_a || '' },
           { label: 'B', value: item.option_b || '' },
           { label: 'C', value: item.option_c || '' },
           { label: 'D', value: item.option_d || '' },
-        ],
+        ].filter((opt) => opt.value.trim() !== ''),
         audioFile: item.audio_file || null,
         difficulty: item.difficulty || 'L1',
         // R109: 用 ?? 避免空字符串/0 被误判为 falsy 而丢失正确答案
