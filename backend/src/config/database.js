@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose()
 const fs = require('fs')
 const path = require('path')
+const logger = require('../utils/logger')
 
 /**
  * 数据库文件路径解析：
@@ -86,7 +87,7 @@ function migrateAnswersTableIfNeeded() {
         return resolve()
       }
 
-      console.log('[database] 检测到旧版 answers 表 UNIQUE 约束，开始迁移...')
+      logger.info('[database] 检测到旧版 answers 表 UNIQUE 约束，开始迁移...')
 
       db.run('ALTER TABLE answers RENAME TO answers_old', (renameErr) => {
         if (renameErr) return reject(renameErr)
@@ -114,7 +115,7 @@ function migrateAnswersTableIfNeeded() {
           )
           .then(() => runSql('DROP TABLE answers_old'))
           .then(() => {
-            console.log('[database] answers 表迁移完成')
+            logger.info('[database] answers 表迁移完成')
             resolve()
           })
           .catch(reject)
@@ -239,7 +240,7 @@ function initAllTables() {
         ]),
       )
       .then(() => {
-        console.log('[database] 所有表初始化/升级完成')
+        logger.info('[database] 所有表初始化/升级完成')
       })
   )
 
@@ -289,7 +290,7 @@ function checkAndUpgradeStudentsTable() {
       runSql('ALTER TABLE students RENAME TO students_old')
         .then(() => createNew())
         .then(() => {
-          console.log('[database] students 表已升级为新 schema，旧数据保存在 students_old')
+          logger.info('[database] students 表已升级为新 schema，旧数据保存在 students_old')
           resolve()
         })
         .catch((err) => {

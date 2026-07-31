@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config/app');
+const logger = require('./logger');
 
 function safeParse(str) {
   try {
@@ -18,7 +19,7 @@ function readJsonFile(filePath) {
     }
     return null;
   } catch (err) {
-    console.error(`读取文件失败 ${filePath}:`, err);
+    logger.error(`读取文件失败 ${filePath}:`, err);
     return null;
   }
 }

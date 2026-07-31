@@ -59,7 +59,8 @@
 
 ## B04. controller 与 service compareAnswers 逻辑不一致
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/controllers/answerController.js`（第 41-52 行）
   - `backend/src/services/answerService.js`（第 28-51 行）
@@ -71,7 +72,8 @@
 
 ## B05. controller 直接操作数据库绕过 service 层
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/controllers/answerController.js`（第 1、92-132、175-234、248-269、275-296 行）
   - `backend/src/controllers/studentController.js`（第 1、4-127 行）
@@ -83,7 +85,8 @@
 
 ## B06. submitAnswers 与 submitSingleAnswer 大量重复逻辑
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/controllers/answerController.js`（第 54-149 行 vs 第 151-243 行）
 - **问题描述**: 两个函数重复了"参数校验 → 取正确答案 → 比对 → 查 attempt → INSERT OR REPLACE → 返回"的相同流程
 - **修复方案**: 提取 `processAnswerSubmission(studentId, wenId, answers, questions)` 公共函数
@@ -93,7 +96,8 @@
 
 ## B07. database.js 表结构与 service 层期望不一致
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/config/database.js`（第 22-48 行）
 - **问题描述**:
   1. `answers` 表 `UNIQUE(student_id, question_id)` 与 `attempt_number` 字段矛盾
@@ -112,7 +116,8 @@
 
 ## B08. token.js 是死代码，JWT 逻辑分散三处
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/utils/token.js`（第 1-44 行，全项目未引用）
   - `backend/src/controllers/authController.js`（第 24-28 行直接 `jwt.sign`）
@@ -127,7 +132,8 @@
 
 ## B09. JWT payload 字段命名不一致（下划线 vs 驼峰）
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/controllers/authController.js`（第 24-28 行签发 `{ student_id, role }`）
   - `backend/src/middleware/authMiddleware.js`（第 16、39 行 `req.user = decoded`）
@@ -160,7 +166,8 @@
 
 ## B11. 全局日志 console.error/console.log 未走 logger.js
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `answerController.js`、`studentController.js`、`authController.js`、`authMiddleware.js`、`database.js` 等
 - **问题描述**: 项目有完整的 `utils/logger.js` 但大部分模块直接用 `console.error`/`console.log`，日志体系名存实亡
 - **修复方案**: 全项目 `console.error` → `logger.error`，`console.log` → `logger.info`
@@ -170,7 +177,8 @@
 
 ## B12. logger.js 日志轮转未实现
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/utils/logger.js`（第 116-125 行）、`backend/src/config/app.js`（第 42-43 行）
 - **问题描述**: `maxFileSize`/`maxFiles` 配置已定义但代码中从未实现日志轮转，日志文件会无限增长
 - **修复方案**: 使用 `winston-daily-rotate-file` 或手动实现文件大小检查 + 轮转
