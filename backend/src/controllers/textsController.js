@@ -4,6 +4,7 @@
  */
 
 const textsService = require('../services/textsService')
+const logger = require('../utils/logger')
 
 // ==================== 高阶函数：统一 getter 处理逻辑 ====================
 
@@ -84,7 +85,7 @@ function getTextsBatch(req, res) {
     const results = textsService.getTextsBatch(text_ids)
     res.json({ success: true, data: results })
   } catch (err) {
-    console.error('批量获取文本数据失败:', err)
+    logger.error('批量获取文本数据失败:', err)
     res.status(500).json({
       success: false,
       error: 'INTERNAL_ERROR',

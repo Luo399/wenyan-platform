@@ -7,6 +7,8 @@ const { db } = require('../config/database')
 const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise')
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader')
 const { info, warn, logOperation } = require('../utils/logger')
+// B04: 答案比较逻辑统一到 utils/answerUtils，消除 controller/service 双份实现
+const { compareAnswers } = require('../utils/answerUtils')
 
 /**
  * 获取学生姓名（从学生数据库）
@@ -16,56 +18,6 @@ const { info, warn, logOperation } = require('../utils/logger')
 async function getStudentName(studentId) {
   const row = await dbGet(db, 'SELECT student_name FROM students WHERE student_id = ?', [studentId])
   return row?.student_name || null
-}
-
-/**
- * 比较用户答案和正确答案
- * @param {any} userAnswer - 用户答案
- * @param {any} correctAnswer - 正确答案
- * @returns {object} - { score: number, isCorrect: number }
- */
-function compareAnswers(userAnswer, correctAnswer) {
-  let score = 0
-  let isCorrect = 0
-
-  if (Array.isArray(correctAnswer)) {
-    // 正确答案是数组的情况
-    if (Array.isArray(userAnswer)) {
-      const sortedCorrect = [...correctAnswer].map(String).sort()
-      const sortedUser = [...userAnswer].map(String).sort()
-      if (JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser)) {
-        score = 100
-        isCorrect = 1
-      }
-    } else {
-      // 用户答案不是数组，转为数组进行对比
-      const sortedCorrect = [...correctAnswer].map(String).sort()
-      const sortedUser = [String(userAnswer ?? '')].sort()
-      if (JSON.stringify(sortedCorrect) === JSON.stringify(sortedUser)) {
-        score = 100
-        isCorrect = 1
-      }
-    }
-  } else {
-    // 正确答案不是数组的情况
-    const stringCorrect = String(correctAnswer ?? '')
-    if (Array.isArray(userAnswer)) {
-      // 用户答案是数组，取第一个元素或用逗号拼接对比
-      const stringUser = userAnswer.map(String).join(',')
-      if (stringCorrect === stringUser) {
-        score = 100
-        isCorrect = 1
-      }
-    } else {
-      const stringUser = String(userAnswer ?? '')
-      if (stringCorrect === stringUser) {
-        score = 100
-        isCorrect = 1
-      }
-    }
-  }
-
-  return { score, isCorrect }
 }
 
 /**
@@ -123,7 +75,8 @@ async function submitAnswers(data) {
   const results = await Promise.all(
     questions.map(async (question) => {
       const userAnswer = answers[question.id]
-      const correctAnswer = question.correctAnswer
+      // B06: correctAnswer 回退到 JSON 数据源，与 controller 行为一致
+      const correctAnswer = question.correctAnswer ?? getCorrectAnswerFromJson(question.id, wenId)
       const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
 
       // 使用子查询计算 attempt_number，保证并发安全
@@ -371,7 +324,9 @@ async function submitSingleAnswer(data) {
 
   await ensureStudentInfo(studentId, studentName)
 
-  const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
+  // B06: correctAnswer 回退到 JSON 数据源
+  const finalCorrectAnswer = correctAnswer ?? getCorrectAnswerFromJson(questionId, wenId)
+  const { score, isCorrect } = compareAnswers(userAnswer, finalCorrectAnswer)
 
   // 使用子查询计算 attempt_number，保证并发安全
   const stmt = db.prepare(`
@@ -392,7 +347,7 @@ async function submitSingleAnswer(data) {
     studentId,
     questionId,
     JSON.stringify(userAnswer ?? null),
-    JSON.stringify(correctAnswer ?? null),
+    JSON.stringify(finalCorrectAnswer ?? null),
     isCorrect,
     score,
     submittedAt,
@@ -415,7 +370,7 @@ async function submitSingleAnswer(data) {
     wenId,
     questionId,
     userAnswer,
-    correctAnswer,
+    correctAnswer: finalCorrectAnswer,
     isCorrect,
     score,
     submittedAt,

@@ -3,6 +3,7 @@ const { z } = require('zod')
 const config = require('../config/app')
 const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll, dbTransaction } = require('../utils/dbPromise')
+const logger = require('../utils/logger')
 const {
   hashPassword,
   verifyPassword,
@@ -373,7 +374,7 @@ function handleAuthError(res, err, defaultMsg) {
       message: err.issues.map((i) => i.message).join('；'),
     })
   }
-  console.error(defaultMsg + ':', err)
+  logger.error(defaultMsg + ':', err)
   return res.status(500).json({
     success: false,
     error: 'INTERNAL_ERROR',

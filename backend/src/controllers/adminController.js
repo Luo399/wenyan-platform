@@ -1,5 +1,6 @@
 const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll } = require('../utils/dbPromise')
+const logger = require('../utils/logger')
 const {
   resetStudentPassword,
   resetTeacherPasswordByAdmin,
@@ -27,7 +28,7 @@ async function listTeachers(req, res) {
     }
     res.status(200).json({ success: true, data: teachers })
   } catch (err) {
-    console.error('[admin] 查教师列表失败:', err)
+    logger.error('[admin] 查教师列表失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -58,7 +59,7 @@ async function listStudents(req, res) {
     const rows = await dbAll(db, sql, params)
     res.status(200).json({ success: true, data: rows })
   } catch (err) {
-    console.error('[admin] 查学生列表失败:', err)
+    logger.error('[admin] 查学生列表失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -86,7 +87,7 @@ async function resetStudent(req, res) {
       data: { temporary_password: '123456' },
     })
   } catch (err) {
-    console.error('[admin] 重置学生密码失败:', err)
+    logger.error('[admin] 重置学生密码失败:', err)
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '重置失败' })
   }
 }
@@ -110,7 +111,7 @@ async function resetTeacher(req, res) {
       data: { temporary_password: r.temporaryPassword },
     })
   } catch (err) {
-    console.error('[admin] 重置教师密码失败:', err)
+    logger.error('[admin] 重置教师密码失败:', err)
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '重置失败' })
   }
 }
@@ -139,7 +140,7 @@ async function setTeacherStatus(req, res) {
     }
     res.status(200).json({ success: true, message: '教师状态已更新' })
   } catch (err) {
-    console.error('[admin] 更新教师状态失败:', err)
+    logger.error('[admin] 更新教师状态失败:', err)
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '更新失败' })
   }
 }
@@ -167,7 +168,7 @@ async function listPasswordResets(req, res) {
     const rows = await dbAll(db, sql, params)
     res.status(200).json({ success: true, data: rows })
   } catch (err) {
-    console.error('[admin] 查重置日志失败:', err)
+    logger.error('[admin] 查重置日志失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
