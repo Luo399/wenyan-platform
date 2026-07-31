@@ -1,7 +1,14 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 // 首屏组件同步加载
 import HomeView from '@/views/HomeView.vue'
+
+// R114: 扩展 RouteMeta 类型，避免 meta 字段无类型提示
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+  }
+}
 
 // 非首屏组件懒加载
 const DetailView = () => import('@/views/DetailView.vue')
@@ -12,7 +19,8 @@ const StepThreeView = () => import('@/views/StepThreeView.vue')
 const BlockDemoView = () => import('@/views/BlockDemoView.vue')
 const AnswerQueryView = () => import('@/views/AnswerQueryView.vue')
 
-export const routes = [
+// R114: 标注 RouteRecordRaw 类型，保证 meta 字段有类型检查
+export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
@@ -69,6 +77,7 @@ export const routes = [
     path: '/detail/:id',
     name: 'detail',
     component: DetailView,
+    meta: { requiresAuth: true },
   },
   {
     path: '/answer-query',

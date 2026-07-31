@@ -29,7 +29,12 @@
           :key="card.card_id || index"
           class="card-item"
           :class="{ locked: !isUnlocked(card), 'text-only': card.image_file === '文字' }"
+          :role="isUnlocked(card) ? 'button' : undefined"
+          :tabindex="isUnlocked(card) ? 0 : -1"
+          :aria-label="`文化卡片：${card.card_name}`"
           @click="handleCardClick(card)"
+          @keydown.enter="handleCardClick(card)"
+          @keydown.space.prevent="handleCardClick(card)"
         >
           <div class="card-header">
             <span class="card-name">{{ card.card_name }}</span>
@@ -115,9 +120,10 @@ const {
   },
 })
 
-// 解锁状态判断（可根据实际业务逻辑调整）
-function isUnlocked(card: CultureCard): boolean {
-  // 默认全部解锁，后续可接入用户进度数据
+// 解锁状态判断
+// R63: 当前恒 true 为占位实现；接入用户进度数据后再按 card.unlock_condition 判断
+// 保留函数避免调用方多处修改，后续只需改这里
+function isUnlocked(_card: CultureCard): boolean {
   return true
 }
 
@@ -178,6 +184,14 @@ function handleCardClick(card: CultureCard) {
 }
 
 .card-item:hover:not(.locked) {
+  box-shadow: var(--shadow-card);
+  border-color: var(--color-primary);
+}
+
+/* R62: 键盘聚焦可见样式，与 hover 保持一致 */
+.card-item:focus-visible:not(.locked) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
   box-shadow: var(--shadow-card);
   border-color: var(--color-primary);
 }

@@ -65,33 +65,6 @@ describe('BackContinue.vue', () => {
       expect(wrapper.emitted()).toHaveProperty('continue')
       expect(wrapper.emitted('continue')).toHaveLength(1)
     })
-
-    it('应该能正确处理自定义 backEvent', async () => {
-      const backSpy = vi.fn()
-      const wrapper = mount(BackContinue, {
-        props: {
-          backEvent: backSpy,
-        },
-      })
-      const backButton = wrapper.findAll('button')[0]
-
-      await backButton.trigger('click')
-
-      expect(backSpy).toHaveBeenCalled()
-    })
-
-    it('应该能正确处理自定义 continueEvent', async () => {
-      const continueSpy = vi.fn()
-      const wrapper = mount(BackContinue, {
-        props: {
-          continueEvent: continueSpy,
-        },
-      })
-      const continueButton = wrapper.findAll('button')[1]
-
-      await continueButton.trigger('click')
-
-      expect(continueSpy).toHaveBeenCalled()
-    })
+    // R69: backEvent/continueEvent 回调 props 已移除，统一用 emit
   })
 })

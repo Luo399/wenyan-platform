@@ -65,7 +65,7 @@
 ### R53. PreQuizText URL 硬编码 WEN_01 导致组件无法复用（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/PreQuizText.vue`（第 89 行 `/data/level3_scenario_text/WEN_01.json`）
 - **问题描述**: URL 硬编码 `WEN_01`，不随 `questionNumber` 或任何 textId 变化，组件无法复用于其他课文
 - **修复方案**:
@@ -91,18 +91,19 @@
 ### R55. DialogText watch 与 nextDialog/prevDialog 重复触发 typeText（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**: `src/components/DialogText.vue`（第 217-242, 282-287 行）
 - **问题描述**: `nextDialog`/`prevDialog` 内手动调用 `typeText`，同时 `watch(currentIndex)` 也会触发 `typeText`，导致打字机双重触发，文字闪烁/错乱
 - **修复方案**: 统一由 watch 处理 typeText 触发，删除 next/prev 中的手动调用（或反之）
 - **验证方式**: 切换对话时打字机效果只触发一次，文字流畅无闪烁
 - **分支建议**: `bugfix/round3-55-dialogtext-typetext-dup`
 - **依赖**: R54
+- **实施记录（2026-07-30）**: 删除 nextDialog/prevDialog 内手动 typeText 调用，仅保留 emit；typeText 统一由 watch(currentIndex) 触发
 
 ### R56. DialogText / DialogueCard 创建新 Audio 前未清理旧实例导致内存泄漏（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**:
   - `src/components/DialogText.vue`（第 245-268 行 `toggleAudio`）
   - `src/components/DialogueCard.vue`（第 155-177 行 `playAudio`）
@@ -122,11 +123,12 @@
 - **验证方式**: 连续点击多个对话的播放按钮不会出现音频叠加；组件卸载无音频残留
 - **分支建议**: `bugfix/round3-56-audio-leak`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: DialogText.toggleAudio 与 DialogueCard.playAudio 创建新 Audio 前统一执行 pause + onended=null + 置空
 
 ### R57. ScenQuiz loadQuizzes 函数超长且 level1/2/3 三段逻辑重复（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**: `src/components/ScenQuiz.vue`（第 199-302 行）
 - **问题描述**: `loadQuizzes` 函数约 100 行，远超 20 行限制，且 level1/2/3 三段逻辑高度重复（违反 DRY），仅 adapter 函数名与类型断言不同
 - **修复方案**:
@@ -136,11 +138,16 @@
 - **验证方式**: `npm run test` 通过；函数行数 < 20
 - **分支建议**: `refactor/round3-57-scenquiz-split`
 - **依赖**: R51
+- **实施记录（2026-07-30）**:
+  - 抽取 `watchLoader<T>(loader, timeoutMsg, onLoaded)` 通用函数，复用 watch+timeout 逻辑
+  - 新增 `adaptAndStoreQuizzes(level, raw)` 通过 typeMap/getAllMap 动态选择 adapter
+  - `loadQuizzes` 从 ~100 行缩减到 ~7 行；`loadScenarios` 同步简化
+  - 注：R51 顶层化未做（R51 已关闭，保持现状）
 
 ### R58. StepThreeView isSubmitted 在 v-for 中 O(n²) 复杂度（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/views/StepThreeView.vue`（第 52, 71, 209-211 行）
 - **问题描述**: `isSubmitted(index)` 在 `v-for` 中对每个 item 调用，每次渲染都执行 `answers.value.some()`，复杂度 O(n²)。题目数量多时会卡顿
 - **修复方案**: 改为 computed 生成已提交索引的 `Set<number>`，模板中用 `submittedSet.has(index)` 判断
@@ -154,7 +161,7 @@
 ### R59. StepThreeView 使用 `as any` 类型断言绕过类型检查（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/views/StepThreeView.vue`（第 70 行 `:data="item.quiz as any"`）
 - **问题描述**: 模板内 `as any` 绕过类型检查，丧失 TS 类型保护
 - **修复方案**: 在 PageItem 接口中明确 quiz 字段类型，或使用正确的类型断言
@@ -165,7 +172,7 @@
 ### R60. StepThreeView watch pageData 使用不必要的 deep（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/views/StepThreeView.vue`（第 178-186 行）
 - **问题描述**: watch 对 `pageData` 使用 `deep: true`，但回调只读取 `items.length`，深度遍历浪费性能
 - **修复方案**: 改为 `() => pageData.value?.items.length` 作为 watch source，移除 `deep: true`
@@ -176,7 +183,7 @@
 ### R61. StepThreeView useRouter 导入但未使用（dead code）（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/views/StepThreeView.vue`（第 116, 148 行）
 - **问题描述**: `useRouter` 导入并赋值给 `router`，但 `router` 从未使用
 - **修复方案**: 删除 `useRouter` 的导入和 `const router = useRouter()`
@@ -187,18 +194,19 @@
 ### R62. CultureCards 用 div @click 作为可交互元素无键盘支持（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**: `src/components/CultureCards.vue`（第 27-33 行）
 - **问题描述**: 卡片用 `<div @click="handleCardClick(card)">`，无 `role="button"`、`tabindex="0"`、键盘事件（Enter/Space）处理，键盘用户无法操作，违反 WCAG 2.1 Level A
 - **修复方案**: 改用 `<button>` 元素，或加 `role="button" tabindex="0" @keydown.enter="handleCardClick(card)" @keydown.space="handleCardClick(card)"`
 - **验证方式**: 仅用键盘能选中并打开文化卡片
 - **分支建议**: `a11y/round3-62-culturecards-keyboard`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: 加 `:role="isUnlocked ? 'button' : undefined"`、`:tabindex="isUnlocked ? 0 : -1"`、`aria-label`、`@keydown.enter`、`@keydown.space.prevent`；新增 `.card-item:focus-visible` 样式
 
 ### R63. CultureCards isUnlocked 恒返回 true（dead code）（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/CultureCards.vue`（第 119-122 行）
 - **问题描述**: `isUnlocked` 恒返回 `true`，`locked` class 永远不生效，是占位逻辑/dead code
 - **修复方案**: 接入用户进度数据实现真实解锁逻辑，或删除锁定相关 UI 与函数
@@ -209,7 +217,7 @@
 ### R64. AudioPlayer / VideoPlayer 进度条不可键盘操作（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**:
   - `src/components/AudioPlayer.vue`（第 47-51 行）
   - `src/components/VideoPlayer.vue`（第 53-59 行）
@@ -232,11 +240,12 @@
 - **验证方式**: Tab 键可聚焦进度条；左右箭头可调整进度
 - **分支建议**: `a11y/round3-64-media-progress-keyboard`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: AudioPlayer/VideoPlayer 的 `.progress-wrapper` 加 role=slider/tabindex/aria-valuenow/aria-label/`@keydown.left`/`@keydown.right`；新增 `seekBy(delta)` 函数（步长 5%，clamp 到 0~1）；新增 `.progress-wrapper:focus-visible` 样式
 
 ### R65. AudioPlayer / VideoPlayer seek 未校验 percent 越界（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/components/AudioPlayer.vue`（第 172-184 行）
   - `src/components/VideoPlayer.vue`（第 243-267 行）
@@ -249,7 +258,7 @@
 ### R66. DialogText / DialogueCard 逐字符 v-for 渲染性能问题（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/components/DialogText.vue`（第 23-25 行）
   - `src/components/DialogueCard.vue`（第 27-29 行）
@@ -264,7 +273,7 @@
 ### R67. BlockRenderer componentMap 使用 any 类型 + 未命中 type 无 fallback（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/BlockRenderer.vue`（第 36 行、第 20 行）
 - **问题描述**:
   1. `componentMap: Record<string, any>` 使用 any，丧失类型检查
@@ -279,7 +288,7 @@
 ### R68. BlockRenderer 大量空 CSS 规则块（dead code）（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/BlockRenderer.vue`（第 99-130 行）
 - **问题描述**: 大量空 CSS 规则块，是 dead code
 - **修复方案**: 删除空规则，或补充实际样式
@@ -290,7 +299,7 @@
 ### R69. BackContinue 同时支持回调 props 和 emit（API 设计反模式）（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/BackContinue.vue`（第 43-45, 64-81 行）
 - **问题描述**: 同时支持 `backEvent`/`continueEvent` 回调 props 和 `emit('back')`/`emit('continue')` 事件，双机制易混淆，违反"props down, events up"原则
 - **修复方案**: 移除回调 props，统一用 emit；父组件用 `@back="handler"` 监听
@@ -301,7 +310,7 @@
 ### R70. DialogText / DialogueCard getIconUrl 硬编码路径未走 getAssetUrl 封装（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/components/DialogText.vue`（第 153-155 行）
   - `src/components/DialogueCard.vue`（第 188-190 行）
@@ -314,7 +323,7 @@
 ### R71. DialogText / DialogueCard 硬编码说话者名"陈胜/吴广/戍卒"（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/components/DialogText.vue`（第 138-141 行）
   - `src/components/DialogueCard.vue`（第 110-117 行）
@@ -327,7 +336,7 @@
 ### R72. ScenQuiz tab 按钮缺少 ARIA tab 模式语义（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/ScenQuiz.vue`（第 5-15 行）
 - **问题描述**: tab 按钮缺少 `role="tab"`、`aria-selected`、`role="tablist"` 容器，屏幕阅读器无法识别为标签页
 - **修复方案**:
@@ -343,7 +352,7 @@
 ### R73. ScenQuiz onMounted 与 watch 重复触发 loadData（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/ScenQuiz.vue`（第 343-359 行）
 - **问题描述**: `loadData` 在 `onMounted` 调用，同时 `watch(quizLevel)`/`watch(textId)` 也会触发 `loadData`，初始挂载时可能重复加载
 - **修复方案**: watch 改为 `{ immediate: false }`，或在 onMounted 中只手动调用一次
@@ -354,7 +363,7 @@
 ### R74. DialogueCard watch 与 onMounted 重复触发 typeText（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/components/DialogueCard.vue`（第 199-213 行）
 - **问题描述**: `watch(dialogContent)` 与 `onMounted` 都调用 `typeText`，首次挂载若 dialogContent 已有值会触发两次
 - **修复方案**: watch 加 `{ immediate: false }`，或 onMounted 中不调用（由 watch immediate 处理）
@@ -369,7 +378,7 @@
 ### R75. auth.ts JWT 过期校验 NaN 风险（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（被 R35 覆盖；auth.ts isTokenExpired 已有 `if (typeof payload.exp !== 'number') return true` 校验，2026-07-30 确认）
 - **文件**: `src/stores/auth.ts`（第 162-168 行）
 - **问题描述**: `payload.exp` 未校验存在性，`exp * 1000` 在 exp 为 undefined 时得 NaN，`Date.now() > NaN` 恒为 false，会错误判定"未过期"
 - **修复方案**:
@@ -384,7 +393,7 @@
 ### R76. auth.ts AuthState 接口未使用（dead code）（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/stores/auth.ts`（第 29-35 行）
 - **问题描述**: `AuthState` 接口已定义但全文未使用（store 用 setup 语法，状态由 ref 暴露）
 - **修复方案**: 删除未使用接口，或改为导出供外部类型引用
@@ -395,7 +404,7 @@
 ### R77. auth.ts login 函数超长（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/stores/auth.ts`（第 75-118 行）
 - **问题描述**: `login` 函数约 43 行，超过 20 行限制
 - **修复方案**: 拆分为 `mapUserData`、`persistAuth`、`handleLoginError` 等子函数
@@ -406,7 +415,7 @@
 ### R78. student.ts setStudentId 未做格式校验（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/stores/student.ts`（第 38-42 行）
 - **问题描述**: `setStudentId` 未做格式校验即写入 localStorage，与 `restoreFromStorage` 中 `/^\d{4}$/` 校验逻辑不一致，可能持久化非法值
 - **修复方案**: 在 setStudentId 中复用同一正则校验，非法值拒绝写入并 debugWarn
@@ -417,7 +426,7 @@
 ### R79. bgm.ts bgmMapping 硬编码且可被外部修改（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/stores/bgm.ts`（第 18-23, 79 行）
 - **问题描述**:
   1. `bgmMapping` 硬编码 4 个 wenId 与文件名映射，文件名后缀 `.mp3` 重复，应来自配置或后端
@@ -436,7 +445,7 @@
 ### R80. useNavigation getDefaultId 含未使用变量（dead code）（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useNavigation.ts`（第 68-73 行）
 - **问题描述**: `getDefaultId` 内声明 `pageIndex` 变量后未使用，函数直接 `return '1'`，属 dead code，导致 `getTargetId` 的兜底逻辑失效
 - **修复方案**: 删除未使用变量并修正逻辑使用索引查找默认 ID，或显式记录"默认返回 '1'"的设计决策
@@ -447,7 +456,7 @@
 ### R81. useDataLoader 重试 setTimeout 未保存导致卸载后仍可能触发（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useDataLoader.ts`（第 288 行）
 - **问题描述**: 重试 `setTimeout(() => load(), backoff)` 未保存返回值，组件卸载时无法清除，可能在卸载后仍触发 load
 - **修复方案**: 保存 timeoutId 并在 `onUnmounted` 中清除
@@ -458,7 +467,7 @@
 ### R82. useDataLoader diagLog 生产环境可能泄露数据内容（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（被 R18/R19/R20 重构覆盖；diagLog 已移除，全部改为 debugLog（受 DEV 控制），`text.slice(0,100)` 输出已删除，2026-07-30 确认）
 - **文件**: `src/composables/useDataLoader.ts`（第 4-7, 178, 219, 228, 236, 239 行）
 - **问题描述**: `diagLog` 注释声称"始终输出用于调试"，且输出响应文本前 100 字（第 239 行），生产环境可能泄露数据内容与 URL
 - **修复方案**:
@@ -472,7 +481,7 @@
 ### R83. useDataLoader CacheEntry 使用 any 类型（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useDataLoader.ts`（第 16, 22 行）
 - **问题描述**: `CacheEntry<T = any>`、`cacheMap: Map<string, CacheEntry>` 等价 `CacheEntry<any>`，类型检查失效
 - **修复方案**: 默认类型改为 `unknown`，cacheMap 内部维护时显式断言
@@ -483,7 +492,7 @@
 ### R84. useDataLoader load 函数超长（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useDataLoader.ts`（第 176-296 行）
 - **问题描述**: `load` 函数约 120 行，远超 20 行限制
 - **修复方案**: 拆分为 `checkCache`、`doFetch`、`parseResponse`、`handleRetry` 等子函数
@@ -494,7 +503,7 @@
 ### R85. useDataLoader 共享 Worker 任务间互相影响（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useDataLoader.ts`（第 91-97, 122-127 行）
 - **问题描述**: 共享 Worker 单例下，每个任务都注册 `handleError`，worker 全局 error 会触发所有未完成任务的 reject，可能导致 Promise 重复 reject
 - **修复方案**: 引入任务注册表，统一分发 error；或对每个 Promise 做 reject 去重
@@ -505,7 +514,7 @@
 ### R86. useStudentInfo clearCache 空函数（dead code）（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useStudentInfo.ts`（第 47, 49-54, 64 行）
 - **问题描述**: `clearCache` 为空函数，watch 调用它无任何效果，且导出空函数，属 dead code / 无效逻辑
 - **修复方案**: 实现清理逻辑或删除空函数与 watch
@@ -516,7 +525,7 @@
 ### R87. useQuizProgress submitAnswersToBackend 从未调用（dead code）（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useQuizProgress.ts`（第 151-195 行）
 - **问题描述**: `submitAnswersToBackend` 函数定义但全文从未调用（handleSubmit 只调单题提交），属 dead code，且暗示批量提交能力缺失
 - **修复方案**: 若需批量提交，在合适时机（如 markAsCompleted）调用；否则删除
@@ -527,7 +536,7 @@
 ### R88. useQuizProgress watch totalQuestionsRef 未重置 answers/completedCount（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useQuizProgress.ts`（第 308-324 行）
 - **问题描述**: `watch(totalQuestionsRef, ..., { immediate: true })` 在题目总数变化时仅重置 `submittedList`，未重置 `answers`/`completedCount`（除非 newVal===0），可能导致 `completedCount > newVal` 的不一致状态
 - **修复方案**: 题目总数变化时统一重置 answers/completedCount/submittedList
@@ -538,7 +547,7 @@
 ### R89. useQuizProgress 直接调用 sessionStorage 未封装（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/composables/useQuizProgress.ts`（第 79, 91, 97 行）
 - **问题描述**: 直接调用 sessionStorage，与 localStorage 封装精神不一致
 - **修复方案**: 提供 sessionStorage 封装或纳入统一 storage 工具
@@ -581,7 +590,7 @@
 ### R91. utils/api.ts 大量 any 类型滥用（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/api.ts`（第 51, 54, 63, 171, 185, 193, 201 行）
 - **问题描述**: `body?: any`、`ApiResponse<T = any>`、`normalizeResponse<T = any>(response: any)` 等多处 any，类型契约形同虚设
 - **修复方案**:
@@ -591,11 +600,16 @@
 - **验证方式**: `grep ": any" src/utils/api.ts` 无命中
 - **分支建议**: `refactor/round3-91-api-types`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `RequestConfig.body`: `any` → `unknown`
+  - `ApiResponse<T = unknown>`、`normalizeResponse<T = unknown>(response: unknown)`、`request/get/post/put/del<T = unknown>`
+  - `errorData` 收窄为 `Record<string, unknown> | null`，用 `typeof` 判断字段类型后再使用
+  - 附带修复：R91 类型收窄暴露的调用方错误——`stores/auth.ts` post 调用加 `AuthTokenResponse` 类型参数；`composables/useStudentQuery.ts` get 调用加 `{ name: string }` 类型参数
 
 ### R92. utils/api.ts request 函数超长（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/api.ts`（第 114-169 行）
 - **问题描述**: `request` 函数约 36 行，超过 20 行限制
 - **修复方案**: 拆分为 `buildRequestConfig`、`handleResponse`、`handleError` 三个子函数
@@ -606,7 +620,7 @@
 ### R93. utils/api.ts body falsy 误判（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/api.ts`（第 137 行 `body ? JSON.stringify(body) : undefined`）
 - **问题描述**: 若调用方传入 `body: false`、`body: 0`、`body: ''` 会被当作无 body 跳过 stringify
 - **修复方案**: 改为 `body !== undefined && body !== null ? JSON.stringify(body) : undefined`
@@ -617,7 +631,7 @@
 ### R94. utils/api.ts getBaseUrl 逻辑诡异且未注释（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/api.ts`（第 31-37 行）
 - **问题描述**: 当 `VITE_API_BASE_URL` 配置为 localhost/127.0.0.1 时返回空字符串，与 `apiBase` 导出值不一致，容易产生歧义
 - **修复方案**: 统一返回 `baseUrl`，或在 dev/prod 分别处理并添加注释说明用途
@@ -628,7 +642,7 @@
 ### R95. utils/api.ts getAuthHeaders 直接调用 useAuthStore（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/api.ts`（第 40 行）
 - **问题描述**: Pinia store 必须在 `app.use(pinia)` 之后才能调用。若此模块在 Pinia 安装前被调用会抛 `getActivePinia` 错误
 - **修复方案**: 在调用处用 `try { useAuthStore() } catch { return {} }` 兜底，或改为参数注入
@@ -639,7 +653,7 @@
 ### R96. utils/asset.ts ossBase 类型断言导致环境变量缺失静默失败（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/asset.ts`（第 15 行）
 - **问题描述**: `ossBase` 使用 `as string` 类型断言，若 `VITE_OSS_BASE_URL` 未配置，实际为 undefined 但被断言为 string，`getAssetUrl` 拼出 `undefined/audio/xxx.mp3` 这种 URL，运行时才暴露错误
 - **修复方案**:
@@ -654,7 +668,7 @@
 ### R97. utils/asset.ts getAssetUrl 未做 URL 编码（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/asset.ts`（第 34-35 行）
 - **问题描述**: `fileName` 若含空格、中文、`#`、`?` 等字符会破坏 URL
 - **修复方案**: `return `${ossBase}/${type}/${encodeURIComponent(fileName)}``
@@ -665,18 +679,21 @@
 ### R98. utils/localStorage.ts appendQuizRecord JSON 损坏时丢失原数据（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/localStorage.ts`（第 87-92 行）
 - **问题描述**: `appendQuizRecord` 调用 `getQuizRecords`，当原数据 JSON 损坏时返回空数组，随后 `setQuizRecords` 会用 `[record]` 覆盖原损坏数据，导致历史记录永久丢失
 - **修复方案**: 解析失败时不要继续写入；或在 `getQuizRecords` 提供区分"无数据"和"解析失败"的返回值（如 `{ ok: boolean, data: T[] }`），由调用方决定是否覆盖
 - **验证方式**: JSON 损坏时新记录不覆盖；有 debugError 日志
 - **分支建议**: `bugfix/round3-98-localstorage-corrupt`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `appendQuizRecord` 内联读取并校验原始 JSON：无数据初始化为 `[]`；解析失败或非数组时 `debugLog` 并返回 `[]`（不写入，保留原始数据）；成功才 push + setQuizRecords
+  - 函数名修正：`buildStorageKey` → `buildQuizStorageKey`（被 R34 重命名后遗漏）
 
 ### R99. utils/localStorage.ts 未处理 localStorage 不可用场景（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/localStorage.ts`（第 47, 70, 102 行）
 - **问题描述**: 隐私模式或 storage 配额满时 `localStorage.getItem/setItem/removeItem` 会抛 `QuotaExceededError` 或 `SecurityError`。`setQuizRecords` 已 try/catch，但 `getQuizRecords` 和 `clearQuizRecords` 未做异常捕获
 - **修复方案**: 统一在 try/catch 中包裹所有 localStorage 访问，或封装 `safeGetItem/safeSetItem/safeRemoveItem`
@@ -687,7 +704,7 @@
 ### R100. utils/format.ts formatDate 未校验无效日期（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/format.ts`（第 10-14 行）
 - **问题描述**: `new Date('invalid')` 返回 Invalid Date，`toLocaleString` 返回 `"Invalid Date"`，UI 直接显示该字符串不友好
 - **修复方案**: `if (isNaN(date.getTime())) return '-'`
@@ -698,18 +715,21 @@
 ### R101. utils/studentApi.ts getStudent 吞掉所有错误（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
 - **文件**: `src/utils/studentApi.ts`（第 128-135 行）
 - **问题描述**: `catch {}` 静默吞掉网络错误、超时、服务端 500 等，调用方无法区分"学生不存在"和"请求失败"。`checkStudentExists` 依赖此函数，会把网络故障误判为"学生不存在"
 - **修复方案**: 区分 404 与其他错误；或返回 `{ data: StudentInfo | null, error?: Error }` 联合结构
 - **验证方式**: 网络故障时 `checkStudentExists` 不误判为"学生不存在"
 - **分支建议**: `bugfix/round3-101-studentapi-error`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `studentApi.ts` 已重构为 re-export 层，实际实现在 `services/studentService.ts`
+  - `getStudent` 改为：仅 404（学生不存在）返回 null；其他错误（网络故障、超时、5xx 等）向上抛出，避免误判
 
 ### R102. utils/studentApi.ts validateStudentName 黑名单不完整（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/utils/studentApi.ts`（第 90 行）
 - **问题描述**: `[<>"'&]` 未覆盖反引号、`javascript:` 前缀、unicode 控制字符（U+200B 零宽空格等）、换行符 `\n` 等。黑名单思路本身不安全
 - **修复方案**: 改用白名单（如只允许中文/字母/数字/常见标点），或交给后端做转义；前端只做长度校验
@@ -753,18 +773,22 @@
 ### R104. services/apiService.ts response.data! 非空断言导致运行时崩溃（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
-- **文件**: `src/services/apiService.ts`（第 316, 388, 427 行）
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
+- **文件**: `src/services/apiService.ts`（第 382-386, 425-429 行）
 - **问题描述**: 服务端返回 `{ success: false, message: '...' }` 但无 `data` 时，`response.data!` 在运行时为 `undefined`，调用方当成有效响应使用会崩
 - **修复方案**: 先校验 `if (!response.success || !response.data) throw new ApiError(...)`，再返回 `data`
 - **验证方式**: 后端返回异常响应时显示友好错误而非崩溃
 - **分支建议**: `bugfix/round3-104-apiservice-nullcheck`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - `submitAnswers`（第 381-387 行）：移除 `response.data!` 非空断言，改为 `if (!response.success || !response.data) throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')`，校验通过后才返回 `response.data`
+  - `submitSingleAnswer`（第 420-430 行）：同样移除非空断言，加 `ApiError` 校验
+  - `ApiError` 已从 `@/utils/api` 导入（第 18 行）
 
 ### R105. services/apiService.ts 文件头注释欺骗性（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/services/apiService.ts`（第 9 行）
 - **问题描述**: 注释声称"支持缓存机制"但实际未实现，代码中无任何缓存逻辑
 - **修复方案**: 删除该注释，或补一个 `Map<textId, T>` 内存缓存（带 TTL）
@@ -775,7 +799,7 @@
 ### R106. services/apiService.ts submitAnswers answers 类型不一致（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/services/apiService.ts`（第 372 行 `Record<string, any>` vs 第 336 行 `Record<string, string | number | (string | number)[]>`）
 - **问题描述**: `submitAnswers` 的 `answers` 字段类型与 `SubmitAnswersParams.answers` 类型不一致，传入复杂对象会被静默接受
 - **修复方案**: 统一为 `Record<string, string | number | (string | number)[]>`
@@ -786,7 +810,7 @@
 ### R107. services/apiService.ts submittedAt 由客户端生成（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/services/apiService.ts`（第 383 行）
 - **问题描述**: 客户端时间不可信，可被任意篡改，影响排行/防作弊。项目规则 E 中已要求服务端签名校验时间戳
 - **修复方案**: 服务端以接收时间覆盖 `submittedAt`，客户端值仅作参考
@@ -823,7 +847,7 @@
 ### R109. level1/2/3QuizAdapter correct_answer `|| null` 对 0/'' 误判（P1 bug）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-batch4，PR #60 squash 合并 2026-07-30）
 - **文件**:
   - `src/adapters/level1QuizAdapter.ts`（第 56 行）
   - `src/adapters/level2QuizAdapter.ts`（第 56 行）
@@ -833,11 +857,12 @@
 - **验证方式**: correct_answer 为 0 时正确保留；答题判定正确
 - **分支建议**: `bugfix/round3-109-adapter-correct-answer`
 - **依赖**: 无
+- **实施记录（2026-07-30）**: 三个 adapter 的 `correctAnswer: item.correct_answer || null` → `item.correct_answer ?? null`
 
 ### R110. quizAdapter parseInt `|| 1` 对 0 误判（P2 bug）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/adapters/quizAdapter.ts`（第 41 行 `parseInt(String(blockData.question_number)) || 1`）
 - **问题描述**: `question_number = 0` 时 `0 || 1` 得 `1`，把第 0 题变成第 1 题
 - **修复方案**:
@@ -852,7 +877,7 @@
 ### R111. level1/2/3QuizAdapter questionId 用 index+1 生成不稳定（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/adapters/level1QuizAdapter.ts`（第 44 行）
   - `src/adapters/level2QuizAdapter.ts`
@@ -866,7 +891,7 @@
 ### R112. level1/2/3QuizAdapter options 过滤行为不一致（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/adapters/level1QuizAdapter.ts`（第 48-53 行，无过滤）
   - `src/adapters/level2QuizAdapter.ts`（同上）
@@ -881,7 +906,7 @@
 ### R113. quizAdapter adaptBlockQuizToQuizItem 函数超长（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/adapters/quizAdapter.ts`（第 33-66 行）
 - **问题描述**: 函数约 30 行，超过 20 行限制
 - **修复方案**: 抽出 `buildOptions(blockData)`、`resolveCorrectAnswer(blockData)`、`resolveQuestionNumber(blockData)` 子函数
@@ -896,7 +921,7 @@
 ### R114. router 未声明 RouteMeta 类型扩展（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**:
   - `src/router/index.ts`
   - `src/router/guards.ts`（第 39 行 `to.meta.showLoginModal = true`）
@@ -918,16 +943,21 @@
 ### R115. guards.ts useAuthGuard 解构丢失响应式（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
-- **文件**: `src/router/guards.ts`（第 56-63 行）
+- **状态**: [x] 已完成（分支 trae/agent-round3-p1-fixes，PR #58 squash 合并 2026-07-30）
+- **文件**: `src/router/guards.ts`（第 64-76 行）
 - **问题描述**: `useAuthGuard` 中直接返回 `authStore.isLoggedIn`/`user`/`error` 等响应式属性，未用 `storeToRefs`，解构后丢失响应式，调用方拿到的是初始快照
 - **修复方案**:
   ```ts
   export function useAuthGuard() {
     const authStore = useAuthStore()
+    const { isLoggedIn, user, error } = storeToRefs(authStore)
     return {
-      ...storeToRefs(authStore), // 响应式属性
-      login: (id: string, name?: string) => authStore.login(id, name),
+      isLoggedIn,
+      user,
+      error,
+      hasError: computed(() => authStore.error !== null),
+      login: (studentId: string, password: string, studentName?: string) =>
+        authStore.login(studentId, password, studentName),
       logout: () => authStore.logout(),
     }
   }
@@ -935,11 +965,15 @@
 - **验证方式**: 登录状态变化时调用方正确响应
 - **分支建议**: `bugfix/round3-115-guard-reactive`
 - **依赖**: 无
+- **实施记录（2026-07-30）**:
+  - 第 13 行导入 `storeToRefs`；第 66 行用 `storeToRefs(authStore)` 解构 `isLoggedIn`/`user`/`error`，保留响应式
+  - `login` 包装改为 3 参签名 `(studentId, password, studentName?)`，与 R103 后 `authStore.login` 签名一致
+  - 额外提供 `hasError: computed(() => authStore.error !== null)` 便于调用方模板判断
 
 ### R116. guards.ts async 守卫无 await + from 参数未使用（P3）
 
 - **优先级**: P3
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成（P2/P3 批次，trae/agent-round3-p2p3）
 - **文件**: `src/router/guards.ts`（第 27, 29 行）
 - **问题描述**:
   1. `async` 守卫函数体内无 `await`，async 多余
@@ -966,39 +1000,45 @@
 
 ### P1（上线前修复）
 
-- **R91** api.ts 大量 any 类型
-- **R96** asset.ts ossBase 类型断言
-- **R98** localStorage.ts appendQuizRecord 数据丢失
-- **R101** studentApi.ts getStudent 吞掉错误
-- **R104** apiService.ts response.data! 非空断言
-- **R75** auth.ts JWT 过期校验 NaN 风险
-- **R82** useDataLoader diagLog 生产环境泄露数据
-- **R115** guards.ts useAuthGuard 解构丢失响应式
-- **R55** DialogText 重复触发 typeText
-- **R56** DialogText/DialogueCard Audio 内存泄漏
-- **R57** ScenQuiz loadQuizzes 超长且重复
-- **R62** CultureCards 无键盘支持
-- **R64** AudioPlayer/VideoPlayer 进度条不可键盘操作
-- **R109** level1/2/3QuizAdapter correct_answer 误判
+- [x] **R91** api.ts 大量 any 类型（PR #58）
+- [x] **R96** asset.ts ossBase 类型断言（PR #58）
+- [x] **R98** localStorage.ts appendQuizRecord 数据丢失（PR #58）
+- [x] **R101** studentApi.ts getStudent 吞掉错误（PR #58）
+- [x] **R104** apiService.ts response.data! 非空断言（PR #58）
+- [x] **R75** auth.ts JWT 过期校验 NaN 风险（被 R35 覆盖）
+- [x] **R82** useDataLoader diagLog 生产环境泄露数据（被 R18/R19/R20 覆盖）
+- [x] **R115** guards.ts useAuthGuard 解构丢失响应式（PR #58）
+- [x] **R55** DialogText 重复触发 typeText（PR #60）
+- [x] **R56** DialogText/DialogueCard Audio 内存泄漏（PR #60）
+- [x] **R57** ScenQuiz loadQuizzes 超长且重复（PR #60）
+- [x] **R62** CultureCards 无键盘支持（PR #60）
+- [x] **R64** AudioPlayer/VideoPlayer 进度条不可键盘操作（PR #60）
+- [x] **R109** level1/2/3QuizAdapter correct_answer 误判（PR #60）
+
+> P1 全部 14 项已完成并合并到 feature-1（2026-07-30）。安全 + 数据完整性批次 8 项（R75, R82, R91, R96, R98, R101, R104, R115）由 PR #58 合并；bug + a11y 批次 6 项（R55, R56, R57, R62, R64, R109）由 PR #60 合并。下一批建议从 P2 质量改善开始。
 
 ### P2（迭代改善）
 
-- R53, R58-R60, R63, R66, R67, R69-R74, R78, R80-R81, R83-R85, R87-R88, R92-R95, R97, R99, R102, R105-R107, R110-R111, R113-R114
+- [x] R53, R58-R60, R63, R66, R67, R69-R74, R78, R80-R81, R83-R85, R87-R88, R92-R95, R97, R99, R102, R105-R107, R110-R111, R113-R114（trae/agent-round3-p2p3）
 
 ### P3（优化建议）
 
-- R61, R68, R76-R77, R79, R89, R100, R106, R112, R116
+- [x] R61, R68, R76-R77, R79, R89, R100, R106, R112, R116（trae/agent-round3-p2p3）
+
+> P2 + P3 共 46 项全部完成（分支 trae/agent-round3-p2p3）。按模块分 5 批处理：utils / stores+composables / adapters / components / services+router。
 
 ### 执行顺序建议
 
-**第一批（P0 安全 + 架构）**: R90 → R103（安全密钥与登录凭证）→ R108（adapter 工厂，消除重复）
+**第一批（P0 安全 + 架构）**: R90 → R103（安全密钥与登录凭证）→ R108（adapter 工厂，消除重复）✅
 
-**第二批（P0 useDataLoader 违规）**: R51 → R52 → R54（同模式批量修复）
+**第二批（P0 useDataLoader 违规）**: R51 → R52 → R54（同模式批量修复）✅
 
-**第三批（P1 安全 + 数据完整性）**: R91, R96, R98, R101, R104, R75, R82, R115
+**第三批（P1 安全 + 数据完整性）**: R91, R96, R98, R101, R104, R75, R82, R115 ✅（PR #58 squash 合并 2026-07-30）
 
-**第四批（P1 bug + a11y）**: R55, R56, R57, R62, R64, R109
+**第四批（P1 bug + a11y）**: R55, R56, R57, R62, R64, R109 ✅（PR #60 squash 合并 2026-07-30）
 
-**第五批（P2 质量改善）**: 按模块分批处理
+**第五批（P2 质量改善）**: 按模块分批处理 ✅（trae/agent-round3-p2p3）
 
-**第六批（P3 优化）**: 按需处理
+**第六批（P3 优化）**: 按需处理 ✅（trae/agent-round3-p2p3）
+
+> 09 专题 R51-R116 共 66 项全部完成（P0: 6 + P1: 14 + P2/P3: 46）。

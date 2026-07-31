@@ -4,7 +4,7 @@
  * 在开发环境中拦截 HTTP 请求并返回模拟数据
  */
 
-import { handleLogin, handleRefresh, handleGetUser } from './auth'
+import { handleRefresh, handleGetUser } from './auth'
 
 /**
  * 启动 mock 服务

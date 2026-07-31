@@ -20,9 +20,8 @@
           <div class="dialog-content">
             <div class="dialog-speaker">{{ getSpeakerName() }}</div>
             <div class="dialog-text-content">
-              <span v-for="(char, index) in displayedText" :key="index" class="dialog-char">{{
-                char
-              }}</span>
+              <!-- R66: 用文本插值替代逐字符 v-for，避免大段文本创建过多 DOM 节点 -->
+              <span class="dialog-char">{{ displayedText }}</span>
             </div>
           </div>
 
@@ -133,12 +132,13 @@ const progressPercent = computed(() =>
   totalDialogs.value > 0 ? ((currentIndex.value + 1) / totalDialogs.value) * 100 : 0,
 )
 
+// R71: 基于说话者名动态生成 class，避免硬编码角色名
 const currentDialogClass = computed(() => {
   const speaker = getSpeakerName()
-  if (speaker.includes('陈胜')) return 'speaker-chen'
-  if (speaker.includes('吴广')) return 'speaker-wu'
-  if (speaker.includes('戍卒')) return 'speaker-soldier'
-  return ''
+  if (!speaker || speaker === '未知') return ''
+  // 取说话者名第一个词作为 class 后缀（去掉标点/空格），转 kebab-case
+  const slug = speaker.replace(/[\s：:，,]/g, '').toLowerCase()
+  return `speaker-${slug}`
 })
 
 // 获取说话者名称
@@ -150,8 +150,9 @@ function getSpeakerName(): string {
 }
 
 // 获取图标URL
+// R70: 用 getAssetUrl 替代硬编码 /img/，走 OSS 基础路径
 function getIconUrl(iconName: string): string {
-  return `/img/${iconName}`
+  return getAssetUrl('images', iconName)
 }
 
 // 打字机效果
@@ -217,9 +218,9 @@ async function loadData() {
 function prevDialog() {
   if (currentIndex.value > 0) {
     currentIndex.value--
+    // R55: typeText 由 watch(currentIndex) 统一触发，此处不手动调用避免重复
     const dialog = dialogs.value[currentIndex.value]
     if (dialog) {
-      typeText(dialog.dialogText)
       emit('dialogChange', dialog, currentIndex.value)
     }
   }
@@ -229,9 +230,9 @@ function prevDialog() {
 function nextDialog() {
   if (currentIndex.value < dialogs.value.length - 1) {
     currentIndex.value++
+    // R55: typeText 由 watch(currentIndex) 统一触发，此处不手动调用避免重复
     const dialog = dialogs.value[currentIndex.value]
     if (dialog) {
-      typeText(dialog.dialogText)
       emit('dialogChange', dialog, currentIndex.value)
 
       if (currentIndex.value === dialogs.value.length - 1) {
@@ -250,6 +251,12 @@ function toggleAudio() {
     audioRef.value?.pause()
     isPlaying.value = false
   } else {
+    // R56: 创建新 Audio 前清理旧实例，避免内存泄漏与音频叠加
+    if (audioRef.value) {
+      audioRef.value.pause()
+      audioRef.value.onended = null
+      audioRef.value = null
+    }
     const audioUrl = getAssetUrl('audio', `${dialog.audioFile}.mp3`)
     audioRef.value = new Audio(audioUrl)
     audioRef.value.onended = () => {

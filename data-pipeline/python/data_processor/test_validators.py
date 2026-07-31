@@ -19,6 +19,8 @@ from data_processor.validators import (
     validate_difficulty_level,
     validate_correct_answer,
     validate_options_count,
+    is_absolute_path,
+    validate_no_absolute_path,
     validate_question_data,
     validate_word_data,
     validate_batch,
@@ -239,6 +241,101 @@ class TestValidationError(unittest.TestCase):
         self.assertEqual(result['row_index'], 5)
         self.assertEqual(result['field'], 'field_name')
         self.assertEqual(result['message'], 'error message')
+
+
+class TestIsAbsolutePath(unittest.TestCase):
+    """测试 is_absolute_path（P07：禁止 JSON 嵌入绝对路径）"""
+
+    def test_relative_paths_are_safe(self):
+        """相对路径与 OSS 相对地址应判定为安全"""
+        self.assertFalse(is_absolute_path('audio/wen_01.mp3'))
+        self.assertFalse(is_absolute_path('images/icon.png'))
+        self.assertFalse(is_absolute_path('./local/file.json'))
+        self.assertFalse(is_absolute_path('word_list/WEN_01.json'))
+
+    def test_none_and_empty_are_safe(self):
+        """None / 空值不应误报为绝对路径"""
+        self.assertFalse(is_absolute_path(None))
+        self.assertFalse(is_absolute_path(''))
+        self.assertFalse(is_absolute_path('   '))
+
+    def test_non_string_is_safe(self):
+        """非字符串类型不应误报"""
+        self.assertFalse(is_absolute_path(123))
+        self.assertFalse(is_absolute_path(['a', 'b']))
+
+    def test_windows_absolute_path(self):
+        """Windows 盘符绝对路径应被识别"""
+        self.assertTrue(is_absolute_path('C:\\Users\\dev\\audio.mp3'))
+        self.assertTrue(is_absolute_path('D:/data/file.json'))
+        self.assertTrue(is_absolute_path('c:/windows/path'))
+
+    def test_unix_absolute_path(self):
+        """Unix 绝对路径应被识别"""
+        self.assertTrue(is_absolute_path('/home/user/audio.mp3'))
+        self.assertTrue(is_absolute_path('/Users/dev/file.json'))
+        self.assertTrue(is_absolute_path('/var/data/pipeline'))
+
+    def test_http_url(self):
+        """http(s) URL 应被识别"""
+        self.assertTrue(is_absolute_path('https://example.com/audio.mp3'))
+        self.assertTrue(is_absolute_path('http://localhost:3000/api'))
+
+
+class TestValidateNoAbsolutePath(unittest.TestCase):
+    """测试 validate_no_absolute_path（P07：数据管道输出时校验）"""
+
+    def test_clean_data_passes(self):
+        """所有字段均为相对路径时应通过"""
+        data = {
+            'text_id': 'WEN_01',
+            'audio_file': 'audio/wen_01.mp3',
+            'bgm': 'bgm/bg.mp3',
+            'illustration': 'images/pic.png',
+            '_row_index': 1,
+        }
+        errors = validate_no_absolute_path(
+            data, ['audio_file', 'bgm', 'illustration']
+        )
+        self.assertEqual(len(errors), 0)
+
+    def test_absolute_path_in_audio_file(self):
+        """audio_file 含绝对路径应报错"""
+        data = {
+            'text_id': 'WEN_01',
+            'audio_file': 'C:\\dev\\audio.mp3',
+            '_row_index': 2,
+        }
+        errors = validate_no_absolute_path(data, ['audio_file'])
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0].field, 'audio_file')
+        self.assertEqual(errors[0].row_index, 2)
+
+    def test_none_field_is_skipped(self):
+        """字段值为 None 时应跳过（可选字段未填写）"""
+        data = {
+            'text_id': 'WEN_01',
+            'audio_file': None,
+            '_row_index': 1,
+        }
+        errors = validate_no_absolute_path(data, ['audio_file'])
+        self.assertEqual(len(errors), 0)
+
+    def test_multiple_violations(self):
+        """多字段含绝对路径应全部报错"""
+        data = {
+            'text_id': 'WEN_01',
+            'audio_file': '/home/u/a.mp3',
+            'bgm': 'https://cdn.example.com/bgm.mp3',
+            'illustration': 'D:/imgs/x.png',
+            '_row_index': 3,
+        }
+        errors = validate_no_absolute_path(
+            data, ['audio_file', 'bgm', 'illustration']
+        )
+        self.assertEqual(len(errors), 3)
+        fields = {e.field for e in errors}
+        self.assertEqual(fields, {'audio_file', 'bgm', 'illustration'})
 
 
 if __name__ == '__main__':

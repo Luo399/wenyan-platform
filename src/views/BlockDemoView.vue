@@ -105,7 +105,7 @@ import BlockRenderer from '@/components/BlockRenderer.vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useNavigation } from '@/composables/useNavigation'
 import { getAllPoems } from '@/utils/wenUtils'
-import type { PageConfig } from '@/types/pageConfig'
+import type { PageConfig, PageBlock } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
 // 非顺序页面（block-demo）不传 currentRouteName，仅使用 goHome
@@ -175,22 +175,16 @@ function goBack() {
 }
 
 // 为quiz block添加标题
-function addQuizTitle(block: any, index: number) {
+function addQuizTitle(block: PageBlock, index: number): PageBlock {
   // 创建新的block对象，避免修改原始数据
-  const newBlock = { ...block }
+  const newBlock: PageBlock = { type: block.type, data: { ...block.data } }
 
   // 生成动态标题：基于题目编号或页面信息
   const questionNum = block.data?.question_number
   if (questionNum) {
-    newBlock.data = {
-      ...block.data,
-      title: `第${questionNum}题`,
-    }
+    newBlock.data.title = `第${String(questionNum)}题`
   } else {
-    newBlock.data = {
-      ...block.data,
-      title: `阅读理解`,
-    }
+    newBlock.data.title = `阅读理解`
   }
 
   return newBlock
@@ -205,9 +199,9 @@ onMounted(() => {
 <style scoped>
 .block-demo {
   padding: var(--spacing-lg);
-  max-width: 900px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
-  padding-bottom: 6rem;
+  padding-bottom: var(--spacing-bottom-safe);
   font-family: var(--font-family-serif);
 }
 
@@ -270,7 +264,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  min-height: var(--section-height-md);
 }
 
 .loading-spinner {
@@ -282,7 +276,7 @@ onMounted(() => {
 }
 
 .loading-spinner i {
-  font-size: 2rem;
+  font-size: var(--icon-size-lg);
 }
 
 /* 错误状态 */
@@ -290,7 +284,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  min-height: var(--section-height-md);
 }
 
 .error-content {
@@ -305,7 +299,7 @@ onMounted(() => {
 }
 
 .error-icon {
-  font-size: 2rem;
+  font-size: var(--icon-size-lg);
   color: var(--color-primary);
 }
 
@@ -352,7 +346,7 @@ onMounted(() => {
 
 .config-id,
 .config-count {
-  margin: 0.25rem 0;
+  margin: var(--spacing-tag-inline) 0;
   font-size: var(--font-size-small);
   color: var(--color-border);
 }
@@ -391,16 +385,16 @@ onMounted(() => {
 }
 
 .block-index {
-  font-size: 0.75rem;
+  font-size: var(--font-size-block-label);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
 }
 
 .block-type {
-  font-size: 0.75rem;
+  font-size: var(--font-size-block-label);
   font-weight: var(--font-weight-semibold);
-  padding: 0.25rem var(--spacing-sm);
-  border-radius: 9999px;
+  padding: var(--spacing-tag-inline) var(--spacing-sm);
+  border-radius: var(--radius-pill);
 }
 
 /* 语义类型标签 - 对话用橄榄绿，测验用暖棕 */
@@ -419,7 +413,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  min-height: var(--section-height-md);
 }
 
 .empty-content {
@@ -430,14 +424,14 @@ onMounted(() => {
 }
 
 .empty-icon {
-  width: 64px;
-  height: 64px;
+  width: var(--icon-size-xl);
+  height: var(--icon-size-xl);
   background: var(--color-placeholder);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: var(--font-size-subheading);
   color: var(--color-text-secondary);
 }
 

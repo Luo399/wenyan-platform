@@ -111,12 +111,66 @@ function consoleOutput(logEntry) {
 }
 
 /**
- * 输出日志到文件
+ * 解析 maxFileSize 配置字符串为字节数
+ * 支持格式: "10MB", "1MB", "500KB" 等
+ */
+function parseMaxFileSize(sizeStr) {
+  if (!sizeStr) return 10 * 1024 * 1024 // 默认 10MB
+  const str = String(sizeStr).toUpperCase()
+  const match = str.match(/^(\d+(?:\.\d+)?)\s*(KB|MB|GB|B)?$/)
+  if (!match) return 10 * 1024 * 1024
+  const num = parseFloat(match[1])
+  const unit = match[2] || 'B'
+  const multipliers = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 }
+  return Math.floor(num * multipliers[unit])
+}
+
+const MAX_FILE_SIZE_BYTES = parseMaxFileSize(LOG_CONFIG.maxFileSize)
+const MAX_FILES_COUNT = parseInt(LOG_CONFIG.maxFiles) || 30
+
+/**
+ * B12: 检查并执行日志文件轮转
+ * - 当日志文件超过 maxFileSize 时，将其重命名为带时间戳的归档文件
+ * - 清理超过 maxFiles 数量的最旧归档日志
+ */
+function rotateLogIfNeeded(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return
+
+    const stats = fs.statSync(filePath)
+    if (stats.size < MAX_FILE_SIZE_BYTES) return
+
+    // 归档当前日志文件，加时间戳后缀
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const dir = path.dirname(filePath)
+    const baseName = path.basename(filePath, '.log')
+    const archivedPath = path.join(dir, `${baseName}-${timestamp}.log`)
+    fs.renameSync(filePath, archivedPath)
+
+    // 清理超出 MAX_FILES_COUNT 的旧日志
+    const files = fs.readdirSync(dir)
+      .filter((f) => f.startsWith(baseName) && f.endsWith('.log'))
+      .map((f) => ({ file: f, time: fs.statSync(path.join(dir, f)).mtimeMs }))
+      .sort((a, b) => a.time - b.time)
+
+    while (files.length > MAX_FILES_COUNT) {
+      const oldest = files.shift()
+      fs.unlinkSync(path.join(dir, oldest.file))
+    }
+  } catch (err) {
+    console.error('日志轮转失败:', err.message)
+  }
+}
+
+/**
+ * 输出日志到文件（含 B12 日志轮转）
  */
 function fileOutput(logEntry) {
   const filePath = path.join(LOG_CONFIG.outputDir, `app-${getDateString()}.log`);
   const logLine = JSON.stringify(logEntry) + '\n';
-  
+
+  rotateLogIfNeeded(filePath)
+
   fs.appendFile(filePath, logLine, (err) => {
     if (err) {
       console.error('写入日志文件失败:', err);
@@ -187,8 +241,10 @@ function logRequest(req, res, duration) {
     durationMs: duration,
     ip: req.ip || req.connection?.remoteAddress,
     userAgent: req.get('User-Agent'),
-    userId: req.user?.userId || req.user?.id || null,
-    studentId: req.user?.studentId || null,
+    // B09: 与 authController 签发的 payload 字段对齐
+    // student -> student_id, teacher -> phone, admin -> username
+    userId: req.user?.student_id || req.user?.phone || req.user?.username || null,
+    studentId: req.user?.student_id || null,
   };
   
   consoleOutput(logEntry);

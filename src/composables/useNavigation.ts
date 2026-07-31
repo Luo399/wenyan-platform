@@ -77,7 +77,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       debugWarn('已是最后一页')
       return
     }
-    const id = targetId ?? getTargetId(nextPage.name)
+    const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
     router.push(path)
   }

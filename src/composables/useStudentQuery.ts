@@ -32,7 +32,7 @@ export function useStudentQuery() {
     queryError.value = null
 
     try {
-      const response = await get(`/api/students/${trimmedId}`)
+      const response = await get<{ name: string }>(`/api/students/${trimmedId}`)
       if (response.success && response.data) {
         return response.data.name || ''
       }

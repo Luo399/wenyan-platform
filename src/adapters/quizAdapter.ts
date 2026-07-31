@@ -35,15 +35,12 @@ export function adaptBlockQuizToQuizItem(
   textId: string = '',
   questionId: string = '',
 ): QuizItem {
-  const qNumber =
+  // R110: 用 Number + 兜底替代 parseInt || 1，避免空串/非法值时 parseInt 返回 NaN 再被 || 1 吞掉
+  const parsedNumber =
     typeof blockData.question_number === 'number'
       ? blockData.question_number
-      : parseInt(String(blockData.question_number)) || 1
-
-  let correctAnswer: string | number | null = null
-  if (blockData.correct_answer !== undefined && blockData.correct_answer !== null) {
-    correctAnswer = blockData.correct_answer
-  }
+      : Number(blockData.question_number)
+  const qNumber = Number.isFinite(parsedNumber) && parsedNumber > 0 ? parsedNumber : 1
 
   return {
     textId: blockData.text_id || textId,
@@ -51,18 +48,27 @@ export function adaptBlockQuizToQuizItem(
     module: blockData.module || '',
     questionNumber: qNumber,
     questionText: blockData.question_text || '',
-    options: [
-      { label: 'A', value: blockData.option_a || '' },
-      { label: 'B', value: blockData.option_b || '' },
-      { label: 'C', value: blockData.option_c || '' },
-      { label: 'D', value: blockData.option_d || '' },
-    ].filter((opt) => opt.value.trim() !== ''),
+    // R113: 抽取 buildOptions 保持单一职责；R112: 过滤空选项
+    options: buildQuizOptions(blockData),
     audioFile: blockData.audio_file || null,
     difficulty: blockData.difficulty || 'L2',
-    correctAnswer,
+    // R110: 用 ?? 保持 0/'' 等合法 falsy 答案
+    correctAnswer: blockData.correct_answer ?? null,
     explanation: blockData.explanation || '',
     questionType: blockData.question_type || 'radio',
   }
+}
+
+/**
+ * R113: 构造选择题选项并过滤空值（从 adaptBlockQuizToQuizItem 拆分）
+ */
+function buildQuizOptions(blockData: BlockQuizData): { label: string; value: string }[] {
+  return [
+    { label: 'A', value: blockData.option_a || '' },
+    { label: 'B', value: blockData.option_b || '' },
+    { label: 'C', value: blockData.option_c || '' },
+    { label: 'D', value: blockData.option_d || '' },
+  ].filter((opt) => opt.value.trim() !== '')
 }
 
 export function isValidQuizItem(item: QuizItem): boolean {

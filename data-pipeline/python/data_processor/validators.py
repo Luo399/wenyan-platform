@@ -6,6 +6,7 @@
 """
 
 import logging
+import re
 from typing import Dict, List, Any, Callable
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,6 @@ def validate_text_id_format(value: Any) -> bool:
     """校验 text_id 格式（如 WEN_01）"""
     if not isinstance(value, str):
         return False
-    import re
     return bool(re.match(r'^WEN_\d+$', value.strip()))
 
 
@@ -66,6 +66,55 @@ def validate_options_count(options: List[str], expected_min: int = 2) -> bool:
     if len(options) < expected_min:
         return False
     return all(isinstance(opt, str) and opt.strip() for opt in options)
+
+
+# 匹配本地绝对路径或 http(s) URL 的正则：
+#   - Windows 盘符绝对路径：C:\... 或 C:/...
+#   - Unix 绝对路径：/home/..., /Users/... 等
+#   - http(s) URL（允许的 OSS CDN URL 不在此列，由调用方按白名单放行）
+_ABSOLUTE_PATH_PATTERN = re.compile(
+    r'^(?:[A-Za-z]:[\\/]'          # Windows 盘符：C:\ 或 C:/
+    r'|/(?:home|Users|var|tmp|opt|root|etc|mnt)/'  # Unix 绝对路径
+    r'|https?://)'                  # http(s) URL
+)
+
+
+def is_absolute_path(value: Any) -> bool:
+    """
+    判断字符串是否为绝对路径或 URL
+
+    :param value: 待判断值
+    :return: True 表示是绝对路径/URL
+    """
+    if not isinstance(value, str) or not value.strip():
+        return False
+    return bool(_ABSOLUTE_PATH_PATTERN.match(value.strip()))
+
+
+def validate_no_absolute_path(
+    data: Dict[str, Any],
+    fields: List[str]
+) -> List[ValidationError]:
+    """
+    校验数据中指定字段不含绝对路径或 URL
+
+    项目规则：JSON 数据禁止嵌入绝对路径，必须用相对路径或
+    VITE_OSS_BASE_URL 拼接。此函数在数据管道输出时做最后一道防线。
+
+    :param data: 单条数据
+    :param fields: 需检查的字段名列表（如 ['audio_file', 'bgm', 'illustration']）
+    :return: 错误列表（为空表示通过）
+    """
+    errors: List[ValidationError] = []
+    for field in fields:
+        value = data.get(field)
+        if value is not None and is_absolute_path(value):
+            errors.append(ValidationError(
+                row_index=data.get('_row_index', 0),
+                field=field,
+                message=f'{field} 禁止嵌入绝对路径或 URL：{value}（应使用相对路径或 OSS 相对地址）'
+            ))
+    return errors
 
 
 def validate_question_data(data: Dict[str, Any]) -> List[ValidationError]:
@@ -171,6 +220,8 @@ __all__ = [
     'validate_difficulty_level',
     'validate_correct_answer',
     'validate_options_count',
+    'is_absolute_path',
+    'validate_no_absolute_path',
     'validate_question_data',
     'validate_word_data',
     'validate_batch',

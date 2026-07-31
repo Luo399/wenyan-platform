@@ -40,7 +40,10 @@
       <!-- Tooltip -->
       <div
         v-if="showTooltip"
+        ref="tooltipRef"
         class="tooltip"
+        role="tooltip"
+        aria-live="polite"
         :style="{ left: tooltipPosition.x + 'px', top: tooltipPosition.y + 'px' }"
       >
         {{ currentAnnotation }}
@@ -50,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import {
   adaptWordList,
@@ -59,11 +62,24 @@ import {
   type WordListAdapterResult,
 } from '@/adapters/wordListAdapter'
 
+// ============================================================
+// 常量（R23：移除魔法数字）
+// ============================================================
+/** Tooltip 与 CSS 保持一致的估算尺寸（用于边界计算，像素） */
+const TOOLTIP_ESTIMATED_WIDTH = 200 as const
+const TOOLTIP_ESTIMATED_HEIGHT = 60 as const
+/** Tooltip 与鼠标指针的间距（像素） */
+const TOOLTIP_OFFSET = 10 as const
+/** mousemove 节流间隔：16ms ~ 60fps（R22） */
+const MOUSE_MOVE_THROTTLE_MS = 16 as const
+
 // Tooltip 状态
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
 const contentRef = ref<HTMLElement | null>(null)
+// 真实 tooltip DOM 引用（用于 R23：必要时用 getBoundingClientRect 校正尺寸）
+const tooltipRef = ref<HTMLElement | null>(null)
 
 interface Props {
   wenId: string
@@ -120,7 +136,51 @@ function retry() {
   retryBasicInfo()
 }
 
+/**
+ * R22: 手写 throttle，避免引入 lodash-es
+ * 保证在 trailing 最后一次事件后至少执行一次，避免鼠标停止移动时 tooltip 位置漂移
+ */
+function throttle<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
+  let lastInvokeTime = 0
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let lastArgs: Parameters<T> | null = null
+
+  function throttled(this: unknown, ...args: Parameters<T>) {
+    const now = Date.now()
+    const remaining = waitMs - (now - lastInvokeTime)
+    lastArgs = args
+    if (remaining <= 0) {
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+      lastInvokeTime = now
+      fn.apply(this, args)
+    } else if (!timer) {
+      timer = setTimeout(() => {
+        lastInvokeTime = Date.now()
+        timer = null
+        if (lastArgs) fn.apply(this, lastArgs)
+      }, remaining)
+    }
+  }
+
+  // 先把 throttled 转成 unknown 再加 cancel 扩展；避免 TS 报"类型互斥无法直接转换"
+  const throttledWithCancel = throttled as unknown as T & { cancel: () => void }
+  throttledWithCancel.cancel = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    lastArgs = null
+  }
+
+  return throttledWithCancel
+}
+
+// ============================================================
 // Tooltip 事件处理
+// ============================================================
 function handleMouseMove(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (target.classList.contains('annotated-word')) {
@@ -128,19 +188,24 @@ function handleMouseMove(e: MouseEvent) {
     if (def) {
       currentAnnotation.value = def
 
-      // 计算Tooltip位置并确保在视口内
-      const tooltipWidth = 200
-      const tooltipHeight = 60
-      let x = e.clientX + 10
-      let y = e.clientY + 10
+      // R23：优先用真实 DOM 尺寸，fallback 到常量估算
+      const rect = tooltipRef.value?.getBoundingClientRect()
+      const tooltipWidth = rect?.width ?? TOOLTIP_ESTIMATED_WIDTH
+      const tooltipHeight = rect?.height ?? TOOLTIP_ESTIMATED_HEIGHT
 
-      // 边界检查
+      let x = e.clientX + TOOLTIP_OFFSET
+      let y = e.clientY + TOOLTIP_OFFSET
+
+      // 边界检查：保证不超出视口
       if (x + tooltipWidth > window.innerWidth) {
-        x = e.clientX - tooltipWidth - 10
+        x = e.clientX - tooltipWidth - TOOLTIP_OFFSET
       }
       if (y + tooltipHeight > window.innerHeight) {
-        y = e.clientY - tooltipHeight - 10
+        y = e.clientY - tooltipHeight - TOOLTIP_OFFSET
       }
+      // 左/上边界也兜底
+      if (x < 0) x = 0
+      if (y < 0) y = 0
 
       tooltipPosition.value = { x, y }
       showTooltip.value = true
@@ -150,19 +215,25 @@ function handleMouseMove(e: MouseEvent) {
   showTooltip.value = false
 }
 
-// 生命周期钩子 - 将 mousemove 监听范围缩小到 article-content 容器
-onMounted(() => {
+// R22：包装为节流版本
+const throttledMouseMove = throttle(handleMouseMove, MOUSE_MOVE_THROTTLE_MS)
+
+// 生命周期钩子：监听 mousemove + resize 时用真实尺寸重新计算
+onMounted(async () => {
   const contentEl = contentRef.value
   if (contentEl) {
-    contentEl.addEventListener('mousemove', handleMouseMove)
+    contentEl.addEventListener('mousemove', throttledMouseMove)
   }
+  // 等 tooltip DOM 渲染后，下一帧再检测真实尺寸，避免首次移动时 fallback 到估算值
+  await nextTick()
 })
 
 onUnmounted(() => {
   const contentEl = contentRef.value
   if (contentEl) {
-    contentEl.removeEventListener('mousemove', handleMouseMove)
+    contentEl.removeEventListener('mousemove', throttledMouseMove)
   }
+  throttledMouseMove.cancel()
 })
 </script>
 

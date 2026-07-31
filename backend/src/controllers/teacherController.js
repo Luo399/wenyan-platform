@@ -1,6 +1,7 @@
 const { z } = require('zod')
 const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll } = require('../utils/dbPromise')
+const logger = require('../utils/logger')
 const {
   getDefaultPasswordHash,
   extractClassCode,
@@ -79,7 +80,7 @@ async function listStudents(req, res) {
     const rows = await dbAll(db, sql, params)
     res.status(200).json({ success: true, data: rows })
   } catch (err) {
-    console.error('[teacher] 查询学生列表失败:', err)
+    logger.error('[teacher] 查询学生列表失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -108,7 +109,7 @@ async function getStudent(req, res) {
     }
     res.status(200).json({ success: true, data: student })
   } catch (err) {
-    console.error('[teacher] 查询学生失败:', err)
+    logger.error('[teacher] 查询学生失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -180,7 +181,7 @@ async function createStudent(req, res) {
         message: err.issues.map((i) => i.message).join('；'),
       })
     }
-    console.error('[teacher] 添加学生失败:', err)
+    logger.error('[teacher] 添加学生失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '创建失败' })
   }
 }
@@ -252,7 +253,7 @@ async function batchCreateStudents(req, res) {
         message: err.issues.map((i) => i.message).join('；'),
       })
     }
-    console.error('[teacher] 批量添加学生失败:', err)
+    logger.error('[teacher] 批量添加学生失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '批量创建失败' })
   }
 }
@@ -289,7 +290,7 @@ async function updateStudent(req, res) {
         message: err.issues.map((i) => i.message).join('；'),
       })
     }
-    console.error('[teacher] 更新学生失败:', err)
+    logger.error('[teacher] 更新学生失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '更新失败' })
   }
 }
@@ -329,7 +330,7 @@ async function resetStudent(req, res) {
       data: { temporary_password: '123456' },
     })
   } catch (err) {
-    console.error('[teacher] 重置学生密码失败:', err)
+    logger.error('[teacher] 重置学生密码失败:', err)
     res.status(500).json({
       success: false,
       error: 'INTERNAL_ERROR',

@@ -36,7 +36,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R01. AdaptQuiz 在异步函数内调用 useDataLoader（P0）
 
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/components/AdaptQuiz.vue`（第 191 行）
 - **问题描述**: `loadData()` 是 async 函数，内部调用 `useDataLoader<...>(() => url)`。这违反 Composition API 规则——composable 必须在 `setup` 顶层同步执行，否则 `onScopeDispose` / `onUnmounted` 注册失败，且响应式作用域丢失，可能导致：
   1. 组件卸载时 `abortController.abort()` 不触发，请求泄漏
@@ -59,7 +59,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R02. StudentLogin 与 LoginModal 学号规则矛盾（P0）
 
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**:
   - `src/components/StudentLogin.vue`（第 12, 18, 45 行：`maxlength="4"`、`/^\d{4}$/`）
   - `src/components/LoginModal.vue`（第 64-66 行：测试账号 `1 | 2 | 3 | 4 | 5`、格式说明"数字（如：1、2024001）"）
@@ -86,7 +86,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R03. router.beforeEach 守卫逻辑缺陷（P0）
 
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/router/guards.ts`（第 35-42 行）
 - **问题描述**: 需要登录但未登录时，守卫仅设置 `to.meta.showLoginModal = true` 然后 `next()` 放行。这意味着：
   1. 用户可直接访问 `/stepone/1`、`/answer-query` 等鉴权页面（虽然 UI 弹登录窗，但页面内容已渲染）
@@ -107,7 +107,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R04. AnswerQueryView 大量 any 类型（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 302, 320, 425, 509, 545, 551, 655-668 行）
 - **问题描述**: 多处使用 `any` 类型：
   - `allData = ref<any[]>([])`（第 302 行）
@@ -131,7 +131,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R05. AnswerQueryView handleSearch 破坏原始数据（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 500-520 行）
 - **问题描述**: `handleSearch` 直接 `allData.value = filtered`，破坏原始数据。一旦搜索后清空关键词，会调用 `loadAllStudents()` 重新请求后端，而不是恢复本地过滤前的状态。这导致：
   1. 搜索后清空关键词 → 触发不必要的网络请求
@@ -151,7 +151,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R06. AnswerQueryView loadAllStudents 在 setup 末尾调用（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 679 行）
 - **问题描述**: `loadAllStudents()` 直接写在 `<script setup>` 末尾，不在 `onMounted` 中。虽然 Vue 3 setup 同步执行时能工作，但：
   1. 违反"副作用在生命周期钩子中执行"的最佳实践
@@ -171,7 +171,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R07. AnswerQueryView 大量 :deep() 样式穿透（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 903-1533 行，约 60 处 `:deep()`）
 - **问题描述**: 主容器用 `<style scoped>` 但通过 `:deep(.form-group)` / `:deep(.modal-overlay)` / `:deep(.data-table)` 等大量穿透样式到子组件。这违反 scoped 样式隔离原则：
   1. 子组件样式被父组件隐性控制，子组件无法独立复用
@@ -192,7 +192,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R08. AnswerQueryView exportData CSV 注入风险（P1）
 
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 646-677 行）
 - **问题描述**: `exportData` 直接拼接字段到 CSV，未 escape。若学生姓名/学号包含 `=`、`+`、`-`、`@` 等开头字符（如 `=CMD()`），Excel 打开时会执行公式，存在 CSV 公式注入风险。同时字段含逗号或换行符会破坏列结构。
 - **修复方案**:
@@ -220,7 +220,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R09. AnswerQueryView toast setTimeout 未清理（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 343-350 行）
 - **问题描述**: `showToast` 内 `setTimeout(() => { toast.show = false }, 3000)` 未保存 timer id，组件卸载时无法取消。若用户快速触发多次 toast，会叠加多个定时器；组件卸载后定时器仍执行，可能修改已销毁组件的状态（Vue 会警告）。
 - **修复方案**:
@@ -247,7 +247,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R10. AnswerQueryView availableClasses 硬编码 [9]（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/views/AnswerQueryView.vue`（第 328 行 `const availableClasses = ref<number[]>([9])`）
 - **问题描述**: 班级列表硬编码为 `[9]`，新增班级需改代码。应从后端 `/api/students/classes` 或学生数据中动态提取。
 - **修复方案**:
@@ -260,7 +260,7 @@ C01-C11 完成后对前端代码进行第二轮审查，发现以下新问题。
 ## R11. Level1Quiz onMounted 空函数（P2）
 
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
 - **文件**: `src/components/Level1Quiz.vue`（第 371 行 `onMounted(() => {})`）
 - **问题描述**: 空生命周期钩子是 dead code，可能是调试遗留。
 - **修复方案**: 删除 `onMounted(() => {})` 及对应 import（若未在其他地方使用）
