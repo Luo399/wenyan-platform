@@ -118,6 +118,8 @@ import BackContinue from '@/components/BackContinue.vue'
 import QuizCard from '@/components/QuizCard.vue'
 import CultureCards from '@/components/CultureCards.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import { debugLog } from '@/utils/debug'
@@ -229,6 +231,9 @@ const correctCount = computed(() => {
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('stepthree', poemId)
 
+// 使用埋点composable
+const { trackQuizSubmit } = useTracking('stepthree', poemId)
+
 // 处理提交
 async function handleSubmit(quizIndex: number, selectedOption: number) {
   debugLog(`[StepThreeView] handleSubmit - 题目索引: ${quizIndex}，选择: ${selectedOption}`)
@@ -248,6 +253,13 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   debugLog(
     `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}，questionId: ${questionId}，module: ${module}`,
   )
+
+  // 埋点：闯关提交
+  const wrongAnswers: string[] = []
+  if (!isCorrect && questionId) {
+    wrongAnswers.push(questionId)
+  }
+  trackQuizSubmit(isCorrect ? 100 : 0, wrongAnswers)
 }
 
 // 导航函数包装
@@ -256,6 +268,7 @@ function handleGoNext() {
 }
 
 function handleGoPrev() {
+  markNextEnterFromBackButton()
   goPrev()
 }
 

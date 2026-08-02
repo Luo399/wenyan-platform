@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import type { RawTextBasicInfo } from '@/adapters/wordListAdapter'
 import { getWenId } from '@/utils/wenUtils'
@@ -14,6 +16,15 @@ const wenId = getWenId(articleId)
 
 // 使用导航 composable
 const { goNext, goPrev } = useNavigation('detail', articleId)
+
+// 使用埋点 composable
+useTracking('detail', articleId)
+
+// 包装 goPrev 以标记后退按钮
+function handleGoPrev() {
+  markNextEnterFromBackButton()
+  goPrev()
+}
 
 // 加载课文基础数据（title / author / original_text 等），走统一 useDataLoader 分层
 const basicInfoUrl = `/data/text_basic_info/${wenId}.json`
@@ -84,7 +95,7 @@ const paragraphs = computed(() => {
     </template>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="goNext" />
   </div>
 </template>
 

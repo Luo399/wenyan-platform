@@ -32,7 +32,7 @@
     </section>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="handleGoNext" />
   </div>
 </template>
 
@@ -43,6 +43,8 @@ import WordList from '@/components/WordList.vue'
 import MultiRoleReading from '@/components/MultiRoleReading.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 import { debugLog, debugError } from '@/utils/debug'
 
@@ -64,6 +66,19 @@ const wenId = computed(() => {
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('stepone', poemId)
+
+// 使用埋点composable
+const { trackInteraction, trackSearchWord } = useTracking('stepone', poemId)
+
+// 包装 goPrev 以标记后退按钮
+function handleGoPrev() {
+  markNextEnterFromBackButton()
+  goPrev()
+}
+
+function handleGoNext() {
+  goNext()
+}
 
 function handleAudioLoadSuccess(data: MultiRoleData) {
   debugLog('音频数据加载成功:', data)

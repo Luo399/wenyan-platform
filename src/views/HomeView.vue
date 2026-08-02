@@ -15,14 +15,21 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import PoetryMenu from '@/components/PoetryMenu.vue'
 import StudentLogin from '@/components/StudentLogin.vue'
 import { useStudentStore } from '@/stores/student'
 import { storeToRefs } from 'pinia'
 import { getAssetUrl } from '@/utils/asset'
+import { track } from '@/utils/tracking'
 
 const studentStore = useStudentStore()
 const { isLoggedIn } = storeToRefs(studentStore)
+
+// 首页埋点
+onMounted(() => {
+  track('step_enter', 'home', {})
+})
 
 // 登录页背景图（Figma 设计稿）
 const bgUrl = getAssetUrl('images', 'WEN_01_bg_login.png')

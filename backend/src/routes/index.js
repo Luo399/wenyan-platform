@@ -4,6 +4,7 @@ const answerController = require('../controllers/answerController')
 const authController = require('../controllers/authController')
 const teacherController = require('../controllers/teacherController')
 const adminController = require('../controllers/adminController')
+const trackingController = require('../controllers/trackingController')
 const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
 
@@ -139,6 +140,9 @@ function registerRoutes(app) {
     queryRateLimit,
     answerController.getAnswersByStudentId,
   )
+
+  // ============ 用户行为埋点（无需登录） ============
+  app.post('/api/track', trackingController.track)
 }
 
 module.exports = {
