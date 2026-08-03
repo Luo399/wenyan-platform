@@ -25,7 +25,8 @@ function createApp() {
         'https://www.classicalab.cn',
         'https://api.classicalab.cn',
         'https://classicalab.cn',
-        'https://needed-data.oss-cn-guangzhou.aliyuncs.com',
+        'https://needed-data.classicalab.cn',
+        'http://needed-data.classicalab.cn',
       ]
       // 合并 CORS_ORIGIN 环境变量中配置的域名
       const configuredOrigins = config.cors.origin === '*'
