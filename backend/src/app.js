@@ -20,20 +20,22 @@ function createApp() {
 
   app.use(cors({
     origin: function (origin, callback) {
-      // 默认允许的域名（包括 OSS 独立看板桶）
-      const defaultOrigins = [
+      // 始终允许的域名（包括 OSS 独立看板桶）
+      const fixedOrigins = [
         'https://www.classicalab.cn',
         'https://api.classicalab.cn',
         'https://classicalab.cn',
         'https://needed-data.oss-cn-guangzhou.aliyuncs.com',
       ]
-      const allowedOrigins = config.cors.origin === '*'
-        ? defaultOrigins
-        : config.cors.origin.split(',').map(s => s.trim()).filter(Boolean);
+      // 合并 CORS_ORIGIN 环境变量中配置的域名
+      const configuredOrigins = config.cors.origin === '*'
+        ? []
+        : config.cors.origin.split(',').map(s => s.trim()).filter(Boolean)
+      const allowedOrigins = [...new Set([...fixedOrigins, ...configuredOrigins])]
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, true)
       } else {
-        callback(new Error('不允许的跨域请求'));
+        callback(null, false)
       }
     },
     methods: config.cors.methods,
