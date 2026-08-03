@@ -2,7 +2,8 @@
  * 数据看板控制器
  * 提供系统跟踪数据，供前端看板展示
  */
-const dbPromise = require('../utils/dbPromise')
+const { db } = require('../config/database')
+const { dbGet, dbAll } = require('../utils/dbPromise')
 const logger = require('../utils/logger')
 
 /**
@@ -13,15 +14,17 @@ async function getDashboard(req, res, next) {
   try {
     const [studentCount, submissionCount, recentSubmissions, dbStats] = await Promise.all([
       // 学生总数
-      dbPromise.get('SELECT COUNT(*) AS count FROM students'),
+      dbGet(db, 'SELECT COUNT(*) AS count FROM students'),
       // 答题总数
-      dbPromise.get('SELECT COUNT(*) AS count FROM submissions'),
+      dbGet(db, 'SELECT COUNT(*) AS count FROM submissions'),
       // 最近 50 条提交记录
-      dbPromise.all(
+      dbAll(
+        db,
         'SELECT s.*, st.name AS student_name FROM submissions s LEFT JOIN students st ON s.student_id = st.student_id ORDER BY s.submitted_at DESC LIMIT 50',
       ),
       // 数据库统计
-      dbPromise.all(
+      dbAll(
+        db,
         "SELECT strftime('%Y-%m-%d', submitted_at) AS date, COUNT(*) AS count FROM submissions GROUP BY date ORDER BY date DESC LIMIT 14",
       ),
     ])
@@ -77,7 +80,8 @@ async function getDashboard(req, res, next) {
  */
 async function getRawData(req, res, next) {
   try {
-    const data = await dbPromise.all(
+    const data = await dbAll(
+      db,
       'SELECT * FROM submissions ORDER BY submitted_at DESC LIMIT 200',
     )
 
