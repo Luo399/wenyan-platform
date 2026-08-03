@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>埋点分析看板</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f0f2f5; color: #333;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white; padding: 1.25rem 2rem; display: flex;
+      justify-content: space-between; align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 600; }
+    .header-actions { display: flex; align-items: center; gap: 1rem; }
+    .last-update { font-size: 0.8rem; color: rgba(255,255,255,0.7); }
+    .btn-refresh {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 1.25rem; background: rgba(255,255,255,0.15);
+      color: white; border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 0.5rem; font-size: 0.9rem; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-refresh:hover { background: rgba(255,255,255,0.25); }
+    .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-refresh.spinning svg { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: white; padding: 1.25rem 1.5rem; border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .stat-card .label { font-size: 0.8rem; color: #888; margin-bottom: 0.25rem; }
+    .stat-card .value { font-size: 1.75rem; font-weight: 700; color: #1a1a2e; }
+    .stat-card .value.green { color: #16a34a; }
+    .stat-card .value.blue { color: #2563eb; }
+    .stat-card .value.orange { color: #ea580c; }
+    .stat-card .value.purple { color: #7c3aed; }
+    .stat-card .value.red { color: #dc2626; }
+    .section {
+      background: white; border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.5rem; border-bottom: 1px solid #eee;
+    }
+    .section-header h3 { font-size: 1rem; color: #555; }
+    .section-body { padding: 1rem 1.5rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #f0f0f0;
+      font-size: 0.875rem;
+    }
+    th {
+      background-color: #f8fafc; font-weight: 600; color: #475569;
+      font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    tr:hover { background-color: #f8fafc; }
+    .badge {
+      display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px;
+      font-size: 0.75rem; font-weight: 500;
+    }
+    .badge-red { background-color: #fee2e2; color: #dc2626; }
+    .badge-yellow { background-color: #fef3c7; color: #d97706; }
+    .badge-green { background-color: #dcfce7; color: #16a34a; }
+    .badge-gray { background-color: #f3f4f6; color: #6b7280; }
+    .badge-blue { background-color: #dbeafe; color: #2563eb; }
+    .funnel-bar {
+      display: inline-block; height: 24px; border-radius: 4px;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa); min-width: 4px;
+      transition: width 0.4s ease; vertical-align: middle;
+    }
+    .funnel-bar-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .heatmap-cell {
+      display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px;
+      margin: 2px; font-size: 0.8rem; color: white; text-align: center; min-width: 60px;
+    }
+    .anomaly { color: #dc2626; font-weight: 700; }
+    .table-wrapper { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+    .loading-state { text-align: center; padding: 3rem 2rem; color: #888; }
+    .loading-state .spinner {
+      display: inline-block; width: 2rem; height: 2rem;
+      border: 3px solid #e5e7eb; border-top-color: #3b82f6;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1rem;
+    }
+    .empty-state { text-align: center; padding: 3rem 2rem; color: #888; }
+    .error-state {
+      text-align: center; padding: 2rem; color: #dc2626;
+      background: #fef2f2; border-radius: 0.5rem; margin-bottom: 1rem;
+    }
+    .time-filter { display: flex; gap: 0.5rem; align-items: center; }
+    .time-filter input[type="date"] {
+      padding: 0.4rem 0.6rem; border: 1px solid #d1d5db; border-radius: 0.375rem;
+      font-size: 0.8rem;
+    }
+    .time-filter button {
+      padding: 0.4rem 0.8rem; background: #3b82f6; color: white;
+      border: none; border-radius: 0.375rem; font-size: 0.8rem; cursor: pointer;
+    }
+    .time-filter button:hover { background: #2563eb; }
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .header { padding: 1rem; flex-direction: column; gap: 0.75rem; text-align: center; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      th, td { padding: 0.5rem; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>埋点分析看板</h1>
+    <div class="header-actions">
+      <div class="time-filter">
+        <input type="date" id="startDate" title="开始日期">
+        <span>~</span>
+        <input type="date" id="endDate" title="结束日期">
+        <button onclick="applyDateFilter()">筛选</button>
+      </div>
+      <span class="last-update" id="lastUpdate">等待加载...</span>
+      <button class="btn-refresh" id="refreshBtn" onclick="loadAll()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        刷新数据
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="errorContainer"></div>
+
+    <!-- 概览卡片 -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="label">总上报事件数</div><div class="value blue" id="statTotalEvents">-</div></div>
+      <div class="stat-card"><div class="label">活跃用户（累计）</div><div class="value green" id="statActiveUsers">-</div></div>
+      <div class="stat-card"><div class="label">今日活跃用户</div><div class="value orange" id="statTodayDau">-</div></div>
+      <div class="stat-card"><div class="label">平均停留时长</div><div class="value purple" id="statAvgDuration">-</div></div>
+    </div>
+
+    <!-- 步骤漏斗 -->
+    <div class="section" id="funnelSection">
+      <div class="section-header"><h3>步骤漏斗分析</h3></div>
+      <div class="section-body">
+        <div id="funnelContent" class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+      </div>
+    </div>
+
+    <!-- 模块交互 -->
+    <div class="section" id="interactionSection">
+      <div class="section-header"><h3>模块交互渗透率</h3></div>
+      <div class="section-body">
+        <div id="interactionContent" class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+      </div>
+    </div>
+
+    <!-- 字词查询 -->
+    <div class="section" id="searchSection">
+      <div class="section-header"><h3>字词查询排行榜</h3></div>
+      <div class="section-body">
+        <div id="searchContent" class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+      </div>
+    </div>
+
+    <!-- 成绩分布 -->
+    <div class="section" id="quizSection">
+      <div class="section-header"><h3>闯关成绩分布</h3></div>
+      <div class="section-body">
+        <div id="quizContent" class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+      </div>
+    </div>
+
+    <!-- 会话路径 -->
+    <div class="section" id="sessionSection">
+      <div class="section-header"><h3>会话路径分析</h3></div>
+      <div class="section-body">
+        <div id="sessionContent" class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var API_BASE = window.location.origin
+
+    // 默认日期范围：最近7天
+    function getDefaultDateRange() {
+      var now = new Date()
+      var end = now.toISOString().split('T')[0]
+      var start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      return { start: start, end: end }
+    }
+
+    function initDateInputs() {
+      var range = getDefaultDateRange()
+      document.getElementById('startDate').value = range.start
+      document.getElementById('endDate').value = range.end
+    }
+
+    function getDateParams() {
+      var start = document.getElementById('startDate').value
+      var end = document.getElementById('endDate').value
+      var params = new URLSearchParams()
+      if (start) params.set('startDate', start + 'T00:00:00Z')
+      if (end) params.set('endDate', end + 'T23:59:59Z')
+      return params.toString()
+    }
+
+    function applyDateFilter() {
+      loadAll()
+    }
+
+    // ---- 加载状态 ----
+    function showLoading(el) {
+      var targets = {
+        funnel: 'funnelContent', interaction: 'interactionContent',
+        search: 'searchContent', quiz: 'quizContent', session: 'sessionContent'
+      }
+      var id = targets[el] || el
+      var div = document.getElementById(id)
+      if (div) div.innerHTML = '<div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>'
+    }
+
+    function showError(msg) {
+      document.getElementById('errorContainer').innerHTML =
+        '<div class="error-state">' + escapeHtml(msg) + '</div>'
+    }
+
+    function hideError() {
+      document.getElementById('errorContainer').innerHTML = ''
+    }
+
+    // ---- 获取数据 ----
+    async function fetchJson(url) {
+      var resp = await fetch(url)
+      if (!resp.ok) throw new Error('请求失败: ' + resp.status)
+      return resp.json()
+    }
+
+    async function loadAll() {
+      hideError()
+      var btn = document.getElementById('refreshBtn')
+      btn.disabled = true; btn.classList.add('spinning')
+      document.getElementById('lastUpdate').textContent = '加载中...'
+
+      var params = getDateParams()
+      var base = API_BASE + '/api/tracking'
+
+      try {
+        var results = await Promise.allSettled([
+          fetchJson(base + '/active-users?' + params),
+          fetchJson(base + '/funnel?' + params),
+          fetchJson(base + '/interaction?' + params),
+          fetchJson(base + '/search-trend?' + params + '&limit=20'),
+          fetchJson(base + '/quiz-performance?' + params),
+          fetchJson(base + '/session-path?' + params + '&limit=50'),
+        ])
+
+        var now = new Date().toLocaleString('zh-CN')
+        document.getElementById('lastUpdate').textContent = '最后更新: ' + now
+
+        // 概览卡片
+        if (results[0].status === 'fulfilled' && results[0].value.success) {
+          renderStats(results[0].value.data, results[1])
+        } else {
+          setDefaultStats()
+        }
+
+        // 漏斗
+        if (results[1].status === 'fulfilled' && results[1].value.success) {
+          renderFunnel(results[1].value.data)
+        } else {
+          document.getElementById('funnelContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        }
+
+        // 交互
+        if (results[2].status === 'fulfilled' && results[2].value.success) {
+          renderInteraction(results[2].value.data)
+        } else {
+          document.getElementById('interactionContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        }
+
+        // 字词查询
+        if (results[3].status === 'fulfilled' && results[3].value.success) {
+          renderSearchTrend(results[3].value.data, results[3].value.meta)
+        } else {
+          document.getElementById('searchContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        }
+
+        // 成绩
+        if (results[4].status === 'fulfilled' && results[4].value.success) {
+          renderQuizPerformance(results[4].value.data)
+        } else {
+          document.getElementById('quizContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        }
+
+        // 会话路径
+        if (results[5].status === 'fulfilled' && results[5].value.success) {
+          renderSessionPath(results[5].value.data)
+        } else {
+          document.getElementById('sessionContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        }
+
+        // 检查是否有失败
+        var failed = results.filter(function(r) { return r.status === 'rejected' })
+        if (failed.length > 0) {
+          showError(failed.length + ' 个接口请求失败，部分数据可能不完整')
+        }
+      } catch (err) {
+        showError(err.message || '网络错误，请稍后重试')
+      } finally {
+        btn.disabled = false; btn.classList.remove('spinning')
+      }
+    }
+
+    // ---- 概览卡片 ----
+    function renderStats(activeData, funnelResult) {
+      document.getElementById('statActiveUsers').textContent = activeData.totalActiveUsers || 0
+      var todayDau = 0
+      if (activeData.daily && activeData.daily.length > 0) {
+        todayDau = activeData.daily[0].dau || 0
+      }
+      document.getElementById('statTodayDau').textContent = todayDau
+
+      // 总事件数 + 平均停留时长从漏斗数据推算
+      if (funnelResult && funnelResult.status === 'fulfilled' && funnelResult.value.success) {
+        var funnelData = funnelResult.value.data || []
+        var totalEvents = funnelData.reduce(function(sum, r) { return sum + (r.enterCount || 0) }, 0)
+        document.getElementById('statTotalEvents').textContent = totalEvents
+
+        var durations = funnelData.filter(function(r) { return r.avgDuration > 0 })
+        var avgDuration = durations.length > 0
+          ? Math.round(durations.reduce(function(s, r) { return s + r.avgDuration }, 0) / durations.length)
+          : 0
+        document.getElementById('statAvgDuration').textContent = formatDuration(avgDuration)
+      }
+    }
+
+    function setDefaultStats() {
+      document.getElementById('statTotalEvents').textContent = '-'
+      document.getElementById('statActiveUsers').textContent = '-'
+      document.getElementById('statTodayDau').textContent = '-'
+      document.getElementById('statAvgDuration').textContent = '-'
+    }
+
+    function formatDuration(ms) {
+      if (ms <= 0) return '-'
+      if (ms < 1000) return ms + 'ms'
+      if (ms < 60000) return Math.round(ms / 1000) + 's'
+      return Math.round(ms / 60000) + 'm ' + Math.round((ms % 60000) / 1000) + 's'
+    }
+
+    // ---- 步骤漏斗 ----
+    function renderFunnel(data) {
+      if (!data || data.length === 0) {
+        document.getElementById('funnelContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        return
+      }
+      var maxEnter = 0
+      data.forEach(function(r) { if (r.enterCount > maxEnter) maxEnter = r.enterCount })
+
+      var html = '<div class="table-wrapper"><table><thead><tr>' +
+        '<th>步骤</th><th>进入次数</th><th>退出次数</th><th>退出率</th><th>平均停留</th><th>漏斗</th></tr></thead><tbody>'
+
+      data.forEach(function(r) {
+        var width = maxEnter > 0 ? Math.max((r.enterCount / maxEnter) * 100, 3) : 3
+        var exitWidth = r.enterCount > 0 ? Math.max((r.exitCount / r.enterCount) * 100, 1) : 1
+        var exitRateClass = r.exitRate > 50 ? 'badge-red' : (r.exitRate > 30 ? 'badge-yellow' : 'badge-green')
+        html += '<tr>' +
+          '<td>' + escapeHtml(r.stepId) + '</td>' +
+          '<td><strong>' + r.enterCount + '</strong></td>' +
+          '<td>' + r.exitCount + '</td>' +
+          '<td><span class="badge ' + exitRateClass + '">' + r.exitRate + '%</span></td>' +
+          '<td>' + formatDuration(r.avgDuration) + '</td>' +
+          '<td><div class="funnel-bar" style="width:' + width + '%;"></div>' +
+          ' <div class="funnel-bar funnel-bar-red" style="width:' + exitWidth + '%;"></div></td>' +
+          '</tr>'
+      })
+      html += '</tbody></table></div>'
+      document.getElementById('funnelContent').innerHTML = html
+    }
+
+    // ---- 模块交互 ----
+    function renderInteraction(data) {
+      if (!data || data.length === 0) {
+        document.getElementById('interactionContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        return
+      }
+
+      var colors = ['#3b82f6', '#16a34a', '#ea580c', '#7c3aed', '#dc2626', '#0891b2']
+      var html = ''
+      data.forEach(function(step) {
+        html += '<div style="margin-bottom:1rem;"><strong>' + escapeHtml(step.stepId) + '</strong><div style="margin-top:0.5rem;">'
+        step.modules.forEach(function(m, idx) {
+          var color = colors[idx % colors.length]
+          html += '<span class="heatmap-cell" style="background:' + color + ';">' +
+            escapeHtml(m.moduleType) + ':' + escapeHtml(m.action) + ' (' + m.count + ')' +
+            '</span>'
+        })
+        html += '</div></div>'
+      })
+      document.getElementById('interactionContent').innerHTML = html
+    }
+
+    // ---- 字词查询 ----
+    function renderSearchTrend(data, meta) {
+      if (!data || data.length === 0) {
+        document.getElementById('searchContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        return
+      }
+      var metaHtml = ''
+      if (meta) {
+        metaHtml = '<div style="margin-bottom:0.75rem;font-size:0.8rem;color:#888;">' +
+          '异常阈值: ' + meta.threshold + ' 次 (均值: ' + meta.avg + ', 标准差: ' + meta.stddev + ')</div>'
+      }
+      var html = metaHtml + '<div class="table-wrapper"><table><thead><tr>' +
+        '<th>步骤</th><th>字词</th><th>查询次数</th><th>状态</th></tr></thead><tbody>'
+      data.forEach(function(r) {
+        var status = r.isAnomaly
+          ? '<span class="badge badge-red">异常</span>'
+          : '<span class="badge badge-gray">正常</span>'
+        html += '<tr>' +
+          '<td>' + escapeHtml(r.stepId) + '</td>' +
+          '<td' + (r.isAnomaly ? ' class="anomaly"' : '') + '>' + escapeHtml(r.word) + '</td>' +
+          '<td><strong>' + r.queryCount + '</strong></td>' +
+          '<td>' + status + '</td>' +
+          '</tr>'
+      })
+      html += '</tbody></table></div>'
+      document.getElementById('searchContent').innerHTML = html
+    }
+
+    // ---- 闯关成绩 ----
+    function renderQuizPerformance(data) {
+      if (!data || data.length === 0) {
+        document.getElementById('quizContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        return
+      }
+      var html = '<div class="table-wrapper"><table><thead><tr>' +
+        '<th>步骤</th><th>提交次数</th><th>平均分</th><th>中位数</th><th>不及格</th><th>及格</th><th>优秀</th></tr></thead><tbody>'
+      data.forEach(function(r) {
+        var d = r.distribution || {}
+        html += '<tr>' +
+          '<td>' + escapeHtml(r.stepId) + '</td>' +
+          '<td>' + r.totalCount + '</td>' +
+          '<td><strong>' + r.avgScore + '</strong></td>' +
+          '<td>' + r.medianScore + '</td>' +
+          '<td><span class="badge badge-red">' + (d.fail || 0) + '</span></td>' +
+          '<td><span class="badge badge-yellow">' + (d.pass || 0) + '</span></td>' +
+          '<td><span class="badge badge-green">' + (d.excellent || 0) + '</span></td>' +
+          '</tr>'
+      })
+      html += '</tbody></table></div>'
+      document.getElementById('quizContent').innerHTML = html
+    }
+
+    // ---- 会话路径 ----
+    function renderSessionPath(data) {
+      if (!data || data.length === 0) {
+        document.getElementById('sessionContent').innerHTML = '<div class="empty-state">暂无数据</div>'
+        return
+      }
+      var html = '<div class="table-wrapper"><table><thead><tr>' +
+        '<th>会话ID</th><th>路径</th><th>步数</th><th>后退次数</th><th>开始时间</th></tr></thead><tbody>'
+      data.forEach(function(r) {
+        var backClass = r.backCount > 2 ? 'badge-red' : (r.backCount > 0 ? 'badge-yellow' : 'badge-green')
+        html += '<tr>' +
+          '<td style="font-size:0.75rem;font-family:monospace;">' + escapeHtml(truncateStr(r.sessionId, 16)) + '</td>' +
+          '<td style="font-size:0.8rem;">' + escapeHtml(truncateStr(r.path, 80)) + '</td>' +
+          '<td>' + r.stepCount + '</td>' +
+          '<td><span class="badge ' + backClass + '">' + r.backCount + '</span></td>' +
+          '<td style="font-size:0.75rem;">' + formatTime(r.startTime) + '</td>' +
+          '</tr>'
+      })
+      html += '</tbody></table></div>'
+      document.getElementById('sessionContent').innerHTML = html
+    }
+
+    function truncateStr(str, maxLen) {
+      if (!str) return ''
+      return str.length > maxLen ? str.substring(0, maxLen) + '...' : str
+    }
+
+    function formatTime(timeStr) {
+      if (!timeStr) return '-'
+      try { return new Date(timeStr).toLocaleString('zh-CN') }
+      catch(_) { return timeStr }
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return ''
+      var div = document.createElement('div')
+      div.appendChild(document.createTextNode(String(str)))
+      return div.innerHTML
+    }
+
+    // ---- 初始化 ----
+    initDateInputs()
+    document.addEventListener('DOMContentLoaded', loadAll)
+    var autoRefreshTimer = setInterval(loadAll, 30000)
+  </script>
+</body>
+</html>
