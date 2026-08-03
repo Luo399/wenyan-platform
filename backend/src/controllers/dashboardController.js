@@ -20,7 +20,7 @@ async function getDashboard(req, res, next) {
       // 最近 50 条提交记录
       dbAll(
         db,
-        'SELECT a.*, st.name AS student_name FROM answers a LEFT JOIN students st ON a.student_id = st.student_id ORDER BY a.submitted_at DESC LIMIT 50',
+        'SELECT a.*, st.student_name AS student_name FROM answers a LEFT JOIN students st ON a.student_id = st.student_id ORDER BY a.submitted_at DESC LIMIT 50',
       ),
       // 数据库统计
       dbAll(
