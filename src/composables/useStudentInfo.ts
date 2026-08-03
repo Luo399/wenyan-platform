@@ -1,12 +1,6 @@
 import { computed, watch, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-
-interface StudentInfo {
-  id: string
-  name: string
-  isLoading: boolean
-  error: string | null
-}
+import type { StudentInfoState } from '@/types/student'
 
 export function useStudentInfo() {
   const authStore = useAuthStore()
@@ -25,7 +19,7 @@ export function useStudentInfo() {
     return authStore.user.username || ''
   }
 
-  function getStudentInfo(): StudentInfo {
+  function getStudentInfo(): StudentInfoState {
     const id = studentId.value
     if (!id) {
       return {

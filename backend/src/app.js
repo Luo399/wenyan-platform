@@ -4,6 +4,7 @@ const path = require('path');
 const helmet = require('helmet');
 
 const config = require('./config/app');
+const logger = require('./utils/logger');
 const { initAllTables } = require('./config/database');
 const { registerRoutes } = require('./routes');
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler');
@@ -57,7 +58,6 @@ function createApp() {
       success: true,
       message: 'OK',
       timestamp: new Date().toISOString(),
-      authEnabled: config.auth.secret.length > 0,
     });
   });
 
@@ -77,14 +77,14 @@ async function startServer() {
 
     if (!config.testMode) {
       const server = app.listen(port, host, () => {
-        console.log(`服务器运行在 http://${host}:${port}`);
-        console.log(`CORS 白名单: ${config.cors.origin}`);
-        console.log(`鉴权状态: ${config.auth.secret.length > 0 ? '已启用' : '未启用'}`);
+        logger.info(`服务器运行在 http://${host}:${port}`);
+        logger.info(`CORS 白名单: ${config.cors.origin}`);
+        // R90: 鉴权统一走 JWT，HMAC AUTH_SECRET 已弃用
       });
 
       process.on('SIGINT', () => {
         server.close(() => {
-          console.log('服务器已关闭');
+          logger.info('服务器已关闭');
           process.exit(0);
         });
       });
@@ -92,7 +92,7 @@ async function startServer() {
 
     return app;
   } catch (err) {
-    console.error('启动服务器失败:', err);
+    logger.error('启动服务器失败:', err);
     process.exit(1);
   }
 }

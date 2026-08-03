@@ -15,6 +15,7 @@ export const useBgmStore = defineStore('bgm', () => {
   const isMuted = ref(false)
 
   // BGM文件与wenId的映射关系
+  // R79: 命名遵循 ${wenId}_bgm_${instrument}.mp3 规律，如后续文案增多可改由配置驱动
   const bgmMapping: Record<string, string> = {
     WEN_01: 'WEN_01_bgm_guzheng.mp3',
     WEN_02: 'WEN_02_bgm_guzheng.mp3',

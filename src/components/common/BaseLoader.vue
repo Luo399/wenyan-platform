@@ -1,6 +1,8 @@
 <template>
-  <div class="base-loader">
-    <div class="spinner"></div>
+  <!-- R39: ARIA 状态组件：role=status + aria-live 让屏幕阅读器播报加载状态 -->
+  <div class="base-loader" role="status" aria-live="polite">
+    <!-- spinner 为装饰性元素，aria-hidden=true 避免屏幕阅读器读"空 div" -->
+    <div class="spinner" aria-hidden="true"></div>
     <span>{{ loadingText }}</span>
   </div>
 </template>

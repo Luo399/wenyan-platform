@@ -5,13 +5,18 @@
 """
 
 import unittest
-from config import (
+
+from data_processor.config import (
     transform_question_number,
     transform_difficulty,
     transform_correct_index,
     transform_correct_answer,
+    map_answer_to_index,
     post_process_quiz,
-    post_process_level2_quiz
+    post_process_level2_quiz,
+    post_process_quiz_generic,
+    LEVEL1_QUIZ_FIELD_ORDER,
+    LEVEL2_QUIZ_FIELD_ORDER,
 )
 
 
@@ -166,6 +171,97 @@ class TestPostProcessFunctions(unittest.TestCase):
         self.assertEqual(result['correct_answer'], 'C')
         self.assertNotIn('audio_file', result)
         self.assertIn('pre_dialog', result)
+
+
+class TestMapAnswerToIndex(unittest.TestCase):
+    """测试 P04 提取的 map_answer_to_index 公共函数"""
+
+    def test_valid_letters(self):
+        self.assertEqual(map_answer_to_index('A'), 0)
+        self.assertEqual(map_answer_to_index('B'), 1)
+        self.assertEqual(map_answer_to_index('C'), 2)
+        self.assertEqual(map_answer_to_index('D'), 3)
+
+    def test_case_insensitive(self):
+        self.assertEqual(map_answer_to_index('a'), 0)
+        self.assertEqual(map_answer_to_index('b'), 1)
+        self.assertEqual(map_answer_to_index('c'), 2)
+        self.assertEqual(map_answer_to_index('d'), 3)
+
+    def test_whitespace_tolerant(self):
+        self.assertEqual(map_answer_to_index('  A  '), 0)
+        self.assertEqual(map_answer_to_index('\tB\t'), 1)
+
+    def test_invalid_returns_none(self):
+        self.assertIsNone(map_answer_to_index('E'))
+        self.assertIsNone(map_answer_to_index('AB'))
+        self.assertIsNone(map_answer_to_index(''))
+        self.assertIsNone(map_answer_to_index(None))
+
+
+class TestPostProcessSideEffects(unittest.TestCase):
+    """测试 P04：post_process 不再修改入参 dict（副作用修复）"""
+
+    def test_post_process_quiz_does_not_mutate_input(self):
+        """post_process_quiz 应复制入参，原 dict 不被修改"""
+        original = {
+            'text_id': 'WEN_01',
+            'question_number': 1,
+            'correct_answer': 'B',
+            'difficulty': 'L2',
+        }
+        original_copy = dict(original)
+        post_process_quiz(original)
+        # 原 dict 应保持不变（修复前会被写入 correct_index）
+        self.assertEqual(original, original_copy)
+        self.assertNotIn('correct_index', original)
+
+    def test_post_process_level2_quiz_does_not_mutate_input(self):
+        """post_process_level2_quiz 应复制入参，原 dict 不被修改"""
+        original = {
+            'text_id': 'WEN_01',
+            'correct_answer': 'C',
+            'audio_file': None,
+        }
+        original_copy = dict(original)
+        post_process_level2_quiz(original)
+        self.assertEqual(original, original_copy)
+        self.assertNotIn('correct_index', original)
+
+
+class TestPostProcessQuizGeneric(unittest.TestCase):
+    """测试 P04 提取的 post_process_quiz_generic 通用函数"""
+
+    def test_auto_calculate_index(self):
+        data = {'correct_answer': 'D'}
+        result = post_process_quiz_generic(data, LEVEL1_QUIZ_FIELD_ORDER)
+        self.assertEqual(result['correct_index'], 3)
+
+    def test_preserves_existing_index(self):
+        """已有 correct_index 时不应被覆盖"""
+        data = {'correct_answer': 'A', 'correct_index': 2}
+        result = post_process_quiz_generic(data, LEVEL1_QUIZ_FIELD_ORDER)
+        self.assertEqual(result['correct_index'], 2)
+
+    def test_custom_field_order(self):
+        """自定义字段顺序应被遵循"""
+        data = {'b': 2, 'a': 1}
+        result = post_process_quiz_generic(data, ['a', 'b'])
+        self.assertEqual(list(result.keys()), ['a', 'b'])
+
+    def test_extra_fields_appended(self):
+        """field_order 未声明的字段应追加到末尾"""
+        data = {'a': 1, 'extra': 'x'}
+        result = post_process_quiz_generic(data, ['a'])
+        self.assertEqual(list(result.keys()), ['a', 'extra'])
+
+    def test_none_values_filtered(self):
+        """None 值字段应被过滤"""
+        data = {'a': 1, 'b': None, 'c': 3}
+        result = post_process_quiz_generic(data, ['a', 'b', 'c'])
+        self.assertNotIn('b', result)
+        self.assertEqual(result['a'], 1)
+        self.assertEqual(result['c'], 3)
 
 
 if __name__ == '__main__':

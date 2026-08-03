@@ -15,6 +15,7 @@
 
 import { get, post } from '@/utils/api'
 import type { ApiResponse } from '@/utils/api'
+import { ApiError } from '@/utils/api'
 
 // ============================================================
 // 类型定义
@@ -254,8 +255,9 @@ export async function getTextBatch(textIds: string[]): Promise<
 
 /**
  * 转换参数为查询字符串格式
+ * R105: Record<string, any> → Record<string, unknown>
  */
-function toQueryParams(params: Record<string, any>): Record<string, string> {
+function toQueryParams(params: Record<string, unknown>): Record<string, string> {
   const result: Record<string, string> = {}
   for (const key in params) {
     if (params[key] != null) {
@@ -292,6 +294,10 @@ export async function getTextList(
 // 认证相关接口
 // ============================================================
 
+// R103: 已删除 apiService.login（dead code，无调用方）
+// 登录走 stores/auth.ts 的 login()，调用 /api/auth/student/login 传 student_id + password
+// LoginResponse 接口保留，供 stores/auth.ts 类型参考
+
 /**
  * 登录响应
  */
@@ -303,17 +309,6 @@ export interface LoginResponse {
     student_id: string
     role: 'student' | 'teacher' | 'admin'
   }
-}
-
-/**
- * 登录请求
- *
- * @param studentId - 学号
- * @returns 用户信息和 token
- */
-export async function login(studentId: string): Promise<LoginResponse> {
-  const response = await post<LoginResponse>('/api/auth/login', { student_id: studentId })
-  return response.data!
 }
 
 // ============================================================
@@ -361,31 +356,60 @@ export interface SubmitAnswersResponse {
 /**
  * 提交答题结果
  *
- * @param submitData - 答题数据（包含answers和questions）
- * @param wenId - 课文ID
- * @param studentId - 学生ID
+ * 支持两种调用方式：
+ * 1. 传完整 SubmitAnswersParams：由上层（如 useAnswerSubmitter）控制 submittedAt 等业务字段
+ * 2. 传拆散参数：submitAnswers 自动生成 submittedAt
+ *
+ * @param paramsOrData - SubmitAnswersParams 或 {answers, questions}
+ * @param wenId - 课文ID（第二种方式必填）
+ * @param studentId - 学生ID（第二种方式必填）
  * @param studentName - 学生姓名（可选）
  * @param timeout - 超时时间
  * @returns 提交结果
  */
 export async function submitAnswers(
-  submitData: { answers: Record<string, any>; questions: QuestionForSubmit[] },
-  wenId: string,
-  studentId: string,
+  paramsOrData:
+    | SubmitAnswersParams
+    | {
+        answers: Record<string, string | number | (string | number)[]>
+        questions: QuestionForSubmit[]
+      },
+  wenId?: string,
+  studentId?: string,
   studentName?: string,
   timeout?: number,
 ): Promise<SubmitAnswersResponse> {
-  const params: SubmitAnswersParams = {
-    studentId,
-    studentName,
-    wenId,
-    submittedAt: new Date().toISOString(),
-    answers: submitData.answers,
-    questions: submitData.questions,
+  let params: SubmitAnswersParams
+
+  // 通过 studentId + submittedAt 字段判断是否为完整 params 格式
+  if (
+    typeof paramsOrData === 'object' &&
+    paramsOrData !== null &&
+    'studentId' in paramsOrData &&
+    'submittedAt' in paramsOrData
+  ) {
+    params = paramsOrData as SubmitAnswersParams
+  } else if (wenId && studentId) {
+    params = {
+      studentId,
+      studentName,
+      wenId,
+      submittedAt: new Date().toISOString(),
+      answers: (paramsOrData as { answers: Record<string, string | number | (string | number)[]> })
+        .answers,
+      questions: (paramsOrData as { questions: QuestionForSubmit[] }).questions,
+    }
+  } else {
+    throw new Error(
+      'submitAnswers 参数错误：需传完整 SubmitAnswersParams 或 (answers+wenId+studentId)',
+    )
   }
 
   const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
-  return response.data!
+  if (!response.success || !response.data) {
+    throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')
+  }
+  return response.data
 }
 
 export interface SubmitSingleAnswerParams {
@@ -424,5 +448,9 @@ export async function submitSingleAnswer(
     ...params,
     submittedAt: params.submittedAt || new Date().toISOString(),
   })
-  return response.data!
+  // R104: 移除 response.data! 非空断言，先校验 success 与 data 存在性
+  if (!response.success || !response.data) {
+    throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交单题答案失败')
+  }
+  return response.data
 }

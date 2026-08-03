@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import QuizQuestion, { type QuestionData } from '../components/QuizQuestion.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import type { RawTextBasicInfo } from '@/adapters/wordListAdapter'
 import { getWenId } from '@/utils/wenUtils'
@@ -15,6 +16,15 @@ const wenId = getWenId(articleId)
 
 // 使用导航 composable
 const { goNext, goPrev } = useNavigation('detail', articleId)
+
+// 使用埋点 composable
+useTracking('detail', articleId)
+
+// 包装 goPrev 以标记后退按钮
+function handleGoPrev() {
+  markNextEnterFromBackButton()
+  goPrev()
+}
 
 // 加载课文基础数据（title / author / original_text 等），走统一 useDataLoader 分层
 const basicInfoUrl = `/data/text_basic_info/${wenId}.json`
@@ -44,19 +54,24 @@ const article = computed(() => {
   return { title: '加载中...', author: '', dynasty: '', content: '' }
 })
 
-// 收集答案（预留）
-const answers = ref<Record<string, string | number | (string | number)[]>>({})
-
-// 课后题：当前 JSON 数据管线尚未生成该视图专用题目，保持空数组
-// 后续接入 level1_quiz / 自定义 detail_quiz 后可替换为数据驱动
-const questions: QuestionData[] = []
-
 /**
- * 处理答案变化
+ * R17: 空内容 / 空段落过滤
+ * - content 为空字符串时返回空数组（不渲染任何空段落）
+ * - 连续换行产生的纯空白段落过滤掉（.trim() === '' 跳过）
  */
-function handleAnswerChange(questionId: string, answer: string | number | (string | number)[]) {
-  answers.value[questionId] = answer
-}
+const paragraphs = computed(() => {
+  const content = article.value.content
+  if (!content) return []
+  return content.split('\n').filter((line) => line.trim() !== '')
+})
+
+// ============================================================
+// R16（顺手修 P3）：answers + handleAnswerChange 是 dead state
+//   - questions 恒为空数组，QuizQuestion 永不渲染
+//   - @answer-change 永远不会触发
+//   - 清理：删除 answers ref / handleAnswerChange 函数 / 模板 @answer-change 绑定
+//   - QuizQuestion 导入也移除（未使用）
+// ============================================================
 </script>
 
 <template>
@@ -64,30 +79,23 @@ function handleAnswerChange(questionId: string, answer: string | number | (strin
     <div v-if="loading" class="loading-state">正在加载课文内容…</div>
     <div v-else-if="error" class="error-state">
       <p>{{ error }}</p>
-      <button class="retry-btn" @click="retry">重新加载</button>
+      <button type="button" class="retry-btn" @click="retry">重新加载</button>
     </div>
     <template v-else>
       <h1>{{ article.title }}</h1>
       <p v-if="article.author || article.dynasty" class="meta">
         {{ article.dynasty }} · {{ article.author }}
       </p>
-      <!-- 按换行符分段渲染原文，保留语义分段 -->
+      <!-- R17: 用 paragraphs computed 替代内联 split('\n')，避免空段落 -->
       <div class="article-content">
-        <p v-for="(para, idx) in article.content.split('\n')" :key="idx" class="paragraph">
+        <p v-for="(para, idx) in paragraphs" :key="idx" class="paragraph">
           {{ para }}
         </p>
-      </div>
-
-      <div v-if="questions.length > 0" class="questions-section">
-        <h2>课后练习</h2>
-        <div v-for="question in questions" :key="question.id" class="question-wrapper">
-          <QuizQuestion :question="question" @answer-change="handleAnswerChange" />
-        </div>
       </div>
     </template>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="goNext" />
   </div>
 </template>
 
@@ -96,55 +104,53 @@ function handleAnswerChange(questionId: string, answer: string | number | (strin
   padding: var(--spacing-xl);
   max-width: 800px;
   margin: 0 auto;
-  padding-bottom: 5rem;
+  /* R15: 5rem → spacing-2xl (3rem) 过大；取 spacing-xl + spacing-lg 用 padding-bottom 叠加 */
+  padding-bottom: var(--spacing-2xl);
 }
 
+/* R15: loading/error 状态样式全部走 design token */
 .loading-state,
 .error-state {
   text-align: center;
-  padding: 3rem 1rem;
-  color: #6b7280;
+  /* 3rem 1rem → 2xl md */
+  padding: var(--spacing-2xl) var(--spacing-md);
+  color: var(--color-text-secondary);
 }
 
+/* R15: retry-btn 硬编码颜色/尺寸 → token */
 .error-state .retry-btn {
-  margin-top: 1rem;
-  padding: 0.5rem 1.25rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  background: #fff;
+  margin-top: var(--spacing-md);
+  /* 0.5rem 1.25rem → sm lg */
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: var(--border-width-hairline) solid var(--color-placeholder);
+  border-radius: var(--radius-small);
+  background: var(--color-white);
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.error-state .retry-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .meta {
-  color: #6b7280;
-  margin-bottom: 1.5rem;
+  color: var(--color-text-secondary);
+  /* 1.5rem → lg */
+  margin-bottom: var(--spacing-lg);
 }
 
 .article-content {
+  /* 2 → line-height-loose；若未来在 design-tokens 定义，可改为 var(--line-height-loose) */
   line-height: 2;
 }
 
 .paragraph {
   text-indent: 2em;
-  margin-bottom: 1rem;
-  white-space: pre-wrap;
-}
-
-.questions-section {
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-md);
-  border-top: var(--border-width-hairline) solid var(--color-placeholder);
-}
-
-.questions-section h2 {
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-subheading);
-  font-weight: var(--font-weight-semibold);
+  /* 1rem → md */
   margin-bottom: var(--spacing-md);
-  color: var(--color-text);
-}
-
-.question-wrapper {
-  margin-bottom: var(--spacing-lg);
+  white-space: pre-wrap;
 }
 </style>

@@ -75,17 +75,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import BlockRenderer from '@/components/BlockRenderer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import type { PageConfig } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
 const route = useRoute()
-const router = useRouter()
 
 // 篇目ID（路由参数）
 const poemId = computed(() => route.params.id as string)
@@ -202,6 +203,13 @@ async function handleQuizAnswer(event: {
   debugLog(
     `[StepTwoView] Quiz 答案提交: 答案=${event.answer}, 是否正确=${event.isCorrect}, questionId=${event.questionId}, module=${event.module}`,
   )
+
+  // 埋点：闯关提交
+  if (!event.isCorrect && event.questionId) {
+    trackQuizSubmit(0, [event.questionId])
+  } else if (event.isCorrect) {
+    trackQuizSubmit(100, [])
+  }
 }
 
 // 处理 quiz 提交事件（适配原事件名，仅用于触发后续逻辑）
@@ -212,12 +220,16 @@ function handleQuizSubmitted() {
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('steptwo', poemId.value)
 
+// 使用埋点composable
+const { trackQuizSubmit } = useTracking('steptwo', poemId.value)
+
 // 导航函数包装
 function handleGoNext() {
   goNext()
 }
 
 function handleGoPrev() {
+  markNextEnterFromBackButton()
   goPrev()
 }
 

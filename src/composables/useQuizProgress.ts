@@ -11,7 +11,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitAnswers as submitAnswersApi, submitSingleAnswer } from '@/services/apiService'
+import { submitSingleAnswer } from '@/services/apiService'
 import { useAuthStore } from '@/stores/auth'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
@@ -76,8 +76,13 @@ export function useQuizProgress(
 
   const hasCompletionRecord = computed(() => {
     const key = getCompletionKey(completionKeyPrefix)
-    const record = sessionStorage.getItem(key)
-    return !!record
+    // R89: 包裹 sessionStorage 读取异常
+    try {
+      return !!sessionStorage.getItem(key)
+    } catch (err) {
+      debugWarn('[useQuizProgress] sessionStorage 读取失败:', err)
+      return false
+    }
   })
 
   function saveCompletionRecord(): void {
@@ -88,14 +93,23 @@ export function useQuizProgress(
       totalQuestions: totalQuestionsRef.value,
       answeredCount: completedCount.value,
     }
-    sessionStorage.setItem(key, JSON.stringify(record))
-    debugLog(`[useQuizProgress] 完成记录已保存:`, record)
+    // R89: 包裹 sessionStorage 写入异常
+    try {
+      sessionStorage.setItem(key, JSON.stringify(record))
+      debugLog(`[useQuizProgress] 完成记录已保存:`, record)
+    } catch (err) {
+      debugWarn('[useQuizProgress] sessionStorage 写入失败:', err)
+    }
   }
 
   function clearCompletionRecord(): void {
     const key = getCompletionKey(completionKeyPrefix)
-    sessionStorage.removeItem(key)
-    debugLog(`[useQuizProgress] 完成记录已清除`)
+    try {
+      sessionStorage.removeItem(key)
+      debugLog(`[useQuizProgress] 完成记录已清除`)
+    } catch (err) {
+      debugWarn('[useQuizProgress] sessionStorage 删除失败:', err)
+    }
   }
 
   function getStudentInfo(): { studentId: string; studentName: string } {
@@ -145,52 +159,6 @@ export function useQuizProgress(
       })
     } catch (error) {
       debugError('[useQuizProgress] submitSingleAnswerToBackend - 提交失败:', error)
-    }
-  }
-
-  async function submitAnswersToBackend(): Promise<void> {
-    if (!completionKeyPrefix || answers.value.length === 0) {
-      debugLog(`[useQuizProgress] submitAnswersToBackend - 无需提交`)
-      return
-    }
-
-    try {
-      const { studentId, studentName } = getStudentInfo()
-
-      if (!studentId) {
-        debugWarn('[useQuizProgress] submitAnswersToBackend - 未登录，跳过后端提交')
-        return
-      }
-
-      const questions = answers.value.map((ans) => ({
-        id: ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`,
-        correctAnswer: ans.correctAnswer ?? 0,
-      }))
-
-      const answerMap: Record<string, any> = {}
-      const letterToIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 }
-      answers.value.forEach((ans) => {
-        const key = ans.questionId || `${completionKeyPrefix}_question_${ans.questionIndex}`
-        let mappedAnswer: string | number = ans.answer
-        if (typeof ans.answer === 'string') {
-          const index = letterToIndex[ans.answer]
-          if (index !== undefined) {
-            mappedAnswer = index
-          }
-        }
-        answerMap[key] = mappedAnswer
-      })
-
-      await submitAnswersApi(
-        { answers: answerMap, questions },
-        completionKeyPrefix,
-        studentId,
-        studentName,
-      )
-
-      debugLog(`[useQuizProgress] submitAnswersToBackend - 答题数据已成功提交到后端`)
-    } catch (error) {
-      debugError('[useQuizProgress] submitAnswersToBackend - 提交失败:', error)
     }
   }
 
@@ -314,10 +282,16 @@ export function useQuizProgress(
         newValue: newVal,
       })
 
+      // R88: 题目总数变化时重置进度，避免旧答案/已完成计数与新总数不匹配
       submittedList.value = Array.from({ length: newVal }, () => false)
 
       if (newVal === 0) {
         resetProgress()
+      } else if (oldVal !== undefined && newVal !== oldVal) {
+        // 总数变化（非首次）：清空旧答案，重置计数与游标
+        answers.value = []
+        completedCount.value = 0
+        currentIndex.value = 0
       }
     },
     { immediate: true },

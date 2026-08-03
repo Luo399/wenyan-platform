@@ -6,7 +6,8 @@
 
 ## B01. errorHandler.js 模块加载即崩溃（requestLogger 未定义）
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/middleware/errorHandler.js`（第 59 行）
 - **问题描述**:
   1. `errorHandler` 被 `function` 声明了两次（第 15-39 行和第 49-56 行），第二个覆盖第一个
@@ -21,7 +22,8 @@
 
 ## B02. answerController.js submitAnswers 引用未定义变量 result
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/controllers/answerController.js`（第 77-140 行）
 - **问题描述**:
   1. 第 77-134 行构建 `insertPromises` 数组但从未调用 `Promise.all` 等待
@@ -39,7 +41,8 @@
 
 ## B03. services/ 层完全无法加载（引用不存在的导出）
 - **优先级**: P0
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/services/answerService.js`（第 6、7、10 行）
   - `backend/src/services/studentService.js`（第 6 行）
@@ -59,7 +62,8 @@
 
 ## B04. controller 与 service compareAnswers 逻辑不一致
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/controllers/answerController.js`（第 41-52 行）
   - `backend/src/services/answerService.js`（第 28-51 行）
@@ -71,7 +75,8 @@
 
 ## B05. controller 直接操作数据库绕过 service 层
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/controllers/answerController.js`（第 1、92-132、175-234、248-269、275-296 行）
   - `backend/src/controllers/studentController.js`（第 1、4-127 行）
@@ -83,7 +88,8 @@
 
 ## B06. submitAnswers 与 submitSingleAnswer 大量重复逻辑
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/controllers/answerController.js`（第 54-149 行 vs 第 151-243 行）
 - **问题描述**: 两个函数重复了"参数校验 → 取正确答案 → 比对 → 查 attempt → INSERT OR REPLACE → 返回"的相同流程
 - **修复方案**: 提取 `processAnswerSubmission(studentId, wenId, answers, questions)` 公共函数
@@ -93,7 +99,8 @@
 
 ## B07. database.js 表结构与 service 层期望不一致
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/config/database.js`（第 22-48 行）
 - **问题描述**:
   1. `answers` 表 `UNIQUE(student_id, question_id)` 与 `attempt_number` 字段矛盾
@@ -112,7 +119,8 @@
 
 ## B08. token.js 是死代码，JWT 逻辑分散三处
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/utils/token.js`（第 1-44 行，全项目未引用）
   - `backend/src/controllers/authController.js`（第 24-28 行直接 `jwt.sign`）
@@ -127,7 +135,8 @@
 
 ## B09. JWT payload 字段命名不一致（下划线 vs 驼峰）
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**:
   - `backend/src/controllers/authController.js`（第 24-28 行签发 `{ student_id, role }`）
   - `backend/src/middleware/authMiddleware.js`（第 16、39 行 `req.user = decoded`）
@@ -140,7 +149,8 @@
 
 ## B10. authMiddleware 缺少角色鉴权（RBAC）
 - **优先级**: P1
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/middleware/authMiddleware.js`（第 24-48 行）
 - **问题描述**: 只做 token 校验，完全没有角色检查。任何 student token 可访问管理端接口
 - **修复方案**:
@@ -160,7 +170,8 @@
 
 ## B11. 全局日志 console.error/console.log 未走 logger.js
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `answerController.js`、`studentController.js`、`authController.js`、`authMiddleware.js`、`database.js` 等
 - **问题描述**: 项目有完整的 `utils/logger.js` 但大部分模块直接用 `console.error`/`console.log`，日志体系名存实亡
 - **修复方案**: 全项目 `console.error` → `logger.error`，`console.log` → `logger.info`
@@ -170,7 +181,8 @@
 
 ## B12. logger.js 日志轮转未实现
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/utils/logger.js`（第 116-125 行）、`backend/src/config/app.js`（第 42-43 行）
 - **问题描述**: `maxFileSize`/`maxFiles` 配置已定义但代码中从未实现日志轮转，日志文件会无限增长
 - **修复方案**: 使用 `winston-daily-rotate-file` 或手动实现文件大小检查 + 轮转
@@ -180,7 +192,8 @@
 
 ## B13. database.js initAllTables 回调风格未 Promise 化
 - **优先级**: P2
-- **状态**: [ ] 未开始
+- **状态**: [x] 已完成
+- **完成日期**: 2026-07-31
 - **文件**: `backend/src/config/database.js`（第 19-60 行）
 - **问题描述**: `initAllTables` 仍是两层嵌套回调，未使用已封装的 `dbPromise.js` 的 `dbRun`
 - **修复方案**: 改用 `await dbRun(db, sql)` 风格

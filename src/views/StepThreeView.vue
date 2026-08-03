@@ -67,7 +67,7 @@
 
           <!-- QuizCard 组件 -->
           <QuizCard
-            :data="item.quiz as any"
+            :data="item.quiz"
             :submitted="isSubmitted(index)"
             @submit="(option) => option !== null && handleSubmit(index, option)"
           />
@@ -113,11 +113,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import BackContinue from '@/components/BackContinue.vue'
 import QuizCard from '@/components/QuizCard.vue'
 import CultureCards from '@/components/CultureCards.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import { debugLog } from '@/utils/debug'
@@ -126,7 +128,7 @@ import { debugLog } from '@/utils/debug'
 interface QuizItem {
   question_id: string
   module: string
-  question_type: 'radio' | 'checkbox' | string
+  question_type: 'radio' | 'checkbox'
   question_text: string
   options: string[]
   correct_answer: number
@@ -145,7 +147,6 @@ interface PageData {
 }
 
 const route = useRoute()
-const router = useRouter()
 
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
@@ -174,15 +175,19 @@ const { data: pageData, loading, error, retry } = useDataLoader<PageData>(() => 
 // 题目总数（Ref类型，支持响应式更新）
 const totalQuizCount = ref(0)
 
+// R58: 已提交题号集合，O(1) 查找替代 answers.value.some O(n)
+const submittedSet = computed(() => new Set(answers.value.map((a) => a.questionIndex)))
+
 // 监听 pageData 变化，更新题目数量
+// R60: 移除 deep，items.length 不需要深比较
 watch(
   () => pageData.value,
   (data) => {
-    const count = data?.items.length || 0
+    const count = data?.items?.length || 0
     totalQuizCount.value = count
     debugLog(`[StepThreeView] 题目数量更新: ${count}`)
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 )
 
 // 使用 useQuizProgress Composable 管理测验进度
@@ -207,7 +212,8 @@ const {
 
 // 判断指定题目是否已提交
 function isSubmitted(index: number): boolean {
-  return answers.value.some((a) => a.questionIndex === index)
+  // R58: 用 Set 替代 some，O(1) 查找
+  return submittedSet.value.has(index)
 }
 
 // 答对数量
@@ -224,6 +230,9 @@ const correctCount = computed(() => {
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('stepthree', poemId)
+
+// 使用埋点composable
+const { trackQuizSubmit } = useTracking('stepthree', poemId)
 
 // 处理提交
 async function handleSubmit(quizIndex: number, selectedOption: number) {
@@ -244,6 +253,13 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   debugLog(
     `[StepThreeView] 提交完成 - 当前完成数: ${completedCount.value}，是否全部完成: ${isCompleted.value}，questionId: ${questionId}，module: ${module}`,
   )
+
+  // 埋点：闯关提交
+  const wrongAnswers: string[] = []
+  if (!isCorrect && questionId) {
+    wrongAnswers.push(questionId)
+  }
+  trackQuizSubmit(isCorrect ? 100 : 0, wrongAnswers)
 }
 
 // 导航函数包装
@@ -252,6 +268,7 @@ function handleGoNext() {
 }
 
 function handleGoPrev() {
+  markNextEnterFromBackButton()
   goPrev()
 }
 

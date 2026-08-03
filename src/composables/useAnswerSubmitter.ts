@@ -23,7 +23,8 @@
 
 import { ref, type Ref } from 'vue'
 import { useStudentInfo } from '@/composables/useStudentInfo'
-import { post } from '@/utils/api'
+import { submitAnswers as apiSubmitAnswers } from '@/services/apiService'
+import type { SubmitAnswersResponse } from '@/services/apiService'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 /**
@@ -388,7 +389,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
   }
 
   /**
-   * 提交答案到后端
+   * 提交答案到后端（统一走 apiService.submitAnswers 入口）
    * @param wenId - 课文ID
    * @returns 提交结果
    */
@@ -408,7 +409,7 @@ export function useAnswerSubmitter(): UseAnswerSubmitterReturn {
     submitError.value = null
 
     try {
-      const apiResponse = await post<SubmitResponse['data']>('/api/submit', payload)
+      const apiResponse: SubmitAnswersResponse = await apiSubmitAnswers(payload)
 
       if (apiResponse.success) {
         debugLog('[useAnswerSubmitter] 答案提交成功')

@@ -14,7 +14,7 @@ const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise');
 async function getStudentById(studentId) {
   return dbGet(
     db,
-    'SELECT student_id, student_name, class, created_at FROM students WHERE student_id = ?',
+    'SELECT student_id, student_name, class_code, created_at FROM students WHERE student_id = ?',
     [studentId]
   );
 }
@@ -28,7 +28,7 @@ async function getStudentById(studentId) {
  */
 async function createOrUpdateStudent(studentId, name, studentClass = 9) {
   const stmt = db.prepare(
-    'INSERT OR REPLACE INTO students (student_id, student_name, class) VALUES (?, ?, ?)'
+    'INSERT OR REPLACE INTO students (student_id, student_name, class_code) VALUES (?, ?, ?)'
   );
 
   try {
@@ -37,7 +37,7 @@ async function createOrUpdateStudent(studentId, name, studentClass = 9) {
     stmt.finalize();
   }
 
-  return { studentId, name, class: studentClass };
+  return { studentId, name, class_code: studentClass };
 }
 
 /**
@@ -50,7 +50,7 @@ async function getStudentList(classNum) {
   const params = [];
 
   if (classNum && /^\d+$/.test(String(classNum))) {
-    sql += ' WHERE class = ?';
+    sql += ' WHERE class_code = ?';
     params.push(parseInt(classNum));
   }
 
@@ -70,7 +70,7 @@ async function updateStudent(studentId, name, studentClass) {
   const params = [name.trim()];
 
   if (studentClass !== undefined) {
-    updateSql += ', class = ?';
+    updateSql += ', class_code = ?';
     params.push(studentClass);
   }
 
@@ -86,7 +86,7 @@ async function updateStudent(studentId, name, studentClass) {
   return {
     success: true,
     message: '学生信息修改成功',
-    data: { studentId, name: name.trim(), class: studentClass }
+    data: { studentId, name: name.trim(), class_code: studentClass }
   };
 }
 

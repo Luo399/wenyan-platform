@@ -54,17 +54,29 @@ JSON 层 (backend/data/)   ← 最终 JSON，会被 Git 管理并部署到服务
 ### 2. 运行 Python 清洗脚本
 
 ```bash
+# 首次使用：以可编辑模式安装数据管道包（声明依赖 + 提供包导入）
+# 见 data-pipeline/python/pyproject.toml
+pip install -e data-pipeline/python
+
 cd data-pipeline/python
 
 # 运行数据处理器（推荐）
-python data_processor/main.py
+python -m data_processor.main
 
 # 或使用命令行参数
-python data_processor/main.py --input ../source/开发需求填写.dbt.xlsx --output ../temp
+python -m data_processor.main run --input ../source/开发需求填写.dbt.xlsx --output ../temp
 
 # 或运行单独的转换脚本
 python excel2json.py
 python quiz_excel2json.py
+```
+
+#### 运行单元测试
+
+```bash
+cd data-pipeline/python
+pip install -e ".[test]"   # 安装测试依赖 pytest
+pytest                    # 自动收集所有 test_*.py
 ```
 
 ### 3. 自动数据处理功能
@@ -154,7 +166,7 @@ python data_validator.py
 1. **不要直接修改 `backend/data/` 目录的文件**，应通过本工作流生成
 2. `temp/` 目录用于存放临时文件，不会被 Git 追踪
 3. 修改 Excel 文件后，需重新运行转换脚本更新 JSON
-4. 运行脚本前请确保已安装依赖：`pip install openpyxl`
+4. 运行脚本前请确保已安装依赖：`pip install -e data-pipeline/python`（会安装 `openpyxl` 等依赖，见 `data-pipeline/python/pyproject.toml`）
 
 ## 版本历史
 

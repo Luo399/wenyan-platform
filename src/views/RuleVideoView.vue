@@ -20,7 +20,7 @@
     </div>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="goPrev" @continue="goNext" />
+    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="goNext" />
   </div>
 </template>
 
@@ -30,6 +30,8 @@ import { useRoute } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
 
 // Props: 参数化 4 个原文件的差异点
@@ -55,6 +57,15 @@ const poemId = route.params.id as string
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation(props.navKey, poemId)
+
+// 使用埋点composable（navKey 用作 step_id）
+const { trackInteraction } = useTracking(props.navKey, poemId)
+
+// 包装 goPrev 以标记后退按钮
+function handleGoPrev() {
+  markNextEnterFromBackButton()
+  goPrev()
+}
 
 /**
  * 当前篇目信息

@@ -1,6 +1,7 @@
 <template>
-  <div class="base-empty">
-    <i class="fas fa-inbox"></i>
+  <!-- R39: 空状态 role=status + aria-live=polite 让屏幕阅读器播报"暂无数据" -->
+  <div class="base-empty" role="status" aria-live="polite">
+    <i class="fas fa-inbox" aria-hidden="true"></i>
     <p>{{ emptyText }}</p>
   </div>
 </template>

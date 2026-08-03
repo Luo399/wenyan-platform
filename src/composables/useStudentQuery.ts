@@ -2,15 +2,13 @@ import { ref } from 'vue'
 import { get } from '@/utils/api'
 import { debugError } from '@/utils/debug'
 
-export interface StudentInfo {
-  studentId: string
-  name: string
-}
-
 /**
  * 学生查询 Composable
  *
  * 提供共享的学生信息查询功能，消除 LoginModal 和 StudentDisplay 的重复调用
+ *
+ * 注意：学生实体类型统一从 @/types/student 的 StudentInfo 导入；
+ *      本 composable 的返回基于 name 字符串，因此不再本地定义重复类型。
  */
 export function useStudentQuery() {
   const isQuerying = ref(false)
@@ -32,7 +30,7 @@ export function useStudentQuery() {
     queryError.value = null
 
     try {
-      const response = await get(`/api/students/${trimmedId}`)
+      const response = await get<{ name: string }>(`/api/students/${trimmedId}`)
       if (response.success && response.data) {
         return response.data.name || ''
       }

@@ -28,11 +28,10 @@ import shutil
 import sys
 from typing import Dict, List, Tuple
 
-# 添加 data-pipeline/python/ 到 sys.path，使 generate_all_json 可被导入
+# _SCRIPT_DIR / _PYTHON_DIR 仅用于路径解析（_resolve_paths），
+# 包导入通过 `pip install -e .`（见 pyproject.toml）解决，不再手动 sys.path.append。
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PYTHON_DIR = os.path.dirname(_SCRIPT_DIR)  # data-pipeline/python/
-if _PYTHON_DIR not in sys.path:
-    sys.path.append(_PYTHON_DIR)
 
 from data_processor import (
     IncrementalProcessor,

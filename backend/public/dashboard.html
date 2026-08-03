@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据看板</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f0f2f5;
+      color: #333;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .last-update {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .btn-refresh {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-refresh:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-refresh:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-refresh.spinning svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+    }
+
+    /* 统计卡片 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.25rem 1.5rem;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    .stat-card .label {
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-card .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    .stat-card .value.green { color: #16a34a; }
+    .stat-card .value.blue { color: #2563eb; }
+    .stat-card .value.orange { color: #ea580c; }
+    .stat-card .value.purple { color: #7c3aed; }
+
+    /* 每日统计趋势 */
+    .daily-chart {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .daily-chart h3 {
+      font-size: 1rem;
+      color: #555;
+      margin-bottom: 1rem;
+    }
+
+    .chart-bars {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+      height: 120px;
+      padding-top: 0.5rem;
+    }
+
+    .chart-bar-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      height: 100%;
+      justify-content: flex-end;
+    }
+
+    .chart-bar {
+      width: 100%;
+      max-width: 40px;
+      background: linear-gradient(180deg, #3b82f6, #60a5fa);
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      transition: height 0.4s ease;
+    }
+
+    .chart-bar-label {
+      font-size: 0.65rem;
+      color: #888;
+      white-space: nowrap;
+    }
+
+    .chart-bar-count {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #555;
+    }
+
+    /* 表格区域 */
+    .table-section {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .table-header h3 {
+      font-size: 1rem;
+      color: #555;
+    }
+
+    .table-header .record-count {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.875rem;
+    }
+
+    th {
+      background-color: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:hover {
+      background-color: #f8fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .badge-pass {
+      background-color: #dcfce7;
+      color: #16a34a;
+    }
+
+    .badge-fail {
+      background-color: #fee2e2;
+      color: #dc2626;
+    }
+
+    .answer-cell {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .loading-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #888;
+    }
+
+    .loading-state .spinner {
+      display: inline-block;
+      width: 2rem;
+      height: 2rem;
+      border: 3px solid #e5e7eb;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #888;
+    }
+
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .error-state {
+      text-align: center;
+      padding: 2rem;
+      color: #dc2626;
+      background: #fef2f2;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      .header {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+      }
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      th, td {
+        padding: 0.5rem;
+        font-size: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>数据看板</h1>
+    <div class="header-actions">
+      <span class="last-update" id="lastUpdate">等待加载...</span>
+      <button class="btn-refresh" id="refreshBtn" onclick="loadDashboard()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        刷新数据
+      </button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="errorContainer"></div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card"><div class="label">学生总数</div><div class="value blue" id="statStudents">-</div></div>
+      <div class="stat-card"><div class="label">答题总数</div><div class="value purple" id="statSubmissions">-</div></div>
+      <div class="stat-card"><div class="label">通过率</div><div class="value green" id="statPassRate">-</div></div>
+      <div class="stat-card"><div class="label">平均分</div><div class="value orange" id="statAvgScore">-</div></div>
+    </div>
+
+    <!-- 每日趋势 -->
+    <div class="daily-chart" id="dailyChart" style="display:none;">
+      <h3>每日提交趋势</h3>
+      <div class="chart-bars" id="chartBars"></div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-section">
+      <div class="table-header">
+        <h3>最近提交记录</h3>
+        <span class="record-count" id="recordCount">0 条</span>
+      </div>
+
+      <div id="loadingState" class="loading-state" style="display:none;">
+        <div class="spinner"></div>
+        <div>加载中...</div>
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display:none;">
+        <div class="icon">📊</div>
+        <div>暂无数据</div>
+      </div>
+
+      <div id="tableContainer" style="display:none;">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>学号</th>
+                <th>姓名</th>
+                <th>课文ID</th>
+                <th>题目ID</th>
+                <th>用户答案</th>
+                <th>正确答案</th>
+                <th>得分</th>
+                <th>提交时间</th>
+              </tr>
+            </thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API 基础地址——从当前页面域名推断
+    var API_BASE = window.location.origin
+
+    // 页面加载时自动拉取数据
+    document.addEventListener('DOMContentLoaded', loadDashboard)
+
+    // 加载完成后每 30 秒自动刷新
+    var autoRefreshTimer = setInterval(loadDashboard, 30000)
+
+    /**
+     * 加载看板数据
+     */
+    async function loadDashboard() {
+      var btn = document.getElementById('refreshBtn')
+      btn.disabled = true
+      btn.classList.add('spinning')
+
+      hideError()
+      showLoading()
+
+      try {
+        var response = await fetch(API_BASE + '/api/home/dashboard')
+
+        if (!response.ok) {
+          var errData = await response.json().catch(function () { return {} })
+          throw new Error(errData.message || '请求失败，状态码: ' + response.status)
+        }
+
+        var result = await response.json()
+
+        if (result.success && result.data) {
+          renderDashboard(result.data)
+        } else {
+          showEmpty()
+        }
+      } catch (error) {
+        showError(error.message || '网络错误，请稍后重试')
+        hideTable()
+      } finally {
+        hideLoading()
+        btn.disabled = false
+        btn.classList.remove('spinning')
+      }
+    }
+
+    /**
+     * 渲染看板
+     */
+    function renderDashboard(data) {
+      // 更新时间
+      var ts = data.timestamp || new Date().toISOString()
+      document.getElementById('lastUpdate').textContent = '最后更新: ' + new Date(ts).toLocaleString('zh-CN')
+
+      // 统计卡片
+      var summary = data.summary || {}
+      document.getElementById('statStudents').textContent = summary.studentCount || 0
+      document.getElementById('statSubmissions').textContent = summary.submissionCount || 0
+      document.getElementById('statPassRate').textContent = (summary.passRate || 0) + '%'
+      document.getElementById('statAvgScore').textContent = summary.avgScore || 0
+
+      // 每日趋势柱状图
+      renderDailyChart(data.dailyStats || [])
+
+      // 提交记录表格
+      var submissions = data.submissions || []
+      document.getElementById('recordCount').textContent = submissions.length + ' 条'
+
+      if (submissions.length === 0) {
+        showEmpty()
+        return
+      }
+
+      var tbody = document.getElementById('recordsBody')
+      tbody.innerHTML = submissions.map(function (r) {
+        var scoreClass = r.score > 0 ? 'badge-pass' : 'badge-fail'
+        return '<tr>' +
+          '<td>' + escapeHtml(r.studentId) + '</td>' +
+          '<td>' + escapeHtml(r.studentName || '-') + '</td>' +
+          '<td>' + escapeHtml(r.wenId) + '</td>' +
+          '<td>' + escapeHtml(r.questionId) + '</td>' +
+          '<td class="answer-cell" title="' + escapeHtml(formatAnswer(r.userAnswer)) + '">' + escapeHtml(formatAnswer(r.userAnswer)) + '</td>' +
+          '<td class="answer-cell" title="' + escapeHtml(formatAnswer(r.correctAnswer)) + '">' + escapeHtml(formatAnswer(r.correctAnswer)) + '</td>' +
+          '<td><span class="badge ' + scoreClass + '">' + (r.score ?? '-') + '</span></td>' +
+          '<td>' + formatTime(r.submittedAt) + '</td>' +
+          '</tr>'
+      }).join('')
+
+      document.getElementById('tableContainer').style.display = 'block'
+      document.getElementById('emptyState').style.display = 'none'
+    }
+
+    /**
+     * 渲染每日提交趋势柱状图
+     */
+    function renderDailyChart(dailyStats) {
+      var container = document.getElementById('dailyChart')
+      var bars = document.getElementById('chartBars')
+
+      if (!dailyStats || dailyStats.length === 0) {
+        container.style.display = 'none'
+        return
+      }
+
+      container.style.display = 'block'
+
+      var maxCount = 0
+      dailyStats.forEach(function (d) {
+        if (d.count > maxCount) maxCount = d.count
+      })
+
+      // 倒序显示（从旧到新）
+      var sorted = dailyStats.slice().reverse()
+
+      bars.innerHTML = sorted.map(function (d) {
+        var height = maxCount > 0 ? Math.max((d.count / maxCount) * 100, 5) : 5
+        var dateLabel = d.date
+        // 只显示月-日
+        var parts = d.date.split('-')
+        if (parts.length === 3) {
+          dateLabel = parts[1] + '/' + parts[2]
+        }
+        return '<div class="chart-bar-wrapper">' +
+          '<span class="chart-bar-count">' + d.count + '</span>' +
+          '<div class="chart-bar" style="height:' + height + '%;"></div>' +
+          '<span class="chart-bar-label">' + dateLabel + '</span>' +
+          '</div>'
+      }).join('')
+    }
+
+    /**
+     * 格式化答案显示
+     */
+    function formatAnswer(answer) {
+      if (answer === null || answer === undefined) return '-'
+      if (Array.isArray(answer)) return answer.join(', ')
+      if (typeof answer === 'object') return JSON.stringify(answer)
+      return String(answer)
+    }
+
+    /**
+     * 格式化时间
+     */
+    function formatTime(timeStr) {
+      if (!timeStr) return '-'
+      try {
+        return new Date(timeStr).toLocaleString('zh-CN')
+      } catch (_) {
+        return timeStr
+      }
+    }
+
+    /**
+     * HTML 转义防 XSS
+     */
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return ''
+      var div = document.createElement('div')
+      div.appendChild(document.createTextNode(String(str)))
+      return div.innerHTML
+    }
+
+    /**
+     * 显示错误
+     */
+    function showError(message) {
+      document.getElementById('errorContainer').innerHTML =
+        '<div class="error-state">' + escapeHtml(message) + '</div>'
+    }
+
+    function hideError() {
+      document.getElementById('errorContainer').innerHTML = ''
+    }
+
+    /**
+     * 加载状态
+     */
+    function showLoading() {
+      document.getElementById('loadingState').style.display = 'block'
+      document.getElementById('tableContainer').style.display = 'none'
+      document.getElementById('emptyState').style.display = 'none'
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingState').style.display = 'none'
+    }
+
+    function showEmpty() {
+      document.getElementById('emptyState').style.display = 'block'
+      document.getElementById('tableContainer').style.display = 'none'
+    }
+
+    function hideTable() {
+      document.getElementById('tableContainer').style.display = 'none'
+      document.getElementById('dailyChart').style.display = 'none'
+    }
+  </script>
+</body>
+</html>

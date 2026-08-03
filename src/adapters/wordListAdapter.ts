@@ -5,7 +5,7 @@
  * 所有复杂的处理逻辑（排序、过滤、拼接 HTML、计算派生字段等）都在此完成
  */
 
-import { escapeHtml, escapeRegex } from '@/utils/adapterUtils'
+import { buildContentHtmlWithAnnotations } from '@/utils/adapterUtils'
 
 // 原始数据接口
 export interface RawWordItem {
@@ -50,8 +50,17 @@ export function adaptWordList(
   // 处理词汇列表
   const wordList = processWordList(rawWordList)
 
-  // 生成带注释的 HTML 内容
-  const contentHtml = buildContentHtml(rawBasicInfo.original_text, wordList)
+  // 字段映射：ProcessedWordItem.word + basic_meaning → {word, meaning}
+  const annotations = wordList.map((w) => ({
+    word: w.word,
+    meaning: w.basic_meaning,
+  }))
+
+  // 生成带注释的 HTML 内容（移除斜杠 + 段落包裹）
+  const contentHtml = buildContentHtmlWithAnnotations(rawBasicInfo.original_text, annotations, {
+    removeSlashes: true,
+    wrapParagraphs: true,
+  })
 
   // 返回处理后的结果
   return {
@@ -80,35 +89,10 @@ function processWordList(rawWordList: RawWordItem[]): ProcessedWordItem[] {
 }
 
 /**
- * 构建带注释的 HTML 内容
- * 将原文中的词汇替换为带注释的 span 标签
- */
-function buildContentHtml(originalText: string, wordList: ProcessedWordItem[]): string {
-  // 移除原文中的斜杠符号，确保词汇匹配
-  let content = originalText.replace(/\//g, '')
-
-  // 处理所有词汇
-  for (const item of wordList) {
-    // 先转义正则特殊字符（用于正则匹配），再转义HTML（用于输出）
-    const escapedRegex = escapeRegex(item.word)
-    const escapedWord = escapeHtml(item.word)
-    const escapedMeaning = escapeHtml(item.basic_meaning)
-    const regex = new RegExp(escapedRegex, 'g')
-    const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
-    content = content.replace(regex, replacement)
-  }
-
-  // 处理换行符
-  content = content.replace(/\n\n/g, '</p><p>')
-  content = content.replace(/\n/g, '<br>')
-  content = `<p>${content}</p>`
-
-  return content
-}
-
-/**
  * 单独处理词汇列表的适配器（用于其他场景）
  */
 export function adaptWordListOnly(rawWordList: RawWordItem[]): ProcessedWordItem[] {
   return processWordList(rawWordList)
 }
+
+// 旧本地实现 buildContentHtml 已删除；统一走 @/utils/adapterUtils.buildContentHtmlWithAnnotations

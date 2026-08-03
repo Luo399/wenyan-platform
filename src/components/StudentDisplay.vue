@@ -38,6 +38,21 @@
           />
         </div>
 
+        <!-- R103: 密码输入 -->
+        <div class="input-group">
+          <label for="passwordInput" class="input-label">密码</label>
+          <input
+            id="passwordInput"
+            v-model="inputPassword"
+            type="password"
+            placeholder="请输入密码"
+            @keyup.enter="handleSave"
+            :class="{ error: hasError }"
+            :disabled="isLoading"
+            autocomplete="current-password"
+          />
+        </div>
+
         <!-- 学生姓名显示 -->
         <div v-if="searchedName" class="name-display">
           <span class="name-label">查询到：</span>
@@ -65,19 +80,26 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 import { useStudentQuery } from '@/composables/useStudentQuery'
-import { debugError } from '@/utils/debug'
+import { debugError, debugLog } from '@/utils/debug'
 
 // 使用新的 auth store
 const authStore = useAuthStore()
 const { user, isLoggedIn, isLoading: authLoading, error: authError } = storeToRefs(authStore)
 
+// R03: 登录成功后若存在 redirect 查询参数，跳回原目标页
+const router = useRouter()
+const route = useRoute()
+
 // 是否显示编辑弹窗
 const showEditModal = ref(false)
 // 输入的学号
 const inputId = ref('')
+// R103: 输入的密码
+const inputPassword = ref('')
 // 是否有错误
 const hasError = ref(false)
 // 错误消息
@@ -97,10 +119,10 @@ const studentId = computed(() => user.value?.studentId || '')
 const userName = computed(() => user.value?.username || '')
 
 /**
- * 验证输入是否为有效学号（纯数字）
+ * 验证输入是否为有效学号（纯数字）且密码已填
  */
 const isValid = computed(() => {
-  return inputId.value.trim() && /^\d+$/.test(inputId.value)
+  return inputId.value.trim() && /^\d+$/.test(inputId.value) && inputPassword.value.length > 0
 })
 
 /**
@@ -112,6 +134,8 @@ function handleClick() {
   if (isLoggedIn.value && studentId.value) {
     inputId.value = studentId.value
   }
+  // R103: 打开弹窗时清空密码
+  inputPassword.value = ''
 }
 
 /**
@@ -156,10 +180,18 @@ async function handleSave() {
     }
 
     // 登录
-    await authStore.login(inputId.value.trim(), searchedName.value)
+    await authStore.login(inputId.value.trim(), inputPassword.value, searchedName.value)
     showEditModal.value = false
     inputId.value = ''
+    inputPassword.value = '' // R103: 关闭弹窗时清空密码
     searchedName.value = ''
+
+    // R03: 登录成功后若存在 redirect 查询参数，跳回原目标页
+    const redirect = route.query.redirect
+    if (typeof redirect === 'string' && redirect) {
+      debugLog('[StudentDisplay] 登录成功，跳回 redirect:', redirect)
+      router.replace(redirect)
+    }
   } catch (err) {
     hasError.value = true
     errorMessage.value = authError.value || '操作失败，请重试'
