@@ -16,16 +16,16 @@ async function getDashboard(req, res, next) {
       // 学生总数
       dbGet(db, 'SELECT COUNT(*) AS count FROM students'),
       // 答题总数
-      dbGet(db, 'SELECT COUNT(*) AS count FROM submissions'),
+      dbGet(db, 'SELECT COUNT(*) AS count FROM answers'),
       // 最近 50 条提交记录
       dbAll(
         db,
-        'SELECT s.*, st.name AS student_name FROM submissions s LEFT JOIN students st ON s.student_id = st.student_id ORDER BY s.submitted_at DESC LIMIT 50',
+        'SELECT a.*, st.name AS student_name FROM answers a LEFT JOIN students st ON a.student_id = st.student_id ORDER BY a.submitted_at DESC LIMIT 50',
       ),
       // 数据库统计
       dbAll(
         db,
-        "SELECT strftime('%Y-%m-%d', submitted_at) AS date, COUNT(*) AS count FROM submissions GROUP BY date ORDER BY date DESC LIMIT 14",
+        "SELECT strftime('%Y-%m-%d', submitted_at) AS date, COUNT(*) AS count FROM answers GROUP BY date ORDER BY date DESC LIMIT 14",
       ),
     ])
 
@@ -82,7 +82,7 @@ async function getRawData(req, res, next) {
   try {
     const data = await dbAll(
       db,
-      'SELECT * FROM submissions ORDER BY submitted_at DESC LIMIT 200',
+      'SELECT * FROM answers ORDER BY submitted_at DESC LIMIT 200',
     )
 
     res.json({
