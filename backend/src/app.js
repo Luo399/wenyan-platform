@@ -20,9 +20,16 @@ function createApp() {
 
   app.use(cors({
     origin: function (origin, callback) {
+      // 默认允许的域名（包括 OSS 独立看板桶）
+      const defaultOrigins = [
+        'https://www.classicalab.cn',
+        'https://api.classicalab.cn',
+        'https://classicalab.cn',
+        'https://needed-data.oss-cn-guangzhou.aliyuncs.com',
+      ]
       const allowedOrigins = config.cors.origin === '*'
-        ? ['https://www.classicalab.cn', 'https://api.classicalab.cn']
-        : config.cors.origin.split(',');
+        ? defaultOrigins
+        : config.cors.origin.split(',').map(s => s.trim()).filter(Boolean);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
