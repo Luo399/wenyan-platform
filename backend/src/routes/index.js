@@ -8,6 +8,7 @@ const dashboardController = require('../controllers/dashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
+const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
 const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
@@ -143,9 +144,9 @@ function registerRoutes(app) {
     answerController.getAnswersByStudentId,
   )
 
-// ============ 数据看板 ============
-  app.get('/api/home/dashboard', dashboardController.getDashboard)
-  app.get('/api/home/dashboard/raw', dashboardController.getRawData)
+// ============ 数据看板（需密码验证） ============
+  app.get('/api/home/dashboard', dashboardAuthMiddleware, dashboardController.getDashboard)
+  app.get('/api/home/dashboard/raw', dashboardAuthMiddleware, dashboardController.getRawData)
 
   // ============ 用户行为埋点（无需登录） ============
   app.post('/api/track', trackingController.track)
