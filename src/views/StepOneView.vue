@@ -28,6 +28,9 @@
         @load-success="handleAudioLoadSuccess"
         @load-error="handleAudioLoadError"
         @segment-change="handleSegmentChange"
+        @play="trackInteraction('朗读', '播放', 0)"
+        @pause="trackInteraction('朗读', '暂停', 0)"
+        @ended="trackInteraction('朗读', '完成', 0)"
       />
     </section>
 

@@ -16,7 +16,12 @@
 
     <!-- 视频播放器 - 平铺整个宽度 -->
     <div class="video-section">
-      <VideoPlayer :src="currentPoem.videoUrl" />
+      <VideoPlayer
+        :src="currentPoem.videoUrl"
+        @play="trackInteraction('视频', '播放', 0)"
+        @pause="trackInteraction('视频', '暂停', 0)"
+        @ended="trackInteraction('视频', '完成', 0)"
+      />
     </div>
 
     <!-- 底部导航按钮 -->

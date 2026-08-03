@@ -6,6 +6,7 @@ const teacherController = require('../controllers/teacherController')
 const adminController = require('../controllers/adminController')
 const dashboardController = require('../controllers/dashboardController')
 const trackingController = require('../controllers/trackingController')
+const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
 
@@ -148,6 +149,14 @@ function registerRoutes(app) {
 
   // ============ 用户行为埋点（无需登录） ============
   app.post('/api/track', trackingController.track)
+
+  // ============ 埋点数据分析（无需登录，用于看板展示） ============
+  app.get('/api/tracking/funnel', trackingAnalysisController.getFunnel)
+  app.get('/api/tracking/interaction', trackingAnalysisController.getInteractionStats)
+  app.get('/api/tracking/search-trend', trackingAnalysisController.getSearchTrend)
+  app.get('/api/tracking/quiz-performance', trackingAnalysisController.getQuizPerformance)
+  app.get('/api/tracking/session-path', trackingAnalysisController.getSessionPath)
+  app.get('/api/tracking/active-users', trackingAnalysisController.getActiveUsers)
 }
 
 module.exports = {

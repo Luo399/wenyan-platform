@@ -34,8 +34,8 @@
         :poster="poster"
         @timeupdate="handleTimeUpdate"
         @loadedmetadata="handleLoadedMetadata"
-        @play="isPlaying = true"
-        @pause="isPlaying = false"
+        @play="handlePlay"
+        @pause="handlePause"
         @ended="handleEnded"
       ></video>
     </div>
@@ -84,7 +84,6 @@ import { debugWarn } from '@/utils/debug'
 // ============================================================
 // 组件 Props 定义
 // ============================================================
-// defineProps 是 Vue 3 Composition API 提供的宏，用于定义组件属性
 const props = withDefaults(
   defineProps<{
     /**
@@ -100,10 +99,16 @@ const props = withDefaults(
     poster?: string
   }>(),
   {
-    // 空字符串：:poster="''" 时浏览器不显示封面，与原 undefined 行为一致
     poster: '',
   },
 )
+
+// 组件事件：播放/暂停/结束，供父组件埋点
+const emit = defineEmits<{
+  (e: 'play'): void
+  (e: 'pause'): void
+  (e: 'ended'): void
+}>()
 
 // ============================================================
 // 响应式状态定义
@@ -212,6 +217,22 @@ function handleLoadedMetadata() {
     // 从 video 元素获取视频总时长
     duration.value = videoRef.value.duration
   }
+}
+
+/**
+ * 处理播放事件
+ */
+function handlePlay() {
+  isPlaying.value = true
+  emit('play')
+}
+
+/**
+ * 处理暂停事件
+ */
+function handlePause() {
+  isPlaying.value = false
+  emit('pause')
 }
 
 /**
