@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import PoetryMenu from '@/components/PoetryMenu.vue'
 import StudentLogin from '@/components/StudentLogin.vue'
 import { useStudentStore } from '@/stores/student'
@@ -27,8 +27,13 @@ const studentStore = useStudentStore()
 const { isLoggedIn } = storeToRefs(studentStore)
 
 // 首页埋点
+const enterTime = Date.now()
 onMounted(() => {
   track('step_enter', 'home', {})
+})
+onUnmounted(() => {
+  const duration = Date.now() - enterTime
+  track('step_exit', 'home', { duration })
 })
 
 // 登录页背景图（Figma 设计稿）

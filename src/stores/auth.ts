@@ -94,6 +94,8 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       applyLoginResult(response.data, studentId, studentName)
+      // 新用户登录，切割旧会话
+      resetSessionId()
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
