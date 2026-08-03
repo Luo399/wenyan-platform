@@ -17,6 +17,7 @@ import { ref, computed } from 'vue'
 import { post } from '@/utils/api'
 import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
+import { resetSessionId } from '@/utils/tracking'
 
 /**
  * 用户信息接口
@@ -135,7 +136,8 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function logout(): void {
     clearAuthDataInternal()
-    debugLog('[AuthStore] 已登出')
+    resetSessionId()
+    debugLog('[AuthStore] 已登出，session_id 已重置')
   }
 
   /**

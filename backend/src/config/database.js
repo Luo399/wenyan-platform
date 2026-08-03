@@ -225,6 +225,22 @@ function initAllTables() {
       )
       // B07 迁移：旧版 answers 表去 UNIQUE 约束
       .then(() => migrateAnswersTableIfNeeded())
+      // 8. tracking_events 用户行为埋点表
+      .then(() =>
+        runSql(
+          `CREATE TABLE IF NOT EXISTS tracking_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL DEFAULT '',
+            session_id TEXT NOT NULL DEFAULT '',
+            event_type TEXT NOT NULL,
+            step_id TEXT NOT NULL DEFAULT '',
+            properties TEXT NOT NULL DEFAULT '{}',
+            page_url TEXT NOT NULL DEFAULT '',
+            timestamp TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (DATETIME('now'))
+          )`,
+        ),
+      )
       // 索引
       .then(() =>
         Promise.all([
@@ -237,6 +253,11 @@ function initAllTables() {
           runSql('CREATE INDEX IF NOT EXISTS idx_answers_wen_student ON answers(wen_id, student_id)'),
           runSql('CREATE INDEX IF NOT EXISTS idx_answers_student_wen_q ON answers(student_id, wen_id, question_id)'),
           runSql('CREATE INDEX IF NOT EXISTS idx_answers_submitted_at ON answers(submitted_at)'),
+          runSql('CREATE INDEX IF NOT EXISTS idx_tracking_event_type ON tracking_events(event_type)'),
+          runSql('CREATE INDEX IF NOT EXISTS idx_tracking_user_id ON tracking_events(user_id)'),
+          runSql('CREATE INDEX IF NOT EXISTS idx_tracking_session_id ON tracking_events(session_id)'),
+          runSql('CREATE INDEX IF NOT EXISTS idx_tracking_step_id ON tracking_events(step_id)'),
+          runSql('CREATE INDEX IF NOT EXISTS idx_tracking_timestamp ON tracking_events(timestamp)'),
         ]),
       )
       .then(() => {
