@@ -261,6 +261,9 @@ export function track(
 
 /**
  * 页面卸载前强制发送剩余事件（通过 sendBeacon 保证送达率）
+ *
+ * 注意：sendBeacon 传字符串时默认 Content-Type 为 text/plain，
+ * 后端 express.json() 不会解析，必须用 Blob 显式指定 application/json。
  */
 export function flushOnUnload(): void {
   const events = eventBuffer.splice(0, eventBuffer.length)
@@ -268,7 +271,8 @@ export function flushOnUnload(): void {
 
   try {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
-    navigator.sendBeacon(`${baseUrl}/api/track`, JSON.stringify({ events }))
+    const blob = new Blob([JSON.stringify({ events })], { type: 'application/json' })
+    navigator.sendBeacon(`${baseUrl}/api/track`, blob)
   } catch {
     // 静默失败
   }
@@ -311,15 +315,33 @@ initVisibilityTracking()
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     // 页面关闭/刷新，记录 session_end
-    track(
-      'session_end',
-      'app',
-      {
-        exit_type: 'close',
-        end_time: new Date().toISOString(),
-      },
-      true,
-    )
+    // beforeunload 中异步 fetch 会被浏览器中止，必须走 sendBeacon
+    // 将 session_end 加入 buffer，由 flushOnUnload 统一用 sendBeacon 发送
+    try {
+      let userId = ''
+      try {
+        const authStore = useAuthStore()
+        if (authStore.isLoggedIn && authStore.user) {
+          userId = authStore.user.studentId || authStore.user.id || ''
+        }
+      } catch {
+        // Pinia 未就绪
+      }
+      eventBuffer.push({
+        event_type: 'session_end',
+        user_id: userId,
+        session_id: getSessionId(),
+        step_id: 'app',
+        properties: {
+          exit_type: 'close',
+          end_time: new Date().toISOString(),
+        },
+        page_url: window.location.pathname + window.location.search,
+        timestamp: new Date().toISOString(),
+      })
+    } catch {
+      // 静默失败，确保埋点异常不影响业务
+    }
     flushOnUnload()
   })
   window.addEventListener('pagehide', flushOnUnload)

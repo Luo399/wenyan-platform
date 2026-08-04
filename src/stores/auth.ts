@@ -18,6 +18,7 @@ import { post } from '@/utils/api'
 import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
 import { resetSessionId } from '@/utils/tracking'
+import { resetFirstEnterSet } from '@/composables/useTracking'
 
 /**
  * 用户信息接口
@@ -94,8 +95,9 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       applyLoginResult(response.data, studentId, studentName)
-      // 新用户登录，切割旧会话
+      // 新用户登录，切割旧会话（session_id + 首次进入记录同步重置）
       resetSessionId()
+      resetFirstEnterSet()
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
@@ -139,6 +141,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout(): void {
     clearAuthDataInternal()
     resetSessionId()
+    resetFirstEnterSet()
     debugLog('[AuthStore] 已登出，session_id 已重置')
   }
 

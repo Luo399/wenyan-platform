@@ -2,6 +2,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 
+// mock tracking 模块，避免模块加载时的副作用（visibilitychange/beforeunload 监听）
+// 并允许 spy resetSessionId / resetFirstEnterSet 的调用
+vi.mock('@/utils/tracking', () => ({
+  resetSessionId: vi.fn(),
+  resetFirstEnterSet: vi.fn(),
+  getSessionId: vi.fn(() => 'test-session-id'),
+  track: vi.fn(),
+  trackSessionStart: vi.fn(),
+  setPendingExitType: vi.fn(),
+  consumeExitType: vi.fn(() => 'unknown'),
+  isPageVisible: true,
+  initVisibilityTracking: vi.fn(),
+  flushOnUnload: vi.fn(),
+  markNextEnterFromBackButton: vi.fn(),
+  consumeBackButtonFlag: vi.fn(() => false),
+}))
+
+// 引入 mock 函数用于断言
+import { resetSessionId, resetFirstEnterSet } from '@/utils/tracking'
+
 describe('useAuthStore', () => {
   const localStorageMock: Record<string, string> = {}
 
@@ -22,6 +42,10 @@ describe('useAuthStore', () => {
     Object.keys(localStorageMock).forEach((key) => delete localStorageMock[key])
 
     global.fetch = vi.fn()
+
+    // 清理 tracking mock 调用记录
+    vi.mocked(resetSessionId).mockClear()
+    vi.mocked(resetFirstEnterSet).mockClear()
   })
 
   describe('初始化测试', () => {
@@ -85,6 +109,27 @@ describe('useAuthStore', () => {
       expect(authStore.isLoggedIn).toBe(true)
     })
 
+    it('登录成功应同步重置 session_id 和首次进入记录（切割旧会话）', async () => {
+      // 回归测试：新用户登录时必须清空旧会话的 firstEnterSet，
+      // 否则上一个用户的 step_enter 会被误标记为非首次进入
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            token: 'jwt-token',
+            user: { id: '2024002', username: '李四', studentId: '2024002', role: 'student' },
+          },
+        }),
+      })
+
+      const authStore = useAuthStore()
+      await authStore.login('2024002')
+
+      expect(resetSessionId).toHaveBeenCalledTimes(1)
+      expect(resetFirstEnterSet).toHaveBeenCalledTimes(1)
+    })
+
     it('登录失败应该设置错误信息', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
@@ -119,6 +164,18 @@ describe('useAuthStore', () => {
       expect(authStore.token).toBe(null)
       expect(authStore.user).toBe(null)
       expect(authStore.isLoggedIn).toBe(false)
+    })
+
+    it('登出应同步重置 session_id 和首次进入记录（会话切割）', () => {
+      // 回归测试：resetFirstEnterSet 之前未被调用，导致跨用户会话的 is_first_enter 标记错误
+      const authStore = useAuthStore()
+      authStore.token = 'jwt-token'
+      authStore.user = { id: '2024001', username: '张三', studentId: '2024001', role: 'student' }
+
+      authStore.logout()
+
+      expect(resetSessionId).toHaveBeenCalledTimes(1)
+      expect(resetFirstEnterSet).toHaveBeenCalledTimes(1)
     })
   })
 

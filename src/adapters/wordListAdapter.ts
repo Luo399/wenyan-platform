@@ -5,7 +5,7 @@
  * 所有复杂的处理逻辑（排序、过滤、拼接 HTML、计算派生字段等）都在此完成
  */
 
-import { buildContentHtmlWithAnnotations } from '@/utils/adapterUtils'
+import { buildContentHtmlWithAnnotations, normalizeQuotes } from '@/utils/adapterUtils'
 
 // 原始数据接口
 export interface RawWordItem {
@@ -51,8 +51,9 @@ export function adaptWordList(
   const wordList = processWordList(rawWordList)
 
   // 字段映射：ProcessedWordItem.word + basic_meaning → {word, meaning}
+  // 对 word 做 normalizeQuotes 确保与已规范化原文匹配
   const annotations = wordList.map((w) => ({
-    word: w.word,
+    word: normalizeQuotes(w.word),
     meaning: w.basic_meaning,
   }))
 
