@@ -24,6 +24,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { type RouteName, getNextPage, getPrevPage, pageSequence } from '@/config/navigation'
 import { debugError, debugWarn } from '@/utils/debug'
+import { markNextEnterFromBackButton, setPendingExitType } from '@/utils/tracking'
 
 export function useNavigation(currentRouteName?: RouteName, currentId?: string) {
   const router = useRouter()
@@ -77,6 +78,8 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       debugWarn('已是最后一页')
       return
     }
+    // 标记退出类型为"前进"
+    setPendingExitType('forward')
     const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
     router.push(path)
@@ -96,9 +99,12 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     const prevPage = getPrevPage(currentRouteName)
     if (!prevPage) {
       // 没有上一页时，返回首页（走配置，不硬编码）
+      setPendingExitType('backward')
       goHome()
       return
     }
+    // 标记后退按钮，下个页面的 step_enter 会带上 from_back_button=true
+    markNextEnterFromBackButton()
     const id = targetId ?? getTargetId()
     const path = prevPage.getPath(id)
     router.push(path)

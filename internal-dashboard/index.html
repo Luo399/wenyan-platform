@@ -81,6 +81,61 @@
     .stat-card .value.green { color: #16a34a; }
     .stat-card .value.orange { color: #ea580c; }
     .stat-card .value.purple { color: #7c3aed; }
+    .stat-card .value.teal { color: #0d9488; }
+    .stat-card .value.pink { color: #db2777; }
+    /* 主标签切换 */
+    .main-tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+      background: #fff; border-radius: 10px; padding: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .main-tabs button {
+      flex: 1; padding: 0.6rem 1rem; font-size: 0.85rem;
+      border: none; background: transparent; border-radius: 6px;
+      cursor: pointer; color: #666; transition: all 0.15s; font-weight: 500;
+    }
+    .main-tabs button.active { background: #1a1a2e; color: #fff; }
+    .main-tabs button:hover:not(.active) { background: #f3f4f6; }
+    .tab-content { display: none; }
+    .tab-content.visible { display: block; }
+    /* 时段分布条形图 */
+    .hourly-chart {
+      display: flex; align-items: flex-end; gap: 3px; height: 120px;
+      padding: 0.5rem 0;
+    }
+    .hourly-chart .bar-wrap {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      height: 100%; justify-content: flex-end;
+    }
+    .hourly-chart .bar {
+      width: 100%; background: linear-gradient(180deg, #3b82f6, #60a5fa);
+      border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.3s;
+    }
+    .hourly-chart .bar-label { font-size: 0.6rem; color: #888; margin-top: 3px; }
+    /* 子标签 */
+    .sub-tabs {
+      display: flex; gap: 0.25rem; flex-wrap: wrap;
+    }
+    .sub-tabs button {
+      padding: 0.3rem 0.6rem; font-size: 0.75rem; border: 1px solid #d1d5db;
+      background: #f9fafb; border-radius: 4px; cursor: pointer; color: #555;
+      transition: all 0.15s;
+    }
+    .sub-tabs button.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+    /* 导出按钮 */
+    .btn-export {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.35rem 0.75rem; background: #16a34a; color: #fff;
+      border: none; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-export:hover { background: #15803d; }
+    .btn-export-sm {
+      padding: 0.25rem 0.5rem; font-size: 0.7rem; background: #059669;
+    }
+    /* 群体差异表格 */
+    .cohort-table th { font-size: 0.72rem; }
+    .cohort-table td { font-size: 0.78rem; }
     .section {
       background: #fff; border-radius: 10px; margin-bottom: 1.5rem;
       box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
@@ -179,19 +234,97 @@
       <div class="stat-card"><div class="label">答题总数</div><div class="value green" id="statSubmissions">-</div></div>
       <div class="stat-card"><div class="label">通过率</div><div class="value orange" id="statPassRate">-</div></div>
       <div class="stat-card"><div class="label">平均分</div><div class="value purple" id="statAvgScore">-</div></div>
+      <div class="stat-card"><div class="label">总访问人次</div><div class="value teal" id="statTotalVisits">-</div></div>
+      <div class="stat-card"><div class="label">人均单次时长</div><div class="value pink" id="statAvgDuration">-</div></div>
     </div>
 
-    <!-- 提交记录 -->
-    <div class="section">
-      <div class="section-header">
-        <h3>提交记录</h3>
-        <div class="tab-switch">
-          <button class="active" id="tabRecent" onclick="switchTab('recent')">最近提交</button>
-          <button id="tabDaily" onclick="switchTab('daily')">每日趋势</button>
+    <!-- 主标签导航 -->
+    <div class="main-tabs">
+      <button class="active" onclick="switchMainTab('dashboard')">总览</button>
+      <button onclick="switchMainTab('tracking')">埋点分析</button>
+      <button onclick="switchMainTab('export')">数据导出</button>
+    </div>
+
+    <!-- ========== 总览 Tab ========== -->
+    <div class="tab-content visible" id="tabDashboard">
+      <!-- 提交记录 -->
+      <div class="section">
+        <div class="section-header">
+          <h3>提交记录</h3>
+          <div class="tab-switch">
+            <button class="active" id="tabRecent" onclick="switchTab('recent')">最近提交</button>
+            <button id="tabDaily" onclick="switchTab('daily')">每日趋势</button>
+          </div>
+        </div>
+        <div class="section-body" id="tableContent">
+          <div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
         </div>
       </div>
-      <div class="section-body" id="tableContent">
-        <div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+    </div>
+
+    <!-- ========== 埋点分析 Tab ========== -->
+    <div class="tab-content" id="tabTracking">
+      <!-- 子标签 -->
+      <div class="sub-tabs" style="margin-bottom:1rem;">
+        <button class="active" onclick="switchTrackingTab('hourly')">使用时段</button>
+        <button onclick="switchTrackingTab('feature')">功能偏好</button>
+        <button onclick="switchTrackingTab('cohort')">群体差异</button>
+        <button onclick="switchTrackingTab('session')">会话概况</button>
+      </div>
+
+      <!-- 使用时段 -->
+      <div class="section tracking-panel" id="panelHourly">
+        <div class="section-header">
+          <h3>使用时段分布（24小时）</h3>
+        </div>
+        <div class="section-body" id="hourlyContent">
+          <div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- 功能偏好 -->
+      <div class="section tracking-panel" id="panelFeature" style="display:none;">
+        <div class="section-header">
+          <h3>功能使用率（按会话去重）</h3>
+        </div>
+        <div class="section-body" id="featureContent">
+          <div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- 群体差异 -->
+      <div class="section tracking-panel" id="panelCohort" style="display:none;">
+        <div class="section-header">
+          <h3>群体差异分析</h3>
+        </div>
+        <div class="section-body" id="cohortContent">
+          <div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+        </div>
+      </div>
+
+      <!-- 会话概况 -->
+      <div class="section tracking-panel" id="panelSession" style="display:none;">
+        <div class="section-header">
+          <h3>会话概况</h3>
+        </div>
+        <div class="section-body" id="sessionContent">
+          <div class="loading-state"><div class="spinner"></div><div>加载中...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== 数据导出 Tab ========== -->
+    <div class="tab-content" id="tabExport">
+      <div class="section">
+        <div class="section-header"><h3>导出数据</h3></div>
+        <div class="section-body" style="padding:1.5rem 1.25rem;">
+          <p style="margin-bottom:1rem;color:#666;font-size:0.85rem;">以下操作将下载 Excel 文件（.xlsx），需通过看板密码验证。</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.75rem;">
+            <button class="btn-export" onclick="exportData('tracking-events')">导出埋点事件</button>
+            <button class="btn-export" onclick="exportData('answers')">导出答题数据</button>
+            <button class="btn-export" onclick="exportData('dashboard-summary')">导出看板汇总</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -226,7 +359,7 @@
         if (data.success) {
           setToken(pwd)
           document.getElementById('loginMask').classList.add('hidden')
-          loadDashboard()
+          loadAllData()
         } else {
           throw new Error('密码错误')
         }
@@ -253,8 +386,32 @@
       var token = getToken()
       if (token) {
         document.getElementById('loginMask').classList.add('hidden')
-        loadDashboard()
+        loadAllData()
       }
+    }
+
+    // ---- 主标签切换 ----
+    function switchMainTab(tab) {
+      document.querySelectorAll('.main-tabs button').forEach(function(b) { b.className = '' })
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('visible') })
+      document.querySelector('.main-tabs button[onclick*="' + tab + '"]').className = 'active'
+      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('visible')
+    }
+
+    // ---- 埋点子标签切换 ----
+    function switchTrackingTab(tab) {
+      document.querySelectorAll('.sub-tabs button').forEach(function(b) { b.className = '' })
+      document.querySelectorAll('.tracking-panel').forEach(function(p) { p.style.display = 'none' })
+      document.querySelector('.sub-tabs button[onclick*="' + tab + '"]').className = 'active'
+
+      var panelMap = { hourly: 'panelHourly', feature: 'panelFeature', cohort: 'panelCohort', session: 'panelSession' }
+      document.getElementById(panelMap[tab]).style.display = ''
+
+      // 按需加载
+      if (tab === 'hourly' && !window._hourlyLoaded) { window._hourlyLoaded = true; loadHourlyActivity() }
+      if (tab === 'feature' && !window._featureLoaded) { window._featureLoaded = true; loadFeatureUsage() }
+      if (tab === 'cohort' && !window._cohortLoaded) { window._cohortLoaded = true; loadCohortAnalysis() }
+      if (tab === 'session' && !window._sessionLoaded) { window._sessionLoaded = true; loadSessionStats() }
     }
 
     // ---- 数据加载 ----
@@ -268,13 +425,24 @@
       return fetch(url, { headers: { 'Authorization': 'Bearer ' + getToken() } })
     }
 
-    function loadDashboard() {
+    function loadAllData() {
       hideError()
       var btn = document.getElementById('refreshBtn')
       btn.disabled = true; btn.classList.add('spinning')
       document.getElementById('lastUpdate').textContent = '加载中...'
 
-      authFetch(API_BASE + '/api/home/dashboard')
+      loadDashboard()
+        .then(function() {
+          btn.disabled = false; btn.classList.remove('spinning')
+        })
+        .catch(function() {
+          btn.disabled = false; btn.classList.remove('spinning')
+        })
+    }
+
+    // ---- 加载总览数据 ----
+    function loadDashboard() {
+      return authFetch(API_BASE + '/api/home/dashboard')
         .then(function(r) {
           if (r.status === 401) { clearToken(); doLogout(); throw new Error('登录已过期') }
           if (!r.ok) throw new Error('请求失败: ' + r.status)
@@ -294,13 +462,200 @@
 
           // 表格数据
           renderTable(data.submissions, data.dailyStats)
+
+          // 加载额外统计
+          loadSessionStatsQuick()
         })
         .catch(function(err) {
           if (err.message === '登录已过期') return
           showError(err.message || '网络错误，请稍后重试')
         })
-        .finally(function() {
-          btn.disabled = false; btn.classList.remove('spinning')
+    }
+
+    // ---- 快速加载会话统计（用于概览卡片） ----
+    function loadSessionStatsQuick() {
+      authFetch(API_BASE + '/api/tracking/session-stats?limit=500')
+        .then(function(r) { return r.json() })
+        .then(function(resp) {
+          if (resp.success && resp.data) {
+            document.getElementById('statTotalVisits').textContent = resp.data.totalSessions || 0
+            var dur = resp.data.avgDurationPerSessionMin
+            document.getElementById('statAvgDuration').textContent = (dur ? dur.toFixed(1) : '0.0') + ' 分钟'
+          }
+        })
+        .catch(function() {})
+    }
+
+    // ---- 加载时段分布 ----
+    function loadHourlyActivity() {
+      var container = document.getElementById('hourlyContent')
+      authFetch(API_BASE + '/api/tracking/hourly-activity')
+        .then(function(r) { return r.json() })
+        .then(function(resp) {
+          if (!resp.success || !resp.data) { container.innerHTML = '<div class="empty-state">暂无数据</div>'; return }
+          var data = resp.data
+          var maxCount = 0
+          data.forEach(function(d) { if (d.count > maxCount) maxCount = d.count })
+          if (maxCount === 0) { container.innerHTML = '<div class="empty-state">暂无数据</div>'; return }
+
+          var html = '<div class="hourly-chart">'
+          data.forEach(function(d) {
+            var height = (d.count / maxCount) * 100
+            html += '<div class="bar-wrap"><div class="bar" style="height:' + height + '%" title="' + d.hour + '时: ' + d.count + '次"></div><div class="bar-label">' + d.hour + '</div></div>'
+          })
+          html += '</div>'
+          html += '<div style="text-align:center;font-size:0.75rem;color:#888;margin-top:0.5rem;">峰值: ' + maxCount + ' 次</div>'
+          container.innerHTML = html
+        })
+        .catch(function() { container.innerHTML = '<div class="error-msg-global">加载失败</div>' })
+    }
+
+    // ---- 加载功能使用率 ----
+    function loadFeatureUsage() {
+      var container = document.getElementById('featureContent')
+      authFetch(API_BASE + '/api/tracking/feature-usage')
+        .then(function(r) { return r.json() })
+        .then(function(resp) {
+          if (!resp.success || !resp.data || !resp.data.length) {
+            container.innerHTML = '<div class="empty-state">暂无数据</div>'; return
+          }
+          var html = '<div class="table-wrapper"><table><thead><tr>' +
+            '<th>模块类型</th><th>动作</th><th>总次数</th><th>使用会话数</th><th>渗透率</th></tr></thead><tbody>'
+          resp.data.forEach(function(r) {
+            html += '<tr><td>' + escapeHtml(r.moduleType) + '</td>' +
+              '<td>' + escapeHtml(r.action) + '</td>' +
+              '<td>' + r.totalCount + '</td>' +
+              '<td>' + r.sessionCount + '</td>' +
+              '<td>' + r.penetrationRate + '%</td></tr>'
+          })
+          html += '</tbody></table></div>'
+          html += '<div style="padding:0.5rem 0.75rem;font-size:0.75rem;color:#888;">总会话数: ' + (resp.meta ? resp.meta.totalSessions : '-') + '</div>'
+          container.innerHTML = html
+        })
+        .catch(function() { container.innerHTML = '<div class="error-msg-global">加载失败</div>' })
+    }
+
+    // ---- 加载群体差异 ----
+    function loadCohortAnalysis() {
+      var container = document.getElementById('cohortContent')
+      authFetch(API_BASE + '/api/tracking/cohort-analysis')
+        .then(function(r) { return r.json() })
+        .then(function(resp) {
+          if (!resp.success || !resp.data || resp.data.studentCount === 0) {
+            container.innerHTML = '<div class="empty-state">暂无足够数据（至少需要3名有成绩的学生）</div>'; return
+          }
+          var d = resp.data
+          var html = '<div style="padding:0.5rem 0;font-size:0.78rem;color:#666;">共有 ' + d.studentCount + ' 名学生参与分析，' +
+            '低分组 ≤ ' + d.thresholds.low + ' 分，高分组 ≥ ' + d.thresholds.high + ' 分</div>'
+
+          // 合并三个组的所有 module_type
+          var allModules = {}
+          ;['high', 'medium', 'low'].forEach(function(group) {
+            var cohort = d.cohorts[group]
+            if (cohort && cohort.moduleUsage) {
+              cohort.moduleUsage.forEach(function(m) {
+                if (!allModules[m.moduleType]) allModules[m.moduleType] = {}
+                allModules[m.moduleType][group] = m
+              })
+            }
+          })
+
+          var moduleList = Object.keys(allModules)
+          if (moduleList.length === 0) {
+            container.innerHTML = '<div class="empty-state">暂无模块使用数据</div>'; return
+          }
+
+          html += '<div class="table-wrapper"><table class="cohort-table"><thead><tr>' +
+            '<th>模块类型</th><th>高分组</th><th>中等组</th><th>低分组</th></tr></thead><tbody>'
+          moduleList.forEach(function(mod) {
+            html += '<tr><td><strong>' + escapeHtml(mod) + '</strong></td>'
+            ;['high', 'medium', 'low'].forEach(function(group) {
+              var m = allModules[mod][group]
+              html += '<td>' + (m ? m.usageCount + ' 次 / ' + m.sessionCount + ' 会话' : '-') + '</td>'
+            })
+            html += '</tr>'
+          })
+          html += '</tbody></table></div>'
+
+          // 各组人数
+          html += '<div style="padding:0.5rem 0.75rem;font-size:0.75rem;color:#888;display:flex;gap:1rem;">'
+          ;['high', 'medium', 'low'].forEach(function(group) {
+            var cohort = d.cohorts[group]
+            html += '<span>' + (cohort ? cohort.label : group) + ': ' + (cohort ? cohort.studentCount : 0) + ' 人</span>'
+          })
+          html += '</div>'
+          container.innerHTML = html
+        })
+        .catch(function() { container.innerHTML = '<div class="error-msg-global">加载失败</div>' })
+    }
+
+    // ---- 加载会话概况 ----
+    function loadSessionStats() {
+      var container = document.getElementById('sessionContent')
+      authFetch(API_BASE + '/api/tracking/session-stats?limit=500')
+        .then(function(r) { return r.json() })
+        .then(function(resp) {
+          if (!resp.success || !resp.data) {
+            container.innerHTML = '<div class="empty-state">暂无数据</div>'; return
+          }
+          var d = resp.data
+          var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;padding:1rem 0;">' +
+            '<div class="stat-card"><div class="label">总会话数</div><div class="value teal" style="font-size:1.3rem;">' + d.totalSessions + '</div></div>' +
+            '<div class="stat-card"><div class="label">去重用户数</div><div class="value blue" style="font-size:1.3rem;">' + d.totalUniqueUsers + '</div></div>' +
+            '<div class="stat-card"><div class="label">人均单次时长</div><div class="value pink" style="font-size:1.3rem;">' + (d.avgDurationPerSessionMin || 0).toFixed(1) + ' 分钟</div></div>' +
+            '<div class="stat-card"><div class="label">人均总时长</div><div class="value purple" style="font-size:1.3rem;">' + (d.avgDurationPerUserMin || 0).toFixed(1) + ' 分钟</div></div>' +
+            '</div>'
+
+          if (d.sessions && d.sessions.length) {
+            html += '<div class="table-wrapper"><table><thead><tr>' +
+              '<th>会话ID</th><th>用户ID</th><th>开始时间</th><th>结束时间</th><th>时长（分钟）</th></tr></thead><tbody>'
+            var shown = 0
+            d.sessions.forEach(function(s) {
+              if (shown >= 20) return
+              shown++
+              html += '<tr><td style="font-size:0.72rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;" title="' + escapeHtml(s.sessionId) + '">' + escapeHtml(s.sessionId.substring(0, 12)) + '...</td>' +
+                '<td>' + escapeHtml(s.userId || '匿名') + '</td>' +
+                '<td style="font-size:0.72rem;">' + (s.firstTime ? new Date(s.firstTime).toLocaleString('zh-CN') : '-') + '</td>' +
+                '<td style="font-size:0.72rem;">' + (s.lastTime ? new Date(s.lastTime).toLocaleString('zh-CN') : '-') + '</td>' +
+                '<td>' + (s.durationMin || 0).toFixed(1) + '</td></tr>'
+            })
+            html += '</tbody></table></div>'
+          }
+          container.innerHTML = html
+        })
+        .catch(function() { container.innerHTML = '<div class="error-msg-global">加载失败</div>' })
+    }
+
+    // ---- 导出数据 ----
+    function exportData(type) {
+      var url = API_BASE + '/api/export/' + type
+      var token = getToken()
+      if (!token) { doLogout(); return }
+
+      // 创建临时 a 标签触发下载
+      var a = document.createElement('a')
+      a.href = url
+      a.setAttribute('download', '')
+      // 无法直接设置 Authorization header 的下载方式，使用 fetch + blob
+      fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) {
+          if (r.status === 401) { clearToken(); doLogout(); throw new Error('登录已过期') }
+          if (!r.ok) throw new Error('导出失败: ' + r.status)
+          return r.blob()
+        })
+        .then(function(blob) {
+          var blobUrl = URL.createObjectURL(blob)
+          var a = document.createElement('a')
+          a.href = blobUrl
+          a.download = type + '_' + new Date().toISOString().slice(0, 10) + '.xlsx'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(blobUrl)
+        })
+        .catch(function(err) {
+          if (err.message === '登录已过期') return
+          showError('导出失败: ' + err.message)
         })
     }
 

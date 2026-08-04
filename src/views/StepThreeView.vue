@@ -119,7 +119,7 @@ import QuizCard from '@/components/QuizCard.vue'
 import CultureCards from '@/components/CultureCards.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
-import { markNextEnterFromBackButton } from '@/utils/tracking'
+import { markNextEnterFromBackButton, track } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import { debugLog } from '@/utils/debug'
@@ -232,7 +232,7 @@ const correctCount = computed(() => {
 const { goNext, goPrev } = useNavigation('stepthree', poemId)
 
 // 使用埋点composable
-const { trackQuizSubmit } = useTracking('stepthree', poemId)
+const { stepId, trackQuizSubmit } = useTracking('stepthree', poemId)
 
 // 处理提交
 async function handleSubmit(quizIndex: number, selectedOption: number) {
@@ -278,6 +278,12 @@ function handleCultureCardsLoad(data: unknown) {
 
 function handleCultureCardClick(card: { card_id: number; card_name: string }) {
   debugLog('[StepThreeView] 文化卡片点击:', card)
+  // 埋点：文化卡片交互
+  track('interaction', stepId, {
+    module_type: '文化卡片',
+    action: '点击',
+    cost_time: 0,
+  })
 }
 
 // 监听 textId 变化，重置进度
