@@ -403,6 +403,277 @@ async function getActiveUsers(req, res, next) {
   }
 }
 
+/**
+ * 使用时段分布
+ * GET /api/tracking/hourly-activity?startDate=&endDate=
+ *
+ * 按小时统计 step_enter 事件分布
+ */
+async function getHourlyActivity(req, res, next) {
+  try {
+    const startDate = parseDateParam(req.query.startDate)
+    const endDate = parseDateParam(req.query.endDate)
+
+    let sql = `
+      SELECT CAST(strftime('%H', timestamp) AS INTEGER) AS hour, COUNT(*) AS count
+      FROM tracking_events
+      WHERE event_type = 'step_enter'`
+    const params = []
+
+    if (startDate) { sql += ' AND timestamp >= ?'; params.push(startDate) }
+    if (endDate) { sql += ' AND timestamp <= ?'; params.push(endDate) }
+
+    sql += ' GROUP BY hour ORDER BY hour ASC'
+
+    const rows = await queryDb(sql, params)
+
+    // 填充 0-23 小时，无数据的补 0
+    const hourlyData = []
+    for (let h = 0; h < 24; h++) {
+      const found = rows.find((r) => r.hour === h)
+      hourlyData.push({ hour: h, count: found ? found.count : 0 })
+    }
+
+    res.json({ success: true, data: hourlyData })
+  } catch (err) {
+    logger.error('获取时段分布失败:', err)
+    next(err)
+  }
+}
+
+/**
+ * 会话时长统计
+ * GET /api/tracking/session-stats?startDate=&endDate=&limit=100
+ *
+ * 统计每次会话的时长（首尾事件时间差）和人均单次使用时长
+ */
+async function getSessionStats(req, res, next) {
+  try {
+    const startDate = parseDateParam(req.query.startDate)
+    const endDate = parseDateParam(req.query.endDate)
+    const limit = parseInt(req.query.limit, 10) || 100
+
+    let sql = `
+      SELECT session_id, user_id, MIN(timestamp) AS first_time, MAX(timestamp) AS last_time
+      FROM tracking_events`
+    const params = []
+
+    if (startDate) { sql += ' WHERE timestamp >= ?'; params.push(startDate) }
+    if (endDate) { sql += startDate ? ' AND timestamp <= ?' : ' WHERE timestamp <= ?'; params.push(endDate) }
+
+    sql += ' GROUP BY session_id ORDER BY last_time DESC LIMIT ?'
+    params.push(limit)
+
+    const rows = await queryDb(sql, params)
+
+    // 计算每个会话的时长（秒）
+    let totalDurationMs = 0
+    let validSessionCount = 0
+    const sessions = rows.map((r) => {
+      const first = new Date(r.first_time).getTime()
+      const last = new Date(r.last_time).getTime()
+      const durationMs = Math.max(0, last - first)
+      if (durationMs > 0) {
+        totalDurationMs += durationMs
+        validSessionCount++
+      }
+      return {
+        sessionId: r.session_id,
+        userId: r.user_id || '',
+        firstTime: r.first_time,
+        lastTime: r.last_time,
+        durationMs,
+        durationMin: Math.round(durationMs / 60000 * 100) / 100,
+      }
+    })
+
+    // 去重用户数
+    const uniqueUsers = new Set(rows.filter((r) => r.user_id).map((r) => r.user_id))
+
+    res.json({
+      success: true,
+      data: {
+        totalSessions: sessions.length,
+        totalUniqueUsers: uniqueUsers.size,
+        avgDurationPerSessionMs: validSessionCount > 0 ? Math.round(totalDurationMs / validSessionCount) : 0,
+        avgDurationPerSessionMin: validSessionCount > 0 ? Math.round(totalDurationMs / validSessionCount / 60000 * 100) / 100 : 0,
+        avgDurationPerUserMs: uniqueUsers.size > 0 ? Math.round(totalDurationMs / uniqueUsers.size) : 0,
+        avgDurationPerUserMin: uniqueUsers.size > 0 ? Math.round(totalDurationMs / uniqueUsers.size / 60000 * 100) / 100 : 0,
+        sessions: sessions.slice(0, 50), // 只返回最近 50 条详细数据
+      },
+    })
+  } catch (err) {
+    logger.error('获取会话时长统计失败:', err)
+    next(err)
+  }
+}
+
+/**
+ * 功能打开率（按 session 去重）
+ * GET /api/tracking/feature-usage?startDate=&endDate=
+ *
+ * 按 module_type 统计使用该功能的 session 数（去重）和总次数
+ */
+async function getFeatureUsage(req, res, next) {
+  try {
+    const startDate = parseDateParam(req.query.startDate)
+    const endDate = parseDateParam(req.query.endDate)
+
+    let sql = `
+      SELECT
+        JSON_EXTRACT(properties, '$.module_type') AS module_type,
+        JSON_EXTRACT(properties, '$.action') AS action,
+        COUNT(*) AS total_count,
+        COUNT(DISTINCT session_id) AS session_count
+      FROM tracking_events
+      WHERE event_type = 'interaction'`
+    const params = []
+
+    if (startDate) { sql += ' AND timestamp >= ?'; params.push(startDate) }
+    if (endDate) { sql += ' AND timestamp <= ?'; params.push(endDate) }
+
+    sql += ' GROUP BY module_type, action ORDER BY session_count DESC'
+
+    const rows = await queryDb(sql, params)
+
+    // 总 session 数（用于计算打开率）
+    let totalSessionsSql = 'SELECT COUNT(DISTINCT session_id) AS total FROM tracking_events WHERE event_type = ?'
+    const totalSessionsParams = ['step_enter']
+    if (startDate) { totalSessionsSql += ' AND timestamp >= ?'; totalSessionsParams.push(startDate) }
+    if (endDate) { totalSessionsSql += ' AND timestamp <= ?'; totalSessionsParams.push(endDate) }
+
+    const totalSessionsRow = await queryDb(totalSessionsSql, totalSessionsParams)
+    const totalSessions = totalSessionsRow[0]?.total || 1
+
+    const data = rows.map((r) => ({
+      moduleType: r.module_type || '',
+      action: r.action || '',
+      totalCount: r.total_count,
+      sessionCount: r.session_count,
+      penetrationRate: Math.round((r.session_count / totalSessions) * 10000) / 100,
+    }))
+
+    res.json({ success: true, data, meta: { totalSessions } })
+  } catch (err) {
+    logger.error('获取功能使用率失败:', err)
+    next(err)
+  }
+}
+
+/**
+ * 群体差异分析
+ * GET /api/tracking/cohort-analysis?startDate=&endDate=
+ *
+ * 按学生成绩分段（高/中/低），对比不同群体的模块使用偏好
+ * 成绩数据来自 answers 表，模块使用来自 tracking_events 表
+ */
+async function getCohortAnalysis(req, res, next) {
+  try {
+    const startDate = parseDateParam(req.query.startDate)
+    const endDate = parseDateParam(req.query.endDate)
+
+    // 1. 从 answers 表计算每个学生的平均得分
+    let studentScoreSql = `
+      SELECT student_id, ROUND(AVG(score), 1) AS avg_score, COUNT(*) AS answer_count
+      FROM answers
+      WHERE score IS NOT NULL`
+    const scoreParams = []
+
+    if (startDate) { studentScoreSql += ' AND submitted_at >= ?'; scoreParams.push(startDate) }
+    if (endDate) { studentScoreSql += ' AND submitted_at <= ?'; scoreParams.push(endDate) }
+
+    studentScoreSql += ' GROUP BY student_id HAVING answer_count >= 3'
+
+    const studentScores = await queryDb(studentScoreSql, scoreParams)
+
+    if (studentScores.length === 0) {
+      return res.json({ success: true, data: { cohorts: [], studentCount: 0 } })
+    }
+
+    // 2. 按得分分为高/中/低三组
+    const sortedScores = studentScores.map((s) => s.avg_score).sort((a, b) => a - b)
+    const len = sortedScores.length
+    const lowThreshold = sortedScores[Math.floor(len * 0.33)]
+    const highThreshold = sortedScores[Math.floor(len * 0.67)]
+
+    const cohorts = { high: [], medium: [], low: [] }
+    for (const s of studentScores) {
+      if (s.avg_score >= highThreshold) cohorts.high.push(s.student_id)
+      else if (s.avg_score <= lowThreshold) cohorts.low.push(s.student_id)
+      else cohorts.medium.push(s.student_id)
+    }
+
+    // 3. 统计各群体在 tracking_events 中的 module_type 使用情况
+    async function getCohortModuleUsage(studentIds) {
+      if (studentIds.length === 0) return []
+
+      const placeholders = studentIds.map(() => '?').join(',')
+      let sql = `
+        SELECT
+          JSON_EXTRACT(properties, '$.module_type') AS module_type,
+          COUNT(*) AS usage_count,
+          COUNT(DISTINCT session_id) AS session_count
+        FROM tracking_events
+        WHERE event_type = 'interaction'
+          AND user_id IN (${placeholders})`
+      const params = [...studentIds]
+
+      if (startDate) { sql += ' AND timestamp >= ?'; params.push(startDate) }
+      if (endDate) { sql += ' AND timestamp <= ?'; params.push(endDate) }
+
+      sql += ' GROUP BY module_type ORDER BY usage_count DESC'
+
+      return queryDb(sql, params)
+    }
+
+    const [highUsage, mediumUsage, lowUsage] = await Promise.all([
+      getCohortModuleUsage(cohorts.high),
+      getCohortModuleUsage(cohorts.medium),
+      getCohortModuleUsage(cohorts.low),
+    ])
+
+    res.json({
+      success: true,
+      data: {
+        studentCount: studentScores.length,
+        thresholds: { low: lowThreshold, high: highThreshold },
+        cohorts: {
+          high: {
+            label: '高分组',
+            studentCount: cohorts.high.length,
+            moduleUsage: highUsage.map((r) => ({
+              moduleType: r.module_type || '',
+              usageCount: r.usage_count,
+              sessionCount: r.session_count,
+            })),
+          },
+          medium: {
+            label: '中等组',
+            studentCount: cohorts.medium.length,
+            moduleUsage: mediumUsage.map((r) => ({
+              moduleType: r.module_type || '',
+              usageCount: r.usage_count,
+              sessionCount: r.session_count,
+            })),
+          },
+          low: {
+            label: '低分组',
+            studentCount: cohorts.low.length,
+            moduleUsage: lowUsage.map((r) => ({
+              moduleType: r.module_type || '',
+              usageCount: r.usage_count,
+              sessionCount: r.session_count,
+            })),
+          },
+        },
+      },
+    })
+  } catch (err) {
+    logger.error('获取群体差异分析失败:', err)
+    next(err)
+  }
+}
+
 module.exports = {
   getFunnel,
   getInteractionStats,
@@ -410,4 +681,8 @@ module.exports = {
   getQuizPerformance,
   getSessionPath,
   getActiveUsers,
+  getHourlyActivity,
+  getSessionStats,
+  getFeatureUsage,
+  getCohortAnalysis,
 }

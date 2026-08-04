@@ -7,6 +7,7 @@ const adminController = require('../controllers/adminController')
 const dashboardController = require('../controllers/dashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
+const exportController = require('../controllers/exportController')
 const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
 const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
@@ -158,6 +159,15 @@ function registerRoutes(app) {
   app.get('/api/tracking/quiz-performance', trackingAnalysisController.getQuizPerformance)
   app.get('/api/tracking/session-path', trackingAnalysisController.getSessionPath)
   app.get('/api/tracking/active-users', trackingAnalysisController.getActiveUsers)
+  app.get('/api/tracking/hourly-activity', trackingAnalysisController.getHourlyActivity)
+  app.get('/api/tracking/session-stats', trackingAnalysisController.getSessionStats)
+  app.get('/api/tracking/feature-usage', trackingAnalysisController.getFeatureUsage)
+  app.get('/api/tracking/cohort-analysis', trackingAnalysisController.getCohortAnalysis)
+
+  // ============ 数据导出（需密码验证，使用看板密码） ============
+  app.get('/api/export/tracking-events', dashboardAuthMiddleware, exportController.exportTrackingEvents)
+  app.get('/api/export/answers', dashboardAuthMiddleware, exportController.exportAnswers)
+  app.get('/api/export/dashboard-summary', dashboardAuthMiddleware, exportController.exportDashboardSummary)
 }
 
 module.exports = {

@@ -55,6 +55,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { useAuthStore } from '@/stores/auth'
+import { getSessionId } from '@/utils/tracking'
+import { post } from '@/utils/api'
 import {
   adaptWordList,
   type RawWordItem,
@@ -181,12 +184,50 @@ function throttle<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
 // ============================================================
 // Tooltip 事件处理
 // ============================================================
+
+/** 已上报过 search_word 的 word 缓存，避免连续 hover 重复上报 */
+const reportedWordSet = new Set<string>()
+
 function handleMouseMove(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (target.classList.contains('annotated-word')) {
     const def = target.getAttribute('data-def')
     if (def) {
       currentAnnotation.value = def
+
+      // 字词查询埋点：每个 word 每个 session 仅上报一次
+      const word = target.textContent?.trim() || ''
+      if (word && !reportedWordSet.has(word)) {
+        reportedWordSet.add(word)
+        try {
+          let userId = ''
+          try {
+            const authStore = useAuthStore()
+            if (authStore.isLoggedIn && authStore.user) {
+              userId = authStore.user.studentId || authStore.user.id || ''
+            }
+          } catch {
+            /* Pinia 未就绪 */
+          }
+          post('/api/track', {
+            events: [
+              {
+                event_type: 'search_word',
+                user_id: userId,
+                session_id: getSessionId(),
+                step_id: props.wenId,
+                properties: { word, is_audio: false },
+                page_url: window.location.pathname + window.location.search,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          }).catch(() => {
+            /* 静默 */
+          })
+        } catch {
+          /* 静默 */
+        }
+      }
 
       // R23：优先用真实 DOM 尺寸，fallback 到常量估算
       const rect = tooltipRef.value?.getBoundingClientRect()

@@ -5,18 +5,24 @@
  * - session_id 管理（localStorage 持久化，跨标签页独立）
  * - 提供统一的 track() 函数发送埋点事件到后端
  * - 支持事件批量发送（自动合并 500ms 内的连续事件）
+ * - visibilitychange 监听，记录页面隐藏/显示事件
+ * - 退出类型检测（前进/后退/关闭/刷新）
  *
  * 埋点事件类型：
- * - step_enter: 进入某步（properties: { from_back_button }）
- * - step_exit: 离开某步（properties: { duration, next_step_id }）
+ * - session_start: 会话开始
+ * - session_end: 会话结束
+ * - step_enter: 进入某步（properties: { from_back_button, exit_type }）
+ * - step_exit: 离开某步（properties: { duration, next_step_id, exit_type }）
  * - interaction: 模块交互（properties: { module_type, action, cost_time }）
  * - search_word: 字词查询（properties: { word, is_audio }）
  * - quiz_submit: 闯关提交（properties: { score, wrong_answers }）
+ * - page_hide: 页面隐藏（切后台）
+ * - page_show: 页面显示（从后台切回）
  *
  * 使用方式：
  * ```ts
  * import { track } from '@/utils/tracking'
- * track('step_enter', { step_id: 'stepone', from_back_button: false })
+ * track('step_enter', 'stepone', { from_back_button: false })
  * ```
  */
 
@@ -65,6 +71,85 @@ export function resetSessionId(): void {
   } catch {
     // 静默失败
   }
+}
+
+/**
+ * 记录一次 session_start 事件（在应用初始化时调用）
+ */
+export function trackSessionStart(): void {
+  track(
+    'session_start',
+    'app',
+    {
+      user_agent: navigator.userAgent,
+      language: navigator.language,
+    },
+    true,
+  )
+}
+
+// ============================================================
+// 退出类型检测
+// ============================================================
+
+/**
+ * 获取退出类型
+ * - 'forward': 前进到下一页
+ * - 'backward': 后退到上一页
+ * - 'close': 关闭页面/浏览器
+ * - 'refresh': 刷新页面
+ * - 'unknown': 无法确定
+ */
+let _pendingExitType: 'forward' | 'backward' | 'close' | 'refresh' | 'unknown' = 'unknown'
+
+/**
+ * 设置即将发生的退出类型（由导航守卫在路由跳转前调用）
+ */
+export function setPendingExitType(
+  type: 'forward' | 'backward' | 'close' | 'refresh' | 'unknown',
+): void {
+  _pendingExitType = type
+}
+
+/**
+ * 消费退出类型标记
+ */
+export function consumeExitType(): string {
+  const val = _pendingExitType
+  _pendingExitType = 'unknown'
+  return val
+}
+
+// ============================================================
+// 页面可见性状态
+// ============================================================
+
+/** 页面是否可见（未被切到后台） */
+export let isPageVisible = true
+
+/**
+ * 初始化页面可见性监听
+ * 在应用入口（main.ts）调用
+ */
+export function initVisibilityTracking(): void {
+  if (typeof document === 'undefined') return
+
+  document.addEventListener('visibilitychange', () => {
+    const now = Date.now()
+    if (document.hidden) {
+      isPageVisible = false
+      // 页面切到后台，记录 page_hide
+      track('page_hide', 'app', {
+        hidden_at: new Date().toISOString(),
+      })
+    } else {
+      isPageVisible = true
+      // 页面从后台切回，记录 page_show
+      track('page_show', 'app', {
+        shown_at: new Date().toISOString(),
+      })
+    }
+  })
 }
 
 // ============================================================
@@ -202,6 +287,7 @@ let _nextEnterFromBackButton = false
  */
 export function markNextEnterFromBackButton(): void {
   _nextEnterFromBackButton = true
+  setPendingExitType('backward')
 }
 
 /**
@@ -214,8 +300,27 @@ export function consumeBackButtonFlag(): boolean {
   return val
 }
 
+// ============================================================
+// 初始化
+// ============================================================
+
+// 注册页面可见性监听
+initVisibilityTracking()
+
 // 注册页面卸载时的发送
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', flushOnUnload)
+  window.addEventListener('beforeunload', () => {
+    // 页面关闭/刷新，记录 session_end
+    track(
+      'session_end',
+      'app',
+      {
+        exit_type: 'close',
+        end_time: new Date().toISOString(),
+      },
+      true,
+    )
+    flushOnUnload()
+  })
   window.addEventListener('pagehide', flushOnUnload)
 }
