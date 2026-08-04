@@ -1,0 +1,6 @@
+{
+  "title": "前端功能完善：视频播放页调整、文化卡片OSS集成、引号工具、选择题优化",
+  "head": "feature-1",
+  "base": "main",
+  "body": "### 变更内容\n\n1. 视频播放页面：RuleVideoView.vue 尺寸统一调整，无滚动条完整显示视频及导航按钮\n2. 一级滚动条：移除组件内置滚动条，只保留系统级滚动条\n3. 引号工具：adapterUtils.ts 抽取 normalizeQuotes 工具函数，解决反引号显示错误\n4. 选择题：AdaptQuiz.vue 删除提交后的\"完成\"标识\n5. 文化卡片：CultureCards.vue 支持文字/图片/视频，使用 ossBase 拼接 OSS 资源路径\n6. 构建修复：修复 auth.ts 中 resetFirstEnterSet 导入路径错误\n7. 测试增强：tracking.spec.ts 补充埋点测试用例，添加 jsdom 依赖\n\n### 测试环境验证\n- 测试前端: http://test.classicalab.cn ✅\n- 测试后端 API: http://test-api.classicalab.cn/api/health ✅"
+}
