@@ -140,6 +140,7 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
+import { ossBase } from '@/utils/asset'
 
 interface CultureCard {
   text_id: string
@@ -238,11 +239,12 @@ function cardMediaType(card: CultureCard): 'text' | 'image' | 'video' {
 
 /**
  * 获取卡片图片/视频 URL
- * 资源路径：/images/culture_cards/{wenId}/{image_file}
+ * 资源路径：{ossBase}/images/culture_cards/{wenId}/{image_file}
+ * 通过 ossBase（VITE_OSS_BASE_URL）拼接完整 URL，确保 OSS 生产桶读取
  */
 function getCardImageUrl(card: CultureCard): string {
   if (cardMediaType(card) === 'text') return ''
-  return `/images/culture_cards/${card.text_id}/${card.image_file}`
+  return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
 }
 
 /**
