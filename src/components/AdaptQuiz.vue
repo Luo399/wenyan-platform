@@ -64,7 +64,7 @@
         </button>
         <button v-else class="next-btn" @click="handleNext">
           <i class="fas fa-arrow-right"></i>
-          {{ hasNext ? '下一题' : '完成' }}
+          下一题
         </button>
       </div>
     </div>

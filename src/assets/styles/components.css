@@ -242,8 +242,6 @@
 
 .modal-body {
   padding: var(--spacing-lg);
-  overflow-y: auto;
-  max-height: calc(80vh - 6rem);
   box-sizing: border-box;
 }
 

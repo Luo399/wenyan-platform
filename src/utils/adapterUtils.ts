@@ -87,9 +87,12 @@ export function buildContentHtmlWithAnnotations(
     return ''
   }
 
+  // 统一规范化引号，避免弯引号/反引号导致匹配和显示问题
+  const normalizedContent = normalizeQuotes(content)
+
   // 没有注释时：对原文做转义，再按选项做格式化
   if (!hasAnnotations) {
-    const escaped = escapeHtml(content)
+    const escaped = escapeHtml(normalizedContent)
     if (!wrapParagraphs) {
       // 仅需 removeSlashes 时（注意 escapeHtml 不会把 / 转义掉，可直接在 escaped 上操作）
       return removeSlashes ? escaped.replace(/\//g, '') : escaped
@@ -98,7 +101,7 @@ export function buildContentHtmlWithAnnotations(
   }
 
   // 有注释时：先处理斜杠 → 占位符替换注释 → 转义输出 → 套段落格式
-  let workingContent = removeSlashes ? content.replace(/\//g, '') : content
+  let workingContent = removeSlashes ? normalizedContent.replace(/\//g, '') : normalizedContent
 
   const sortedAnnotations = [...annotations!].sort((a, b) => b.word.length - a.word.length)
 
@@ -126,6 +129,38 @@ export function buildContentHtmlWithAnnotations(
   }
 
   return result
+}
+
+/**
+ * 规范化文本中的引号字符
+ *
+ * 将中文弯引号/英文弯引号统一转为直引号，避免在 HTML 渲染和注释匹配时产生歧义。
+ * 同时处理反引号（backtick）等易混淆字符。
+ *
+ * 转换规则：
+ * - \u201C \u201D（" "）→ "（U+0022）
+ * - \u2018 \u2019（' '）→ '（U+0027）
+ * - \u300C \u300D（「 」）→ "（U+0022）
+ * - \u300E \u300F（『 』）→ "（U+0022）
+ * - ` （U+0060 backtick）→ '（U+0027）
+ * - ´ （U+00B4 acute accent）→ '（U+0027）
+ *
+ * @param str - 需要规范化引号的字符串
+ * @returns 规范化后的字符串
+ */
+export function normalizeQuotes(str: string): string {
+  if (!str || typeof str !== 'string') {
+    return ''
+  }
+  return (
+    str
+      // 中文双引号 → 直双引号
+      .replace(/\u201C|\u201D|\u300C|\u300D/g, '"')
+      // 中文单引号 → 直单引号
+      .replace(/\u2018|\u2019|\u300E|\u300F/g, "'")
+      // 反引号/尖音符 → 直单引号
+      .replace(/[`´]/g, "'")
+  )
 }
 
 /**

@@ -595,12 +595,10 @@ defineExpose({
   background-color: var(--color-primary-hover);
 }
 
-/* 段落列表 */
+/* 段落列表 - 移除内置滚动条，由浏览器页面级滚动 */
 .segments-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  max-height: 400px;
-  overflow-y: auto;
 }
 </style>

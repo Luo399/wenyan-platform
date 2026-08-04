@@ -149,20 +149,20 @@ function registerRoutes(app) {
   app.get('/api/home/dashboard', dashboardAuthMiddleware, dashboardController.getDashboard)
   app.get('/api/home/dashboard/raw', dashboardAuthMiddleware, dashboardController.getRawData)
 
-  // ============ 用户行为埋点（无需登录） ============
+  // ============ 用户行为埋点上报（无需登录，学生端上报） ============
   app.post('/api/track', trackingController.track)
 
-  // ============ 埋点数据分析（无需登录，用于看板展示） ============
-  app.get('/api/tracking/funnel', trackingAnalysisController.getFunnel)
-  app.get('/api/tracking/interaction', trackingAnalysisController.getInteractionStats)
-  app.get('/api/tracking/search-trend', trackingAnalysisController.getSearchTrend)
-  app.get('/api/tracking/quiz-performance', trackingAnalysisController.getQuizPerformance)
-  app.get('/api/tracking/session-path', trackingAnalysisController.getSessionPath)
-  app.get('/api/tracking/active-users', trackingAnalysisController.getActiveUsers)
-  app.get('/api/tracking/hourly-activity', trackingAnalysisController.getHourlyActivity)
-  app.get('/api/tracking/session-stats', trackingAnalysisController.getSessionStats)
-  app.get('/api/tracking/feature-usage', trackingAnalysisController.getFeatureUsage)
-  app.get('/api/tracking/cohort-analysis', trackingAnalysisController.getCohortAnalysis)
+  // ============ 埋点数据分析（需看板密码验证，含学生学号/成绩/会话路径等敏感数据） ============
+  app.get('/api/tracking/funnel', dashboardAuthMiddleware, trackingAnalysisController.getFunnel)
+  app.get('/api/tracking/interaction', dashboardAuthMiddleware, trackingAnalysisController.getInteractionStats)
+  app.get('/api/tracking/search-trend', dashboardAuthMiddleware, trackingAnalysisController.getSearchTrend)
+  app.get('/api/tracking/quiz-performance', dashboardAuthMiddleware, trackingAnalysisController.getQuizPerformance)
+  app.get('/api/tracking/session-path', dashboardAuthMiddleware, trackingAnalysisController.getSessionPath)
+  app.get('/api/tracking/active-users', dashboardAuthMiddleware, trackingAnalysisController.getActiveUsers)
+  app.get('/api/tracking/hourly-activity', dashboardAuthMiddleware, trackingAnalysisController.getHourlyActivity)
+  app.get('/api/tracking/session-stats', dashboardAuthMiddleware, trackingAnalysisController.getSessionStats)
+  app.get('/api/tracking/feature-usage', dashboardAuthMiddleware, trackingAnalysisController.getFeatureUsage)
+  app.get('/api/tracking/cohort-analysis', dashboardAuthMiddleware, trackingAnalysisController.getCohortAnalysis)
 
   // ============ 数据导出（需密码验证，使用看板密码） ============
   app.get('/api/export/tracking-events', dashboardAuthMiddleware, exportController.exportTrackingEvents)

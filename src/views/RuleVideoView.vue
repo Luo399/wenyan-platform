@@ -93,11 +93,14 @@ const currentPoem = computed(() => {
 
 <style scoped>
 .rule-view {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   padding: var(--spacing-xl);
-  padding-bottom: 5rem;
+  /* 底部为 fixed 的 BackContinue(约 64px) 留空间，防止溢出滚动 */
+  padding-bottom: calc(var(--spacing-xl) + 64px);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-title {
@@ -107,10 +110,31 @@ const currentPoem = computed(() => {
   color: var(--color-text);
   margin-bottom: var(--spacing-lg);
   text-align: center;
+  flex-shrink: 0;
 }
 
 .video-section {
   flex: 1;
-  max-width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-section :deep(.video-player-container) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-section :deep(.video-wrapper) {
+  flex: 1;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+.video-section :deep(.video-wrapper video) {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
 }
 </style>
