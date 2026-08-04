@@ -59,7 +59,8 @@ jobs:
               -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
               -e oss-cn-guangzhou.aliyuncs.com \
               --acl public-read \
-              --meta "Cache-Control:public,max-age=3600"
+              --meta "Cache-Control:public,max-age=3600" \
+              --force
           else
             echo "OSS_BUCKET_DASHBOARD not set, skipping dashboard deployment"
           fi
