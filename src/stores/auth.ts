@@ -17,7 +17,8 @@ import { ref, computed } from 'vue'
 import { post } from '@/utils/api'
 import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
-import { resetSessionId, resetFirstEnterSet } from '@/utils/tracking'
+import { resetSessionId } from '@/utils/tracking'
+import { resetFirstEnterSet } from '@/composables/useTracking'
 
 /**
  * 用户信息接口
