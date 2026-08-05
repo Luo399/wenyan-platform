@@ -98,13 +98,17 @@ Figma 设计稿定稿
 - [x] 环境变量模板 `backend/.env.example`
 - [x] 前端通用图片目录 `public/images/general/`（8 张图片已下载）
 - [x] 文化卡片数据 `public/data/culture_cards/`（4 篇课文 JSON）
+- [x] 前端组件修复：RuleVideoView / MultiRoleReading / AdaptQuiz / CultureCards
+- [x] 文本工具：adapterUtils.ts 抽取 normalizeQuotes 函数
+- [x] 方案文档 `docs/figma-pipeline-plan.md` 编写完成
 
-### 阶段 2：Fig资源同步激活
-- [ ] 获取 Figma Personal Access Token
-- [ ] 在 Figma 中创建 Export Assets 专用 Frame
+### 阶段 2：Fig资源同步激活（等待中）
+- [ ] 获取 Figma Personal Access Token（需手动配置）
+- [ ] 在 Figma 中创建 Export Assets 专用 Frame（需设计师配合）
 - [ ] 配置服务器环境变量（FIGMA_ACCESS_TOKEN + OSS 凭据）
 - [ ] 从 Figma 导出资源到 OSS
 - [ ] 更新前端资源引用路径
+- [ ] 下载 `public/images/culture_cards/` 资源（Figma API 限流中，429 错误，需等待约 47 小时）
 
 ### 阶段 3：前端资源对接
 - [ ] 配置 `.env.production` 中 `VITE_OSS_BASE_URL`
@@ -127,7 +131,32 @@ Figma 设计稿定稿
 - [x] 通用图片资源：`public/images/general/` 已下载 8 张图片
 - [x] 文化卡片数据：`public/data/culture_cards/` 已有 4 篇课文 JSON
 
-## 五、风险与注意事项
+## 五、已部署到测试环境（当前状态）
+
+- [x] 当前分支 `feature-1` 已包含所有前端修复代码
+- [x] 后端 Figma 同步服务已实现，待 Figma API 限流解除后激活
+- [x] 待推送代码到 `feature-1` 触发测试环境部署
+
+## 六、当前现状与限制
+
+### 6.1 已完成（可部署）
+| 模块 | 文件 | 状态 |
+|------|------|------|
+| 视频播放页 | `RuleVideoView.vue` | 100vh 无滚动条，`object-fit: contain` 完整显示 |
+| 多角色朗读 | `MultiRoleReading.vue` | 移除内置滚动条，仅系统滚动条 |
+| 引号工具 | `adapterUtils.ts` | `normalizeQuotes` 处理 6 种引号/反引号 |
+| 选择题 | `AdaptQuiz.vue` | 删除"完成"标识容器 |
+| 文化卡片 | `CultureCards.vue` | 文字/图片/视频，虚线边框，翻牌预留 |
+| 后端同步 | `figmaService.js` | Figma REST API 节点树解析 + OSS 上传 |
+| 方案文档 | `figma-pipeline-plan.md` | 完整架构设计 |
+
+### 6.2 受限项（需等待）
+- **Figma API 限流**：429 错误，需等待 ~47 小时，或升级 Figma 账户
+- **文化卡片资源**：`public/images/culture_cards/` 目录为空，需 Figma 资源下载后填充
+- **文化卡片 JSON**：`image_file` 字段均为 "文字"，需对接设计师产出图片/视频后更新
+- **VITE_OSS_BASE_URL**：生产环境需配置，当前开发环境用相对路径
+
+## 七、风险与注意事项
 
 1. **Figma API 速率限制**：免费账户每分钟 60 次请求，大批量导出需分批
 2. **OSS 文件权限**：上传必须带 `--acl public-read` 或 `x-oss-object-acl: public-read`
