@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>文言文资源同步</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e1e1e;
+      color: #ccc;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .header {
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #333;
+    }
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .header p {
+      font-size: 12px;
+      color: #888;
+    }
+    .config-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .config-row label {
+      font-size: 12px;
+      color: #888;
+      white-space: nowrap;
+    }
+    .config-row input {
+      flex: 1;
+      padding: 6px 8px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #ccc;
+      font-size: 12px;
+      outline: none;
+    }
+    .config-row input:focus {
+      border-color: #18a0fb;
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      background: #2a2a2a;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .status-bar .count {
+      color: #18a0fb;
+      font-weight: 600;
+    }
+    .status-bar .status-text {
+      color: #888;
+    }
+    .assets-list {
+      max-height: 280px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+    .assets-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .assets-list::-webkit-scrollbar-track {
+      background: #2a2a2a;
+    }
+    .assets-list::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 3px;
+    }
+    .asset-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      background: #2a2a2a;
+      cursor: default;
+      transition: background 0.2s;
+    }
+    .asset-item:hover {
+      background: #333;
+    }
+    .asset-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .asset-icon.image {
+      background: #1a3a5c;
+      color: #18a0fb;
+    }
+    .asset-icon.text {
+      background: #3a2a1a;
+      color: #f5a623;
+    }
+    .asset-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .asset-name {
+      font-size: 12px;
+      color: #eee;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .asset-path {
+      font-size: 11px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .asset-status {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .asset-status.new {
+      background: #1a3a1a;
+      color: #4caf50;
+    }
+    .asset-status.changed {
+      background: #3a3a1a;
+      color: #f5a623;
+    }
+    .asset-status.unchanged {
+      background: #2a2a2a;
+      color: #666;
+    }
+    .asset-status.uploaded {
+      background: #1a3a1a;
+      color: #4caf50;
+    }
+    .asset-status.error {
+      background: #3a1a1a;
+      color: #f44336;
+    }
+    .asset-size {
+      font-size: 11px;
+      color: #666;
+      flex-shrink: 0;
+      margin-left: 4px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: #18a0fb;
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #0e8cd9;
+    }
+    .btn-secondary {
+      background: #333;
+      color: #ccc;
+    }
+    .btn-secondary:hover {
+      background: #444;
+    }
+    .btn-danger {
+      background: #f44336;
+      color: #fff;
+    }
+    .summary {
+      margin-top: 12px;
+      padding: 12px;
+      background: #2a2a2a;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+    .summary .success { color: #4caf50; }
+    .summary .warning { color: #f5a623; }
+    .summary .error-text { color: #f44336; }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+    .progress-bar {
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #18a0fb;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+    .empty-state .icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+    .empty-state .message {
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .error-detail {
+      margin-top: 8px;
+      padding: 8px;
+      background: #3a1a1a;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #f44336;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>文言文资源同步</h1>
+    <p>扫描当前文件中的 Export Assets 和 文字资源_ Frame，按 Frame 命名规则同步到 OSS</p>
+  </div>
+
+  <div class="config-row">
+    <label>API 地址：</label>
+    <input type="text" id="apiBase" value="https://api.classicalab.cn" placeholder="后端 API 地址" />
+  </div>
+
+  <div id="statusBar" class="status-bar">
+    <span class="status-text">扫描中...</span>
+    <span class="count">0 个资源</span>
+  </div>
+
+  <div id="progressBar" class="progress-bar" style="display:none">
+    <div id="progressFill" class="progress-fill"></div>
+  </div>
+
+  <div id="assetsContainer" class="assets-list">
+    <div class="empty-state">
+      <div class="icon">🔍</div>
+      <div class="message">正在扫描当前文件中的资源...</div>
+    </div>
+  </div>
+
+  <div id="actions" class="actions" style="display:none">
+    <button id="syncBtn" class="btn-primary" onclick="handleSync()">开始同步</button>
+    <button class="btn-secondary" onclick="handleCancel()">取消</button>
+  </div>
+
+  <div id="summary" class="summary" style="display:none"></div>
+
+  <script>
+    let assets = []
+    let isSyncing = false
+
+    // 接收来自主线程的消息
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage || event.data
+
+      switch (msg.type) {
+        case 'scan-result':
+          assets = msg.assets
+          renderAssets(msg.assets)
+          updateStatus(msg.assets.length)
+          document.getElementById('actions').style.display = 'flex'
+          break
+
+        case 'no-assets':
+          document.getElementById('assetsContainer').innerHTML = `
+            <div class="empty-state">
+              <div class="icon">📭</div>
+              <div class="message">${msg.message}</div>
+            </div>
+          `
+          updateStatus(0)
+          break
+
+        case 'sync-start':
+          isSyncing = true
+          document.getElementById('syncBtn').disabled = true
+          document.getElementById('progressBar').style.display = 'block'
+          document.getElementById('summary').style.display = 'none'
+          updateStatus(msg.total, '同步中...')
+          break
+
+        case 'sync-complete':
+          isSyncing = false
+          document.getElementById('syncBtn').disabled = false
+          document.getElementById('progressBar').style.display = 'none'
+          document.getElementById('actions').style.display = 'none'
+          showSummary(msg.summary, msg.results)
+          renderResults(msg.results)
+          break
+
+        case 'sync-error':
+          isSyncing = false
+          document.getElementById('syncBtn').disabled = false
+          document.getElementById('progressBar').style.display = 'none'
+          showError(msg.error)
+          break
+
+        case 'scan-error':
+          document.getElementById('assetsContainer').innerHTML = `
+            <div class="empty-state">
+              <div class="icon">❌</div>
+              <div class="message">扫描失败：${msg.error}</div>
+            </div>
+          `
+          break
+      }
+    }
+
+    function renderAssets(assets) {
+      const container = document.getElementById('assetsContainer')
+      if (assets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <div class="message">未找到可同步的资源</div>
+          </div>
+        `
+        return
+      }
+
+      container.innerHTML = assets.map((asset) => {
+        const icon = asset.type === 'image' ? '🖼' : '📝'
+        const statusClass = asset.status
+        const statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
+
+        return `
+          <div class="asset-item">
+            <div class="asset-icon ${asset.type}">${icon}</div>
+            <div class="asset-info">
+              <div class="asset-name">${asset.fileName}</div>
+              <div class="asset-path">${asset.ossPath}</div>
+            </div>
+            <span class="asset-status ${statusClass}">${statusLabel}</span>
+          </div>
+        `
+      }).join('')
+    }
+
+    function renderResults(results) {
+      const container = document.getElementById('assetsContainer')
+      container.innerHTML = results.map((result) => {
+        const icon = result.type === 'image' ? '🖼' : '📝'
+        const statusClass = result.status
+        const statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
+        const sizeStr = result.size > 1024 ? `${(result.size / 1024).toFixed(1)} KB` : `${result.size} B`
+
+        return `
+          <div class="asset-item">
+            <div class="asset-icon ${result.type}">${icon}</div>
+            <div class="asset-info">
+              <div class="asset-name">${result.fileName}</div>
+              <div class="asset-path">${result.ossPath}</div>
+            </div>
+            <span class="asset-size">${sizeStr}</span>
+            <span class="asset-status ${statusClass}">${statusLabel}</span>
+          </div>
+        `
+      }).join('')
+    }
+
+    function updateStatus(count, text) {
+      document.getElementById('statusBar').innerHTML = `
+        <span class="status-text">${text || '就绪'}</span>
+        <span class="count">${count} 个资源</span>
+      `
+    }
+
+    function showSummary(summary, results) {
+      const summaryEl = document.getElementById('summary')
+      summaryEl.style.display = 'block'
+
+      let html = `
+        <div class="summary-row">
+          <span>总计</span>
+          <span>${summary.total} 个资源</span>
+        </div>
+        <div class="summary-row">
+          <span class="success">✓ 已上传</span>
+          <span class="success">${summary.uploaded}</span>
+        </div>
+      `
+
+      if (summary.skipped > 0) {
+        html += `
+          <div class="summary-row">
+            <span class="warning">− 已跳过（未变更）</span>
+            <span class="warning">${summary.skipped}</span>
+          </div>
+        `
+      }
+
+      if (summary.errors > 0) {
+        html += `
+          <div class="summary-row">
+            <span class="error-text">✗ 失败</span>
+            <span class="error-text">${summary.errors}</span>
+          </div>
+          <div class="error-detail">
+            ${summary.errorDetails.map((e) => `${e.fileName}: ${e.error}`).join('<br>')}
+          </div>
+        `
+      }
+
+      summaryEl.innerHTML = html
+    }
+
+    function showError(error) {
+      const summaryEl = document.getElementById('summary')
+      summaryEl.style.display = 'block'
+      summaryEl.innerHTML = `
+        <div class="summary-row">
+          <span class="error-text">❌ 同步失败</span>
+        </div>
+        <div class="error-detail">${error}</div>
+      `
+    }
+
+    function handleSync() {
+      if (isSyncing || assets.length === 0) return
+
+      const apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
+
+      // 发送消息到主线程
+      parent.postMessage({ pluginMessage: { type: 'sync', assets, apiBase } }, '*')
+    }
+
+    function handleCancel() {
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
+    }
+
+    // 通知主线程 UI 已就绪
+    parent.postMessage({ pluginMessage: { type: 'ui-ready' } }, '*')
+  </script>
+</body>
+</html>

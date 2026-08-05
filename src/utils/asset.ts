@@ -4,14 +4,18 @@
  * 功能说明：
  * - 根据环境变量获取 OSS 基础路径
  * - 拼接完整的资源 URL
+ * - 支持版本戳缓存刷新（通过 version.json 的 lastSyncAt 时间戳）
  *
  * 使用示例：
  * const audioUrl = getAssetUrl('audio', 'WEN_01_read_full.mp3')
  * // 开发环境返回: http://localhost:5173/audio/WEN_01_read_full.mp3
- * // 生产环境返回: https://your-bucket.oss-cn-hangzhou.aliyuncs.com/audio/WEN_01_read_full.mp3
+ * // 生产环境返回: https://oss-bucket/audio/WEN_01_read_full.mp3
+ *
+ * const audioUrlCached = await getAssetUrlWithVersion('audio', 'WEN_01_read_full.mp3')
+ * // 返回: https://oss-bucket/audio/WEN_01_read_full.mp3?t=2026-08-05T12:00:00.000Z
  */
 
-import { debugWarn } from '@/utils/debug'
+import { debugWarn, debugLog } from '@/utils/debug'
 
 /**
  * OSS 基础路径，从环境变量读取
@@ -24,24 +28,129 @@ if (import.meta.env.DEV && !ossBase) {
   debugWarn('[asset] VITE_OSS_BASE_URL 未配置，资源 URL 将使用相对路径')
 }
 
+// ============================================================
+// 版本戳缓存机制
+// ============================================================
+
+/** 版本信息缓存 */
+let versionCache: { lastSyncAt: string | null; fetchedAt: number } | null = null
+/** 缓存有效期（10 分钟） */
+const VERSION_CACHE_TTL = 10 * 60 * 1000
+/** 当前正在执行的版本请求（去重并发） */
+let pendingVersionFetch: Promise<string | null> | null = null
+
 /**
- * 获取资源完整 URL
+ * 获取 API 基础 URL（复用环境变量）
+ */
+function getApiBase(): string {
+  return import.meta.env.VITE_API_BASE_URL || ''
+}
+
+/**
+ * 从后端获取版本时间戳
+ * 内部自带缓存和去重，多次调用不会重复请求
+ * @returns lastSyncAt 时间戳字符串，失败返回 null
+ */
+async function fetchVersionTimestamp(): Promise<string | null> {
+  // 缓存有效期内直接返回
+  if (versionCache && Date.now() - versionCache.fetchedAt < VERSION_CACHE_TTL) {
+    return versionCache.lastSyncAt
+  }
+
+  // 去重：已有在途请求则等待
+  if (pendingVersionFetch) {
+    return pendingVersionFetch
+  }
+
+  const apiBase = getApiBase()
+  if (!apiBase) {
+    return null
+  }
+
+  // 发起请求
+  pendingVersionFetch = (async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/assets/version`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
+      const result = await response.json()
+      const timestamp = result?.data?.lastSyncAt || null
+
+      versionCache = { lastSyncAt: timestamp, fetchedAt: Date.now() }
+      if (timestamp) {
+        debugLog('[asset] 版本时间戳:', timestamp)
+      }
+      return timestamp
+    } catch (err) {
+      debugWarn('[asset] 获取版本信息失败，使用无版本戳 URL:', err)
+      versionCache = { lastSyncAt: null, fetchedAt: Date.now() }
+      return null
+    } finally {
+      pendingVersionFetch = null
+    }
+  })()
+
+  return pendingVersionFetch
+}
+
+/**
+ * 获取资源完整 URL（基础版本）
  *
  * @param type - 资源类型：'audio' | 'images' | 'video'
  * @param fileName - 文件名（包含扩展名）
  * @returns 完整的资源 URL
  *
  * @example
- * // 获取音频文件 URL
  * getAssetUrl('audio', 'WEN_01_read_full.mp3')
- *
- * // 获取图片文件 URL
- * getAssetUrl('images', 'WEN_01_illus_room.jpg')
- *
- * // 获取视频文件 URL
- * getAssetUrl('video', 'WEN_01_intro.mp4')
+ * // => https://oss-bucket/audio/WEN_01_read_full.mp3
  */
 export function getAssetUrl(type: 'audio' | 'images' | 'video', fileName: string): string {
-  // R97: 对文件名做 URL 编码，避免含空格/中文/#/? 等字符时破坏 URL
   return `${ossBase}/${type}/${encodeURIComponent(fileName)}`
+}
+
+/**
+ * 获取带版本戳的资源 URL（用于 CDN 缓存刷新）
+ *
+ * 自动从后端 version.json 获取 lastSyncAt 时间戳，拼接到 URL 末尾。
+ * 版本戳有 10 分钟内存缓存，不会每次调用都发起网络请求。
+ *
+ * @param type - 资源类型：'audio' | 'images' | 'video'
+ * @param fileName - 文件名（包含扩展名）
+ * @returns Promise，解析为带版本戳的 URL
+ *
+ * @example
+ * await getAssetUrlWithVersion('images', 'home_bg.png')
+ * // => https://oss-bucket/images/home_bg.png?t=2026-08-05T12:00:00.000Z
+ */
+export async function getAssetUrlWithVersion(
+  type: 'audio' | 'images' | 'video',
+  fileName: string,
+): Promise<string> {
+  const baseUrl = getAssetUrl(type, fileName)
+
+  // 开发环境或 OSS 未配置时不加版本戳
+  if (import.meta.env.DEV || !ossBase) {
+    return baseUrl
+  }
+
+  const timestamp = await fetchVersionTimestamp()
+  if (!timestamp) {
+    return baseUrl
+  }
+
+  // 用 encodeURIComponent 保证时间戳中的特殊字符不被破坏
+  const separator = baseUrl.includes('?') ? '&' : '?'
+  return `${baseUrl}${separator}t=${encodeURIComponent(timestamp)}`
+}
+
+/**
+ * 强制刷新版本缓存（资源同步后调用）
+ */
+export function refreshVersionCache(): void {
+  versionCache = null
+  debugLog('[asset] 版本缓存已刷新')
 }

@@ -12,6 +12,7 @@
     "test:coverage": "cross-env NODE_OPTIONS=\"--experimental-vm-modules\" jest --coverage --testPathPatterns=tests/"
   },
   "dependencies": {
+    "ali-oss": "^6.20.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -19,6 +20,7 @@
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "sqlite3": "^5.1.6",
     "xlsx": "^0.18.5",
     "zod": "^3.25.76"
