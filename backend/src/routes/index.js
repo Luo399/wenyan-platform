@@ -173,6 +173,14 @@ function registerRoutes(app) {
   // ============ Figma 资源同步（无认证，需服务端配置 FIGMA_ACCESS_TOKEN） ============
   app.post('/api/figma/sync', figmaController.sync)
   app.get('/api/figma/status', figmaController.status)
+
+  // ============ 资产同步（Figma 插件 → 后端 → OSS） ============
+  const assetController = require('../controllers/assetController')
+  const multer = require('multer')
+  const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
+  app.post('/api/assets/upload', uploadMiddleware.any(), assetController.upload)
+  app.get('/api/assets/version', assetController.getVersion)
+  app.post('/api/assets/pre-signed', assetController.generatePreSignedUrl)
 }
 
 module.exports = {

@@ -1,0 +1,15 @@
+{
+  "name": "文言文资源同步",
+  "id": "wenyan-asset-sync",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "capabilities": [],
+  "enableProposedApi": false,
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["*"],
+    "reasoning": "需要连接后端 API 上传资源到服务器"
+  },
+  "documentAccess": "dynamic-page"
+}

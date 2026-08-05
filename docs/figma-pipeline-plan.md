@@ -102,18 +102,40 @@ Figma 设计稿定稿
 - [x] 文本工具：adapterUtils.ts 抽取 normalizeQuotes 函数
 - [x] 方案文档 `docs/figma-pipeline-plan.md` 编写完成
 
-### 阶段 2：Fig资源同步激活（等待中）
-- [ ] 获取 Figma Personal Access Token（需手动配置）
-- [ ] 在 Figma 中创建 Export Assets 专用 Frame（需设计师配合）
-- [ ] 配置服务器环境变量（FIGMA_ACCESS_TOKEN + OSS 凭据）
-- [ ] 从 Figma 导出资源到 OSS
-- [ ] 更新前端资源引用路径
-- [ ] 下载 `public/images/culture_cards/` 资源（Figma API 限流中，429 错误，需等待约 47 小时）
+### 阶段 2：Figma 插件 + 后端上传（推荐方案，已实现）
+**由于 Figma REST API 限流（429），转向 Figma 插件方案**
 
-### 阶段 3：前端资源对接
-- [ ] 配置 `.env.production` 中 `VITE_OSS_BASE_URL`
-- [ ] 完善 `public/data/culture_cards/` 中图片/视频引用
-- [ ] 将 `public/images/general/` 手动上传到 OSS
+#### 方案说明
+```
+Figma 设计稿 → 设计师打开 Figma 插件 → 扫描 Export Assets / 文字资源_ Frame
+    → 导出 PNG/SVG + 读取文字 → POST /api/assets/upload → 后端
+    → MD5 比对（相同跳过）→ 保存到本地 / 上传 OSS → 更新 version.json
+```
+
+#### 后端 API 端点
+| 方法 | 路径 | 功能 |
+|------|------|------|
+| POST | `/api/assets/upload` | 接收文件上传（multipart/form-data 或 JSON） |
+| GET | `/api/assets/version` | 获取版本信息（version.json） |
+| POST | `/api/assets/pre-signed` | 生成 OSS 预签名 URL（直传模式） |
+
+#### 已实现文件
+- [x] `backend/src/services/assetService.js` - MD5 比对、版本管理、OSS 上传
+- [x] `backend/src/controllers/assetController.js` - 上传端点
+- [x] `backend/src/routes/index.js` - 路由注册
+- [x] `backend/.env.example` - 环境变量模板
+- [x] `backend/package.json` - multer 依赖
+- [x] `figma-plugin/manifest.json` - Figma 插件清单
+- [x] `figma-plugin/code.ts` - 插件主逻辑（扫描 + 导出 + 上传）
+- [x] `figma-plugin/ui.html` - 插件 UI（变更列表 + 同步按钮）
+- [x] `src/utils/asset.ts` - 前端版本戳支持（`?t=lastSyncAt`）
+
+### 阶段 3：部署与使用
+- [ ] 设计师打开 Figma → 插件 → 文言文资源同步
+- [ ] 配置后端 API 地址
+- [ ] 扫描 Export Assets Frame → 确认变更列表 → 点击同步
+- [ ] 在 `文字资源_WEN_01_culture_cards` Frame 中编辑文字
+- [ ] 同步后前端自动通过 `?t=timestamp` 刷新缓存
 
 ### 阶段 4：CI/CD 集成
 - [ ] 在 GitHub Actions 中添加 Figma 同步步骤
@@ -133,9 +155,13 @@ Figma 设计稿定稿
 
 ## 五、已部署到测试环境（当前状态）
 
-- [x] 当前分支 `feature-1` 已包含所有前端修复代码
-- [x] 后端 Figma 同步服务已实现，待 Figma API 限流解除后激活
-- [x] 待推送代码到 `feature-1` 触发测试环境部署
+- [x] 当前分支 `feature-1` 已包含所有代码变更
+- [x] 后端资产同步 API 已实现（`POST /api/assets/upload`）
+- [x] Figma 插件已开发完成（`figma-plugin/`）
+- [x] 前端版本戳机制已实现（`asset.ts`）
+- [x] 代码已推送到 `feature-1`，Actions 全部 success
+- [x] 测试环境前端 `https://test.classicalab.cn` 正常
+- [x] 测试环境后端 `http://test-api.classicalab.cn/api/health` 正常
 
 ## 六、当前现状与限制
 
@@ -147,19 +173,22 @@ Figma 设计稿定稿
 | 引号工具 | `adapterUtils.ts` | `normalizeQuotes` 处理 6 种引号/反引号 |
 | 选择题 | `AdaptQuiz.vue` | 删除"完成"标识容器 |
 | 文化卡片 | `CultureCards.vue` | 文字/图片/视频，虚线边框，翻牌预留 |
-| 后端同步 | `figmaService.js` | Figma REST API 节点树解析 + OSS 上传 |
 | 方案文档 | `figma-pipeline-plan.md` | 完整架构设计 |
+| 资产同步 API | `assetService.js` + `assetController.js` | MD5 比对 + 版本管理 + OSS 上传 |
+| Figma 插件 | `figma-plugin/` | 扫描 Export Assets + 文字资源_ Frame → 导出 → 上传 |
+| 前端版本戳 | `asset.ts` | `getAssetUrlWithVersion()` 自动拼接 `?t=timestamp` |
 
-### 6.2 受限项（需等待）
-- **Figma API 限流**：429 错误，需等待 ~47 小时，或升级 Figma 账户
-- **文化卡片资源**：`public/images/culture_cards/` 目录为空，需 Figma 资源下载后填充
-- **文化卡片 JSON**：`image_file` 字段均为 "文字"，需对接设计师产出图片/视频后更新
-- **VITE_OSS_BASE_URL**：生产环境需配置，当前开发环境用相对路径
+### 6.2 受限项（需设计师配合）
+- **文化卡片资源**：`public/images/culture_cards/` 目录为空，需设计师在 Figma 中创建 Export Assets Frame 后通过插件同步
+- **文化卡片 JSON**：`image_file` 字段均为 "文字"，需在 Figma 中创建 `文字资源_` Frame 后通过插件同步
+- **VITE_OSS_BASE_URL**：生产环境需配置环境变量
+- **Figma 插件安装**：需在 Figma 中通过 `Plugins → Development → Import plugin from manifest` 加载
 
 ## 七、风险与注意事项
 
-1. **Figma API 速率限制**：免费账户每分钟 60 次请求，大批量导出需分批
+1. **Figma API 速率限制**：免费账户每分钟 60 次请求，大批量导出需分批（插件端已规避）
 2. **OSS 文件权限**：上传必须带 `--acl public-read` 或 `x-oss-object-acl: public-read`
-3. **CDN 缓存**：资源更新后需 CloudFront 失效
-4. **命名一致性**：Figma 图层命名必须与代码中文件名一致
-5. **大文件处理**：视频/音频文件建议直接上传 OSS，不走 Figma 导出
+3. **CDN 缓存**：前端通过 `?t=timestamp` 参数刷新缓存，无需 CloudFront 手动失效
+4. **命名一致性**：Figma 图层命名必须与代码中文件名一致（`{文件名}.{扩展名}`）
+5. **大文件处理**：视频/音频文件建议直接上传 OSS，不走 Figma 插件导出
+6. **version.json 持久化**：存储在 `backend/data/version.json`，部署后需保留
