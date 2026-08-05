@@ -248,6 +248,13 @@ function getCardImageUrl(card: CultureCard): string {
 }
 
 /**
+ * 获取卡片视频 URL（与 getCardImageUrl 同路径，语义化区分）
+ */
+function getCardVideoUrl(card: CultureCard): string {
+  return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
+}
+
+/**
  * 图片加载失败处理
  */
 function handleImageError(event: Event) {
@@ -268,6 +275,10 @@ function handleCardClick(card: CultureCard) {
 
 function handleVideoClick(card: CultureCard) {
   if (!isUnlocked(card)) return
+  const videoUrl = getCardVideoUrl(card)
+  if (videoUrl) {
+    window.open(videoUrl, '_blank')
+  }
   emit('video-click', card)
 }
 

@@ -10,6 +10,7 @@ const trackingAnalysisController = require('../controllers/trackingAnalysisContr
 const exportController = require('../controllers/exportController')
 const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
+const figmaController = require('../controllers/figmaController')
 const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
@@ -168,6 +169,10 @@ function registerRoutes(app) {
   app.get('/api/export/tracking-events', dashboardAuthMiddleware, exportController.exportTrackingEvents)
   app.get('/api/export/answers', dashboardAuthMiddleware, exportController.exportAnswers)
   app.get('/api/export/dashboard-summary', dashboardAuthMiddleware, exportController.exportDashboardSummary)
+
+  // ============ Figma 资源同步（无认证，需服务端配置 FIGMA_ACCESS_TOKEN） ============
+  app.post('/api/figma/sync', figmaController.sync)
+  app.get('/api/figma/status', figmaController.status)
 }
 
 module.exports = {
