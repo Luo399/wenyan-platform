@@ -1,5 +1,7 @@
 # Figma-前端自动化管线方案
 
+> **架构概要**：通用组件文件 + 按课文分文件，插件通用，Frame 命名决定 OSS 路径
+
 ## 一、现状分析
 
 ### 1.1 已完成的工作
@@ -11,11 +13,34 @@
 - **文化卡片数据** (`public/data/culture_cards/`)：已有 4 篇课文（WEN_01-04）的 JSON 数据
 - **前端组件**：CultureCards.vue 已支持 text/image/video 三种媒体类型，虚线边框，翻牌控制
 
-### 1.2 Figma 设计文件结构
-- File Key: `7vHDlwr34hvSyGv5oIiOZO`
-- 命名规范：`板块_页面_元素_名称`（如 `sys_decor_grape`、`article_chenshe_img_chensheng`）
-- 资源分类：`images/general/`（通用图片）、`images/culture_cards/`（文化卡片）、`audio/`（音频）等
-- **当前无 "Export Assets" 专用 Frame**，需在 Figma 中创建
+### 1.2 Figma 文件结构（新架构）
+
+**采用 通用组件文件 + 按课文分文件 结构：**
+
+```
+Figma 文件清单：
+├── 通用组件文件.fig          # Export Assets → images/general/ 等全局资源
+├── 论语·学而篇.fig           # Export Assets + 文字资源_论语·学而篇
+├── 论语·为政篇.fig           # Export Assets + 文字资源_论语·为政篇
+├── 劝学.fig                  # Export Assets + 文字资源_劝学
+└── ...                       # 每个课文一个独立 Figma 文件
+```
+
+**每个文件内部结构：**
+```
+Export Assets（顶层 Frame）
+  ├── images/general/          # 子 Frame 名 = OSS 路径（通用文件）
+  ├── images/culture_cards/WEN_01/
+  │   ├── card_bg.png          # 图层名 = 文件名
+  │   └── card_1.png
+  ├── images/cover/
+  └── ...
+
+文字资源_论语·学而篇（顶层 Frame）
+  ├── knowledge_text           # TEXT 节点，name = JSON 字段名
+  ├── card_name                # TEXT 节点
+  └── card_desc                # TEXT 节点
+```
 
 ### 1.3 存在的差距
 - Figma 中未建立 Export Assets 专用容器 Frame
@@ -29,53 +54,56 @@
 ### 2.1 整体架构
 
 ```
-[Figma 设计文件]
+[Figma 文件]（通用组件文件 / 课文文件）
     │
-    ├── Export Assets Frame（根容器）
+    ├── Export Assets Frame（顶层 Frame）
     │   ├── images/general/（子 Frame = OSS 路径）
     │   │   ├── home_bg.png（图层 = 文件名）
-    │   │   ├── login_bg.png
     │   │   └── ...
     │   ├── images/culture_cards/WEN_01/
-    │   │   ├── card_1.png
     │   │   └── ...
-    │   ├── audio/
-    │   │   └── bgm.mp3
+    │   └── ...
+    │
+    ├── 文字资源_论语·学而篇 Frame（顶层 Frame）
+    │   ├── knowledge_text（TEXT 节点）
     │   └── ...
     │
     ▼
-[后端同步服务]（POST /api/figma/sync）
+[Figma 插件]（在任意文件中运行）
     │
-    ├── 1. 获取节点树（Figma REST API）
-    ├── 2. 解析 Export Assets 子 Frame → OSS 路径映射
-    ├── 3. 批量导出图片下载链接
-    ├── 4. 流式上传到阿里云 OSS（public-read）
+    ├── 扫描当前文件顶层 Frame：Export Assets + 文字资源_
+    ├── 导出图片（PNG/SVG）+ 读取文字（JSON）
+    ▼
+[后端 API]（POST /api/assets/upload）
+    │
+    ├── MD5 比对（相同跳过）
+    ├── 上传到 OSS（public-read）
+    ├── 更新 version.json
     │
     ▼
 [阿里云 OSS 桶]
     │
-    ├── images/general/home_bg.png（CDN 加速）
-    ├── images/culture_cards/WEN_01/card_1.png
+    ├── images/general/home_bg.png
+    ├── images/culture_cards/WEN_01/card_bg.png
+    ├── data/texts/文字资源_论语·学而篇.json
     └── ...
     │
     ▼
-[前端应用]（通过 VITE_OSS_BASE_URL 引用）
+[前端应用]（通过 VITE_OSS_BASE_URL + ?t=timestamp 引用）
 ```
 
 ### 2.2 数据流
 
 ```
-Figma 设计稿定稿
-    ↓ (设计师通知)
-开发人员触发同步 API
-    ↓ (POST /api/figma/sync { fileKey, depth, format, scale })
-后端解析节点树 → 解析子 Frame 名称 → OSS 路径
+Figma 设计稿定稿（通用文件 / 课文文件）
+    ↓ (设计师打开 Figma 文件 → 运行插件)
+插件扫描当前文件顶层 Frame
     ↓
-批量导出图片 → 获取下载链接 → 流式上传到 OSS
+显示变更列表 → 设计师确认 → 点击同步
+    ↓ (POST /api/assets/upload)
+后端 MD5 比对 → 上传 OSS → 更新 version.json
     ↓
-返回同步报告（成功/失败列表）
-    ↓
-前端更新资源引用 → 部署
+前端通过 ?t=timestamp 自动刷新缓存
 ```
 
 ### 2.3 Figma 命名约定
@@ -84,10 +112,19 @@ Figma 设计稿定稿
 |--------------|--------------|------|
 | `images/general/` | `oss://{bucket}/images/general/` | 通用图片（首页背景、登录背景等） |
 | `images/culture_cards/WEN_01/` | `oss://{bucket}/images/culture_cards/WEN_01/` | 文化卡片图片 |
+| `images/cover/` | `oss://{bucket}/images/cover/` | 封面图片 |
 | `audio/` | `oss://{bucket}/audio/` | 音频文件 |
 | `video/` | `oss://{bucket}/video/` | 视频文件 |
+| `文字资源_论语·学而篇` | `oss://{bucket}/data/texts/文字资源_论语·学而篇.json` | 文字资源 JSON |
 
 图层命名规则：`{文件名}.{扩展名}`（如 `home_bg.png`、`card_1.png`）
+
+资源类型映射：
+
+| 资源类型 | Figma 顶层 Frame | 导出产物 | OSS 路径示例 |
+|---------|-----------------|---------|-------------|
+| 图片 | Export Assets（子 Frame 按 OSS 路径命名） | PNG/SVG 文件 | `images/culture_cards/WEN_01/card_bg.png` |
+| 文字 | 文字资源_{名称} | JSON 文件 | `data/texts/文字资源_论语·学而篇.json` |
 
 ## 三、实施步骤
 
@@ -107,10 +144,26 @@ Figma 设计稿定稿
 
 #### 方案说明
 ```
-Figma 设计稿 → 设计师打开 Figma 插件 → 扫描 Export Assets / 文字资源_ Frame
-    → 导出 PNG/SVG + 读取文字 → POST /api/assets/upload → 后端
-    → MD5 比对（相同跳过）→ 保存到本地 / 上传 OSS → 更新 version.json
+Figma 设计稿（通用文件 / 课文文件）
+    → 设计师打开文件 → 运行插件
+    → 扫描 Export Assets / 文字资源_ Frame
+    → 导出 PNG/SVG + 读取文字
+    → POST /api/assets/upload → 后端
+    → MD5 比对（相同跳过）→ 上传 OSS → 更新 version.json
 ```
+
+#### 插件通用性
+**同一个插件可在任意 Figma 文件中使用**，无需为每个文件单独开发：
+- 通用组件文件：扫描 Export Assets → 上传到 images/general/ 等
+- 课文文件：扫描 Export Assets + 文字资源_ → 上传到对应路径
+- 插件根据 Frame 命名自动路由到正确的 OSS 路径
+
+#### 资源类型映射
+
+| 资源类型 | Figma 顶层 Frame | 导出产物 | OSS 路径示例 |
+|---------|-----------------|---------|-------------|
+| 图片 | Export Assets（子 Frame 按 OSS 路径命名） | PNG/SVG 文件 | `images/culture_cards/WEN_01/card_bg.png` |
+| 文字 | 文字资源_论语·学而篇 | JSON 文件 | `data/texts/文字资源_论语·学而篇.json` |
 
 #### 后端 API 端点
 | 方法 | 路径 | 功能 |
@@ -130,11 +183,14 @@ Figma 设计稿 → 设计师打开 Figma 插件 → 扫描 Export Assets / 文�
 - [x] `figma-plugin/ui.html` - 插件 UI（变更列表 + 同步按钮）
 - [x] `src/utils/asset.ts` - 前端版本戳支持（`?t=lastSyncAt`）
 
-### 阶段 3：部署与使用
-- [ ] 设计师打开 Figma → 插件 → 文言文资源同步
-- [ ] 配置后端 API 地址
-- [ ] 扫描 Export Assets Frame → 确认变更列表 → 点击同步
-- [ ] 在 `文字资源_WEN_01_culture_cards` Frame 中编辑文字
+### 阶段 3：设计师使用流程
+- [ ] 设计师在 Figma 中按约定创建文件结构：
+  - 通用组件文件 → Export Assets（images/general/ 子 Frame）
+  - 课文文件 → Export Assets + 文字资源_{课文名} Frame
+- [ ] 安装插件：Figma → Plugins → Development → Import plugin from manifest → 选择 `figma-plugin/manifest.json`
+- [ ] 打开任意课文文件/通用文件 → 运行插件
+- [ ] 配置后端 API 地址（默认 `https://api.classicalab.cn`）
+- [ ] 扫描 Export Assets / 文字资源_ Frame → 确认变更列表 → 点击同步
 - [ ] 同步后前端自动通过 `?t=timestamp` 刷新缓存
 
 ### 阶段 4：CI/CD 集成
@@ -179,10 +235,11 @@ Figma 设计稿 → 设计师打开 Figma 插件 → 扫描 Export Assets / 文�
 | 前端版本戳 | `asset.ts` | `getAssetUrlWithVersion()` 自动拼接 `?t=timestamp` |
 
 ### 6.2 受限项（需设计师配合）
-- **文化卡片资源**：`public/images/culture_cards/` 目录为空，需设计师在 Figma 中创建 Export Assets Frame 后通过插件同步
-- **文化卡片 JSON**：`image_file` 字段均为 "文字"，需在 Figma 中创建 `文字资源_` Frame 后通过插件同步
+- **文化卡片资源**：`public/images/culture_cards/` 目录为空，需设计师在课文 Figma 文件中创建 Export Assets Frame 后通过插件同步
+- **文化卡片 JSON**：`image_file` 字段均为 "文字"，需在 Figma 课文文件中创建 `文字资源_` Frame 后通过插件同步
 - **VITE_OSS_BASE_URL**：生产环境需配置环境变量
 - **Figma 插件安装**：需在 Figma 中通过 `Plugins → Development → Import plugin from manifest` 加载
+- **Figma 文件创建**：需按新架构创建通用组件文件和各课文文件，并在每个文件中建立 Export Assets / 文字资源_ Frame
 
 ## 七、风险与注意事项
 

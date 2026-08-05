@@ -1,15 +1,23 @@
 /**
  * 文言文预习平台 - Figma 资源同步插件
  *
+ * 架构说明：
+ *   - 通用组件文件：一个 Figma 文件，Export Assets 内放 images/general/ 等全局资源
+ *   - 按课文分文件：每个课文一个 Figma 文件，每个文件包含 Export Assets + 文字资源_ Frame
+ *   - 插件通用：同一个插件可在任意课文/通用文件中使用
+ *
  * 功能：
- * 1. 扫描当前页中名为 "Export Assets" 的 Frame
- * 2. 扫描 "文字资源_" 开头的 Frame
- * 3. 按子 Frame 命名解析 OSS 路径，导出 PNG/SVG
- * 4. 读取文字资源 TextNode.characters 生成 JSON
- * 5. 显示变更列表，发送到后端 API
+ * 1. 扫描当前文件顶层 Frame：Export Assets（图片）和 文字资源_（文字）
+ * 2. 子 Frame 命名决定 OSS 路径，导出 PNG/SVG
+ * 3. 读取文字资源 TextNode.characters 生成 JSON
+ * 4. 显示变更列表，发送到后端 API
  *
  * 使用方式：
- *   在 Figma 中运行插件 → 自动扫描 → 显示变更列表 → 确认同步
+ *   在 Figma 中打开任意课文文件/通用文件 → 运行插件 → 自动扫描 → 确认同步
+ *
+ * OSS 路径规则：
+ *   - 图片：Export Assets → 子 Frame 名即为 OSS 路径（如 images/culture_cards/WEN_01/card_bg.png）
+ *   - 文字：文字资源_xxx Frame → data/texts/文字资源_xxx.json
  */
 
 // 后端 API 地址（可在插件 UI 中配置）
@@ -78,7 +86,7 @@ async function main() {
     }
     figma.ui.postMessage({
       type: 'no-assets',
-      message: '未找到 Export Assets 或 文字资源_ Frame\n请在当前页面中创建并命名相应的 Frame。',
+      message: '未找到 Export Assets 或 文字资源_ Frame\n请在当前文件中创建以下 Frame：\n\n1. Export Assets（图片资源，子 Frame 名即 OSS 路径）\n2. 文字资源_{名称}（文字资源，导出为 JSON）',
     })
     return
   }
@@ -138,16 +146,12 @@ function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
 
 /**
  * 扫描文字资源 Frame 下的文本节点
- * Frame 命名格式：文字资源_{wenId}_{resourceName}
+ * Frame 命名格式：文字资源_{名称}（如 文字资源_论语·学而篇）
  * 子节点命名格式：{field_name}（如 knowledge_text, card_name）
+ * 导出路径：data/texts/文字资源_{名称}.json
  */
 function scanTextFrame(frame: FrameNode): AssetItem[] {
   const assets: AssetItem[] = []
-
-  // 解析 Frame 名称：文字资源_WEN_01_culture_cards
-  const nameParts = frame.name.replace('文字资源_', '').split('_')
-  const wenId = nameParts[0] || ''
-  const resourceName = nameParts.slice(1).join('_') || 'culture_cards'
 
   // 构建 JSON 对象
   const jsonData: Record<string, any> = {}
@@ -181,16 +185,14 @@ function scanTextFrame(frame: FrameNode): AssetItem[] {
   }
 
   if (Object.keys(jsonData).length > 0) {
-    // 添加 text_id
-    jsonData.text_id = wenId
-
-    // 生成 JSON 文件
+    // 使用 Frame 完整名称作为 JSON 文件名
+    const jsonFileName = `${frame.name}.json`
     const jsonContent = JSON.stringify(jsonData, null, 2)
-    const ossPath = `data/${resourceName}/${wenId}.json`
+    const ossPath = `data/texts/${jsonFileName}`
 
     assets.push({
       ossPath,
-      fileName: `${wenId}.json`,
+      fileName: jsonFileName,
       type: ASSET_TYPE.TEXT,
       nodeId: frame.id,
       content: jsonContent,
