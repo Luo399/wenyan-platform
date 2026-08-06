@@ -98,5 +98,10 @@ project_structure.txt
 # OSS tool output
 ossutil_output/
 
+# Figma plugin build artifacts
+figma-plugin/node_modules/
+figma-plugin/code.js
+figma-plugin/*.tsbuildinfo
+
 # Personal config files（仅忽略根目录下的 config，不影响 backend/src/config/）
 /config

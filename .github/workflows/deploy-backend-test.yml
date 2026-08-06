@@ -6,6 +6,7 @@ on:
       - feature-1
     paths:
       - 'backend/**'
+      - 'figma-plugin/**'
       - '.github/workflows/deploy-backend-test.yml'
 
 jobs:
