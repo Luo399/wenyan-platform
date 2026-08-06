@@ -194,9 +194,11 @@ Figma 设计稿（通用文件 / 课文文件）
 - [ ] 同步后前端自动通过 `?t=timestamp` 刷新缓存
 
 ### 阶段 4：CI/CD 集成
-- [ ] 在 GitHub Actions 中添加 Figma 同步步骤
-- [ ] 设计变更自动触发同步
-- [ ] 同步失败自动告警
+- [x] 创建 figma-plugin 构建配置（package.json + tsconfig.json）
+- [x] 在 GitHub Actions CI Checks 中添加 figma-plugin-check job（类型检查 + 构建验证）
+- [x] 在 deploy-backend-test.yml 中添加 figma-plugin/** 路径触发后端部署联动
+- [x] 添加 .gitignore 规则忽略 figma-plugin 构建产物
+- [x] 推送 feature-1 验证 Actions 全部通过（CI Checks + 后端部署 + 前端部署）
 
 ## 四、前端问题验收清单
 

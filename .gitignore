@@ -70,6 +70,10 @@ public/images/
 *.gif
 *.svg
 
+# 但 docs/images/ 下的文档配图需要纳入版本控制
+!docs/images/
+!docs/images/**
+
 # Data files
 public/data/
 public/*.json
@@ -102,6 +106,13 @@ ossutil_output/
 figma-plugin/node_modules/
 figma-plugin/code.js
 figma-plugin/*.tsbuildinfo
+figma-plugin/__tests__/*.js
+
+# 临时工具与调试脚本（不入库）
+oss-tools/
+ciplinewenyan-platform
+check_pr_runs.py
+check_runs*.py
 
 # Personal config files（仅忽略根目录下的 config，不影响 backend/src/config/）
 /config
