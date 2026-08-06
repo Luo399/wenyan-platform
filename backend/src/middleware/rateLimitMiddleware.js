@@ -1,9 +1,11 @@
 const rateLimit = require('express-rate-limit');
 const config = require('../config/app');
 
+// S10: config.rateLimit.* 已由 config/app.js 统一 Number() 转换，此处无需再兜底字符串
+
 const globalLimiter = rateLimit({
-  windowMs: config.rateLimit.globalWindowMs || 15 * 60 * 1000,
-  max: config.rateLimit.globalRequests || 100,
+  windowMs: config.rateLimit.globalWindowMs,
+  max: config.rateLimit.globalRequests,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -14,8 +16,8 @@ const globalLimiter = rateLimit({
 });
 
 const submitRateLimit = rateLimit({
-  windowMs: config.rateLimit.submitWindowMs || 60 * 1000,
-  max: config.rateLimit.submitRequests || 10,
+  windowMs: config.rateLimit.submitWindowMs,
+  max: config.rateLimit.submitRequests,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -37,8 +39,22 @@ const queryRateLimit = rateLimit({
   }
 });
 
+// S05: 登录接口专用限流，防暴力破解（默认 5 次/分钟/IP）
+const loginRateLimit = rateLimit({
+  windowMs: config.rateLimit.loginWindowMs,
+  max: config.rateLimit.loginRequests,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'RATE_LIMIT_EXCEEDED',
+    message: '登录尝试过于频繁，请稍后再试'
+  }
+});
+
 module.exports = {
   globalLimiter,
   submitRateLimit,
   queryRateLimit,
+  loginRateLimit,
 };

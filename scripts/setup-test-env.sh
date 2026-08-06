@@ -26,7 +26,6 @@ echo "=== 配置测试环境变量 ==="
 cat > "$TEST_PATH/backend/.env" << 'EOF'
 PORT=3001
 CORS_ORIGIN=https://test.classicalab.cn
-AUTH_SECRET=test-secret-key-change-in-production
 EOF
 
 echo "测试环境配置完成"

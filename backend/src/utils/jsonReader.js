@@ -3,6 +3,23 @@ const path = require('path');
 const config = require('../config/app');
 const logger = require('./logger');
 
+/**
+ * S03: textId / wenId 白名单校验，防止路径穿越
+ * 允许 字母、数字、下划线、连字符；目录名（dirName）固定来自服务端代码，不受用户输入控制
+ */
+const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function assertSafeTextId(id) {
+  if (!id || typeof id !== 'string' || !SAFE_ID_PATTERN.test(id)) {
+    const err = new Error('Invalid textId format');
+    err.statusCode = 400;
+    err.error = 'INVALID_TEXT_ID';
+    err.message = 'textId 格式非法';
+    throw err;
+  }
+  return id;
+}
+
 function safeParse(str) {
   try {
     return JSON.parse(str);
@@ -25,6 +42,14 @@ function readJsonFile(filePath) {
 }
 
 function getDataFilePath(dirName, fileName) {
+  // S03: 用户可控的文件名（textId/wenId）必须通过白名单校验；空串用于目录枚举（getTextList）
+  if (fileName && !SAFE_ID_PATTERN.test(fileName.replace(/\.json$/, ''))) {
+    const err = new Error('Invalid textId format');
+    err.statusCode = 400;
+    err.error = 'INVALID_TEXT_ID';
+    err.message = 'textId 格式非法';
+    throw err;
+  }
   return path.join(config.data.basePath, dirName, fileName);
 }
 
@@ -95,6 +120,10 @@ function findAnswerInData(data, questionId) {
 }
 
 function getCorrectAnswerFromJson(questionId, wenId) {
+  // S03: wenId 用户可控（来自 req.params），先做白名单校验再拼接路径
+  if (!SAFE_ID_PATTERN.test(wenId || '')) {
+    return null;
+  }
   const searchPaths = [
     ...['level1_quiz', 'level2_quiz', 'level3_adaptive_quiz'].map(
       (dir) => getDataFilePath(dir, `${wenId}.json`)

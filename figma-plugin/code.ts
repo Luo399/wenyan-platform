@@ -20,6 +20,26 @@
  *   - 文字：文字资源_xxx Frame → data/texts/文字资源_xxx.json
  */
 
+// ============ 日志工具 ============
+// 在 Figma 中通过 Plugins → Development → Open Console 查看日志
+const LOG_PREFIX = '[文言文同步]'
+
+function logDebug(...args: any[]) {
+  console.log(LOG_PREFIX, '[调试]', ...args)
+}
+
+function logInfo(...args: any[]) {
+  console.log(LOG_PREFIX, '[信息]', ...args)
+}
+
+function logWarn(...args: any[]) {
+  console.warn(LOG_PREFIX, '[警告]', ...args)
+}
+
+function logError(...args: any[]) {
+  console.error(LOG_PREFIX, '[错误]', ...args)
+}
+
 // 后端 API 地址（可在插件 UI 中配置）
 const DEFAULT_API_BASE = 'https://api.classicalab.cn'
 
@@ -55,32 +75,49 @@ interface ExportResult {
  * 主入口
  */
 async function main() {
+  logInfo('===== 开始扫描 =====')
+  logInfo('当前文件页面:', figma.currentPage.name)
+
   // 获取当前页面
   const page = figma.currentPage
   const allAssets: AssetItem[] = []
 
   // 1. 扫描 Export Assets Frame
+  logDebug('查找 Export Assets Frame...')
   const exportAssetsFrame = page.findOne(
     (node) => node.type === 'FRAME' && node.name === 'Export Assets',
   ) as FrameNode | null
 
   if (exportAssetsFrame) {
+    logInfo('找到 Export Assets Frame，开始扫描子节点')
     const assets = scanExportAssetsFrame(exportAssetsFrame)
+    logInfo(`Export Assets 扫描完成，找到 ${assets.length} 个图片资源`)
     allAssets.push(...assets)
+  } else {
+    logWarn('未找到 Export Assets Frame（如不需要图片资源可忽略）')
   }
 
   // 2. 扫描 文字资源_ Frame
+  logDebug('查找文字资源 Frame...')
   const textFrames = page.findAll(
     (node) => node.type === 'FRAME' && node.name.startsWith('文字资源_'),
   ) as FrameNode[]
 
-  for (const frame of textFrames) {
-    const textAssets = scanTextFrame(frame)
-    allAssets.push(...textAssets)
+  if (textFrames.length > 0) {
+    logInfo(`找到 ${textFrames.length} 个文字资源 Frame: ${textFrames.map((f) => f.name).join(', ')}`)
+    for (const frame of textFrames) {
+      logDebug(`扫描文字资源 Frame: "${frame.name}"`)
+      const textAssets = scanTextFrame(frame)
+      logInfo(`文字资源 "${frame.name}" 扫描完成，导出 ${textAssets.length} 个 JSON`)
+      allAssets.push(...textAssets)
+    }
+  } else {
+    logWarn('未找到文字资源 Frame（如不需要文字资源可忽略）')
   }
 
   // 3. 如果没有找到任何资源，提示用户
   if (allAssets.length === 0) {
+    logWarn('未找到任何资源，扫描结束')
     figma.ui.onmessage = () => {
       figma.closePlugin()
     }
@@ -91,7 +128,13 @@ async function main() {
     return
   }
 
-  // 4. 发送到 UI 显示变更列表
+  // 4. 汇总日志
+  const imageCount = allAssets.filter((a) => a.type === 'image').length
+  const textCount = allAssets.filter((a) => a.type === 'text').length
+  logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字） =====`)
+  allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '🖼' : '📝'} ${a.ossPath}`))
+
+  // 5. 发送到 UI 显示变更列表
   figma.ui.postMessage({
     type: 'scan-result',
     assets: allAssets,
@@ -105,42 +148,78 @@ async function main() {
  */
 function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
   const assets: AssetItem[] = []
+  const totalChildren = frame.children?.length || 0
+  logDebug(`scanExportAssetsFrame: 共 ${totalChildren} 个子节点`)
 
-  if (!frame.children) return assets
+  if (!frame.children) {
+    logWarn('Export Assets Frame 没有子节点')
+    return assets
+  }
 
-  for (const child of frame.children) {
-    if (child.type !== 'FRAME') continue
+  for (let i = 0; i < frame.children.length; i++) {
+    const child = frame.children[i]
+    if (child.type !== 'FRAME') {
+      logDebug(`  [${i + 1}/${totalChildren}] 跳过非 Frame 节点: "${child.name}" (${child.type})`)
+      continue
+    }
 
     // 子 Frame 名称作为 OSS 路径
     const ossPath = child.name.replace(/\/$/, '')
+    const subChildrenCount = child.children?.length || 0
+    logDebug(`  [${i + 1}/${totalChildren}] 处理目录 "${child.name}" → OSS "${ossPath}" (${subChildrenCount} 个子节点)`)
 
-    if (!child.children) continue
+    if (!child.children) {
+      logDebug(`    → 空目录，跳过`)
+      continue
+    }
+
+    let hitCount = 0
+    let skipCount = 0
 
     for (const leaf of child.children) {
       // 跳过非可视节点
-      if (leaf.visible === false) continue
+      if (leaf.visible === false) {
+        logDebug(`    → [跳过] 隐藏图层: "${leaf.name}"`)
+        skipCount++
+        continue
+      }
 
       // 只处理可导出的图层类型
       const exportableTypes = [
         'RECTANGLE', 'ELLIPSE', 'VECTOR', 'IMAGE',
         'INSTANCE', 'COMPONENT', 'FRAME', 'GROUP',
       ]
-      if (!exportableTypes.includes(leaf.type)) continue
+      if (!exportableTypes.includes(leaf.type)) {
+        logDebug(`    → [跳过] 不支持的图层类型(${leaf.type}): "${leaf.name}"`)
+        skipCount++
+        continue
+      }
 
       // 文件名 = 图层名（必须包含扩展名）
       const fileName = leaf.name
-      if (!/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fileName)) continue
+      if (!/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fileName)) {
+        logDebug(`    → [跳过] 无有效图片扩展名: "${leaf.name}"`)
+        skipCount++
+        continue
+      }
+
+      const fullPath = `${ossPath}/${fileName}`
+      logDebug(`    → [命中] ${leaf.type} → "${fullPath}"`)
+      hitCount++
 
       assets.push({
-        ossPath: `${ossPath}/${fileName}`,
+        ossPath: fullPath,
         fileName,
         type: ASSET_TYPE.IMAGE,
         nodeId: leaf.id,
         status: 'new',
       })
     }
+
+    logDebug(`    → 目录 "${child.name}" 处理完成: ${hitCount} 命中, ${skipCount} 跳过`)
   }
 
+  logDebug(`scanExportAssetsFrame 完成: 共 ${assets.length} 个图片资源`)
   return assets
 }
 
@@ -152,43 +231,63 @@ function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
  */
 function scanTextFrame(frame: FrameNode): AssetItem[] {
   const assets: AssetItem[] = []
+  logDebug(`scanTextFrame: "${frame.name}" (${frame.children?.length || 0} 个子节点)`)
 
   // 构建 JSON 对象
   const jsonData: Record<string, any> = {}
 
-  if (!frame.children) return assets
+  if (!frame.children) {
+    logWarn(`文字资源 Frame "${frame.name}" 没有子节点`)
+    return assets
+  }
 
   for (const child of frame.children) {
     if (child.type === 'TEXT') {
       // 直接读取 TextNode.characters
       const textNode = child as TextNode
       const fieldName = child.name
-      jsonData[fieldName] = textNode.characters
+      const textContent = textNode.characters
+      jsonData[fieldName] = textContent
+      logDebug(`  [字段] "${fieldName}" = "${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}" (${textContent.length} 字)`)
     } else if (child.type === 'FRAME') {
       // 子 Frame 中的文本节点
       const subFrame = child as FrameNode
+      logDebug(`  [子组] 发现子 Frame: "${child.name}" (${subFrame.children?.length || 0} 个子节点)`)
       const subData: Record<string, any> = {}
 
       if (subFrame.children) {
         for (const subChild of subFrame.children) {
           if (subChild.type === 'TEXT') {
             const subText = subChild as TextNode
-            subData[subChild.name] = subText.characters
+            const subFieldName = subChild.name
+            const subTextContent = subText.characters
+            subData[subFieldName] = subTextContent
+            logDebug(`    [子字段] "${subFieldName}" = "${subTextContent.substring(0, 50)}${subTextContent.length > 50 ? '...' : ''}"`)
+          } else {
+            logDebug(`    [跳过] 非 TEXT 子节点: "${subChild.name}" (${subChild.type})`)
           }
         }
+      } else {
+        logDebug(`    [跳过] 子 Frame 为空`)
       }
 
       if (Object.keys(subData).length > 0) {
         jsonData[child.name] = subData
+        logDebug(`  [子组] "${child.name}" 已添加 ${Object.keys(subData).length} 个字段`)
+      } else {
+        logDebug(`  [子组] "${child.name}" 无有效文本字段，跳过`)
       }
+    } else {
+      logDebug(`  [跳过] 非 TEXT/FRAME 节点: "${child.name}" (${child.type})`)
     }
   }
 
   if (Object.keys(jsonData).length > 0) {
-    // 使用 Frame 完整名称作为 JSON 文件名
     const jsonFileName = `${frame.name}.json`
+    const fieldCount = Object.keys(jsonData).length
     const jsonContent = JSON.stringify(jsonData, null, 2)
     const ossPath = `data/texts/${jsonFileName}`
+    logInfo(`  [产出] JSON: "${ossPath}" (${fieldCount} 个字段, ${jsonContent.length} 字节)`)
 
     assets.push({
       ossPath,
@@ -198,6 +297,8 @@ function scanTextFrame(frame: FrameNode): AssetItem[] {
       content: jsonContent,
       status: 'new',
     })
+  } else {
+    logWarn(`文字资源 Frame "${frame.name}" 未提取到任何文本内容`)
   }
 
   return assets
@@ -207,6 +308,9 @@ function scanTextFrame(frame: FrameNode): AssetItem[] {
  * 导出图片资源
  */
 async function exportImageAsset(node: SceneNode, ossPath: string): Promise<ExportResult> {
+  const fileName = ossPath.split('/').pop() || ossPath
+  logDebug(`开始导出图片: "${ossPath}"`)
+
   try {
     // 判断导出格式
     const isSvg = ossPath.toLowerCase().endsWith('.svg')
@@ -216,19 +320,22 @@ async function exportImageAsset(node: SceneNode, ossPath: string): Promise<Expor
       ? { format: 'SVG' }
       : { format: 'PNG', constraint: { type: 'SCALE', value: 2 } }
 
+    logDebug(`  导出格式: ${format}, 节点类型: ${node.type}`)
     const data = await node.exportAsync(exportOptions)
+    logInfo(`  导出成功: "${fileName}" (${data.byteLength} bytes, ${format})`)
 
     return {
       ossPath,
-      fileName: ossPath.split('/').pop() || ossPath,
+      fileName,
       type: ASSET_TYPE.IMAGE,
       size: data.byteLength,
       status: 'uploaded',
     }
   } catch (err) {
+    logError(`导出失败: "${ossPath}"`, err)
     return {
       ossPath,
-      fileName: ossPath.split('/').pop() || ossPath,
+      fileName,
       type: ASSET_TYPE.IMAGE,
       size: 0,
       status: 'error',
@@ -242,10 +349,15 @@ async function exportImageAsset(node: SceneNode, ossPath: string): Promise<Expor
  */
 async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<ExportResult[]> {
   const results: ExportResult[] = []
+  logInfo(`===== 开始上传: ${assets.length} 个资源到 ${apiBase} =====`)
 
-  for (const asset of assets) {
+  for (let i = 0; i < assets.length; i++) {
+    const asset = assets[i]
+    logDebug(`[${i + 1}/${assets.length}] 处理: "${asset.ossPath}" (${asset.type})`)
+
     if (asset.type === ASSET_TYPE.TEXT) {
       // 文字资源：JSON 格式上传
+      logDebug(`  → 文字资源, JSON 长度: ${asset.content?.length || 0} 字符`)
       try {
         const response = await fetch(`${apiBase}/api/assets/upload`, {
           method: 'POST',
@@ -262,6 +374,7 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
 
         const result = await response.json()
         if (result.success) {
+          logInfo(`  ✅ 上传成功: "${asset.ossPath}"`)
           results.push({
             ossPath: asset.ossPath,
             fileName: asset.fileName,
@@ -270,6 +383,7 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
             status: 'uploaded',
           })
         } else {
+          logError(`  ❌ 上传失败: "${asset.ossPath}" - ${result.message || '未知错误'}`)
           results.push({
             ossPath: asset.ossPath,
             fileName: asset.fileName,
@@ -280,6 +394,7 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
           })
         }
       } catch (err) {
+        logError(`  ❌ 网络错误: "${asset.ossPath}"`, err)
         results.push({
           ossPath: asset.ossPath,
           fileName: asset.fileName,
@@ -291,9 +406,11 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
       }
     } else {
       // 图片资源：导出后再上传
+      logDebug(`  → 图片资源, 查找节点 ID: ${asset.nodeId}`)
       try {
         const node = figma.getNodeById(asset.nodeId) as SceneNode
         if (!node) {
+          logError(`  ❌ 节点不存在: "${asset.ossPath}" (nodeId: ${asset.nodeId})`)
           results.push({
             ossPath: asset.ossPath,
             fileName: asset.fileName,
@@ -312,6 +429,7 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
         }
 
         // 上传到后端
+        logDebug(`  → 导出成功，准备上传到后端`)
         const formData = new FormData()
         const blob = new Blob([new Uint8Array(await (node.exportAsync(
           asset.ossPath.toLowerCase().endsWith('.svg')
@@ -330,11 +448,13 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
 
         const result = await response.json()
         if (result.success) {
+          logInfo(`  ✅ 上传成功: "${asset.ossPath}" (${exportResult.size} bytes)`)
           results.push({
             ...exportResult,
             status: 'uploaded',
           })
         } else {
+          logError(`  ❌ 上传失败: "${asset.ossPath}" - ${result.message || '未知错误'}`)
           results.push({
             ...exportResult,
             status: 'error',
@@ -342,6 +462,7 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
           })
         }
       } catch (err) {
+        logError(`  ❌ 处理失败: "${asset.ossPath}"`, err)
         results.push({
           ossPath: asset.ossPath,
           fileName: asset.fileName,
@@ -353,6 +474,11 @@ async function uploadToBackend(apiBase: string, assets: AssetItem[]): Promise<Ex
       }
     }
   }
+
+  const uploaded = results.filter((r) => r.status === 'uploaded').length
+  const skipped = results.filter((r) => r.status === 'skipped').length
+  const errors = results.filter((r) => r.status === 'error').length
+  logInfo(`===== 上传完成: ${uploaded} 成功, ${skipped} 跳过, ${errors} 失败 =====`)
 
   return results
 }

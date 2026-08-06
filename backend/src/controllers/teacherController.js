@@ -10,6 +10,10 @@ const {
   resetStudentPassword,
 } = require('../services/authService')
 
+// 安全：查询学生时剔除 password_hash（哈希不应暴露给前端）
+const STUDENT_SAFE_COLUMNS =
+  'id, student_id, student_name, class_code, school_id, must_reset_password, created_by, created_at, updated_at'
+
 // 参数校验 Schema
 const createStudentSchema = z.object({
   student_id: z
@@ -64,7 +68,7 @@ async function listStudents(req, res) {
       return res.status(200).json({ success: true, data: [] })
     }
     const { class_code } = req.query
-    let sql = `SELECT * FROM students WHERE class_code IN (${classCodes
+    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE class_code IN (${classCodes
       .map(() => '?')
       .join(',')})`
     const params = [...classCodes]
@@ -94,7 +98,7 @@ async function getStudent(req, res) {
     if (!teacherId) {
       return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
     }
-    const student = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [
+    const student = await dbGet(db, `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`, [
       req.params.studentId])
     if (!student) {
       return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
@@ -267,7 +271,7 @@ async function updateStudent(req, res) {
     if (!teacherId) {
       return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
     }
-    const student = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [req.params.studentId])
+    const student = await dbGet(db, `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`, [req.params.studentId])
     if (!student) {
       return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
     }
@@ -304,7 +308,7 @@ async function resetStudent(req, res) {
     if (!teacherId) {
       return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
     }
-    const student = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [req.params.studentId])
+    const student = await dbGet(db, `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`, [req.params.studentId])
     if (!student) {
       return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
     }

@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const helmet = require('helmet');
 
 const config = require('./config/app');
@@ -10,28 +9,54 @@ const { registerRoutes } = require('./routes');
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler');
 const { globalLimiter } = require('./middleware/rateLimitMiddleware');
 
+// S11: 进程级错误兜底——未捕获的 Promise rejection 记录日志；
+// uncaughtException 记录后退出，由 PM2 自动重启，避免进程处于未知状态
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection:', {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  })
+})
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', {
+    message: err.message,
+    stack: err.stack,
+  })
+  process.exit(1)
+})
+
 function createApp() {
   const app = express();
 
+  // S08: 开启 CSP（后端仅提供 JSON API，默认严格策略禁止加载外部内容）
   app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'self'"],
+      },
+    },
     crossOriginEmbedderPolicy: false,
   }));
 
+  // S06: CORS 白名单数组化（config.cors.origin 为 parseOriginList 解析后的数组）
+  // fixedOrigins 为始终放行的前端 / OSS 看板域名；API 域名（api.classicalab.cn）不作为 CORS 源
   app.use(cors({
     origin: function (origin, callback) {
-      // 始终允许的域名（包括 OSS 独立看板桶）
       const fixedOrigins = [
         'https://www.classicalab.cn',
-        'https://api.classicalab.cn',
         'https://classicalab.cn',
         'https://needed-data.classicalab.cn',
         'http://needed-data.classicalab.cn',
       ]
-      // 合并 CORS_ORIGIN 环境变量中配置的域名
-      const configuredOrigins = config.cors.origin === '*'
-        ? []
-        : config.cors.origin.split(',').map(s => s.trim()).filter(Boolean)
+      // 合并 CORS_ORIGIN 环境变量中配置的域名（config 已解析为数组）
+      const configuredOrigins = Array.isArray(config.cors.origin) ? config.cors.origin : []
       const allowedOrigins = [...new Set([...fixedOrigins, ...configuredOrigins])]
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true)
@@ -40,7 +65,7 @@ function createApp() {
       }
     },
     methods: config.cors.methods,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: config.cors.allowedHeaders,
     exposedHeaders: ['Authorization'],
     credentials: config.cors.credentials,
     preflightContinue: false,
@@ -59,7 +84,8 @@ function createApp() {
 
   app.use(requestLogger);
 
-  app.use(express.static(path.join(__dirname, '../public')));
+  // 移除 express.static：backend/public 下的 admin.html 无鉴权裸奔（已下线），
+  // 后端仅提供 JSON API，静态资源统一由前端 OSS 承载
 
   registerRoutes(app);
 
@@ -92,12 +118,16 @@ async function startServer() {
         // R90: 鉴权统一走 JWT，HMAC AUTH_SECRET 已弃用
       });
 
-      process.on('SIGINT', () => {
+      // SIGINT / SIGTERM 统一优雅停机（PM2 reload 发送 SIGINT）
+      const shutdown = (signal) => {
+        logger.info(`收到 ${signal}，正在关闭服务器...`);
         server.close(() => {
           logger.info('服务器已关闭');
           process.exit(0);
         });
-      });
+      };
+      process.on('SIGINT', () => shutdown('SIGINT'));
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
     }
 
     return app;

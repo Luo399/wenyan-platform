@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "dom"],
+    "strict": true,
+    "noEmit": false,
+    "outDir": ".",
+    "rootDir": ".",
+    "declaration": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["@figma/plugin-typings"]
+  },
+  "include": ["code.ts"],
+  "exclude": ["node_modules", "__tests__"]
+}
