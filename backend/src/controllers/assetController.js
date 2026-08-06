@@ -11,6 +11,85 @@ const assetService = require('../services/assetService')
 const config = require('../config/app')
 const logger = require('../utils/logger')
 
+// ============ 上传白名单校验常量 ============
+/** 允许的 JSON 数据目录（与前端消费路径一一对应，白名单之外一律拒绝） */
+const ALLOWED_JSON_DIRS = [
+  'data/culture_cards',
+  'data/text_basic_info',
+  'data/level1_quiz',
+  'data/texts',
+]
+/** 允许的图片/媒体根目录（子路径由 Figma Frame 命名决定） */
+const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
+/** 单个 JSON 文件大小上限（500KB） */
+const MAX_JSON_SIZE = 500 * 1024
+/** 允许的图片扩展名 */
+const ALLOWED_IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg)$/i
+
+/**
+ * 校验上传文件（字段白名单 + 路径白名单 + 防路径穿越 + JSON 合法性 + 大小限制）
+ * @returns {{ ok: true } | { ok: false, reason: string, message: string }}
+ */
+function validateUpload(files) {
+  if (!Array.isArray(files) || files.length === 0) {
+    return { ok: false, reason: 'MISSING_FILES', message: '未提供文件数据' }
+  }
+
+  for (const f of files) {
+    // 字段白名单：只读取允许的字段，忽略多余字段
+    const ossPath = String(f.ossPath || '')
+    const type = String(f.type || '')
+
+    // 防路径穿越 + 空路径
+    if (!ossPath || ossPath.includes('..')) {
+      return { ok: false, reason: 'PATH_TRAVERSAL', message: `非法路径: ${ossPath}` }
+    }
+
+    if (type === 'text') {
+      // 文字资源：必须在 JSON 白名单目录内
+      if (!ALLOWED_JSON_DIRS.some((dir) => ossPath.startsWith(`${dir}/`))) {
+        return { ok: false, reason: 'PATH_NOT_ALLOWED', message: `路径不在白名单内: ${ossPath}` }
+      }
+      // 内容合法性：必须是可解析的 JSON 对象（非数组/标量）
+      const content = Buffer.isBuffer(f.buffer)
+        ? f.buffer.toString('utf-8')
+        : String(f.content || '')
+      try {
+        const parsed = JSON.parse(content)
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          return { ok: false, reason: 'INVALID_JSON', message: `JSON 顶层必须是对象: ${ossPath}` }
+        }
+      } catch {
+        return { ok: false, reason: 'INVALID_JSON', message: `JSON 无法解析: ${ossPath}` }
+      }
+      // 大小限制
+      if (Buffer.byteLength(content, 'utf-8') > MAX_JSON_SIZE) {
+        return {
+          ok: false,
+          reason: 'TOO_LARGE',
+          message: `JSON 超过 ${MAX_JSON_SIZE / 1024}KB: ${ossPath}`,
+        }
+      }
+    } else if (type === 'image') {
+      // 图片资源：必须在媒体根目录内，且扩展名合法
+      if (!ALLOWED_MEDIA_DIRS.some((dir) => ossPath.startsWith(dir))) {
+        return {
+          ok: false,
+          reason: 'PATH_NOT_ALLOWED',
+          message: `图片路径不在白名单内: ${ossPath}`,
+        }
+      }
+      if (!ALLOWED_IMAGE_EXT.test(ossPath)) {
+        return { ok: false, reason: 'INVALID_EXT', message: `图片扩展名不合法: ${ossPath}` }
+      }
+    } else {
+      return { ok: false, reason: 'INVALID_TYPE', message: `未知资源类型: ${type}` }
+    }
+  }
+
+  return { ok: true }
+}
+
 /**
  * 获取 OSS 配置
  */
@@ -88,6 +167,17 @@ async function upload(req, res, next) {
     }
 
     logger.info(`[AssetController] 收到 ${files.length} 个文件上传请求`)
+
+    // 白名单校验：路径/类型/内容合法性，任一文件违规则整体拒绝
+    const validation = validateUpload(files)
+    if (!validation.ok) {
+      logger.warn(`[AssetController] 上传被拒绝: ${validation.reason} - ${validation.message}`)
+      return res.status(400).json({
+        success: false,
+        error: validation.reason,
+        message: validation.message,
+      })
+    }
 
     // 批量处理
     const results = await assetService.batchProcessFiles(files, ossConfig)

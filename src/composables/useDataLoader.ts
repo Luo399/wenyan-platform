@@ -229,7 +229,10 @@ interface UseDataLoaderOptions<T> {
   transform?: (raw: unknown) => T // 数据转换函数
 }
 
-export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoaderOptions<T> = {}) {
+export function useDataLoader<T>(
+  urlGetter: () => string | Promise<string>,
+  options: UseDataLoaderOptions<T> = {},
+) {
   const {
     autoLoad = true,
     timeout = 10000,
@@ -270,7 +273,8 @@ export function useDataLoader<T>(urlGetter: () => string, options: UseDataLoader
   }
 
   async function load() {
-    const url = urlGetter()
+    // R107: 支持异步 urlGetter（如 getDataUrlWithVersion 需要先取版本戳）
+    const url = await urlGetter()
     debugLog('[useDataLoader] 开始加载:', url)
 
     // 阶段 1：前置检查（URL 为空、缓存命中）—— 命中则直接 return

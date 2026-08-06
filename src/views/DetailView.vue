@@ -6,6 +6,7 @@ import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { getDataUrlWithVersion } from '@/utils/asset'
 import type { RawTextBasicInfo } from '@/adapters/wordListAdapter'
 import { getWenId } from '@/utils/wenUtils'
 import { debugWarn } from '@/utils/debug'
@@ -27,13 +28,15 @@ function handleGoPrev() {
 }
 
 // 加载课文基础数据（title / author / original_text 等），走统一 useDataLoader 分层
-const basicInfoUrl = `/data/text_basic_info/${wenId}.json`
+// R107: 通过 getDataUrlWithVersion 生成 OSS 地址并携带版本戳，资源更新后自动刷新缓存
+const basicInfoUrl = (): Promise<string> =>
+  getDataUrlWithVersion('text_basic_info', `${wenId}.json`)
 const {
   loading,
   error,
   data: basicInfo,
   retry,
-} = useDataLoader<RawTextBasicInfo>(() => basicInfoUrl, {
+} = useDataLoader<RawTextBasicInfo>(basicInfoUrl, {
   timeout: 10000,
   retryCount: 1,
   cacheEnabled: true,

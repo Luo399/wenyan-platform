@@ -135,12 +135,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, reactive } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
-import { ossBase } from '@/utils/asset'
+import { ossBase, getDataUrlWithVersion } from '@/utils/asset'
 
 interface CultureCard {
   text_id: string
@@ -184,14 +184,20 @@ const emit = defineEmits<{
   (e: 'video-click', card: CultureCard): void
 }>()
 
-const cardsUrl = computed(() => `${props.baseUrl}${props.wenId}.json`)
+const cardsUrl = (): string | Promise<string> => {
+  // 外部显式传入自定义 baseUrl 时沿用（兼容旧用法）；否则走版本戳 OSS 地址
+  if (props.baseUrl !== '/data/culture_cards/') {
+    return `${props.baseUrl}${props.wenId}.json`
+  }
+  return getDataUrlWithVersion('culture_cards', `${props.wenId}.json`)
+}
 
 const {
   loading,
   error,
   data: cardsData,
   retry,
-} = useDataLoader<CardsData>(() => cardsUrl.value, {
+} = useDataLoader<CardsData>(cardsUrl, {
   autoLoad: props.autoLoad,
   timeout: 10000,
   retryCount: 1,

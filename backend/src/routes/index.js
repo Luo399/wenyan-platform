@@ -175,13 +175,15 @@ function registerRoutes(app) {
   app.post('/api/figma/sync', figmaController.sync)
   app.get('/api/figma/status', figmaController.status)
 
-  // ============ 资产同步（Figma 插件 → 后端 → OSS） ============
+  // ============ 资产同步（Figma 插件 → 后端 → OSS，需同步令牌鉴权） ============
   const assetController = require('../controllers/assetController')
+  const assetAuthMiddleware = require('../middleware/assetAuthMiddleware')
   const multer = require('multer')
   const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
-  app.post('/api/assets/upload', uploadMiddleware.any(), assetController.upload)
+  // 上传与预签名写入必须校验 ASSET_SYNC_TOKEN；版本信息读取无需鉴权（前端读取）
+  app.post('/api/assets/upload', assetAuthMiddleware, uploadMiddleware.any(), assetController.upload)
+  app.post('/api/assets/pre-signed', assetAuthMiddleware, assetController.generatePreSignedUrl)
   app.get('/api/assets/version', assetController.getVersion)
-  app.post('/api/assets/pre-signed', assetController.generatePreSignedUrl)
 }
 
 module.exports = {

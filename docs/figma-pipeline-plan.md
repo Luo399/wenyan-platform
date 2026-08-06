@@ -251,3 +251,99 @@ Figma 设计稿（通用文件 / 课文文件）
 4. **命名一致性**：Figma 图层命名必须与代码中文件名一致（`{文件名}.{扩展名}`）
 5. **大文件处理**：视频/音频文件建议直接上传 OSS，不走 Figma 插件导出
 6. **version.json 持久化**：存储在 `backend/data/version.json`，部署后需保留
+
+## 八、JSON 数据流方案（Figma 上传 → OSS 安全存储 → 前端展示）
+
+### 8.1 全链路概览
+
+```
+[Figma 插件]（设计师运行）
+  │  扫描 文字资源_{类型}_{ID} Frame → 生成 JSON
+  │  POST /api/assets/upload（携带 X-API-Key 同步令牌）
+  ▼
+[后端 Node/Express]
+  │  assetAuthMiddleware.js：令牌校验（ASSET_SYNC_TOKEN，比对失败返回 401）
+  │  assetController.js：字段白名单 + 路径白名单 + JSON 合法性 + 大小校验
+  │  assetService.js：MD5 比对（相同跳过）→ 上传 OSS（public-read）→ 更新 version.json
+  ▼
+[阿里云 OSS 桶]
+  │  data/culture_cards/WEN_01.json
+  │  data/text_basic_info/WEN_01.json
+  │  data/level1_quiz/WEN_01.json
+  │  data/texts/文字资源_论语·学而篇.json
+  ▼
+[前端应用]
+  │  useDataLoader → getDataUrlWithVersion('data', 'culture_cards/WEN_01.json')
+  │  自动拼接 ?t=lastSyncAt（version.json 时间戳）→ 缓存自动刷新
+  ▼
+[页面组件] CultureCards / WordList / Level1Quiz / 课文正文
+```
+
+### 8.2 JSON 命名约定（Figma Frame → OSS 路径映射）
+
+| Figma 顶层 Frame 命名 | 目标 OSS 路径 | 前端消费方 |
+|----------------------|--------------|-----------|
+| `文字资源_culture_cards_WEN_01` | `data/culture_cards/WEN_01.json` | CultureCards.vue |
+| `文字资源_text_basic_info_WEN_01` | `data/text_basic_info/WEN_01.json` | 课文基础信息 |
+| `文字资源_level1_quiz_WEN_01` | `data/level1_quiz/WEN_01.json` | Level1Quiz.vue |
+| `文字资源_论语·学而篇` | `data/texts/文字资源_论语·学而篇.json` | 课文正文（兼容旧结构） |
+
+解析规则（插件端）：
+
+```
+Frame 名去掉前缀「文字资源_」 → 剩余部分即相对路径（不含扩展名）
+拼接为 data/{剩余部分}.json
+例：文字资源_culture_cards_WEN_01 → data/culture_cards/WEN_01.json
+```
+
+后端路径白名单（`assetController.js` 中 `ALLOWED_JSON_DIRS`）与上述目录一一对应，**白名单之外的目录一律拒绝**。
+
+### 8.3 安全与合法性（后端三层校验）
+
+| 层级 | 校验项 | 实现位置 | 违规处理 |
+|------|--------|---------|---------|
+| 鉴权 | `X-API-Key` 头必须等于 `ASSET_SYNC_TOKEN` | `assetAuthMiddleware.js` | 401 `UNAUTHORIZED` |
+| 路径 | 必须以白名单目录为前缀 + 禁止 `..` 穿越 | `assetController.js validateUpload` | 403 `PATH_NOT_ALLOWED` / `PATH_TRAVERSAL` |
+| 内容 | JSON 可解析 + 顶层为对象（非数组/标量）+ ≤ 500KB | `assetController.js validateUpload` | 400 `INVALID_JSON` / `TOO_LARGE` |
+
+补充说明：
+
+- **请求体白名单**：上传接口只接受 `{ files: [{ ossPath, type, content, encoding }] }` 字段，其余字段丢弃。
+- **令牌管理**：`ASSET_SYNC_TOKEN` 通过 GitHub Secrets 注入服务器 `.env`，不进入 git；令牌泄漏后可在服务器 `.env` 更换并 `pm2 reload` 生效。
+- **版本戳**：每次成功上传后 `version.json` 的 `lastSyncAt` 更新，前端基于时间戳刷新 CDN/浏览器缓存。
+
+### 8.4 前端展示链路（版本戳缓存刷新）
+
+```
+src/utils/asset.ts
+  getDataUrl(dir, fileName)
+    → 开发：/data/{dir}/{fileName}（本地 public/data）
+    → 生产：{ossBase}/data/{dir}/{fileName}（OSS）
+  getDataUrlWithVersion(dir, fileName)
+    → 追加 ?t={lastSyncAt}（从 /api/assets/version 获取，10 分钟缓存）
+
+src/composables/useDataLoader.ts
+  → 统一走 getDataUrlWithVersion 拉取 JSON
+  → 失败自动重试（3 次），成功后写入内存缓存
+```
+
+消费组件改造示例（以 CultureCards 为例）：
+
+```typescript
+// 改造前：固定路径，无版本戳，缓存无法刷新
+const url = '/data/culture_cards/WEN_01.json'
+
+// 改造后：走 useDataLoader + 版本戳，资源更新后自动刷新
+const { data } = useDataLoader(() => getDataUrlWithVersion('data', 'culture_cards/WEN_01.json'))
+```
+
+### 8.5 实施清单
+
+- [x] 方案文档：JSON 数据流章节（本节）
+- [ ] 后端：`assetAuthMiddleware.js` 令牌鉴权
+- [ ] 后端：`assetController.js` 字段/路径/内容白名单校验
+- [ ] 后端：`.env.example` 增加 `ASSET_SYNC_TOKEN`
+- [ ] 插件：`code.ts` 解析目标路径 + 请求携带 `X-API-Key`
+- [ ] 插件：`ui.html` 增加同步令牌输入框
+- [ ] 前端：`asset.ts` 增加 `getDataUrl` / `getDataUrlWithVersion`
+- [ ] 前端：`useDataLoader` 接入版本戳并改造消费组件

@@ -232,7 +232,8 @@ function scanTextFrame(frame) {
         const jsonFileName = `${frame.name}.json`;
         const fieldCount = Object.keys(jsonData).length;
         const jsonContent = JSON.stringify(jsonData, null, 2);
-        const ossPath = `data/texts/${jsonFileName}`;
+        // 解析目标路径：使导出的 JSON 路径与前端消费路径一致（见方案文档 §8.2）
+        const ossPath = resolveTextOssPath(frame.name);
         logInfo(`  [产出] JSON: "${ossPath}" (${fieldCount} 个字段, ${jsonContent.length} 字节)`);
         assets.push({
             ossPath,
@@ -247,6 +248,23 @@ function scanTextFrame(frame) {
         logWarn(`文字资源 Frame "${frame.name}" 未提取到任何文本内容`);
     }
     return assets;
+}
+/**
+ * 解析文字资源 Frame 的目标 OSS 路径
+ *
+ * 新命名（推荐）：Frame 名 = 相对路径，如 文字资源_culture_cards_WEN_01
+ *   → data/culture_cards/WEN_01.json
+ * 旧命名（兼容）：文字资源_论语·学而篇
+ *   → data/texts/文字资源_论语·学而篇.json
+ */
+function resolveTextOssPath(frameName) {
+    const rest = frameName.replace(/^文字资源_/, '').replace(/\/+$/, '');
+    if (rest.includes('/')) {
+        // 新命名：去掉前缀后的剩余部分即相对目录，拼接为 data/{相对路径}.json
+        return `data/${rest}.json`;
+    }
+    // 旧命名兼容：保持 data/texts/ 目录结构
+    return `data/texts/${frameName}.json`;
 }
 /**
  * 导出图片资源
@@ -286,10 +304,14 @@ async function exportImageAsset(node, ossPath) {
 }
 /**
  * 上传到后端
+ * @param apiBase 后端 API 地址
+ * @param assets 待上传的资源列表
+ * @param apiToken 同步令牌（X-API-Key），为空则尝试免令牌（仅测试环境）
  */
-async function uploadToBackend(apiBase, assets) {
+async function uploadToBackend(apiBase, assets, apiToken) {
     const results = [];
     logInfo(`===== 开始上传: ${assets.length} 个资源到 ${apiBase} =====`);
+    logDebug(`令牌配置: ${apiToken ? '已配置（长度 ' + apiToken.length + '）' : '未配置，走免令牌通道'}`);
     for (let i = 0; i < assets.length; i++) {
         const asset = assets[i];
         logDebug(`[${i + 1}/${assets.length}] 处理: "${asset.ossPath}" (${asset.type})`);
@@ -299,7 +321,10 @@ async function uploadToBackend(apiBase, assets) {
             try {
                 const response = await fetch(`${apiBase}/api/assets/upload`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(apiToken ? { 'X-API-Key': apiToken } : {}),
+                    },
                     body: JSON.stringify({
                         files: [{
                                 ossPath: asset.ossPath,
@@ -377,6 +402,7 @@ async function uploadToBackend(apiBase, assets) {
                 formData.append('type', ASSET_TYPE.IMAGE);
                 const response = await fetch(`${apiBase}/api/assets/upload`, {
                     method: 'POST',
+                    headers: apiToken ? { 'X-API-Key': apiToken } : {},
                     body: formData,
                 });
                 const result = await response.json();
@@ -419,10 +445,11 @@ async function uploadToBackend(apiBase, assets) {
 figma.ui.onmessage = async (msg) => {
     if (msg.type === 'sync') {
         const apiBase = msg.apiBase || DEFAULT_API_BASE;
+        const apiToken = typeof msg.apiToken === 'string' ? msg.apiToken.trim() : '';
         const assets = msg.assets;
         figma.ui.postMessage({ type: 'sync-start', total: assets.length });
         try {
-            const results = await uploadToBackend(apiBase, assets);
+            const results = await uploadToBackend(apiBase, assets, apiToken);
             const uploaded = results.filter((r) => r.status === 'uploaded').length;
             const skipped = results.filter((r) => r.status === 'skipped').length;
             const errors = results.filter((r) => r.status === 'error');

@@ -273,6 +273,11 @@
     <input type="text" id="apiBase" value="https://api.classicalab.cn" placeholder="后端 API 地址" />
   </div>
 
+  <div class="config-row">
+    <label>同步令牌：</label>
+    <input type="password" id="apiToken" placeholder="ASSET_SYNC_TOKEN（可选，未配置时走免令牌通道）" />
+  </div>
+
   <div id="statusBar" class="status-bar">
     <span class="status-text">扫描中...</span>
     <span class="count">0 个资源</span>
@@ -470,9 +475,10 @@
       if (isSyncing || assets.length === 0) return
 
       const apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
+      const apiToken = document.getElementById('apiToken').value.trim()
 
       // 发送消息到主线程
-      parent.postMessage({ pluginMessage: { type: 'sync', assets, apiBase } }, '*')
+      parent.postMessage({ pluginMessage: { type: 'sync', assets, apiBase, apiToken } }, '*')
     }
 
     function handleCancel() {
