@@ -1,0 +1,20 @@
+[33m124b7c3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtrae/agent-05-frontend-arch[m[33m, [m[1;31morigin/trae/agent-05-frontend-arch[m[33m)[m feat:
+[33m48d0284[m feat(src/components/MultiRoleReading.vue):
+[33m1449013[m[33m ([m[1;31morigin/refactor/routing-05[m[33m, [m[1;32mrefactor/routing-05[m[33m)[m Merge remote-tracking branch 'origin/feature-1' into refactor/routing-05
+[33m27a994e[m refactor(routing): 完成 02 路由与鉴权专题 R01-R05
+[33mc1d0826[m[33m ([m[1;32mfeature-1[m[33m)[m feat:
+[33m7c4d8fc[m feat:
+[33mead59fd[m feat(backend):
+[33m05d96d6[m Merge trae/agent-round2-08-fixup: mark R01-R11 done + R07 grep pass
+[33mdda115a[m[33m ([m[1;32mtrae/agent-round2-08-fixup[m[33m)[m feat(src/views/AnswerQueryView.vue):
+[33mefb7493[m refactor(round3): P2/P3 质量改善批次（R53,R58-R116 共 46 项）(#61)
+[33mc136d46[m docs(refactor): 同步 09 第三轮 P1 批次4 状态（R55/R56/R57/R62/R64/R109）
+[33me575ca4[m fix(round3): P1 bug + a11y fixes (R55,R56,R57,R62,R64,R109) (#60)
+[33m28cd3af[m docs(refactor): 同步 09 第三轮审查 P1 状态（R75/R82/R91/R96/R98/R101/R104/R115）
+[33m1ce71ee[m refactor(data-pipeline): 07 ?? - ??????(7/7 ??)(#59)
+[33m6d537aa[m fix(round3): P1 security & data integrity fixes (R91,R96,R98,R101,R104,R115) (#58)
+[33m719853d[m Merge trae/agent-round2-08: 08-frontend-round2 P0-P3 fixes
+[33m79fcd9a[m[33m ([m[1;32mtrae/agent-round2-08[m[33m)[m feat:
+[33m1f9a3bf[m[33m ([m[1;31morigin/trae/agent-round2-08[m[33m)[m feat(src/components/AdaptQuiz.vue):
+[33m8b77ab3[m[33m ([m[1;32mtrae/agent-round3-p1[m[33m, [m[1;32mtrae/agent-backend-03[m[33m, [m[1;32mtrae/agent-arch-05[m[33m)[m docs(refactor): 更新 R90/R103 合并后的第三轮审查进度 (#56)
+[33m3bc1c17[m security(R103): login 加密码凭证，修复学号免密登录漏洞 (#55)

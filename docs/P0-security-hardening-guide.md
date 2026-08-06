@@ -91,9 +91,12 @@ bash scripts/baota-nginx-proxy-setup.sh
 
 ---
 
-### 步骤 5：生成并配置 AUTH_SECRET 密钥
+### 步骤 5：生成并配置 JWT_SECRET 密钥
 
-**⚠️ 重要：此密钥用于前后端 HMAC 签名，必须保密！**
+**⚠️ 重要：此密钥用于签发/校验 JWT，必须保密！**
+
+> R90 变更：HMAC 签名方案（AUTH_SECRET）已废弃，后端鉴权统一走 JWT Bearer token。
+> 请配置 `JWT_SECRET`（生产环境缺失时服务会拒绝启动）。
 
 **生成密钥**：
 ```bash
@@ -101,22 +104,16 @@ bash scripts/baota-nginx-proxy-setup.sh
 openssl rand -hex 32
 ```
 
-**示例输出**：
-```
-b894c78e09e3eea8c2c1622b04333c8a789b0489feb0f5ece9341dfecb37b1ae
-```
-
 **配置位置**：
 
 | 位置 | 配置项 | 值 |
 |-----|-------|---|
-| 后端 `/www/wwwroot/wenyan-platform/backend/.env` | `AUTH_SECRET` | `<生成的密钥>` |
-| GitHub Secrets（生产） | `VITE_AUTH_SECRET` | `<同一个密钥>` |
-| `.env.production`（构建时注入） | `VITE_AUTH_SECRET` | `<同一个密钥>` |
+| 后端 `/www/wwwroot/wenyan-platform/backend/.env` | `JWT_SECRET` | `<生成的密钥>` |
+| GitHub Secrets（生产） | `JWT_SECRET` | `<同一个密钥>` |
+| GitHub Secrets（测试） | `TEST_JWT_SECRET` | `<测试密钥>` |
 
 **注意**：
-- 密钥**必须前后端一致**
-- 不要提交到 git（`.env` 文件已在 `.gitignore` 中）
+- 密钥**不要提交到 git**（`.env` 文件已在 `.gitignore` 中）
 
 ---
 
@@ -130,8 +127,8 @@ PORT=3000
 # CORS 白名单（逗号分隔）
 CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn
 
-# HMAC 签名密钥（与前端保持一致）
-AUTH_SECRET=<你的密钥>
+# JWT 签名密钥（生产环境必填，缺失时服务启动失败）
+JWT_SECRET=<你的密钥>
 ```
 
 ---
@@ -166,7 +163,7 @@ pm2 status
 
 | 信息 | 你需要做的 |
 |-----|----------|
-| AUTH_SECRET 密钥 | 生成一个，配置到后端 .env + GitHub Secrets |
+| JWT_SECRET 密钥 | 生成一个，配置到后端 .env + GitHub Secrets |
 | 服务器公网 IP | 获取后配置 DNS A 记录 |
 | CORS 白名单域名 | 确认是否包含 www 子域 |
 

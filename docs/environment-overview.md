@@ -84,8 +84,8 @@
 | `OSS_BUCKET` | 生产 OSS 桶名 | deploy-frontend.yml |
 | `OSS_TEST_BUCKET` | 测试 OSS 桶名 | deploy-frontend-test.yml |
 | `OSS_REGION` | OSS 地域 | 所有 frontend workflow |
-| `AUTH_SECRET` | 后端 HMAC 密钥 | deploy-backend.yml |
-| `VITE_AUTH_SECRET` | 前端 HMAC 密钥 | 所有 frontend workflow |
+| `JWT_SECRET` | 后端 JWT 签名密钥（生产） | deploy-backend.yml |
+| `TEST_JWT_SECRET` | 测试环境 JWT 密钥 | deploy-backend-test.yml |
 
 ### 2.2 需要补充的 Secrets
 
@@ -103,7 +103,7 @@
 |------|---------|---------|---------|
 | `VITE_OSS_BASE_URL` | `http://localhost:5173` | OSS test 桶域名 | `https://classicalab.cn` |
 | `VITE_API_BASE_URL` | `http://localhost:3000` | `http://test-api.classicalab.cn` | `https://api.classicalab.cn` |
-| `VITE_AUTH_SECRET` | - | GitHub Secret | GitHub Secret |
+<!-- R90: VITE_AUTH_SECRET 已移除，前端不持有服务端密钥 -->
 
 ### 3.2 后端环境变量
 
@@ -111,7 +111,7 @@
 |------|---------|---------|
 | `PORT` | 3001 | 3000 |
 | `CORS_ORIGIN` | `http://test.classicalab.cn` | `https://www.classicalab.cn,https://classicalab.cn` |
-| `AUTH_SECRET` | `wenyan-test-secret-2024` | GitHub Secret |
+| `JWT_SECRET` | 测试环境可省略（dev 密钥兜底） | GitHub Secret（生产必填） |
 
 ### 3.3 配置文件位置
 
