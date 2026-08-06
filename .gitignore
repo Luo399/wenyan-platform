@@ -104,9 +104,9 @@ ossutil_output/
 
 # Figma plugin build artifacts
 figma-plugin/node_modules/
-figma-plugin/code.js
 figma-plugin/*.tsbuildinfo
 figma-plugin/__tests__/*.js
+# 注意：figma-plugin/code.js 必须入库（manifest.json 的 main 指向它，Figma 加载插件必需）
 
 # 临时工具与调试脚本（不入库）
 oss-tools/

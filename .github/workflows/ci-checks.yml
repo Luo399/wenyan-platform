@@ -133,3 +133,13 @@ jobs:
           npm run build
           echo "=== Build result ==="
           ls -la code.js 2>/dev/null || echo "code.js not found (build may have output elsewhere)"
+
+      - name: Verify code.js is in sync with code.ts
+        # code.js 是入库产物（Figma 直接加载它），必须与 code.ts 保持同步
+        run: |
+          cd figma-plugin
+          if ! git diff --exit-code -- code.js; then
+            echo "::error::code.js 与 code.ts 不同步：请本地运行 npm run build 并提交更新后的 figma-plugin/code.js"
+            exit 1
+          fi
+          echo "✅ code.js 与 code.ts 同步"
