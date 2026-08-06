@@ -116,3 +116,17 @@ check_runs*.py
 
 # Personal config files（仅忽略根目录下的 config，不影响 backend/src/config/）
 /config
+
+# Test report artifacts（E07：测试报告是产物，不应入 git）
+test-report*.json
+test-report*.md
+backend/tests/test-report*.json
+backend/tests/test-report*.md
+
+# Windows system files（E16）
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# IDE history
+.history/
