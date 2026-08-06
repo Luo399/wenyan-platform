@@ -18,31 +18,31 @@ const mockUsers: Record<
 > = {
   '1': {
     id: '1',
-    username: '闃夸緷濞滃瓬',
+    username: '阿依娜孜',
     student_id: '1',
     role: 'student',
   },
   '2': {
     id: '2',
-    username: '绗戝皵棣欐槑',
+    username: '笑尔香明',
     student_id: '2',
     role: 'student',
   },
   '3': {
     id: '3',
-    username: '涓夋槦闄�',
+    username: '三星阁',
     student_id: '3',
     role: 'student',
   },
   '4': {
     id: '4',
-    username: '鍥涘ぇ姝�',
+    username: '四大姝',
     student_id: '4',
     role: 'student',
   },
   '5': {
     id: '5',
-    username: '浜斿皬闃冲厜',
+    username: '五小阳光',
     student_id: '5',
     role: 'student',
   },
