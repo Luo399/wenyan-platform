@@ -45,7 +45,7 @@ jobs:
             git reset --hard "origin/$BRANCH"
 
             echo "=== [2/7] Create .env file ==="
-            printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\nAUTH_SECRET=wenyan-test-secret-2024\n' > "$BACKEND_PATH/.env"
+            printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\nJWT_SECRET=${{ secrets.TEST_JWT_SECRET }}\n' > "$BACKEND_PATH/.env"
             cat "$BACKEND_PATH/.env"
 
             echo "=== [3/7] Install dependencies ==="

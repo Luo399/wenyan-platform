@@ -20,7 +20,6 @@ echo "=== 3. 创建/修复 .env 文件 ==="
 cat > "$BACKEND_PATH/.env" << 'EOF'
 PORT=3001
 CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn
-AUTH_SECRET=wenyan-test-secret-2024
 EOF
 echo "已创建 .env 文件:"
 cat "$BACKEND_PATH/.env"

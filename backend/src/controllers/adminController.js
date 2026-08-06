@@ -50,7 +50,9 @@ async function listStudents(req, res) {
       conditions.push('school_id = ?')
       params.push(school_id)
     }
-    let sql = `SELECT s.*, sch.name AS school_name
+    // 安全：剔除 password_hash（哈希不应暴露给前端）
+    let sql = `SELECT s.id, s.student_id, s.student_name, s.class_code, s.school_id,
+      s.must_reset_password, s.created_by, s.created_at, s.updated_at, sch.name AS school_name
       FROM students s LEFT JOIN schools sch ON sch.id = s.school_id`
     if (conditions.length > 0) {
       sql += ' WHERE ' + conditions.join(' AND ')

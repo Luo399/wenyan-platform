@@ -1,7 +1,11 @@
 const { db } = require('../config/database');
 
+// 安全：查询学生时不返回 password_hash（哈希也不应暴露给前端）
+const STUDENT_SAFE_COLUMNS =
+  'id, student_id, student_name, class_code, school_id, must_reset_password, created_by, created_at, updated_at';
+
 function getStudentList(req, res) {
-  db.all('SELECT * FROM students ORDER BY created_at DESC', (err, rows) => {
+  db.all(`SELECT ${STUDENT_SAFE_COLUMNS} FROM students ORDER BY created_at DESC`, (err, rows) => {
     if (err) {
       return res.status(500).json({
         success: false,
@@ -20,7 +24,7 @@ function getStudentList(req, res) {
 function getStudent(req, res) {
   const { studentId } = req.params;
 
-  db.get('SELECT * FROM students WHERE student_id = ?', [studentId], (err, row) => {
+  db.get(`SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`, [studentId], (err, row) => {
     if (err) {
       return res.status(500).json({
         success: false,

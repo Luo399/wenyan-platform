@@ -11,7 +11,7 @@ const exportController = require('../controllers/exportController')
 const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
 const figmaController = require('../controllers/figmaController')
-const { submitRateLimit, queryRateLimit } = require('../middleware/rateLimitMiddleware')
+const { submitRateLimit, queryRateLimit, loginRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
   app.get('/', (req, res) => {
@@ -26,7 +26,6 @@ function registerRoutes(app) {
         'POST /api/auth/teacher/login': '教师登录',
         'POST /api/auth/admin/login': '管理员登录',
         'POST /api/auth/change-password': '登录态自助修改密码（三角色通用）',
-        'POST /api/auth/login': '[已弃用，兼容旧前端] 学号免密登录',
         // 教师侧 - 学生管理
         'GET    /api/teacher/students': '教师查自己班级学生列表',
         'GET    /api/teacher/students/:studentId': '教师查单个学生',
@@ -41,13 +40,13 @@ function registerRoutes(app) {
         'GET    /api/admin/students': '管理员查所有学生',
         'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为123456',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
-        // 兼容旧前端
-        'POST /api/students': '[兼容] 学生注册',
+        // 遗留学生管理（S04：已加 teacher/admin 鉴权，待前端迁移后下线）
+        'POST /api/students': '[鉴权] 学生注册',
         'POST /api/submit': '提交答案',
-        'GET /api/students': '[兼容] 查询所有学生',
-        'GET /api/students/:studentId': '[兼容] 按学生ID查询',
-        'PUT /api/students/:studentId': '[兼容] 修改学生信息',
-        'DELETE /api/students/:studentId': '[兼容] 删除学生',
+        'GET /api/students': '[鉴权] 查询所有学生',
+        'GET /api/students/:studentId': '[鉴权] 按学生ID查询',
+        'PUT /api/students/:studentId': '[鉴权] 修改学生信息',
+        'DELETE /api/students/:studentId': '[鉴权] 删除学生',
         'GET /api/answers/wen/:wenId': '按文言文ID查询答题',
         'GET /api/answers/student/:studentId': '按学生ID查询答题',
         'GET /api/texts/:textId/basic-info': '文本基础信息',
@@ -66,19 +65,18 @@ function registerRoutes(app) {
   })
 
   // ============ 认证接口 ============
-  app.post('/api/auth/student/login', authController.studentLogin)
+  // S05: 登录接口统一挂 loginRateLimit 防暴力破解
+  app.post('/api/auth/student/login', loginRateLimit, authController.studentLogin)
   app.post('/api/auth/teacher/register', authController.teacherRegister)
-  app.post('/api/auth/teacher/login', authController.teacherLogin)
-  app.post('/api/auth/admin/login', authController.adminLogin)
+  app.post('/api/auth/teacher/login', loginRateLimit, authController.teacherLogin)
+  app.post('/api/auth/admin/login', loginRateLimit, authController.adminLogin)
   app.post(
     '/api/auth/change-password',
     requireAuthMiddleware,
     authController.changePassword,
   )
 
-  // 兼容旧前端：免密学号登录，给一个 student role 的 token（无密码校验）
-  // 但有必须密码的约束下，保留此接口需在后续前端升级后移除
-  app.post('/api/auth/login', authController.studentLogin)
+  // S04: 遗留免密登录接口已物理下线（前端 R103 已迁移到 /api/auth/student/login）
 
   // ============ 教师：学生管理 ============
   const teacherAuth = [requireAuthMiddleware, requireRole('teacher')]
@@ -110,12 +108,15 @@ function registerRoutes(app) {
   )
   app.get('/api/admin/password-resets', ...adminAuth, adminController.listPasswordResets)
 
-  // ============ 兼容旧前端：学生 CRUD 接口保留（无权限校验，后期可删） ============
-  app.get('/api/students', studentController.getStudentList)
-  app.get('/api/students/:studentId', studentController.getStudent)
-  app.post('/api/students', studentController.createStudent)
-  app.put('/api/students/:studentId', studentController.updateStudent)
-  app.delete('/api/students/:studentId', studentController.deleteStudent)
+  // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
+  // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
+  // 前端 AnswerQueryView 迁移完成后在 Phase 2 物理删除
+  const legacyStudentAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin'])]
+  app.get('/api/students', ...legacyStudentAuth, studentController.getStudentList)
+  app.get('/api/students/:studentId', ...legacyStudentAuth, studentController.getStudent)
+  app.post('/api/students', ...legacyStudentAuth, studentController.createStudent)
+  app.put('/api/students/:studentId', ...legacyStudentAuth, studentController.updateStudent)
+  app.delete('/api/students/:studentId', ...legacyStudentAuth, studentController.deleteStudent)
 
   // ============ 文本 ============
   app.get('/api/texts', textsController.getTextList)

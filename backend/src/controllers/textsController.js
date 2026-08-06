@@ -18,6 +18,14 @@ const logger = require('../utils/logger')
 function createTextHandler(serviceFn, dataName, responseFormatter = null) {
   return (req, res) => {
     const { textId } = req.params
+    // S03: textId 白名单校验，防止路径穿越
+    if (!/^[A-Za-z0-9_-]+$/.test(textId || '')) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_TEXT_ID',
+        message: 'textId 格式非法',
+      })
+    }
     const data = serviceFn(textId)
 
     if (data) {
@@ -79,6 +87,17 @@ function getTextsBatch(req, res) {
         success: false,
         error: 'INVALID_REQUEST',
         message: 'text_ids 必须是非空数组',
+      })
+    }
+
+    // S03: 批量接口同样校验 text_id 白名单
+    const SAFE_ID = /^[A-Za-z0-9_-]+$/
+    const invalid = text_ids.find((id) => typeof id !== 'string' || !SAFE_ID.test(id))
+    if (invalid !== undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_TEXT_ID',
+        message: `text_ids 含非法值: ${String(invalid)}`,
       })
     }
 
