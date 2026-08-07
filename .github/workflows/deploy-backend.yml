@@ -29,7 +29,7 @@ jobs:
 
       - name: Deploy to server
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
             PROD_PATH="${{ secrets.SERVER_PROJECT_PATH }}"
             BRANCH="main"
