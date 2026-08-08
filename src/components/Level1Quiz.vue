@@ -96,6 +96,7 @@ import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 import { appendQuizRecord } from '@/utils/localStorage'
+import { getDataUrlWithVersion } from '@/utils/asset'
 
 // ============================================================
 // R13: correct_answer 类型规范 + 归一化工具
@@ -144,14 +145,20 @@ const emit = defineEmits<{
   (e: 'complete', result: { correct: number; total: number }): void
 }>()
 
-const quizUrl = computed(() => `${props.baseUrl}${props.wenId}.json`)
+const quizUrl = (): string | Promise<string> => {
+  // 外部显式传入自定义 baseUrl 时沿用（兼容旧用法）；否则走版本戳 OSS 地址
+  if (props.baseUrl !== '/data/level1_quiz/') {
+    return `${props.baseUrl}${props.wenId}.json`
+  }
+  return getDataUrlWithVersion('level1_quiz', `${props.wenId}.json`)
+}
 
 const {
   loading,
   error,
   data: quizList,
   retry,
-} = useDataLoader<Level1QuizItem[]>(() => quizUrl.value, {
+} = useDataLoader<Level1QuizItem[]>(quizUrl, {
   autoLoad: props.autoLoad,
   timeout: 10000,
   retryCount: 1,

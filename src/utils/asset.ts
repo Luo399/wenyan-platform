@@ -148,6 +148,54 @@ export async function getAssetUrlWithVersion(
 }
 
 /**
+ * 获取 JSON 数据完整 URL
+ *
+ * @param dir - 数据目录，如 'culture_cards' | 'text_basic_info' | 'level1_quiz' | 'texts'
+ * @param fileName - 文件名（包含扩展名，如 'WEN_01.json'）
+ * @returns 完整数据 URL
+ *
+ * @example
+ * getDataUrl('culture_cards', 'WEN_01.json')
+ * // 开发环境 => /data/culture_cards/WEN_01.json
+ * // 生产环境 => https://oss-bucket/data/culture_cards/WEN_01.json
+ */
+export function getDataUrl(dir: string, fileName: string): string {
+  const base = ossBase ? `${ossBase}/data/${dir}` : `/data/${dir}`
+  return `${base}/${encodeURIComponent(fileName)}`
+}
+
+/**
+ * 获取带版本戳的 JSON 数据 URL（用于 CDN/浏览器缓存刷新）
+ *
+ * 自动从后端 version.json 获取 lastSyncAt 时间戳拼接到 URL 末尾，
+ * 版本戳有 10 分钟内存缓存，不会每次调用都发起网络请求。
+ *
+ * @param dir - 数据目录（同 getDataUrl）
+ * @param fileName - 文件名（包含扩展名）
+ * @returns Promise，解析为带版本戳的 URL
+ *
+ * @example
+ * await getDataUrlWithVersion('culture_cards', 'WEN_01.json')
+ * // => https://oss-bucket/data/culture_cards/WEN_01.json?t=2026-08-05T12:00:00.000Z
+ */
+export async function getDataUrlWithVersion(dir: string, fileName: string): Promise<string> {
+  const baseUrl = getDataUrl(dir, fileName)
+
+  // 开发环境或 OSS 未配置时不加版本戳（开发环境直接读 public/data 静态文件）
+  if (import.meta.env.DEV || !ossBase) {
+    return baseUrl
+  }
+
+  const timestamp = await fetchVersionTimestamp()
+  if (!timestamp) {
+    return baseUrl
+  }
+
+  const separator = baseUrl.includes('?') ? '&' : '?'
+  return `${baseUrl}${separator}t=${encodeURIComponent(timestamp)}`
+}
+
+/**
  * 强制刷新版本缓存（资源同步后调用）
  */
 export function refreshVersionCache(): void {

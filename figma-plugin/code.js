@@ -232,7 +232,8 @@ function scanTextFrame(frame) {
         const jsonFileName = `${frame.name}.json`;
         const fieldCount = Object.keys(jsonData).length;
         const jsonContent = JSON.stringify(jsonData, null, 2);
-        const ossPath = `data/texts/${jsonFileName}`;
+        // 解析目标路径：使导出的 JSON 路径与前端消费路径一致（见方案文档 §8.2）
+        const ossPath = resolveTextOssPath(frame.name);
         logInfo(`  [产出] JSON: "${ossPath}" (${fieldCount} 个字段, ${jsonContent.length} 字节)`);
         assets.push({
             ossPath,
@@ -249,203 +250,111 @@ function scanTextFrame(frame) {
     return assets;
 }
 /**
- * 导出图片资源
+ * 解析文字资源 Frame 的目标 OSS 路径
+ *
+ * 新命名（推荐）：Frame 名 = 相对路径，如 文字资源_culture_cards_WEN_01
+ *   → data/culture_cards/WEN_01.json
+ * 旧命名（兼容）：文字资源_论语·学而篇
+ *   → data/texts/文字资源_论语·学而篇.json
  */
-async function exportImageAsset(node, ossPath) {
-    const fileName = ossPath.split('/').pop() || ossPath;
-    logDebug(`开始导出图片: "${ossPath}"`);
-    try {
-        // 判断导出格式
-        const isSvg = ossPath.toLowerCase().endsWith('.svg');
-        const format = isSvg ? 'SVG' : 'PNG';
-        const exportOptions = isSvg
-            ? { format: 'SVG' }
-            : { format: 'PNG', constraint: { type: 'SCALE', value: 2 } };
-        logDebug(`  导出格式: ${format}, 节点类型: ${node.type}`);
-        const data = await node.exportAsync(exportOptions);
-        logInfo(`  导出成功: "${fileName}" (${data.byteLength} bytes, ${format})`);
-        return {
-            ossPath,
-            fileName,
-            type: ASSET_TYPE.IMAGE,
-            size: data.byteLength,
-            status: 'uploaded',
-        };
+function resolveTextOssPath(frameName) {
+    const rest = frameName.replace(/^文字资源_/, '').replace(/\/+$/, '');
+    if (rest.includes('/')) {
+        // 新命名：去掉前缀后的剩余部分即相对目录，拼接为 data/{相对路径}.json
+        return `data/${rest}.json`;
     }
-    catch (err) {
-        logError(`导出失败: "${ossPath}"`, err);
-        return {
-            ossPath,
-            fileName,
-            type: ASSET_TYPE.IMAGE,
-            size: 0,
-            status: 'error',
-            error: String(err),
-        };
-    }
+    // 旧命名兼容：保持 data/texts/ 目录结构
+    return `data/texts/${frameName}.json`;
 }
 /**
- * 上传到后端
+ * 导出所有图片节点，准备发往 UI 线程上传
+ *
+ * 架构说明：
+ *   - 主线程（code.ts）负责 Figma API 调用（如导出节点）
+ *   - UI 线程（ui.html）负责网络请求（支持 FormData / Blob 等浏览器 API）
+ *   - 二进制数据通过 postMessage 结构化克隆传递
  */
-async function uploadToBackend(apiBase, assets) {
-    const results = [];
-    logInfo(`===== 开始上传: ${assets.length} 个资源到 ${apiBase} =====`);
+async function prepareAssetsForUpload(assets) {
+    logInfo(`===== 准备导出: ${assets.length} 个资源 =====`);
+    const result = [];
     for (let i = 0; i < assets.length; i++) {
         const asset = assets[i];
         logDebug(`[${i + 1}/${assets.length}] 处理: "${asset.ossPath}" (${asset.type})`);
-        if (asset.type === ASSET_TYPE.TEXT) {
-            // 文字资源：JSON 格式上传
-            logDebug(`  → 文字资源, JSON 长度: ${asset.content?.length || 0} 字符`);
+        if (asset.type === ASSET_TYPE.IMAGE) {
+            // 图片资源：在主线程导出节点，二进制数据发往 UI 线程上传
             try {
-                const response = await fetch(`${apiBase}/api/assets/upload`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        files: [{
-                                ossPath: asset.ossPath,
-                                type: 'text',
-                                content: asset.content,
-                                encoding: 'utf-8',
-                            }],
-                    }),
-                });
-                const result = await response.json();
-                if (result.success) {
-                    logInfo(`  ✅ 上传成功: "${asset.ossPath}"`);
-                    results.push({
-                        ossPath: asset.ossPath,
-                        fileName: asset.fileName,
-                        type: ASSET_TYPE.TEXT,
-                        size: new Blob([asset.content || '']).size,
-                        status: 'uploaded',
-                    });
+                logDebug(`  → 导出图片节点 ID: ${asset.nodeId}`);
+                const node = await figma.getNodeByIdAsync(asset.nodeId);
+                if (!node) {
+                    logError(`  ❌ 节点不存在: "${asset.ossPath}"`);
+                    result.push({ ...asset, data: new Uint8Array(0) });
+                    continue;
                 }
-                else {
-                    logError(`  ❌ 上传失败: "${asset.ossPath}" - ${result.message || '未知错误'}`);
-                    results.push({
-                        ossPath: asset.ossPath,
-                        fileName: asset.fileName,
-                        type: ASSET_TYPE.TEXT,
-                        size: 0,
-                        status: 'error',
-                        error: result.message || '上传失败',
-                    });
-                }
+                const isSvg = asset.ossPath.toLowerCase().endsWith('.svg');
+                const exportOptions = isSvg
+                    ? { format: 'SVG' }
+                    : { format: 'PNG', constraint: { type: 'SCALE', value: 2 } };
+                const rawData = await node.exportAsync(exportOptions);
+                logInfo(`  ✅ 导出成功: "${asset.fileName}" (${rawData.byteLength} bytes, ${isSvg ? 'SVG' : 'PNG'})`);
+                result.push({ ...asset, data: new Uint8Array(rawData) });
             }
             catch (err) {
-                logError(`  ❌ 网络错误: "${asset.ossPath}"`, err);
-                results.push({
-                    ossPath: asset.ossPath,
-                    fileName: asset.fileName,
-                    type: ASSET_TYPE.TEXT,
-                    size: 0,
-                    status: 'error',
-                    error: String(err),
-                });
+                logError(`  ❌ 导出失败: "${asset.ossPath}"`, err);
+                result.push({ ...asset, data: new Uint8Array(0) });
             }
         }
         else {
-            // 图片资源：导出后再上传
-            logDebug(`  → 图片资源, 查找节点 ID: ${asset.nodeId}`);
-            try {
-                const node = figma.getNodeById(asset.nodeId);
-                if (!node) {
-                    logError(`  ❌ 节点不存在: "${asset.ossPath}" (nodeId: ${asset.nodeId})`);
-                    results.push({
-                        ossPath: asset.ossPath,
-                        fileName: asset.fileName,
-                        type: ASSET_TYPE.IMAGE,
-                        size: 0,
-                        status: 'error',
-                        error: '节点不存在',
-                    });
-                    continue;
-                }
-                const exportResult = await exportImageAsset(node, asset.ossPath);
-                if (exportResult.status === 'error') {
-                    results.push(exportResult);
-                    continue;
-                }
-                // 上传到后端
-                logDebug(`  → 导出成功，准备上传到后端`);
-                const formData = new FormData();
-                const blob = new Blob([new Uint8Array(await (node.exportAsync(asset.ossPath.toLowerCase().endsWith('.svg')
-                        ? { format: 'SVG' }
-                        : { format: 'PNG', constraint: { type: 'SCALE', value: 2 } })))]);
-                formData.append('files', blob, asset.fileName);
-                formData.append('ossPath', asset.ossPath);
-                formData.append('type', ASSET_TYPE.IMAGE);
-                const response = await fetch(`${apiBase}/api/assets/upload`, {
-                    method: 'POST',
-                    body: formData,
-                });
-                const result = await response.json();
-                if (result.success) {
-                    logInfo(`  ✅ 上传成功: "${asset.ossPath}" (${exportResult.size} bytes)`);
-                    results.push({
-                        ...exportResult,
-                        status: 'uploaded',
-                    });
-                }
-                else {
-                    logError(`  ❌ 上传失败: "${asset.ossPath}" - ${result.message || '未知错误'}`);
-                    results.push({
-                        ...exportResult,
-                        status: 'error',
-                        error: result.message || '上传失败',
-                    });
-                }
-            }
-            catch (err) {
-                logError(`  ❌ 处理失败: "${asset.ossPath}"`, err);
-                results.push({
-                    ossPath: asset.ossPath,
-                    fileName: asset.fileName,
-                    type: ASSET_TYPE.IMAGE,
-                    size: 0,
-                    status: 'error',
-                    error: String(err),
-                });
-            }
+            // 文字资源：直接传递文本内容
+            logDebug(`  → 文字资源, JSON 长度: ${asset.content?.length || 0} 字符`);
+            result.push(asset);
         }
     }
-    const uploaded = results.filter((r) => r.status === 'uploaded').length;
-    const skipped = results.filter((r) => r.status === 'skipped').length;
-    const errors = results.filter((r) => r.status === 'error').length;
-    logInfo(`===== 上传完成: ${uploaded} 成功, ${skipped} 跳过, ${errors} 失败 =====`);
-    return results;
+    const imageCount = result.filter((a) => a.type === 'image' && a.data && a.data.length > 0).length;
+    const errorCount = result.filter((a) => a.type === 'image' && (!a.data || a.data.length === 0)).length;
+    logInfo(`===== 导出完成: ${imageCount} 图片成功, ${errorCount} 图片失败 =====`);
+    return result;
 }
 // 监听 UI 消息
 figma.ui.onmessage = async (msg) => {
     if (msg.type === 'sync') {
+        // 用户点击"同步"：在主线程导出图片节点，发往 UI 线程上传
         const apiBase = msg.apiBase || DEFAULT_API_BASE;
+        const apiToken = typeof msg.apiToken === 'string' ? msg.apiToken.trim() : '';
         const assets = msg.assets;
+        logInfo(`===== 收到同步请求: ${assets.length} 个资源, API: ${apiBase} =====`);
+        logDebug(`令牌: ${apiToken ? '已配置（长度 ' + apiToken.length + '）' : '未配置'}`);
         figma.ui.postMessage({ type: 'sync-start', total: assets.length });
         try {
-            const results = await uploadToBackend(apiBase, assets);
-            const uploaded = results.filter((r) => r.status === 'uploaded').length;
-            const skipped = results.filter((r) => r.status === 'skipped').length;
-            const errors = results.filter((r) => r.status === 'error');
+            // 导出所有图片节点，附加二进制数据
+            const exportData = await prepareAssetsForUpload(assets);
+            // 发往 UI 线程，由 UI 完成上传（UI 浏览器环境支持 FormData）
             figma.ui.postMessage({
-                type: 'sync-complete',
-                results,
-                summary: {
-                    total: assets.length,
-                    uploaded,
-                    skipped,
-                    errors: errors.length,
-                    errorDetails: errors,
-                },
+                type: 'sync-data',
+                apiBase,
+                apiToken,
+                assets: exportData,
             });
         }
         catch (err) {
+            logError('prepareAssetsForUpload 失败:', err);
             figma.ui.postMessage({
                 type: 'sync-error',
                 error: String(err),
             });
         }
     }
+    if (msg.type === 'sync-done') {
+        // UI 线程上传完成，将结果转发到 UI 显示（同时保留主线程日志）
+        logInfo(`===== 同步完成: ${msg.summary.uploaded} 成功, ${msg.summary.errors} 失败 =====`);
+        msg.summary.errorDetails?.forEach((e) => logError(`  ❌ ${e.fileName}: ${e.error}`));
+        figma.ui.postMessage({
+            type: 'sync-complete',
+            results: msg.results,
+            summary: msg.summary,
+        });
+    }
     if (msg.type === 'cancel') {
+        logInfo('用户取消同步');
         figma.closePlugin();
     }
 };

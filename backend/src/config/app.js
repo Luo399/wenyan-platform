@@ -37,7 +37,7 @@ const config = {
   cors: {
     origin: parseOriginList(process.env.CORS_ORIGIN),
     methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
     credentials: true,
   },
 

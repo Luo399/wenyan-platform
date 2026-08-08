@@ -273,6 +273,11 @@
     <input type="text" id="apiBase" value="https://api.classicalab.cn" placeholder="后端 API 地址" />
   </div>
 
+  <div class="config-row">
+    <label>同步令牌：</label>
+    <input type="password" id="apiToken" placeholder="ASSET_SYNC_TOKEN（可选，未配置时走免令牌通道）" />
+  </div>
+
   <div id="statusBar" class="status-bar">
     <span class="status-text">扫描中...</span>
     <span class="count">0 个资源</span>
@@ -327,7 +332,13 @@
           document.getElementById('syncBtn').disabled = true
           document.getElementById('progressBar').style.display = 'block'
           document.getElementById('summary').style.display = 'none'
-          updateStatus(msg.total, '同步中...')
+          updateStatus(msg.total, '导出中...')
+          break
+
+        case 'sync-data':
+          // 主线程已导出图片节点，UI 线程负责上传（支持 FormData）
+          updateStatus(msg.assets.length, '上传中...')
+          uploadAssets(msg.apiBase, msg.apiToken, msg.assets)
           break
 
         case 'sync-complete':
@@ -466,13 +477,128 @@
       `
     }
 
+    function updateProgress(percent) {
+      document.getElementById('progressFill').style.width = Math.min(percent, 100) + '%'
+    }
+
+    /**
+     * UI 线程上传资源（浏览器环境完全支持 FormData / Blob）
+     *
+     * 架构说明：
+     *   - 主线程（code.ts）负责 Figma 节点导出，数据通过 postMessage 传递
+     *   - UI 线程（本函数）负责网络请求，支持 FormData 上传图片
+     *   - 上传完成后通过 parent.postMessage 将结果传回主线程
+     */
+    async function uploadAssets(apiBase, apiToken, assets) {
+      const results = []
+      const total = assets.length
+
+      for (let i = 0; i < total; i++) {
+        const asset = assets[i]
+        updateProgress(((i + 1) / total) * 100)
+
+        if (asset.type === 'text') {
+          // 文字资源：JSON 格式上传
+          try {
+            const response = await fetch(apiBase + '/api/assets/upload', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(apiToken ? { 'X-API-Key': apiToken } : {}),
+              },
+              body: JSON.stringify({
+                files: [{
+                  ossPath: asset.ossPath,
+                  type: 'text',
+                  content: asset.content,
+                  encoding: 'utf-8',
+                }],
+              }),
+            })
+            const result = await response.json()
+            if (result.success) {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'text', size: (asset.content || '').length,
+                status: 'uploaded',
+              })
+            } else {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'text', size: 0, status: 'error',
+                error: result.message || '上传失败',
+              })
+            }
+          } catch (err) {
+            results.push({
+              ossPath: asset.ossPath, fileName: asset.fileName,
+              type: 'text', size: 0, status: 'error',
+              error: String(err),
+            })
+          }
+        } else {
+          // 图片资源：FormData 上传（UI 浏览器环境完全支持）
+          try {
+            const formData = new FormData()
+            const mimeType = asset.ossPath.toLowerCase().endsWith('.svg')
+              ? 'image/svg+xml' : 'image/png'
+            const blob = new Blob([asset.data], { type: mimeType })
+            formData.append('files', blob, asset.fileName)
+            formData.append('ossPath', asset.ossPath)
+            formData.append('type', 'image')
+
+            const response = await fetch(apiBase + '/api/assets/upload', {
+              method: 'POST',
+              headers: apiToken ? { 'X-API-Key': apiToken } : {},
+              body: formData,
+            })
+            const result = await response.json()
+            if (result.success) {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'image', size: blob.size, status: 'uploaded',
+              })
+            } else {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'image', size: 0, status: 'error',
+                error: result.message || '上传失败',
+              })
+            }
+          } catch (err) {
+            results.push({
+              ossPath: asset.ossPath, fileName: asset.fileName,
+              type: 'image', size: 0, status: 'error',
+              error: String(err),
+            })
+          }
+        }
+      }
+
+      // 汇总结果
+      const uploaded = results.filter(function(r) { return r.status === 'uploaded' }).length
+      const skipped = results.filter(function(r) { return r.status === 'skipped' }).length
+      const errors = results.filter(function(r) { return r.status === 'error' })
+      const summary = {
+        total: total,
+        uploaded: uploaded,
+        skipped: skipped,
+        errors: errors.length,
+        errorDetails: errors,
+      }
+
+      // 通过 parent.postMessage 将结果传回主线程（日志记录 + 转发到 UI 显示）
+      parent.postMessage({ pluginMessage: { type: 'sync-done', results, summary } }, '*')
+    }
+
     function handleSync() {
       if (isSyncing || assets.length === 0) return
 
       const apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
+      const apiToken = document.getElementById('apiToken').value.trim()
 
       // 发送消息到主线程
-      parent.postMessage({ pluginMessage: { type: 'sync', assets, apiBase } }, '*')
+      parent.postMessage({ pluginMessage: { type: 'sync', assets, apiBase, apiToken } }, '*')
     }
 
     function handleCancel() {

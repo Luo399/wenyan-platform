@@ -29,7 +29,7 @@ jobs:
 
       - name: Deploy to test server
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
             TEST_PATH="${{ secrets.SERVER_PROJECT_PATH }}-test"
             BRANCH="feature-1"

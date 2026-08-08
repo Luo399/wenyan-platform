@@ -55,6 +55,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
+import { getDataUrlWithVersion } from '@/utils/asset'
 import { useAuthStore } from '@/stores/auth'
 import { getSessionId } from '@/utils/tracking'
 import { post } from '@/utils/api'
@@ -95,8 +96,16 @@ const props = withDefaults(defineProps<Props>(), {
   basicInfoBaseUrl: '/data/text_basic_info/',
 })
 
-const wordListUrl = `${props.wordListBaseUrl}${props.wenId}.json`
-const basicInfoUrl = `${props.basicInfoBaseUrl}${props.wenId}.json`
+// R107: 数据地址走版本戳 OSS 地址（外部显式传入自定义 baseUrl 时沿用，兼容旧用法）
+const wordListUrl = (): string | Promise<string> =>
+  props.wordListBaseUrl !== '/data/word_list/'
+    ? `${props.wordListBaseUrl}${props.wenId}.json`
+    : getDataUrlWithVersion('word_list', `${props.wenId}.json`)
+
+const basicInfoUrl = (): string | Promise<string> =>
+  props.basicInfoBaseUrl !== '/data/text_basic_info/'
+    ? `${props.basicInfoBaseUrl}${props.wenId}.json`
+    : getDataUrlWithVersion('text_basic_info', `${props.wenId}.json`)
 
 // 加载词汇列表
 const {
@@ -104,7 +113,7 @@ const {
   error: wordListError,
   data: wordListData,
   retry: retryWordList,
-} = useDataLoader<RawWordItem[]>(() => wordListUrl, {
+} = useDataLoader<RawWordItem[]>(wordListUrl, {
   timeout: 10000,
   retryCount: 1,
 })
@@ -115,7 +124,7 @@ const {
   error: basicInfoError,
   data: basicInfoData,
   retry: retryBasicInfo,
-} = useDataLoader<RawTextBasicInfo>(() => basicInfoUrl, {
+} = useDataLoader<RawTextBasicInfo>(basicInfoUrl, {
   timeout: 10000,
   retryCount: 1,
 })
