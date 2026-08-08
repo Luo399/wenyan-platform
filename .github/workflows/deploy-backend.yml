@@ -78,9 +78,10 @@ jobs:
             echo "=== [3/5] Install Docker if not present ==="
             if ! command -v docker &>/dev/null; then
               echo "Installing Docker..."
-              dnf install -y dnf-utils device-mapper-persistent-data lvm2
+              # 跳过 nodesource 仓库（超时），使用阿里云镜像
+              dnf install -y --disablerepo=nodesource-nodejs dnf-utils device-mapper-persistent-data lvm2
               dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-              dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+              dnf install -y --disablerepo=nodesource-nodejs docker-ce docker-ce-cli containerd.io docker-compose-plugin
               systemctl enable --now docker
               echo "Docker installed successfully"
             else
