@@ -96,6 +96,8 @@ jobs:
             docker compose pull
 
             echo "=== [5/5] Restart backend ==="
+            # 停止旧 PM2 进程（避免端口冲突）
+            pm2 delete wenyan-backend 2>/dev/null || true
             docker compose up -d --remove-orphans
             sleep 3
 

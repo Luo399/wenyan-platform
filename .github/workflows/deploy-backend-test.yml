@@ -96,6 +96,8 @@ jobs:
             docker compose pull
 
             echo "=== [5/5] Restart backend (test environment) ==="
+            # 停止旧 PM2 进程（避免端口冲突）
+            pm2 delete wenyan-backend-test 2>/dev/null || true
             HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test \
               docker compose up -d --remove-orphans
             sleep 3
