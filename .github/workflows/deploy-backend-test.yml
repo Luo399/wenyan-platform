@@ -107,7 +107,13 @@ jobs:
             sleep 15
 
             echo "=== Health check ==="
-            curl -s http://127.0.0.1:3001/api/health || echo "HEALTH_CHECK_FAILED"
+            curl -s http://127.0.0.1:3001/api/health || {
+              echo "HEALTH_CHECK_FAILED"
+              echo "=== Container logs ==="
+              docker logs wenyan-backend-test 2>&1 || true
+              echo "=== Container status ==="
+              docker ps -a --filter name=wenyan-backend-test --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
+            }
 
             echo "=== Clean up old images ==="
             docker image prune -f
