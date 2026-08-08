@@ -71,9 +71,19 @@ jobs:
             git reset --hard "origin/$BRANCH"
 
             echo "=== [2/4] Create .env file ==="
+            # 如果 .env 已存在，先备份保留已有配置
+            if [ -f backend/.env ]; then
+              cp backend/.env backend/.env.bak
+            fi
             echo "PORT=3000" > backend/.env
-            echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn" >> backend/.env
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
+            echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn,https://www.figma.com" >> backend/.env
+            # 如果已有 JWT_SECRET 则保留，否则用 GitHub Secret
+            if [ -f backend/.env.bak ] && grep -q '^JWT_SECRET=' backend/.env.bak; then
+              grep '^JWT_SECRET=' backend/.env.bak >> backend/.env
+            else
+              echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
+            fi
+            rm -f backend/.env.bak
 
             echo "=== [3/5] Install Docker if not present ==="
             if ! command -v docker &>/dev/null; then
@@ -105,5 +115,11 @@ jobs:
             sleep 15
 
             echo "=== Health check ==="
-            curl -s http://127.0.0.1:3000/api/health || echo "HEALTH_CHECK_FAILED"
+            curl -s http://127.0.0.1:3000/api/health || {
+              echo "HEALTH_CHECK_FAILED"
+              echo "=== Container logs ==="
+              docker logs wenyan-backend 2>&1 || true
+              echo "=== Container status ==="
+              docker ps -a --filter name=wenyan-backend --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
+            }
           EOF
