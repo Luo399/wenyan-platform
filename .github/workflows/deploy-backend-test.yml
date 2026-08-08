@@ -1,5 +1,6 @@
 name: Deploy Backend to Test Server
 
+# 重试：ACR 凭证已更新
 on:
   push:
     branches:
