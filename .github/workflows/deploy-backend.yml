@@ -71,11 +71,9 @@ jobs:
             git reset --hard "origin/$BRANCH"
 
             echo "=== [2/4] Create .env file ==="
-            cat > backend/.env << 'ENVEOF'
-PORT=3000
-CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-ENVEOF
+            echo "PORT=3000" > backend/.env
+            echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn" >> backend/.env
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
 
             echo "=== [3/4] Login to ACR and pull latest image ==="
             echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login \
