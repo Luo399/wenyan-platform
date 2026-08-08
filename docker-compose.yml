@@ -13,7 +13,7 @@ services:
     ports:
       - "${HOST_PORT:-3000}:${CONTAINER_PORT:-3000}"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
     env_file:
       - ./backend/.env
     volumes:

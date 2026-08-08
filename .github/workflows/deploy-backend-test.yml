@@ -20,7 +20,6 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: test
 
     steps:
       - name: Checkout code
@@ -103,7 +102,7 @@ jobs:
             # 确保数据目录存在且 node 用户可写
             mkdir -p backend/database backend/data backend/logs
             chown -R 1000:1000 backend/database backend/data backend/logs
-            HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test \
+            HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test NODE_ENV=development \
               docker compose up -d --remove-orphans
             sleep 15
 
