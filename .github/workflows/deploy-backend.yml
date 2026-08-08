@@ -71,17 +71,27 @@ jobs:
             git reset --hard "origin/$BRANCH"
 
             echo "=== [2/4] Create .env file ==="
-            # 如果 .env 已存在，先备份保留已有配置
+            # 备份已有的 .env（保留 PORT、JWT_SECRET 等配置）
             if [ -f backend/.env ]; then
               cp backend/.env backend/.env.bak
             fi
             echo "PORT=3000" > backend/.env
             echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn,https://www.figma.com" >> backend/.env
-            # 如果已有 JWT_SECRET 则保留，否则用 GitHub Secret
-            if [ -f backend/.env.bak ] && grep -q '^JWT_SECRET=' backend/.env.bak; then
-              grep '^JWT_SECRET=' backend/.env.bak >> backend/.env
-            else
+            # 恢复已有的 JWT_SECRET（非空），否则生成随机密钥
+            SAVED_SECRET=""
+            if [ -f backend/.env.bak ]; then
+              SAVED_SECRET=$(grep '^JWT_SECRET=' backend/.env.bak | cut -d= -f2-)
+            fi
+            if [ -n "$SAVED_SECRET" ]; then
+              echo "JWT_SECRET=$SAVED_SECRET" >> backend/.env
+              echo "JWT_SECRET restored from backup"
+            elif [ -n "${{ secrets.JWT_SECRET }}" ]; then
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
+              echo "JWT_SECRET set from GitHub Secret"
+            else
+              NEW_SECRET=$(openssl rand -hex 32)
+              echo "JWT_SECRET=$NEW_SECRET" >> backend/.env
+              echo "JWT_SECRET auto-generated"
             fi
             rm -f backend/.env.bak
 
