@@ -1,4 +1,4 @@
-# ============ 构建阶段 ============
+# ============ 构建阶段（Docker 化部署重构）============
 # 编译 sqlite3 等原生模块所需的 gcc/python3/make
 FROM node:18-slim AS builder
 
