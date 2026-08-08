@@ -75,14 +75,26 @@ jobs:
             echo "CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn" >> backend/.env
             echo "JWT_SECRET=${{ secrets.TEST_JWT_SECRET }}" >> backend/.env
 
-            echo "=== [3/4] Login to ACR and pull latest image ==="
+            echo "=== [3/5] Install Docker if not present ==="
+            if ! command -v docker &>/dev/null; then
+              echo "Installing Docker..."
+              dnf install -y dnf-utils device-mapper-persistent-data lvm2
+              dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+              dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+              systemctl enable --now docker
+              echo "Docker installed successfully"
+            else
+              echo "Docker already installed"
+            fi
+
+            echo "=== [4/5] Login to ACR and pull latest image ==="
             echo "${{ secrets.ACR_PASSWORD }}" | docker login \
               --username "${{ secrets.ACR_USERNAME }}" \
               --password-stdin \
               ${{ env.REGISTRY }}
             docker compose pull
 
-            echo "=== [4/4] Restart backend (test environment) ==="
+            echo "=== [5/5] Restart backend (test environment) ==="
             HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test \
               docker compose up -d --remove-orphans
             sleep 3
