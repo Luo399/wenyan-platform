@@ -1,0 +1,12 @@
+# 只保留 backend/，其余全排除
+*
+!backend/**
+
+# 排除后端中不需要进入镜像的文件
+backend/node_modules/
+backend/database/
+backend/.env
+backend/.env.*
+backend/logs/
+backend/tests/
+backend/coverage/

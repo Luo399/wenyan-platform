@@ -8,6 +8,13 @@ on:
       - 'backend/**'
       - 'figma-plugin/**'
       - '.github/workflows/deploy-backend-test.yml'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+
+env:
+  REGISTRY: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com
+  IMAGE_NAME: luo-hui-ning/wenyan-platform-backend
 
 jobs:
   deploy:
@@ -16,6 +23,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USER }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
@@ -33,9 +60,8 @@ jobs:
             set -e
             TEST_PATH="${{ secrets.SERVER_PROJECT_PATH }}-test"
             BRANCH="feature-1"
-            BACKEND_PATH="$TEST_PATH/backend"
 
-            echo "=== [1/7] Clone or update repo ==="
+            echo "=== [1/4] Clone or update repo ==="
             if [ ! -d "$TEST_PATH" ]; then
               git clone https://github.com/Luo399/wenyan-platform.git "$TEST_PATH"
             fi
@@ -44,33 +70,30 @@ jobs:
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            echo "=== [2/7] Create .env file ==="
-            printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\nJWT_SECRET=${{ secrets.TEST_JWT_SECRET }}\n' > "$BACKEND_PATH/.env"
-            cat "$BACKEND_PATH/.env"
+            echo "=== [2/4] Create .env file ==="
+            cat > backend/.env << 'ENVEOF'
+PORT=3001
+CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn
+JWT_SECRET=${{ secrets.TEST_JWT_SECRET }}
+ENVEOF
 
-            echo "=== [3/7] Install dependencies ==="
-            cd "$BACKEND_PATH"
-            rm -rf node_modules package-lock.json
-            npm install --production
+            echo "=== [3/4] Login to ACR and pull latest image ==="
+            echo "${{ secrets.ALIYUN_REGISTRY_PASSWORD }}" | docker login \
+              --username "${{ secrets.ALIYUN_REGISTRY_USER }}" \
+              --password-stdin \
+              ${{ env.REGISTRY }}
+            docker compose pull
 
-            echo "=== [3.5/7] Run database migration (idempotent) ==="
-            # 迁移脚本幂等可重复执行：旧 students_old 数据迁移 + 默认管理员 admin/admin123 + 默认学校
-            # 已迁移过的行按 UNIQUE(student_id) 被跳过，admins/schools 为空时才插入
-            node scripts/migrate_auth.js || echo "MIGRATION_WARNING: 迁移脚本执行异常但继续部署（首次部署表结构已由 server 启动时 initAllTables 创建）"
-
-            echo "=== [4/7] Stop old process ==="
-            pm2 delete wenyan-backend-test 2>&1 || true
-
-            echo "=== [5/7] Start backend ==="
-            cd "$BACKEND_PATH"
-            pm2 start server.js --name wenyan-backend-test
-
-            echo "=== [6/7] Wait for startup ==="
+            echo "=== [4/4] Restart backend (test environment) ==="
+            HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test \
+              docker compose up -d --remove-orphans
             sleep 3
 
-            echo "=== [7/7] Health check ==="
-            pm2 status
+            echo "=== Health check ==="
             curl -s http://127.0.0.1:3001/api/health || echo "HEALTH_CHECK_FAILED"
+
+            echo "=== Clean up old images ==="
+            docker image prune -f
           EOF
 
       - name: Configure Nginx reverse proxy for test

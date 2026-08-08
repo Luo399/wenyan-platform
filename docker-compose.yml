@@ -1,0 +1,39 @@
+# 文言文预习平台 - 后端服务
+# 使用方式：
+#   生产环境：docker compose up -d
+#   测试环境：HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test docker compose up -d
+#
+# 首次部署后需手动创建 backend/.env 文件（参考 backend/.env.example）
+
+services:
+  backend:
+    image: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com/luo-hui-ning/wenyan-platform-backend:latest
+    container_name: "${CONTAINER_NAME:-wenyan-backend}"
+    restart: always
+    ports:
+      - "${HOST_PORT:-3000}:${CONTAINER_PORT:-3000}"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ./backend/.env
+    volumes:
+      # 数据库持久化（SQLite 文件映射到宿主机）
+      - ./backend/database:/app/database
+      # 数据文件（JSON 数据，通过 git pull 更新）
+      - ./backend/data:/app/data
+      # 日志文件
+      - ./backend/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:${CONTAINER_PORT:-3000}/api/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    # 安全：容器只读根文件系统（数据目录通过卷挂载写入）
+    read_only: true
+    # 日志限制
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
