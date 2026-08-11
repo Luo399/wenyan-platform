@@ -37,11 +37,31 @@ function logError(...args) {
 }
 // 后端 API 地址（可在插件 UI 中配置）
 const DEFAULT_API_BASE = 'https://api.classicalab.cn';
+// 导出超时时间（毫秒）：单个资源导出超过 30 秒视为失败
+const EXPORT_TIMEOUT_MS = 30000;
 // 资源类型枚举
 const ASSET_TYPE = {
     IMAGE: 'image',
     TEXT: 'text',
 };
+/**
+ * 带超时的 Promise 包装器
+ * 如果指定时间内未完成，则 reject
+ */
+function withTimeout(promise, ms, label) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`操作超时: ${label} (超过 ${ms}ms)`));
+        }, ms);
+        promise.then((val) => {
+            clearTimeout(timer);
+            resolve(val);
+        }, (err) => {
+            clearTimeout(timer);
+            reject(err);
+        });
+    });
+}
 /**
  * 主入口
  */
@@ -94,7 +114,7 @@ async function main() {
     const imageCount = allAssets.filter((a) => a.type === 'image').length;
     const textCount = allAssets.filter((a) => a.type === 'text').length;
     logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字） =====`);
-    allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '🖼' : '📝'} ${a.ossPath}`));
+    allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '图片' : '文字'} ${a.ossPath}`));
     // 5. 发送到 UI 显示变更列表
     figma.ui.postMessage({
         type: 'scan-result',
@@ -267,6 +287,36 @@ function resolveTextOssPath(frameName) {
     return `data/texts/${frameName}.json`;
 }
 /**
+ * 导出单个图片节点，带超时保护
+ * 返回 Uint8Array，失败时返回空数组
+ */
+async function exportSingleNode(nodeId, ossPath) {
+    try {
+        const node = await figma.getNodeByIdAsync(nodeId);
+        if (!node) {
+            logError(`  节点不存在或不可访问: "${ossPath}" (nodeId: ${nodeId})`);
+            return new Uint8Array(0);
+        }
+        // 检查节点是否仍在场景中（removed 为 true 表示已被删除）
+        if ('removed' in node && node.removed === true) {
+            logError(`  节点已被删除: "${ossPath}"`);
+            return new Uint8Array(0);
+        }
+        const isSvg = ossPath.toLowerCase().endsWith('.svg');
+        const exportOptions = isSvg
+            ? { format: 'SVG' }
+            : { format: 'PNG', constraint: { type: 'SCALE', value: 2 } };
+        logDebug(`  → 正在导出: "${ossPath}" (${isSvg ? 'SVG' : 'PNG'})`);
+        const rawData = await withTimeout(node.exportAsync(exportOptions), EXPORT_TIMEOUT_MS, `exportAsync(${ossPath})`);
+        logInfo(`  导出成功: "${ossPath}" (${rawData.byteLength} bytes)`);
+        return new Uint8Array(rawData);
+    }
+    catch (err) {
+        logError(`  导出失败: "${ossPath}"`, err);
+        return new Uint8Array(0);
+    }
+}
+/**
  * 导出所有图片节点，准备发往 UI 线程上传
  *
  * 架构说明：
@@ -282,26 +332,8 @@ async function prepareAssetsForUpload(assets) {
         logDebug(`[${i + 1}/${assets.length}] 处理: "${asset.ossPath}" (${asset.type})`);
         if (asset.type === ASSET_TYPE.IMAGE) {
             // 图片资源：在主线程导出节点，二进制数据发往 UI 线程上传
-            try {
-                logDebug(`  → 导出图片节点 ID: ${asset.nodeId}`);
-                const node = await figma.getNodeByIdAsync(asset.nodeId);
-                if (!node) {
-                    logError(`  ❌ 节点不存在: "${asset.ossPath}"`);
-                    result.push({ ...asset, data: new Uint8Array(0) });
-                    continue;
-                }
-                const isSvg = asset.ossPath.toLowerCase().endsWith('.svg');
-                const exportOptions = isSvg
-                    ? { format: 'SVG' }
-                    : { format: 'PNG', constraint: { type: 'SCALE', value: 2 } };
-                const rawData = await node.exportAsync(exportOptions);
-                logInfo(`  ✅ 导出成功: "${asset.fileName}" (${rawData.byteLength} bytes, ${isSvg ? 'SVG' : 'PNG'})`);
-                result.push({ ...asset, data: new Uint8Array(rawData) });
-            }
-            catch (err) {
-                logError(`  ❌ 导出失败: "${asset.ossPath}"`, err);
-                result.push({ ...asset, data: new Uint8Array(0) });
-            }
+            const data = await exportSingleNode(asset.nodeId, asset.ossPath);
+            result.push({ ...asset, data });
         }
         else {
             // 文字资源：直接传递文本内容
@@ -346,7 +378,7 @@ figma.ui.onmessage = async (msg) => {
     if (msg.type === 'sync-done') {
         // UI 线程上传完成，将结果转发到 UI 显示（同时保留主线程日志）
         logInfo(`===== 同步完成: ${msg.summary.uploaded} 成功, ${msg.summary.errors} 失败 =====`);
-        msg.summary.errorDetails?.forEach((e) => logError(`  ❌ ${e.fileName}: ${e.error}`));
+        msg.summary.errorDetails?.forEach((e) => logError(`  失败 ${e.fileName}: ${e.error}`));
         figma.ui.postMessage({
             type: 'sync-complete',
             results: msg.results,
@@ -358,12 +390,24 @@ figma.ui.onmessage = async (msg) => {
         figma.closePlugin();
     }
 };
-// 显示 UI
-figma.showUI(__html__, { width: 600, height: 500 });
+// 显示 UI（使用 themeColors 支持明暗主题）
+figma.showUI(__html__, {
+    width: 600,
+    height: 500,
+    themeColors: true,
+});
 // 启动扫描
 main().catch((err) => {
-    figma.ui.postMessage({
-        type: 'scan-error',
-        error: String(err),
-    });
+    logError('主扫描流程异常:', err);
+    // 确保错误信息能传递给 UI
+    try {
+        figma.ui.postMessage({
+            type: 'scan-error',
+            error: String(err),
+        });
+    }
+    catch (postErr) {
+        // UI 可能尚未初始化，错误已通过 console.error 记录
+        logError('无法向 UI 发送错误消息:', postErr);
+    }
 });

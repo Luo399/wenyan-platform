@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>文言文资源同步</title>
   <style>
+    /* Figma 主题变量（由 figma.showUI themeColors 注入） */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #1e1e1e;
-      color: #ccc;
+      background: var(--figma-color-bg, #1e1e1e);
+      color: var(--figma-color-text, #ccc);
       padding: 16px;
       font-size: 13px;
       line-height: 1.5;
@@ -17,17 +18,17 @@
     .header {
       margin-bottom: 16px;
       padding-bottom: 12px;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid var(--figma-color-border, #333);
     }
     .header h1 {
       font-size: 16px;
       font-weight: 600;
-      color: #fff;
+      color: var(--figma-color-text, #fff);
       margin-bottom: 4px;
     }
     .header p {
       font-size: 12px;
-      color: #888;
+      color: var(--figma-color-text-secondary, #888);
     }
     .config-row {
       display: flex;
@@ -37,21 +38,21 @@
     }
     .config-row label {
       font-size: 12px;
-      color: #888;
+      color: var(--figma-color-text-secondary, #888);
       white-space: nowrap;
     }
     .config-row input {
       flex: 1;
       padding: 6px 8px;
-      background: #2a2a2a;
-      border: 1px solid #444;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
+      border: 1px solid var(--figma-color-border, #444);
       border-radius: 4px;
-      color: #ccc;
+      color: var(--figma-color-text, #ccc);
       font-size: 12px;
       outline: none;
     }
     .config-row input:focus {
-      border-color: #18a0fb;
+      border-color: var(--figma-color-border-brand, #18a0fb);
     }
     .status-bar {
       display: flex;
@@ -59,16 +60,16 @@
       align-items: center;
       margin-bottom: 12px;
       padding: 8px 12px;
-      background: #2a2a2a;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
       border-radius: 6px;
       font-size: 12px;
     }
     .status-bar .count {
-      color: #18a0fb;
+      color: var(--figma-color-text-brand, #18a0fb);
       font-weight: 600;
     }
     .status-bar .status-text {
-      color: #888;
+      color: var(--figma-color-text-secondary, #888);
     }
     .assets-list {
       max-height: 280px;
@@ -79,10 +80,10 @@
       width: 6px;
     }
     .assets-list::-webkit-scrollbar-track {
-      background: #2a2a2a;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
     }
     .assets-list::-webkit-scrollbar-thumb {
-      background: #555;
+      background: var(--figma-color-border, #555);
       border-radius: 3px;
     }
     .asset-item {
@@ -92,12 +93,12 @@
       padding: 8px 10px;
       border-radius: 4px;
       margin-bottom: 4px;
-      background: #2a2a2a;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
       cursor: default;
       transition: background 0.2s;
     }
     .asset-item:hover {
-      background: #333;
+      background: var(--figma-color-bg-tertiary, #333);
     }
     .asset-icon {
       width: 24px;
@@ -111,12 +112,12 @@
       flex-shrink: 0;
     }
     .asset-icon.image {
-      background: #1a3a5c;
-      color: #18a0fb;
+      background: var(--figma-color-bg-brand-tertiary, #1a3a5c);
+      color: var(--figma-color-text-brand, #18a0fb);
     }
     .asset-icon.text {
-      background: #3a2a1a;
-      color: #f5a623;
+      background: var(--figma-color-bg-warning-tertiary, #3a2a1a);
+      color: var(--figma-color-text-warning, #f5a623);
     }
     .asset-info {
       flex: 1;
@@ -124,14 +125,14 @@
     }
     .asset-name {
       font-size: 12px;
-      color: #eee;
+      color: var(--figma-color-text, #eee);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .asset-path {
       font-size: 11px;
-      color: #666;
+      color: var(--figma-color-text-secondary, #666);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -143,28 +144,28 @@
       flex-shrink: 0;
     }
     .asset-status.new {
-      background: #1a3a1a;
-      color: #4caf50;
+      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
+      color: var(--figma-color-text-success, #4caf50);
     }
     .asset-status.changed {
-      background: #3a3a1a;
-      color: #f5a623;
+      background: var(--figma-color-bg-warning-tertiary, #3a3a1a);
+      color: var(--figma-color-text-warning, #f5a623);
     }
     .asset-status.unchanged {
-      background: #2a2a2a;
-      color: #666;
+      background: var(--figma-color-bg-tertiary, #2a2a2a);
+      color: var(--figma-color-text-tertiary, #666);
     }
     .asset-status.uploaded {
-      background: #1a3a1a;
-      color: #4caf50;
+      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
+      color: var(--figma-color-text-success, #4caf50);
     }
     .asset-status.error {
-      background: #3a1a1a;
-      color: #f44336;
+      background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
+      color: var(--figma-color-text-danger, #f44336);
     }
     .asset-size {
       font-size: 11px;
-      color: #666;
+      color: var(--figma-color-text-secondary, #666);
       flex-shrink: 0;
       margin-left: 4px;
     }
@@ -190,34 +191,34 @@
       cursor: not-allowed;
     }
     .btn-primary {
-      background: #18a0fb;
-      color: #fff;
+      background: var(--figma-color-bg-brand, #18a0fb);
+      color: var(--figma-color-text-onbrand, #fff);
     }
     .btn-primary:hover:not(:disabled) {
-      background: #0e8cd9;
+      background: var(--figma-color-bg-brand-hover, #0e8cd9);
     }
     .btn-secondary {
-      background: #333;
-      color: #ccc;
+      background: var(--figma-color-bg-secondary, #333);
+      color: var(--figma-color-text, #ccc);
     }
     .btn-secondary:hover {
-      background: #444;
+      background: var(--figma-color-bg-tertiary, #444);
     }
     .btn-danger {
-      background: #f44336;
-      color: #fff;
+      background: var(--figma-color-bg-danger, #f44336);
+      color: var(--figma-color-text-onbrand, #fff);
     }
     .summary {
       margin-top: 12px;
       padding: 12px;
-      background: #2a2a2a;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
       border-radius: 6px;
       font-size: 12px;
       line-height: 1.8;
     }
-    .summary .success { color: #4caf50; }
-    .summary .warning { color: #f5a623; }
-    .summary .error-text { color: #f44336; }
+    .summary .success { color: var(--figma-color-text-success, #4caf50); }
+    .summary .warning { color: var(--figma-color-text-warning, #f5a623); }
+    .summary .error-text { color: var(--figma-color-text-danger, #f44336); }
     .summary-row {
       display: flex;
       justify-content: space-between;
@@ -225,14 +226,14 @@
     }
     .progress-bar {
       height: 4px;
-      background: #333;
+      background: var(--figma-color-bg-tertiary, #333);
       border-radius: 2px;
       margin: 8px 0;
       overflow: hidden;
     }
     .progress-fill {
       height: 100%;
-      background: #18a0fb;
+      background: var(--figma-color-bg-brand, #18a0fb);
       border-radius: 2px;
       transition: width 0.3s ease;
       width: 0%;
@@ -240,7 +241,7 @@
     .empty-state {
       text-align: center;
       padding: 40px 20px;
-      color: #666;
+      color: var(--figma-color-text-tertiary, #666);
     }
     .empty-state .icon {
       font-size: 40px;
@@ -253,10 +254,10 @@
     .error-detail {
       margin-top: 8px;
       padding: 8px;
-      background: #3a1a1a;
+      background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
       border-radius: 4px;
       font-size: 11px;
-      color: #f44336;
+      color: var(--figma-color-text-danger, #f44336);
       max-height: 80px;
       overflow-y: auto;
     }
@@ -302,12 +303,15 @@
   <div id="summary" class="summary" style="display:none"></div>
 
   <script>
-    let assets = []
-    let isSyncing = false
+    // 网络请求超时时间（毫秒）
+    var FETCH_TIMEOUT_MS = 30000
 
-    // 接收来自主线程的消息
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage || event.data
+    var assets = []
+    var isSyncing = false
+
+    // 接收来自主线程的消息（使用 onmessage 而非 window.onmessage，符合官方规范）
+    onmessage = function(event) {
+      var msg = event.data.pluginMessage || event.data
 
       switch (msg.type) {
         case 'scan-result':
@@ -318,12 +322,11 @@
           break
 
         case 'no-assets':
-          document.getElementById('assetsContainer').innerHTML = `
-            <div class="empty-state">
-              <div class="icon">📭</div>
-              <div class="message">${msg.message}</div>
-            </div>
-          `
+          document.getElementById('assetsContainer').innerHTML =
+            '<div class="empty-state">' +
+              '<div class="icon">📭</div>' +
+              '<div class="message">' + escapeHtml(msg.message) + '</div>' +
+            '</div>'
           updateStatus(0)
           break
 
@@ -358,123 +361,134 @@
           break
 
         case 'scan-error':
-          document.getElementById('assetsContainer').innerHTML = `
-            <div class="empty-state">
-              <div class="icon">❌</div>
-              <div class="message">扫描失败：${msg.error}</div>
-            </div>
-          `
+          document.getElementById('assetsContainer').innerHTML =
+            '<div class="empty-state">' +
+              '<div class="icon">❌</div>' +
+              '<div class="message">扫描失败：' + escapeHtml(msg.error) + '</div>' +
+            '</div>'
           break
       }
     }
 
+    /** 转义 HTML 特殊字符，防止 XSS */
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return String(str)
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+    }
+
     function renderAssets(assets) {
-      const container = document.getElementById('assetsContainer')
+      var container = document.getElementById('assetsContainer')
       if (assets.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="icon">📭</div>
-            <div class="message">未找到可同步的资源</div>
-          </div>
-        `
+        container.innerHTML =
+          '<div class="empty-state">' +
+            '<div class="icon">📭</div>' +
+            '<div class="message">未找到可同步的资源</div>' +
+          '</div>'
         return
       }
 
-      container.innerHTML = assets.map((asset) => {
-        const icon = asset.type === 'image' ? '🖼' : '📝'
-        const statusClass = asset.status
-        const statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
+      var html = ''
+      for (var i = 0; i < assets.length; i++) {
+        var asset = assets[i]
+        var icon = asset.type === 'image' ? '🖼' : '📝'
+        var statusClass = asset.status
+        var statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
 
-        return `
-          <div class="asset-item">
-            <div class="asset-icon ${asset.type}">${icon}</div>
-            <div class="asset-info">
-              <div class="asset-name">${asset.fileName}</div>
-              <div class="asset-path">${asset.ossPath}</div>
-            </div>
-            <span class="asset-status ${statusClass}">${statusLabel}</span>
-          </div>
-        `
-      }).join('')
+        html +=
+          '<div class="asset-item">' +
+            '<div class="asset-icon ' + asset.type + '">' + icon + '</div>' +
+            '<div class="asset-info">' +
+              '<div class="asset-name">' + escapeHtml(asset.fileName) + '</div>' +
+              '<div class="asset-path">' + escapeHtml(asset.ossPath) + '</div>' +
+            '</div>' +
+            '<span class="asset-status ' + statusClass + '">' + statusLabel + '</span>' +
+          '</div>'
+      }
+      container.innerHTML = html
     }
 
     function renderResults(results) {
-      const container = document.getElementById('assetsContainer')
-      container.innerHTML = results.map((result) => {
-        const icon = result.type === 'image' ? '🖼' : '📝'
-        const statusClass = result.status
-        const statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
-        const sizeStr = result.size > 1024 ? `${(result.size / 1024).toFixed(1)} KB` : `${result.size} B`
+      var container = document.getElementById('assetsContainer')
+      var html = ''
+      for (var i = 0; i < results.length; i++) {
+        var result = results[i]
+        var icon = result.type === 'image' ? '🖼' : '📝'
+        var statusClass = result.status
+        var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
+        var sizeStr = result.size > 1024 ? (result.size / 1024).toFixed(1) + ' KB' : result.size + ' B'
 
-        return `
-          <div class="asset-item">
-            <div class="asset-icon ${result.type}">${icon}</div>
-            <div class="asset-info">
-              <div class="asset-name">${result.fileName}</div>
-              <div class="asset-path">${result.ossPath}</div>
-            </div>
-            <span class="asset-size">${sizeStr}</span>
-            <span class="asset-status ${statusClass}">${statusLabel}</span>
-          </div>
-        `
-      }).join('')
+        html +=
+          '<div class="asset-item">' +
+            '<div class="asset-icon ' + result.type + '">' + icon + '</div>' +
+            '<div class="asset-info">' +
+              '<div class="asset-name">' + escapeHtml(result.fileName) + '</div>' +
+              '<div class="asset-path">' + escapeHtml(result.ossPath) + '</div>' +
+            '</div>' +
+            '<span class="asset-size">' + sizeStr + '</span>' +
+            '<span class="asset-status ' + statusClass + '">' + statusLabel + '</span>' +
+          '</div>'
+      }
+      container.innerHTML = html
     }
 
     function updateStatus(count, text) {
-      document.getElementById('statusBar').innerHTML = `
-        <span class="status-text">${text || '就绪'}</span>
-        <span class="count">${count} 个资源</span>
-      `
+      document.getElementById('statusBar').innerHTML =
+        '<span class="status-text">' + (text || '就绪') + '</span>' +
+        '<span class="count">' + count + ' 个资源</span>'
     }
 
     function showSummary(summary, results) {
-      const summaryEl = document.getElementById('summary')
+      var summaryEl = document.getElementById('summary')
       summaryEl.style.display = 'block'
 
-      let html = `
-        <div class="summary-row">
-          <span>总计</span>
-          <span>${summary.total} 个资源</span>
-        </div>
-        <div class="summary-row">
-          <span class="success">✓ 已上传</span>
-          <span class="success">${summary.uploaded}</span>
-        </div>
-      `
+      var html =
+        '<div class="summary-row">' +
+          '<span>总计</span>' +
+          '<span>' + summary.total + ' 个资源</span>' +
+        '</div>' +
+        '<div class="summary-row">' +
+          '<span class="success">✓ 已上传</span>' +
+          '<span class="success">' + summary.uploaded + '</span>' +
+        '</div>'
 
       if (summary.skipped > 0) {
-        html += `
-          <div class="summary-row">
-            <span class="warning">− 已跳过（未变更）</span>
-            <span class="warning">${summary.skipped}</span>
-          </div>
-        `
+        html +=
+          '<div class="summary-row">' +
+            '<span class="warning">− 已跳过（未变更）</span>' +
+            '<span class="warning">' + summary.skipped + '</span>' +
+          '</div>'
       }
 
       if (summary.errors > 0) {
-        html += `
-          <div class="summary-row">
-            <span class="error-text">✗ 失败</span>
-            <span class="error-text">${summary.errors}</span>
-          </div>
-          <div class="error-detail">
-            ${summary.errorDetails.map((e) => `${e.fileName}: ${e.error}`).join('<br>')}
-          </div>
-        `
+        html +=
+          '<div class="summary-row">' +
+            '<span class="error-text">✗ 失败</span>' +
+            '<span class="error-text">' + summary.errors + '</span>' +
+          '</div>' +
+          '<div class="error-detail">'
+        for (var j = 0; j < summary.errorDetails.length; j++) {
+          var e = summary.errorDetails[j]
+          html += escapeHtml(e.fileName) + ': ' + escapeHtml(e.error) + '<br>'
+        }
+        html += '</div>'
       }
 
       summaryEl.innerHTML = html
     }
 
     function showError(error) {
-      const summaryEl = document.getElementById('summary')
+      var summaryEl = document.getElementById('summary')
       summaryEl.style.display = 'block'
-      summaryEl.innerHTML = `
-        <div class="summary-row">
-          <span class="error-text">❌ 同步失败</span>
-        </div>
-        <div class="error-detail">${error}</div>
-      `
+      summaryEl.innerHTML =
+        '<div class="summary-row">' +
+          '<span class="error-text">❌ 同步失败</span>' +
+        '</div>' +
+        '<div class="error-detail">' + escapeHtml(error) + '</div>'
     }
 
     function updateProgress(percent) {
@@ -482,7 +496,29 @@
     }
 
     /**
-     * UI 线程上传资源（浏览器环境完全支持 FormData / Blob）
+     * 带超时的 fetch 请求
+     * 使用 AbortController 实现超时取消
+     */
+    function fetchWithTimeout(url, options, timeoutMs) {
+      var controller = new AbortController()
+      var timer = setTimeout(function() {
+        controller.abort()
+      }, timeoutMs || FETCH_TIMEOUT_MS)
+
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).then(function(response) {
+        clearTimeout(timer)
+        return response
+      }).catch(function(err) {
+        clearTimeout(timer)
+        throw err
+      })
+    }
+
+    /**
+     * UI 线程上传资源（浏览器环境完全支持 FormData / Blob / AbortController）
      *
      * 架构说明：
      *   - 主线程（code.ts）负责 Figma 节点导出，数据通过 postMessage 传递
@@ -490,17 +526,17 @@
      *   - 上传完成后通过 parent.postMessage 将结果传回主线程
      */
     async function uploadAssets(apiBase, apiToken, assets) {
-      const results = []
-      const total = assets.length
+      var results = []
+      var total = assets.length
 
-      for (let i = 0; i < total; i++) {
-        const asset = assets[i]
+      for (var i = 0; i < total; i++) {
+        var asset = assets[i]
         updateProgress(((i + 1) / total) * 100)
 
         if (asset.type === 'text') {
           // 文字资源：JSON 格式上传
           try {
-            const response = await fetch(apiBase + '/api/assets/upload', {
+            var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -515,7 +551,7 @@
                 }],
               }),
             })
-            const result = await response.json()
+            var result = await response.json()
             if (result.success) {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
@@ -530,29 +566,32 @@
               })
             }
           } catch (err) {
+            var errorMsg = err.name === 'AbortError'
+              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
+              : String(err)
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
               type: 'text', size: 0, status: 'error',
-              error: String(err),
+              error: errorMsg,
             })
           }
         } else {
           // 图片资源：FormData 上传（UI 浏览器环境完全支持）
           try {
-            const formData = new FormData()
-            const mimeType = asset.ossPath.toLowerCase().endsWith('.svg')
+            var formData = new FormData()
+            var mimeType = asset.ossPath.toLowerCase().endsWith('.svg')
               ? 'image/svg+xml' : 'image/png'
-            const blob = new Blob([asset.data], { type: mimeType })
+            var blob = new Blob([asset.data], { type: mimeType })
             formData.append('files', blob, asset.fileName)
             formData.append('ossPath', asset.ossPath)
             formData.append('type', 'image')
 
-            const response = await fetch(apiBase + '/api/assets/upload', {
+            var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
               method: 'POST',
               headers: apiToken ? { 'X-API-Key': apiToken } : {},
               body: formData,
             })
-            const result = await response.json()
+            var result = await response.json()
             if (result.success) {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
@@ -566,20 +605,28 @@
               })
             }
           } catch (err) {
+            var errorMsg = err.name === 'AbortError'
+              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
+              : String(err)
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
               type: 'image', size: 0, status: 'error',
-              error: String(err),
+              error: errorMsg,
             })
           }
         }
       }
 
       // 汇总结果
-      const uploaded = results.filter(function(r) { return r.status === 'uploaded' }).length
-      const skipped = results.filter(function(r) { return r.status === 'skipped' }).length
-      const errors = results.filter(function(r) { return r.status === 'error' })
-      const summary = {
+      var uploaded = 0
+      var skipped = 0
+      var errors = []
+      for (var k = 0; k < results.length; k++) {
+        if (results[k].status === 'uploaded') uploaded++
+        else if (results[k].status === 'skipped') skipped++
+        else if (results[k].status === 'error') errors.push(results[k])
+      }
+      var summary = {
         total: total,
         uploaded: uploaded,
         skipped: skipped,
@@ -588,17 +635,17 @@
       }
 
       // 通过 parent.postMessage 将结果传回主线程（日志记录 + 转发到 UI 显示）
-      parent.postMessage({ pluginMessage: { type: 'sync-done', results, summary } }, '*')
+      parent.postMessage({ pluginMessage: { type: 'sync-done', results: results, summary: summary } }, '*')
     }
 
     function handleSync() {
       if (isSyncing || assets.length === 0) return
 
-      const apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
-      const apiToken = document.getElementById('apiToken').value.trim()
+      var apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
+      var apiToken = document.getElementById('apiToken').value.trim()
 
       // 发送消息到主线程
-      parent.postMessage({ pluginMessage: { type: 'sync', assets, apiBase, apiToken } }, '*')
+      parent.postMessage({ pluginMessage: { type: 'sync', assets: assets, apiBase: apiBase, apiToken: apiToken } }, '*')
     }
 
     function handleCancel() {
