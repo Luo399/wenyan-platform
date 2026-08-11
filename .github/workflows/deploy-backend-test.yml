@@ -1,0 +1,155 @@
+name: Deploy Backend to Test Server
+
+# 重试：ACR 凭证已更新
+on:
+  push:
+    branches:
+      - feature-1
+    paths:
+      - 'backend/**'
+      - 'figma-plugin/**'
+      - '.github/workflows/deploy-backend-test.yml'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+
+env:
+  REGISTRY: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com
+  IMAGE_NAME: luo-hui-ning/wenyan-platform-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Verify image push
+        run: |
+          echo "=== Verifying pushed image ==="
+          docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --format '{{json .}}' 2>&1 || echo "WARNING: Image verification failed (may be transient)"
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to test server
+        run: |
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e
+            TEST_PATH="${{ secrets.SERVER_PROJECT_PATH }}-test"
+            BRANCH="feature-1"
+
+            echo "=== [1/4] Clone or update repo ==="
+            if [ ! -d "$TEST_PATH" ]; then
+              git clone https://github.com/Luo399/wenyan-platform.git "$TEST_PATH"
+            fi
+            cd "$TEST_PATH"
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            echo "=== [2/4] Create .env file ==="
+            echo "PORT=3001" > backend/.env
+            echo "CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn" >> backend/.env
+            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
+
+            echo "=== [3/5] Install Docker if not present ==="
+            if ! command -v docker &>/dev/null; then
+              echo "Installing Docker..."
+              dnf install -y --disablerepo='nodesource-*' dnf-utils device-mapper-persistent-data lvm2
+              dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+              dnf install -y --disablerepo='nodesource-*' docker-ce docker-ce-cli containerd.io docker-compose-plugin
+              systemctl enable --now docker
+              echo "Docker installed successfully"
+            else
+              echo "Docker already installed"
+            fi
+
+            echo "=== [3b] Check server time ==="
+            SERVER_TIME=$(date +%s)
+            echo "Server time: $(date -d @$SERVER_TIME '+%Y-%m-%d %H:%M:%S')"
+            REF_TIME="${{ github.event.repository.updated_at }}"
+            REF_TS=$(date -d "$REF_TIME" +%s 2>/dev/null || echo "0")
+            if [ "$REF_TS" -ne 0 ]; then
+              DIFF=$((SERVER_TIME - REF_TS))
+              echo "Time diff: ${DIFF#-} seconds"
+              if [ "${DIFF#-}" -gt 300 ]; then
+                echo "WARNING: Server time off by more than 5 minutes, syncing..."
+                if command -v chronyd &>/dev/null; then
+                  chronyd -q 'server ntp.aliyun.com iburst' 2>/dev/null || true
+                elif command -v ntpdate &>/dev/null; then
+                  ntpdate -u ntp.aliyun.com 2>/dev/null || true
+                else
+                  dnf install -y chrony 2>/dev/null
+                  chronyd -q 'server ntp.aliyun.com iburst' 2>/dev/null || true
+                fi
+                echo "Time after sync: $(date '+%Y-%m-%d %H:%M:%S')"
+              else
+                echo "Server time is within acceptable range"
+              fi
+            fi
+
+            echo "=== [4/5] Login to ACR and pull latest image ==="
+            echo "${{ secrets.ACR_PASSWORD }}" | docker login \
+              --username "${{ secrets.ACR_USERNAME }}" \
+              --password-stdin \
+              ${{ env.REGISTRY }}
+            docker compose pull
+
+            echo "=== [5/5] Restart backend (test environment) ==="
+            pm2 delete wenyan-backend-test 2>/dev/null || true
+            mkdir -p backend/database backend/data backend/logs
+            chown -R 1000:1000 backend/database backend/data backend/logs
+            HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test NODE_ENV=development \
+              docker compose up -d --remove-orphans
+            sleep 15
+
+            echo "=== Health check ==="
+            curl -s http://127.0.0.1:3001/api/health || {
+              echo "HEALTH_CHECK_FAILED"
+              echo "=== Container logs ==="
+              docker logs wenyan-backend-test 2>&1 || true
+              echo "=== Container status ==="
+              docker ps -a --filter name=wenyan-backend-test --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
+            }
+
+            echo "=== Clean up old images ==="
+            docker image prune -f
+          EOF
+
+      - name: Configure Nginx reverse proxy for test
+        run: |
+          scp scripts/configure-nginx-test.sh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }}:/tmp/
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} "chmod +x /tmp/configure-nginx-test.sh && /tmp/configure-nginx-test.sh"
