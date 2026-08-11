@@ -43,6 +43,15 @@ jobs:
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Verify image push
+        run: |
+          echo "=== Verifying pushed image ==="
+          docker buildx imagetools inspect \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            --format '{{json .}}' 2>&1 || echo "WARNING: Image verification failed (may be transient)"
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
@@ -71,13 +80,11 @@ jobs:
             git reset --hard "origin/$BRANCH"
 
             echo "=== [2/4] Create .env file ==="
-            # 备份已有的 .env（保留 PORT、JWT_SECRET 等配置）
             if [ -f backend/.env ]; then
               cp backend/.env backend/.env.bak
             fi
             echo "PORT=3000" > backend/.env
             echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn,https://www.figma.com" >> backend/.env
-            # 恢复已有的 JWT_SECRET（非空），否则生成随机密钥
             SAVED_SECRET=""
             if [ -f backend/.env.bak ]; then
               SAVED_SECRET=$(grep '^JWT_SECRET=' backend/.env.bak | cut -d= -f2-)
@@ -98,7 +105,6 @@ jobs:
             echo "=== [3/5] Install Docker if not present ==="
             if ! command -v docker &>/dev/null; then
               echo "Installing Docker..."
-              # 跳过 nodesource 仓库（超时），使用阿里云镜像
               dnf install -y --disablerepo='nodesource-*' dnf-utils device-mapper-persistent-data lvm2
               dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
               dnf install -y --disablerepo='nodesource-*' docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -106,6 +112,30 @@ jobs:
               echo "Docker installed successfully"
             else
               echo "Docker already installed"
+            fi
+
+            echo "=== [3b] Check server time ==="
+            SERVER_TIME=$(date +%s)
+            echo "Server time: $(date -d @$SERVER_TIME '+%Y-%m-%d %H:%M:%S')"
+            REF_TIME="${{ github.event.repository.updated_at }}"
+            REF_TS=$(date -d "$REF_TIME" +%s 2>/dev/null || echo "0")
+            if [ "$REF_TS" -ne 0 ]; then
+              DIFF=$((SERVER_TIME - REF_TS))
+              echo "Time diff: ${DIFF#-} seconds"
+              if [ "${DIFF#-}" -gt 300 ]; then
+                echo "WARNING: Server time off by more than 5 minutes, syncing..."
+                if command -v chronyd &>/dev/null; then
+                  chronyd -q 'server ntp.aliyun.com iburst' 2>/dev/null || true
+                elif command -v ntpdate &>/dev/null; then
+                  ntpdate -u ntp.aliyun.com 2>/dev/null || true
+                else
+                  dnf install -y chrony 2>/dev/null
+                  chronyd -q 'server ntp.aliyun.com iburst' 2>/dev/null || true
+                fi
+                echo "Time after sync: $(date '+%Y-%m-%d %H:%M:%S')"
+              else
+                echo "Server time is within acceptable range"
+              fi
             fi
 
             echo "=== [4/5] Login to ACR and pull latest image ==="
@@ -116,9 +146,7 @@ jobs:
             docker compose pull
 
             echo "=== [5/5] Restart backend ==="
-            # 停止旧 PM2 进程（避免端口冲突）
             pm2 delete wenyan-backend 2>/dev/null || true
-            # 确保数据目录存在且 node 用户可写
             mkdir -p backend/database backend/data backend/logs
             chown -R 1000:1000 backend/database backend/data backend/logs
             docker compose up -d --remove-orphans
