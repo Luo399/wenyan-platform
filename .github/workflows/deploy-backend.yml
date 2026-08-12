@@ -117,6 +117,7 @@ jobs:
             echo "=== [3b] Check server time ==="
             SERVER_TIME=$(date +%s)
             echo "Server time: $(date -d @$SERVER_TIME '+%Y-%m-%d %H:%M:%S')"
+
             REF_TIME="${{ github.event.repository.updated_at }}"
             REF_TS=$(date -d "$REF_TIME" +%s 2>/dev/null || echo "0")
             if [ "$REF_TS" -ne 0 ]; then

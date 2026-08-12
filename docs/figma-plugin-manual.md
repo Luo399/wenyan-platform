@@ -347,6 +347,10 @@ figma-plugin/
 | **CI Checks** | 推送 `figma-plugin/**` | 类型检查 + 构建验证 |
 | **Deploy Backend to Test Server** | 推送 `figma-plugin/**` 到 `feature-1` | 重新部署后端服务 |
 
+### 8.4 官方文档参考
+
+Figma 插件开发完整指南：[Figma Plugin Development Documentation](https://developers.figma.com/docs/plugins/?fuid=1667110301343199618)
+
 ---
 
 ## 九、附录：模拟测试
