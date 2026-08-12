@@ -1,0 +1,65 @@
+name: Sync Figma Plugin to wenyan-asset-sync
+
+on:
+  push:
+    branches:
+      - feature-1
+      - main
+    paths:
+      - 'figma-plugin/**'
+      - '.github/workflows/sync-figma-plugin.yml'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout wenyan-platform
+        uses: actions/checkout@v4
+        with:
+          path: wenyan-platform
+
+      - name: Checkout wenyan-asset-sync
+        uses: actions/checkout@v4
+        with:
+          repository: Luo399/wenyan-asset-sync
+          token: ${{ secrets.GH_TOKEN }}
+          path: wenyan-asset-sync
+
+      - name: Sync plugin files
+        run: |
+          echo "=== Copying figma-plugin files to wenyan-asset-sync ==="
+          cp wenyan-platform/figma-plugin/code.ts wenyan-asset-sync/code.ts
+          cp wenyan-platform/figma-plugin/code.js wenyan-asset-sync/code.js
+          cp wenyan-platform/figma-plugin/ui.html wenyan-asset-sync/ui.html
+          cp wenyan-platform/figma-plugin/manifest.json wenyan-asset-sync/manifest.json
+          cp wenyan-platform/figma-plugin/package.json wenyan-asset-sync/package.json
+          cp wenyan-platform/figma-plugin/package-lock.json wenyan-asset-sync/package-lock.json
+          cp wenyan-platform/figma-plugin/tsconfig.json wenyan-asset-sync/tsconfig.json
+          echo "Files synced successfully"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          path: wenyan-asset-sync
+          token: ${{ secrets.GH_TOKEN }}
+          commit-message: 'sync: 从 wenyan-platform 同步 Figma 插件更新'
+          committer: GitHub Actions <actions@github.com>
+          author: GitHub Actions <actions@github.com>
+          title: 'sync: Figma 插件自动同步'
+          body: |
+            本次同步由 wenyan-platform 仓库的 Figma 插件变更自动触发。
+
+            **同步内容：**
+            - `code.ts` / `code.js`：插件主逻辑
+            - `ui.html`：插件 UI
+            - `manifest.json`：插件清单
+            - `package.json` / `package-lock.json` / `tsconfig.json`：构建配置
+
+            **源提交：** ${{ github.sha }}
+            **源分支：** ${{ github.ref_name }}
+          branch: sync/from-wenyan-platform-${{ github.sha }}
+          base: main
+          delete-branch: true
+          labels: automated-sync

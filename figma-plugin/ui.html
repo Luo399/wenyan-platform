@@ -54,6 +54,20 @@
     .config-row input:focus {
       border-color: var(--figma-color-border-brand, #18a0fb);
     }
+    .config-row select {
+      flex: 1;
+      padding: 6px 8px;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
+      border: 1px solid var(--figma-color-border, #444);
+      border-radius: 4px;
+      color: var(--figma-color-text, #ccc);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+    .config-row select:focus {
+      border-color: var(--figma-color-border-brand, #18a0fb);
+    }
     .status-bar {
       display: flex;
       justify-content: space-between;
@@ -162,6 +176,13 @@
     .asset-status.uploaded {
       background: var(--figma-color-bg-success-tertiary, #1a3a1a);
       color: var(--figma-color-text-success, #4caf50);
+    }
+    .asset-status.verified {
+      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
+      color: var(--figma-color-text-success, #4caf50);
+    }
+    .asset-status.verified::after {
+      content: ' ✓';
     }
     .asset-status.error {
       background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
@@ -275,12 +296,17 @@
 
   <div class="config-row">
     <label>API 地址：</label>
-    <input type="text" id="apiBase" value="https://api.classicalab.cn" placeholder="后端 API 地址" />
+    <select id="apiBaseSelect" onchange="onApiBaseChange()">
+      <option value="https://api.classicalab.cn">生产环境 (api.classicalab.cn)</option>
+      <option value="https://test-api.classicalab.cn">测试环境 (test-api.classicalab.cn)</option>
+      <option value="custom">自定义...</option>
+    </select>
+    <input type="text" id="apiBaseCustom" style="display:none" placeholder="输入自定义 API 地址" />
   </div>
 
   <div class="config-row">
     <label>同步令牌：</label>
-    <input type="password" id="apiToken" placeholder="ASSET_SYNC_TOKEN（可选，未配置时走免令牌通道）" />
+    <input type="password" id="apiToken" oninput="saveToken()" placeholder="ASSET_SYNC_TOKEN（可选）" />
   </div>
 
   <div id="statusBar" class="status-bar">
@@ -312,6 +338,14 @@
 
     var assets = []
     var isSyncing = false
+    // 版本数据（用于对比判断是否已上传）
+    var versionData = { assets: {} }
+    var versionDataReady = false
+    var versionDataPromise = null
+    // 当前上传中的资源（用于重试匹配）
+    var currentUploadAssets = []
+    // 上传失败待重试的资源
+    var failedAssets = []
 
     // 接收来自主线程的消息（使用 onmessage 而非 window.onmessage，符合官方规范）
     onmessage = function(event) {
@@ -325,7 +359,11 @@
 
         case 'scan-result':
           assets = msg.assets
-          renderAssets(msg.assets)
+          // 等待版本数据就绪后对比并渲染
+          versionDataPromise.then(function() {
+            var enriched = compareAssetsWithVersion(assets, versionData)
+            renderAssets(enriched)
+          })
           updateStatus(msg.assets.length)
           document.getElementById('actions').style.display = 'flex'
           break
@@ -349,6 +387,8 @@
 
         case 'sync-data':
           // 主线程已导出图片节点，UI 线程负责上传（支持 FormData）
+          // 存储当前上传资源，用于上传失败后重试匹配
+          currentUploadAssets = msg.assets
           updateStatus(msg.assets.length, '上传中...')
           uploadAssets(msg.apiBase, msg.apiToken, msg.assets)
           break
@@ -358,6 +398,16 @@
           document.getElementById('syncBtn').disabled = false
           document.getElementById('progressBar').style.display = 'none'
           document.getElementById('actions').style.display = 'none'
+          // 收集失败资源用于重试
+          failedAssets = []
+          for (var kr = 0; kr < msg.results.length; kr++) {
+            if (msg.results[kr].status === 'error') {
+              var match = currentUploadAssets.find(function(a) {
+                return a.ossPath === msg.results[kr].ossPath
+              })
+              if (match) failedAssets.push(match)
+            }
+          }
           showSummary(msg.summary, msg.results)
           renderResults(msg.results)
           break
@@ -440,7 +490,7 @@
         var result = results[i]
         var icon = getAssetIcon(result.type)
         var statusClass = result.status
-        var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
+        var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'verified' ? '已验证' : result.status === 'skipped' ? '已跳过' : '失败'
         var sizeStr = result.size > 1024 ? (result.size / 1024).toFixed(1) + ' KB' : result.size + ' B'
 
         html +=
@@ -477,6 +527,14 @@
           '<span class="success">' + summary.uploaded + '</span>' +
         '</div>'
 
+      if (summary.verified > 0) {
+        html +=
+          '<div class="summary-row">' +
+            '<span class="success">✓✓ 已验证（OSS 确认存在）</span>' +
+            '<span class="success">' + summary.verified + '</span>' +
+          '</div>'
+      }
+
       if (summary.skipped > 0) {
         html +=
           '<div class="summary-row">' +
@@ -496,7 +554,11 @@
           var e = summary.errorDetails[j]
           html += escapeHtml(e.fileName) + ': ' + escapeHtml(e.error) + '<br>'
         }
-        html += '</div>'
+        html +=
+          '</div>' +
+          '<button id="retryBtn" class="btn-danger" onclick="handleRetry()" style="margin-top:8px">' +
+            '↻ 重试失败项（' + summary.errors + ' 个）' +
+          '</button>'
       }
 
       summaryEl.innerHTML = html
@@ -539,12 +601,36 @@
     }
 
     /**
+     * 验证 OSS 文件是否真实存在（通过 HEAD 请求）
+     * 仅在生产环境执行，测试环境跳过验证
+     *
+     * @param {string} url - OSS 公开访问 URL
+     * @param {string} apiBase - 当前 API 基地址（用于判断是否生产环境）
+     * @returns {Promise<boolean>} 文件是否存在
+     */
+    async function verifyOssFileExists(url, apiBase) {
+      // 仅生产环境（非 test 地址）执行验证
+      if (!url || apiBase.includes('test') || apiBase.includes('127.0.0.1') || apiBase.includes('localhost')) {
+        return false
+      }
+      try {
+        var response = await fetchWithTimeout(url, { method: 'HEAD' }, 10000)
+        // 2xx/3xx 状态码视为存在
+        return response.ok || (response.status >= 300 && response.status < 400)
+      } catch (err) {
+        logDebug('OSS 验证请求失败:', err)
+        return false
+      }
+    }
+
+    /**
      * UI 线程上传资源（浏览器环境完全支持 FormData / Blob / AbortController）
      *
      * 架构说明：
      *   - 主线程（code.ts）负责 Figma 节点导出，数据通过 postMessage 传递
      *   - UI 线程（本函数）负责网络请求，支持 FormData 上传图片
      *   - 上传完成后通过 parent.postMessage 将结果传回主线程
+     *   - 上传成功后通过 HEAD 请求验证 OSS 文件真实存在
      */
     async function uploadAssets(apiBase, apiToken, assets) {
       var results = []
@@ -574,10 +660,14 @@
             })
             var result = await response.json()
             if (result.success) {
+              // 从后端响应中提取 OSS 公开 URL 并验证
+              var ossUrl = result.data?.uploaded?.[0]?.ossUrl || ''
+              var isVerified = ossUrl ? await verifyOssFileExists(ossUrl, apiBase) : false
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
                 type: asset.type, size: (asset.content || '').length,
-                status: 'uploaded',
+                status: isVerified ? 'verified' : 'uploaded',
+                ossUrl: ossUrl,
               })
             } else {
               results.push({
@@ -614,9 +704,14 @@
             })
             var result = await response.json()
             if (result.success) {
+              // 从后端响应中提取 OSS 公开 URL 并验证
+              var ossUrl = result.data?.uploaded?.[0]?.ossUrl || ''
+              var isVerified = ossUrl ? await verifyOssFileExists(ossUrl, apiBase) : false
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: asset.type, size: blob.size, status: 'uploaded',
+                type: asset.type, size: blob.size,
+                status: isVerified ? 'verified' : 'uploaded',
+                ossUrl: ossUrl,
               })
             } else {
               results.push({
@@ -640,16 +735,19 @@
 
       // 汇总结果
       var uploaded = 0
+      var verified = 0
       var skipped = 0
       var errors = []
       for (var k = 0; k < results.length; k++) {
-        if (results[k].status === 'uploaded') uploaded++
+        if (results[k].status === 'verified') verified++
+        else if (results[k].status === 'uploaded') uploaded++
         else if (results[k].status === 'skipped') skipped++
         else if (results[k].status === 'error') errors.push(results[k])
       }
       var summary = {
         total: total,
         uploaded: uploaded,
+        verified: verified,
         skipped: skipped,
         errors: errors.length,
         errorDetails: errors,
@@ -662,7 +760,7 @@
     function handleSync() {
       if (isSyncing || assets.length === 0) return
 
-      var apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
+      var apiBase = getApiBase()
       var apiToken = document.getElementById('apiToken').value.trim()
 
       // 发送消息到主线程
@@ -672,6 +770,140 @@
     function handleCancel() {
       parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
     }
+
+    /** 获取当前 API 基地址 */
+    function getApiBase() {
+      var select = document.getElementById('apiBaseSelect')
+      if (select.value === 'custom') {
+        return document.getElementById('apiBaseCustom').value.trim() || 'https://api.classicalab.cn'
+      }
+      return select.value
+    }
+
+    /** API 地址下拉切换：显示/隐藏自定义输入框并保存 */
+    function onApiBaseChange() {
+      var select = document.getElementById('apiBaseSelect')
+      var customInput = document.getElementById('apiBaseCustom')
+      if (select.value === 'custom') {
+        customInput.style.display = 'block'
+        customInput.focus()
+      } else {
+        customInput.style.display = 'none'
+        customInput.value = ''
+      }
+      try { localStorage.setItem('wenyan_plugin_api_base', select.value) } catch(e) {}
+    }
+
+    /** 保存同步令牌到 localStorage */
+    function saveToken() {
+      try {
+        var token = document.getElementById('apiToken').value
+        localStorage.setItem('wenyan_plugin_api_token', token)
+      } catch(e) {}
+    }
+
+    /** 从 localStorage 加载已保存的配置 */
+    function loadSavedConfig() {
+      try {
+        var savedApiBase = localStorage.getItem('wenyan_plugin_api_base')
+        if (savedApiBase) {
+          var select = document.getElementById('apiBaseSelect')
+          if (savedApiBase === 'custom') {
+            select.value = 'custom'
+            document.getElementById('apiBaseCustom').style.display = 'block'
+            var savedCustom = localStorage.getItem('wenyan_plugin_api_base_custom')
+            if (savedCustom) document.getElementById('apiBaseCustom').value = savedCustom
+          } else {
+            // 检查保存的值是否在下拉选项中
+            var optionExists = Array.from(select.options).some(function(opt) {
+              return opt.value === savedApiBase
+            })
+            if (optionExists) {
+              select.value = savedApiBase
+            }
+          }
+        }
+        var savedToken = localStorage.getItem('wenyan_plugin_api_token')
+        if (savedToken) {
+          document.getElementById('apiToken').value = savedToken
+        }
+      } catch(e) {}
+    }
+
+    /** 获取版本信息（判断哪些资源已上传） */
+    function fetchVersionInfo() {
+      try {
+        var apiBase = getApiBase()
+        return fetchWithTimeout(apiBase + '/api/assets/version', { method: 'GET' }, 10000)
+          .then(function(response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status)
+            return response.json()
+          })
+          .then(function(data) {
+            if (data.success && data.data) {
+              versionData = data.data
+            }
+            versionDataReady = true
+            return versionData
+          })
+          .catch(function(err) {
+            console.log('[文言文同步] 获取版本信息失败，所有资源将显示为"新增":', err.message)
+            versionData = { assets: {} }
+            versionDataReady = true
+            return versionData
+          })
+      } catch(e) {
+        versionData = { assets: {} }
+        versionDataReady = true
+        return Promise.resolve(versionData)
+      }
+    }
+
+    /** 对比资源与版本数据，修正状态：已上传的标记为"未变" */
+    function compareAssetsWithVersion(assets, versionData) {
+      if (!versionData || !versionData.assets) return assets
+      return assets.map(function(asset) {
+        if (versionData.assets[asset.ossPath]) {
+          return { ...asset, status: 'unchanged' }
+        }
+        return asset
+      })
+    }
+
+    /** 处理重试：重新上传失败资源 */
+    function handleRetry() {
+      if (failedAssets.length === 0) return
+
+      var apiBase = getApiBase()
+      var apiToken = document.getElementById('apiToken').value.trim()
+
+      // 禁用重试按钮防止重复点击
+      var retryBtn = document.getElementById('retryBtn')
+      if (retryBtn) retryBtn.disabled = true
+
+      // 隐藏摘要，重新进入上传流程
+      document.getElementById('summary').style.display = 'none'
+      document.getElementById('actions').style.display = 'none'
+      document.getElementById('progressBar').style.display = 'block'
+
+      updateStatus(failedAssets.length, '正在重试...')
+
+      // 发送重试消息到主线程
+      parent.postMessage({
+        pluginMessage: {
+          type: 'retry',
+          assets: failedAssets,
+          apiBase: apiBase,
+          apiToken: apiToken,
+        }
+      }, '*')
+    }
+
+    // 加载已保存的配置
+    loadSavedConfig()
+
+    // 启动后台获取版本信息（用于"新增"标签判断）
+    versionDataPromise = fetchVersionInfo()
 
     // 通知主线程 UI 已就绪
     parent.postMessage({ pluginMessage: { type: 'ui-ready' } }, '*')
