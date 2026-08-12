@@ -84,7 +84,7 @@ jobs:
               cp backend/.env backend/.env.bak
             fi
             echo "PORT=3000" > backend/.env
-            echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn,https://www.figma.com" >> backend/.env
+            echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn,https://www.figma.com,https://needed-data.classicalab.cn" >> backend/.env
             SAVED_SECRET=""
             if [ -f backend/.env.bak ]; then
               SAVED_SECRET=$(grep '^JWT_SECRET=' backend/.env.bak | cut -d= -f2-)
@@ -99,6 +99,18 @@ jobs:
               NEW_SECRET=$(openssl rand -hex 32)
               echo "JWT_SECRET=$NEW_SECRET" >> backend/.env
               echo "JWT_SECRET auto-generated"
+            fi
+            # ASSET_SYNC_TOKEN：保留备份值或从 Secret 读取
+            SAVED_TOKEN=""
+            if [ -f backend/.env.bak ]; then
+              SAVED_TOKEN=$(grep '^ASSET_SYNC_TOKEN=' backend/.env.bak | cut -d= -f2-)
+            fi
+            if [ -n "$SAVED_TOKEN" ]; then
+              echo "ASSET_SYNC_TOKEN=$SAVED_TOKEN" >> backend/.env
+              echo "ASSET_SYNC_TOKEN restored from backup"
+            elif [ -n "${{ secrets.ASSET_SYNC_TOKEN }}" ]; then
+              echo "ASSET_SYNC_TOKEN=${{ secrets.ASSET_SYNC_TOKEN }}" >> backend/.env
+              echo "ASSET_SYNC_TOKEN set from GitHub Secret"
             fi
             rm -f backend/.env.bak
 

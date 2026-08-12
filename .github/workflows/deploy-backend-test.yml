@@ -81,9 +81,25 @@ jobs:
             git reset --hard "origin/$BRANCH"
 
             echo "=== [2/4] Create .env file ==="
+            if [ -f backend/.env ]; then
+              cp backend/.env backend/.env.bak
+            fi
             echo "PORT=3001" > backend/.env
             echo "CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn" >> backend/.env
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
+            # ASSET_SYNC_TOKEN：保留备份值或从 Secret 读取
+            SAVED_TOKEN=""
+            if [ -f backend/.env.bak ]; then
+              SAVED_TOKEN=$(grep '^ASSET_SYNC_TOKEN=' backend/.env.bak | cut -d= -f2-)
+            fi
+            if [ -n "$SAVED_TOKEN" ]; then
+              echo "ASSET_SYNC_TOKEN=$SAVED_TOKEN" >> backend/.env
+              echo "ASSET_SYNC_TOKEN restored from backup"
+            elif [ -n "${{ secrets.ASSET_SYNC_TOKEN }}" ]; then
+              echo "ASSET_SYNC_TOKEN=${{ secrets.ASSET_SYNC_TOKEN }}" >> backend/.env
+              echo "ASSET_SYNC_TOKEN set from GitHub Secret"
+            fi
+            rm -f backend/.env.bak
 
             echo "=== [3/5] Install Docker if not present ==="
             if ! command -v docker &>/dev/null; then
