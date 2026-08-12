@@ -79,5 +79,5 @@ figma-plugin/
 
 1. **异步 API**：`manifest.json` 中 `"documentAccess": "dynamic-page"`，必须使用 `await figma.getNodeByIdAsync()`
 2. **环境分隔**：主线程无 `FormData`/`Blob`，网络请求全部在 UI 线程完成
-3. **网络权限**：`manifest.json` 中 `networkAccess.allowedDomains` 已配置为 `["*"]`
+3. **网络权限**：`manifest.json` 中 `networkAccess.allowedDomains` 已配置为 `["https://api.classicalab.cn"]`，必须包含 scheme（`https://`）
 4. **节点 ID**：Figma 节点 ID 格式为 `"123:456"`，非文件名，通过 `selection[0].id` 获取

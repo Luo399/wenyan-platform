@@ -119,6 +119,10 @@
       background: var(--figma-color-bg-warning-tertiary, #3a2a1a);
       color: var(--figma-color-text-warning, #f5a623);
     }
+    .asset-icon.style {
+      background: var(--figma-color-bg-tertiary, #3a2a3a);
+      color: var(--figma-color-text-tertiary, #aaa);
+    }
     .asset-info {
       flex: 1;
       min-width: 0;
@@ -314,6 +318,11 @@
       var msg = event.data.pluginMessage || event.data
 
       switch (msg.type) {
+        case 'scan-phase':
+          // 显示扫描阶段进度
+          updateStatus(0, msg.message || '扫描中...')
+          break
+
         case 'scan-result':
           assets = msg.assets
           renderAssets(msg.assets)
@@ -381,6 +390,18 @@
         .replace(/'/g, '&#039;')
     }
 
+    function getAssetIcon(type) {
+      if (type === 'image') return '🖼'
+      if (type === 'style') return '🎨'
+      return '📝' // text
+    }
+
+    function getAssetTypeLabel(type) {
+      if (type === 'image') return '图片'
+      if (type === 'style') return '样式'
+      return '文字'
+    }
+
     function renderAssets(assets) {
       var container = document.getElementById('assetsContainer')
       if (assets.length === 0) {
@@ -395,7 +416,7 @@
       var html = ''
       for (var i = 0; i < assets.length; i++) {
         var asset = assets[i]
-        var icon = asset.type === 'image' ? '🖼' : '📝'
+        var icon = getAssetIcon(asset.type)
         var statusClass = asset.status
         var statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
 
@@ -403,7 +424,7 @@
           '<div class="asset-item">' +
             '<div class="asset-icon ' + asset.type + '">' + icon + '</div>' +
             '<div class="asset-info">' +
-              '<div class="asset-name">' + escapeHtml(asset.fileName) + '</div>' +
+              '<div class="asset-name">' + escapeHtml(getAssetTypeLabel(asset.type) + ': ' + asset.fileName) + '</div>' +
               '<div class="asset-path">' + escapeHtml(asset.ossPath) + '</div>' +
             '</div>' +
             '<span class="asset-status ' + statusClass + '">' + statusLabel + '</span>' +
@@ -417,7 +438,7 @@
       var html = ''
       for (var i = 0; i < results.length; i++) {
         var result = results[i]
-        var icon = result.type === 'image' ? '🖼' : '📝'
+        var icon = getAssetIcon(result.type)
         var statusClass = result.status
         var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
         var sizeStr = result.size > 1024 ? (result.size / 1024).toFixed(1) + ' KB' : result.size + ' B'
@@ -426,7 +447,7 @@
           '<div class="asset-item">' +
             '<div class="asset-icon ' + result.type + '">' + icon + '</div>' +
             '<div class="asset-info">' +
-              '<div class="asset-name">' + escapeHtml(result.fileName) + '</div>' +
+              '<div class="asset-name">' + escapeHtml(getAssetTypeLabel(result.type) + ': ' + result.fileName) + '</div>' +
               '<div class="asset-path">' + escapeHtml(result.ossPath) + '</div>' +
             '</div>' +
             '<span class="asset-size">' + sizeStr + '</span>' +
@@ -533,8 +554,8 @@
         var asset = assets[i]
         updateProgress(((i + 1) / total) * 100)
 
-        if (asset.type === 'text') {
-          // 文字资源：JSON 格式上传
+        if (asset.type === 'text' || asset.type === 'style') {
+          // 文字/样式资源：JSON 格式上传
           try {
             var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
               method: 'POST',
@@ -545,7 +566,7 @@
               body: JSON.stringify({
                 files: [{
                   ossPath: asset.ossPath,
-                  type: 'text',
+                  type: asset.type,
                   content: asset.content,
                   encoding: 'utf-8',
                 }],
@@ -555,13 +576,13 @@
             if (result.success) {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'text', size: (asset.content || '').length,
+                type: asset.type, size: (asset.content || '').length,
                 status: 'uploaded',
               })
             } else {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'text', size: 0, status: 'error',
+                type: asset.type, size: 0, status: 'error',
                 error: result.message || '上传失败',
               })
             }
@@ -571,20 +592,20 @@
               : String(err)
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
-              type: 'text', size: 0, status: 'error',
+              type: asset.type, size: 0, status: 'error',
               error: errorMsg,
             })
           }
         } else {
-          // 图片资源：FormData 上传（UI 浏览器环境完全支持）
+          // 图片资源：FormData 上传
           try {
             var formData = new FormData()
-            var mimeType = asset.ossPath.toLowerCase().endsWith('.svg')
-              ? 'image/svg+xml' : 'image/png'
+            var isSvg = asset.ossPath.toLowerCase().endsWith('.svg')
+            var mimeType = isSvg ? 'image/svg+xml' : 'image/png'
             var blob = new Blob([asset.data], { type: mimeType })
             formData.append('files', blob, asset.fileName)
             formData.append('ossPath', asset.ossPath)
-            formData.append('type', 'image')
+            formData.append('type', asset.type)
 
             var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
               method: 'POST',
@@ -595,12 +616,12 @@
             if (result.success) {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'image', size: blob.size, status: 'uploaded',
+                type: asset.type, size: blob.size, status: 'uploaded',
               })
             } else {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'image', size: 0, status: 'error',
+                type: asset.type, size: 0, status: 'error',
                 error: result.message || '上传失败',
               })
             }
@@ -610,7 +631,7 @@
               : String(err)
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
-              type: 'image', size: 0, status: 'error',
+              type: asset.type, size: 0, status: 'error',
               error: errorMsg,
             })
           }

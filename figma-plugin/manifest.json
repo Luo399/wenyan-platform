@@ -8,9 +8,9 @@
   "enableProposedApi": false,
   "editorType": ["figma"],
   "networkAccess": {
-    "allowedDomains": ["api.classicalab.cn"],
+    "allowedDomains": ["https://api.classicalab.cn"],
     "reasoning": "需要连接后端 API 上传资源到服务器",
-    "devAllowedDomains": ["http://localhost:3000", "http://127.0.0.1:3000"]
+    "devAllowedDomains": ["http://localhost:3000"]
   },
   "documentAccess": "dynamic-page"
 }

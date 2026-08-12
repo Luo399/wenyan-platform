@@ -56,6 +56,8 @@ function createApp() {
         'http://needed-data.classicalab.cn',
         // Figma 插件 UI iframe 运行环境，需允许跨域请求
         'https://www.figma.com',
+        // Figma 插件运行在 data: URL iframe 中，origin 为字符串 'null'
+        'null',
       ]
       // 合并 CORS_ORIGIN 环境变量中配置的域名（config 已解析为数组）
       const configuredOrigins = Array.isArray(config.cors.origin) ? config.cors.origin : []
