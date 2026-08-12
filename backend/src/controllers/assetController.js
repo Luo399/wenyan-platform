@@ -18,7 +18,7 @@ const ALLOWED_JSON_DIRS = [
   'data/text_basic_info',
   'data/level1_quiz',
   'data/texts',
-  'styles',  // Figma 插件视觉属性提取（颜色、字体、边框、圆角等）
+  'styles',  // Figma 插件视觉属性提取（颜色、字体、边框、圆角、自动布局等）
 ]
 /** 允许的图片/媒体根目录（子路径由 Figma Frame 命名决定） */
 const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
