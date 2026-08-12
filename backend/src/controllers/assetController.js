@@ -18,6 +18,7 @@ const ALLOWED_JSON_DIRS = [
   'data/text_basic_info',
   'data/level1_quiz',
   'data/texts',
+  'styles',  // Figma 插件视觉属性提取
 ]
 /** 允许的图片/媒体根目录（子路径由 Figma Frame 命名决定） */
 const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
@@ -45,8 +46,8 @@ function validateUpload(files) {
       return { ok: false, reason: 'PATH_TRAVERSAL', message: `非法路径: ${ossPath}` }
     }
 
-    if (type === 'text') {
-      // 文字资源：必须在 JSON 白名单目录内
+    if (type === 'text' || type === 'style') {
+      // 文字/样式资源：必须在 JSON 白名单目录内
       if (!ALLOWED_JSON_DIRS.some((dir) => ossPath.startsWith(`${dir}/`))) {
         return { ok: false, reason: 'PATH_NOT_ALLOWED', message: `路径不在白名单内: ${ossPath}` }
       }
