@@ -42,7 +42,7 @@ jobs:
 
       - name: Deploy to Aliyun OSS test bucket
         run: |
-          ./ossutil64 cp -r ./dist oss://${{ secrets.OSS_TEST_BUCKET }}/ \
+          ./ossutil64 cp -r ./dist oss://${{ secrets.OSS_TEST_BUCKET }}/ --force \
             -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
             -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
             -e oss-cn-guangzhou.aliyuncs.com \
