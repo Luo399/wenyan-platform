@@ -662,13 +662,40 @@ figma.ui.onmessage = async (msg) => {
         }
         if (msg.type === 'sync-done') {
             // UI 线程上传完成，将结果转发到 UI 显示（同时保留主线程日志）
-            logInfo(`===== 同步完成: ${msg.summary.uploaded} 成功, ${msg.summary.errors} 失败 =====`);
+            const verified = msg.summary?.verified || 0;
+            logInfo(`===== 同步完成: ${msg.summary.uploaded} 上传, ${verified} 已验证, ${msg.summary.errors} 失败 =====`);
             msg.summary.errorDetails?.forEach((e) => logError(`  失败 ${e.fileName}: ${e.error}`));
             figma.ui.postMessage({
                 type: 'sync-complete',
                 results: msg.results,
                 summary: msg.summary,
             });
+            return;
+        }
+        if (msg.type === 'retry') {
+            // 用户点击重试：重新导出失败节点并上传
+            const apiBase = msg.apiBase || DEFAULT_API_BASE;
+            const apiToken = typeof msg.apiToken === 'string' ? msg.apiToken.trim() : '';
+            const failedAssets = msg.assets;
+            logInfo(`===== 收到重试请求: ${failedAssets.length} 个资源 =====`);
+            figma.ui.postMessage({ type: 'sync-start', total: failedAssets.length });
+            try {
+                // 重新导出所有图片节点
+                const exportData = await prepareAssetsForUpload(failedAssets);
+                figma.ui.postMessage({
+                    type: 'sync-data',
+                    apiBase,
+                    apiToken,
+                    assets: exportData,
+                });
+            }
+            catch (err) {
+                logError('retry prepareAssetsForUpload 失败:', err);
+                figma.ui.postMessage({
+                    type: 'sync-error',
+                    error: String(err),
+                });
+            }
             return;
         }
         if (msg.type === 'cancel') {

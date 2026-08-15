@@ -74,6 +74,22 @@ function writeVersionFile(dataBasePath, versionData) {
 }
 
 /**
+ * 获取 OSS 公开访问 URL
+ * @param {object} ossConfig
+ * @param {string} ossPath - OSS 路径
+ * @returns {string|null} 公开 URL，无法确定时返回 null
+ */
+function getOssPublicUrl(ossConfig, ossPath) {
+  if (ossConfig.publicUrl) {
+    return `${ossConfig.publicUrl.replace(/\/$/, '')}/${ossPath}`
+  }
+  if (ossConfig.bucket && ossConfig.region) {
+    return `https://${ossConfig.bucket}.${ossConfig.region}.aliyuncs.com/${ossPath}`
+  }
+  return null
+}
+
+/**
  * 检查文件是否已存在且 MD5 相同（跳过上传）
  * @param {string} dataBasePath
  * @param {string} ossPath - OSS 路径（如 images/general/home_bg.png）
@@ -170,7 +186,7 @@ async function processFileUpload({ buffer, ossPath, originalName, type }, ossCon
 
   // 1. MD5 比对，相同则跳过
   if (isFileUnchanged(dataBasePath, ossPath, md5)) {
-    return { skipped: true, ossPath, md5, size }
+    return { skipped: true, ossPath, md5, size, ossUrl: getOssPublicUrl(ossConfig, ossPath) }
   }
 
   // 2. 上传到 OSS
@@ -181,7 +197,7 @@ async function processFileUpload({ buffer, ossPath, originalName, type }, ossCon
 
   logger.info(`[AssetService] 处理完成: ${ossPath} (${size} bytes, md5: ${md5})`)
 
-  return { skipped: false, ossPath, md5, size }
+  return { skipped: false, ossPath, md5, size, ossUrl: getOssPublicUrl(ossConfig, ossPath) }
 }
 
 /**

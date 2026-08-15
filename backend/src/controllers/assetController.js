@@ -100,6 +100,7 @@ function getOssConfig() {
     bucket: process.env.ALIYUN_OSS_BUCKET,
     accessKeyId: process.env.ALIYUN_ACCESS_KEY_ID,
     accessKeySecret: process.env.ALIYUN_ACCESS_KEY_SECRET,
+    publicUrl: process.env.OSS_PUBLIC_URL,
     dataBasePath: config.data.basePath,
   }
 }
