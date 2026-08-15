@@ -3,28 +3,39 @@
     <PoetryMenu />
 
     <div class="main-content">
-      <h1>文言文预习平台</h1>
-      <p>请从左侧菜单选择篇目开始学习</p>
+      <!-- 标题图（Figma: home_title.png） -->
+      <img class="home-title" :src="titleUrl" alt="文言文预习平台" />
 
-      <!-- 未登录时显示学号输入卡片 -->
-      <div v-if="!isLoggedIn" class="login-card">
-        <StudentLogin />
+      <!-- 角色选择按钮 -->
+      <div class="role-buttons">
+        <button type="button" class="role-btn" @click="openLogin('student')" aria-label="学生登录">
+          学生登录
+        </button>
+        <button type="button" class="role-btn" @click="openLogin('teacher')" aria-label="教师登录">
+          教师登录
+        </button>
       </div>
     </div>
+
+    <!-- 登录弹窗 -->
+    <LoginModal
+      :visible="showLoginModal"
+      :role="loginRole"
+      @close="closeLogin"
+      @login-success="handleLoginSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import PoetryMenu from '@/components/PoetryMenu.vue'
-import StudentLogin from '@/components/StudentLogin.vue'
-import { useStudentStore } from '@/stores/student'
-import { storeToRefs } from 'pinia'
+import LoginModal from '@/components/LoginModal.vue'
 import { getAssetUrl } from '@/utils/asset'
 import { track } from '@/utils/tracking'
 
-const studentStore = useStudentStore()
-const { isLoggedIn } = storeToRefs(studentStore)
+const router = useRouter()
 
 // 首页埋点
 const enterTime = Date.now()
@@ -36,8 +47,29 @@ onUnmounted(() => {
   track('step_exit', 'home', { duration })
 })
 
-// 登录页背景图（Figma 设计稿）
-const bgUrl = getAssetUrl('images', 'WEN_01_bg_login.png')
+// 背景图（Figma: home_bg.png）
+const bgUrl = getAssetUrl('images', 'home_bg.png')
+// 标题图（Figma: home_title.png）
+const titleUrl = getAssetUrl('images', 'home_title.png')
+
+// 登录弹窗控制
+const showLoginModal = ref(false)
+const loginRole = ref<'student' | 'teacher'>('student')
+
+function openLogin(role: 'student' | 'teacher') {
+  loginRole.value = role
+  showLoginModal.value = true
+}
+
+function closeLogin() {
+  showLoginModal.value = false
+}
+
+function handleLoginSuccess() {
+  showLoginModal.value = false
+  // 登录成功后跳转到学习页面
+  router.push({ name: 'rules', params: { id: '1' } })
+}
 </script>
 
 <style scoped>
@@ -51,36 +83,56 @@ const bgUrl = getAssetUrl('images', 'WEN_01_bg_login.png')
 }
 
 .main-content {
-  margin-left: var(--sidebar-width); /* 与 PoetryMenu 宽度同步 */
-  padding: var(--spacing-2xl);
+  margin-left: var(--sidebar-width);
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--spacing-xl);
 }
 
-.main-content h1 {
-  font-size: var(--font-size-display);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-  margin-bottom: var(--spacing-sm);
-  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
+/* 标题图 - Figma: home_title.png (1677x340) */
+.home-title {
+  width: clamp(300px, 48vw, 900px);
+  height: auto;
+  display: block;
 }
 
-.main-content p {
-  color: var(--color-text);
-  font-size: var(--font-size-body);
-  margin-bottom: var(--spacing-xl);
-  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.6);
+/* 角色选择按钮区 */
+.role-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
 }
 
-/* 学号输入卡片 - Figma 设计：圆角 30px + 阴影 */
-.login-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  max-width: 500px;
-  width: 100%;
+/* 角色按钮 - Figma: 528x163, 深红底, 橄榄绿8px边框, 50px圆角, 白字100px */
+.role-btn {
+  width: clamp(280px, 28vw, 528px);
+  height: clamp(80px, 8vw, 163px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family-serif);
+  font-weight: var(--font-weight-semibold);
+  font-size: clamp(2rem, 5vw, 5rem);
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.1s ease;
+  line-height: 1;
+}
+
+.role-btn:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.role-btn:active {
+  transform: scale(0.98);
 }
 </style>

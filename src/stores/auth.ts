@@ -77,15 +77,25 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 登录（正式端点 /api/auth/student/login）
-   * R77: 拆分为 requestLogin + applyLoginResult，保持单一职责
+   * 登录
+   * @param studentId - 学号/手机号
+   * @param password - 密码
+   * @param studentName - 学生姓名（可选）
+   * @param role - 登录角色：'student' 或 'teacher'，默认 'student'
    */
-  async function login(studentId: string, password: string, studentName?: string): Promise<void> {
+  async function login(
+    studentId: string,
+    password: string,
+    studentName?: string,
+    role: 'student' | 'teacher' = 'student',
+  ): Promise<void> {
     isLoading.value = true
     error.value = null
 
+    const endpoint = role === 'teacher' ? '/api/auth/teacher/login' : '/api/auth/student/login'
+
     try {
-      const response = await post<AuthTokenResponse>('/api/auth/student/login', {
+      const response = await post<AuthTokenResponse>(endpoint, {
         student_id: studentId,
         password,
       })

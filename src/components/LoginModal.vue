@@ -25,27 +25,33 @@
 
           <!-- 标题 -->
           <div class="modal-header">
-            <h2 id="login-modal-title" class="modal-title">用户登录</h2>
-            <p id="login-modal-subtitle" class="modal-subtitle">请输入学号和密码进行登录</p>
+            <h2 id="login-modal-title" class="modal-title">
+              {{ role === 'teacher' ? '教师登录' : '学生登录' }}
+            </h2>
+            <p id="login-modal-subtitle" class="modal-subtitle">
+              {{ role === 'teacher' ? '请输入手机号和密码进行登录' : '请输入学号和密码进行登录' }}
+            </p>
           </div>
 
           <!-- 表单 -->
           <form class="login-form" @submit.prevent="handleSubmit" novalidate>
-            <!-- 学号输入 -->
+            <!-- 学号/手机号输入 -->
             <div class="form-group">
-              <label for="studentId" class="form-label">学号</label>
+              <label for="studentId" class="form-label">{{
+                role === 'teacher' ? '手机号' : '学号'
+              }}</label>
               <input
                 ref="firstFocusableRef"
                 id="studentId"
                 v-model="studentId"
                 type="text"
-                inputmode="numeric"
-                autocomplete="username"
+                :inputmode="role === 'teacher' ? 'tel' : 'numeric'"
+                :autocomplete="role === 'teacher' ? 'tel' : 'username'"
                 class="form-input"
                 :class="{ error: hasError && !studentId }"
                 :aria-invalid="Boolean(hasError && !studentId)"
                 :aria-describedby="hasError && !studentId ? 'studentId-error' : undefined"
-                placeholder="请输入学号"
+                :placeholder="role === 'teacher' ? '请输入手机号' : '请输入学号'"
                 :disabled="isLoading"
                 @input="handleStudentIdInput"
               />
@@ -55,7 +61,7 @@
                 role="alert"
                 class="error-message"
               >
-                请输入学号
+                {{ role === 'teacher' ? '请输入手机号' : '请输入学号' }}
               </span>
             </div>
 
@@ -119,6 +125,22 @@
               <span v-if="isLoading" class="loading-spinner" aria-hidden="true"></span>
               <span>{{ isLoading ? '登录中...' : '登录' }}</span>
             </button>
+
+            <!-- 底部链接区 - Figma: 忘记密码 + 注册入口（教师端） -->
+            <div class="login-links">
+              <button type="button" class="text-link" @click="handleForgotPassword">
+                忘记密码
+              </button>
+              <span v-if="role === 'teacher'" class="link-separator">|</span>
+              <button
+                v-if="role === 'teacher'"
+                type="button"
+                class="text-link"
+                @click="handleRegister"
+              >
+                注册入口
+              </button>
+            </div>
           </form>
 
           <!--
@@ -159,9 +181,12 @@ const testAccountsText = computed(() => parsedTestAccounts.join(' | '))
 // Props
 interface Props {
   visible: boolean
+  role?: 'student' | 'teacher'
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  role: 'student',
+})
 
 // Emits
 const emit = defineEmits<{
@@ -302,7 +327,7 @@ async function handleSubmit(): Promise<void> {
   debouncedQueryName.cancel()
 
   try {
-    await authStore.login(studentId.value.trim(), password.value, studentName.value)
+    await authStore.login(studentId.value.trim(), password.value, studentName.value, props.role)
     emit('login-success')
     handleClose()
   } catch (err) {
@@ -315,6 +340,18 @@ async function handleSubmit(): Promise<void> {
 // 关闭弹窗
 function handleClose(): void {
   emit('close')
+}
+
+// 忘记密码处理
+function handleForgotPassword(): void {
+  // 目前无独立找回密码页面，提示用户联系管理员
+  alert('请联系管理员重置密码')
+}
+
+// 注册入口处理（教师端）
+function handleRegister(): void {
+  // 目前无独立注册页面，提示用户联系管理员
+  alert('请联系管理员申请教师账号')
 }
 
 // 点击外部区域关闭
@@ -647,6 +684,36 @@ onUnmounted(() => {
 .login-btn:disabled {
   background-color: var(--color-placeholder);
   cursor: not-allowed;
+}
+
+/* 底部链接区 - Figma: 忘记密码 / 注册入口 */
+.login-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.text-link {
+  background: none;
+  border: none;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.text-link:hover {
+  color: var(--color-primary-hover);
+}
+
+.link-separator {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
 }
 
 /* 加载动画 */
