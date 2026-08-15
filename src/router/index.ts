@@ -31,6 +31,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'rules',
     component: RuleVideoView,
     props: { videoKey: 'bg', navKey: 'rules', titlePrefix: '规则介绍' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/stepone/:id',
@@ -43,18 +44,21 @@ export const routes: RouteRecordRaw[] = [
     name: 'rule1',
     component: RuleVideoView,
     props: { videoKey: '1', navKey: 'rule1', titlePrefix: '规则介绍（一）' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/rule2/:id',
     name: 'rule2',
     component: RuleVideoView,
     props: { videoKey: '2', navKey: 'rule2', titlePrefix: '规则介绍（二）' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/rule3/:id',
     name: 'rule3',
     component: RuleVideoView,
     props: { videoKey: '3', navKey: 'rule3', titlePrefix: '规则介绍（三）' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/stepthree/:id',
