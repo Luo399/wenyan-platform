@@ -33,8 +33,43 @@ const dbReady = new Promise((resolve, reject) => {
 })
 
 // 创建数据库连接并在回调中完成初始化
-const db = new sqlite3.Database(dbPath, (err) => {
+let db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
+    // 检测 SQLITE_CORRUPT：数据库文件损坏
+    if (err.message && err.message.includes('SQLITE_CORRUPT')) {
+      logger.error('数据库文件损坏，尝试自动恢复...')
+      const backupPath = `${dbPath}.corrupted.${Date.now()}`
+      try {
+        fs.renameSync(dbPath, backupPath)
+        logger.info(`已备份损坏的数据库文件到: ${backupPath}`)
+        // 重新创建数据库连接（损坏文件已移走，sqlite3 会新建空文件）
+        db = new sqlite3.Database(dbPath, (retryErr) => {
+          if (retryErr) {
+            console.error('恢复后重新连接数据库失败:', retryErr.message)
+            _dbReadyReject(retryErr)
+            return
+          }
+          logger.info('数据库恢复成功，重新初始化...')
+          db.run('PRAGMA journal_mode = WAL', (pragmaErr) => {
+            if (pragmaErr) console.error('设置 WAL 模式失败:', pragmaErr.message)
+          })
+          db.run('PRAGMA foreign_keys = ON', (pragmaErr) => {
+            if (pragmaErr) console.error('启用外键约束失败:', pragmaErr.message)
+          })
+          initAllTables()
+            .then(() => _dbReadyResolve(db))
+            .catch((initErr) => {
+              console.error('数据库恢复后初始化失败:', initErr)
+              _dbReadyReject(initErr)
+            })
+        })
+        return
+      } catch (backupErr) {
+        console.error('备份损坏数据库文件失败:', backupErr.message)
+        _dbReadyReject(backupErr)
+        return
+      }
+    }
     console.error('数据库连接失败:', err.message)
     _dbReadyReject(err)
     return
