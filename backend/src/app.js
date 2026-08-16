@@ -1,13 +1,13 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const express = require('express')
+const cors = require('cors')
+const helmet = require('helmet')
 
-const config = require('./config/app');
-const logger = require('./utils/logger');
-const { initAllTables } = require('./config/database');
-const { registerRoutes } = require('./routes');
-const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler');
-const { globalLimiter } = require('./middleware/rateLimitMiddleware');
+const config = require('./config/app')
+const logger = require('./utils/logger')
+const { initAllTables } = require('./config/database')
+const { registerRoutes } = require('./routes')
+const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler')
+const { globalLimiter } = require('./middleware/rateLimitMiddleware')
 
 // S11: 进程级错误兜底——未捕获的 Promise rejection 记录日志；
 // uncaughtException 记录后退出，由 PM2 自动重启，避免进程处于未知状态
@@ -27,125 +27,128 @@ process.on('uncaughtException', (err) => {
 })
 
 function createApp() {
-  const app = express();
+  const app = express()
 
   // S08: 开启 CSP（后端仅提供 JSON API，默认严格策略禁止加载外部内容）
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:'],
-        connectSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        frameAncestors: ["'self'"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'self'"],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false,
-  }));
+      crossOriginEmbedderPolicy: false,
+    }),
+  )
 
   // S06: CORS 白名单数组化（config.cors.origin 为 parseOriginList 解析后的数组）
   // fixedOrigins 为始终放行的前端 / OSS 看板域名；API 域名（api.classicalab.cn）不作为 CORS 源
-  app.use(cors({
-    origin: function (origin, callback) {
-      const fixedOrigins = [
-        'https://www.classicalab.cn',
-        'https://classicalab.cn',
-        'https://needed-data.classicalab.cn',
-        'http://needed-data.classicalab.cn',
-        // Figma 插件 UI iframe 运行环境，需允许跨域请求
-        'https://www.figma.com',
-        // Figma 插件运行在 data: URL iframe 中，origin 为字符串 'null'
-        'null',
-      ]
-      // 合并 CORS_ORIGIN 环境变量中配置的域名（config 已解析为数组）
-      const configuredOrigins = Array.isArray(config.cors.origin) ? config.cors.origin : []
-      const allowedOrigins = [...new Set([...fixedOrigins, ...configuredOrigins])]
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true)
-      } else {
-        callback(null, false)
-      }
-    },
-    methods: config.cors.methods,
-    allowedHeaders: config.cors.allowedHeaders,
-    exposedHeaders: ['Authorization'],
-    credentials: config.cors.credentials,
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-    maxAge: 86400,
-  }));
+  app.use(
+    cors({
+      origin: function (origin, callback) {
+        const fixedOrigins = [
+          'https://www.classicalab.cn',
+          'https://classicalab.cn',
+          'https://test.classicalab.cn',
+          'https://needed-data.classicalab.cn',
+          'https://www.figma.com',
+          // Figma 插件运行在 data: URL iframe 中，origin 为字符串 'null'
+          'null',
+        ]
+        // 合并 CORS_ORIGIN 环境变量中配置的域名（config 已解析为数组）
+        const configuredOrigins = Array.isArray(config.cors.origin) ? config.cors.origin : []
+        const allowedOrigins = [...new Set([...fixedOrigins, ...configuredOrigins])]
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true)
+        } else {
+          callback(null, false)
+        }
+      },
+      methods: config.cors.methods,
+      allowedHeaders: config.cors.allowedHeaders,
+      exposedHeaders: ['Authorization'],
+      credentials: config.cors.credentials,
+      preflightContinue: false,
+      optionsSuccessStatus: 204,
+      maxAge: 86400,
+    }),
+  )
 
-  app.use(globalLimiter);
+  app.use(globalLimiter)
 
-  app.use(express.json({ limit: config.jsonParser.limit }));
+  app.use(express.json({ limit: config.jsonParser.limit }))
 
   app.use((req, res, next) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    next();
-  });
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    next()
+  })
 
-  app.use(requestLogger);
+  app.use(requestLogger)
 
   // 移除 express.static：backend/public 下的 admin.html 无鉴权裸奔（已下线），
   // 后端仅提供 JSON API，静态资源统一由前端 OSS 承载
 
-  registerRoutes(app);
+  registerRoutes(app)
 
   app.use('/api/health', (req, res) => {
     res.status(200).json({
       success: true,
       message: 'OK',
       timestamp: new Date().toISOString(),
-    });
-  });
+    })
+  })
 
-  app.use(notFoundHandler);
+  app.use(notFoundHandler)
 
-  app.use(errorHandler);
+  app.use(errorHandler)
 
-  return app;
+  return app
 }
 
 async function startServer() {
   try {
-    await initAllTables();
+    await initAllTables()
 
-    const app = createApp();
-    const { port, host } = config.server;
+    const app = createApp()
+    const { port, host } = config.server
 
     if (!config.testMode) {
       const server = app.listen(port, host, () => {
-        logger.info(`服务器运行在 http://${host}:${port}`);
-        logger.info(`CORS 白名单: ${config.cors.origin}`);
+        logger.info(`服务器运行在 http://${host}:${port}`)
+        logger.info(`CORS 白名单: ${config.cors.origin}`)
         // R90: 鉴权统一走 JWT，HMAC AUTH_SECRET 已弃用
-      });
+      })
 
       // SIGINT / SIGTERM 统一优雅停机（PM2 reload 发送 SIGINT）
       const shutdown = (signal) => {
-        logger.info(`收到 ${signal}，正在关闭服务器...`);
+        logger.info(`收到 ${signal}，正在关闭服务器...`)
         server.close(() => {
-          logger.info('服务器已关闭');
-          process.exit(0);
-        });
-      };
-      process.on('SIGINT', () => shutdown('SIGINT'));
-      process.on('SIGTERM', () => shutdown('SIGTERM'));
+          logger.info('服务器已关闭')
+          process.exit(0)
+        })
+      }
+      process.on('SIGINT', () => shutdown('SIGINT'))
+      process.on('SIGTERM', () => shutdown('SIGTERM'))
     }
 
-    return app;
+    return app
   } catch (err) {
-    logger.error('启动服务器失败:', err);
-    process.exit(1);
+    logger.error('启动服务器失败:', err)
+    process.exit(1)
   }
 }
 
 if (require.main === module) {
-  startServer();
+  startServer()
 }
 
 module.exports = {
   createApp,
-  startServer
-};
+  startServer,
+}

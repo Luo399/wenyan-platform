@@ -31,18 +31,29 @@
 
         <div class="form-group">
           <label for="password" class="form-label">密码</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            class="form-input"
-            :class="{ error: hasError && !password }"
-            :aria-invalid="Boolean(hasError && !password)"
-            placeholder="请输入密码"
-            :disabled="isLoading"
-            autocomplete="current-password"
-            @input="clearValidation"
-          />
+          <div class="password-wrapper">
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              class="form-input"
+              :class="{ error: hasError && !password }"
+              :aria-invalid="Boolean(hasError && !password)"
+              placeholder="请输入密码"
+              :disabled="isLoading"
+              autocomplete="current-password"
+              @input="clearValidation"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+              :title="showPassword ? '隐藏密码' : '显示密码'"
+              @click="showPassword = !showPassword"
+            >
+              {{ showPassword ? '隐藏' : '显示' }}
+            </button>
+          </div>
           <span v-if="hasError && !password" role="alert" class="error-message">请输入密码</span>
         </div>
 
@@ -74,6 +85,7 @@ const bgUrl = getAssetUrl('images', 'login_bg.png')
 
 const username = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const hasError = ref(false)
 const usernameInput = ref<HTMLInputElement | null>(null)
 
@@ -229,6 +241,39 @@ function goHome(): void {
 .form-input:disabled {
   background-color: var(--color-placeholder);
   cursor: not-allowed;
+}
+
+/* 密码输入框容器 */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.password-wrapper .form-input {
+  padding-right: 4rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: none;
+  border: none;
+  border-left: var(--border-width-hairline) solid var(--color-placeholder);
+  font-family: var(--font-family-serif);
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0 var(--spacing-sm);
+  line-height: 1;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.password-toggle:hover {
+  color: var(--color-primary-hover);
 }
 
 .error-box {
