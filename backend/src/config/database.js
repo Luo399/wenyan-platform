@@ -1,4 +1,5 @@
 const sqlite3 = require('sqlite3').verbose()
+const bcrypt = require('bcryptjs')
 const fs = require('fs')
 const path = require('path')
 const logger = require('../utils/logger')
@@ -260,6 +261,10 @@ function initAllTables() {
           runSql('CREATE INDEX IF NOT EXISTS idx_tracking_timestamp ON tracking_events(timestamp)'),
         ]),
       )
+      // 9. 种子数据：默认学校（若 schools 为空）
+      .then(() => seedDefaultSchool())
+      // 10. 种子数据：默认管理员 admin/admin123（若 admins 为空）
+      .then(() => seedDefaultAdmin())
       .then(() => {
         logger.info('[database] 所有表初始化/升级完成')
       })
@@ -321,6 +326,57 @@ function checkAndUpgradeStudentsTable() {
           }
           reject(err)
         })
+    })
+  })
+}
+
+/**
+ * 种子数据：若 schools 表为空，插入默认学校
+ */
+function seedDefaultSchool() {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT id FROM schools LIMIT 1', (err, row) => {
+      if (err) return reject(err)
+      if (row) {
+        logger.debug('[database] schools 已有数据，跳过默认学校初始化')
+        return resolve()
+      }
+      db.run(
+        `INSERT INTO schools (code, name) VALUES (?, ?)`,
+        ['DEFAULT-SCHOOL-001', '默认学校（请在管理后台修改）'],
+        (insertErr) => {
+          if (insertErr) return reject(insertErr)
+          logger.info('[database] 已插入默认学校')
+          resolve()
+        },
+      )
+    })
+  })
+}
+
+/**
+ * 种子数据：若 admins 表为空，插入默认管理员 admin / admin123
+ */
+function seedDefaultAdmin() {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT id FROM admins LIMIT 1', (err, row) => {
+      if (err) return reject(err)
+      if (row) {
+        logger.debug('[database] admins 已有数据，跳过默认管理员初始化')
+        return resolve()
+      }
+      bcrypt.hash('admin123', 10, (hashErr, hash) => {
+        if (hashErr) return reject(hashErr)
+        db.run(
+          `INSERT INTO admins (username, name, password_hash, role) VALUES (?, ?, ?, 'super_admin')`,
+          ['admin', '超级管理员', hash],
+          (insertErr) => {
+            if (insertErr) return reject(insertErr)
+            logger.info('[database] 已插入默认管理员  username=admin  password=admin123')
+            resolve()
+          },
+        )
+      })
     })
   })
 }
