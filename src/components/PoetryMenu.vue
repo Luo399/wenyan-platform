@@ -57,8 +57,8 @@
 
 <script setup lang="ts">
 import { ref, onBeforeUnmount, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { getAllPoems, type PoemEntry } from '@/utils/wenUtils'
-import { useNavigation } from '@/composables/useNavigation'
 
 // 响应式：控制下拉菜单显示/隐藏
 const showDropdown = ref(false)
@@ -83,7 +83,7 @@ function clearTimer() {
 // 静态数据，无需 ref 包裹
 const poemList: PoemEntry[] = getAllPoems()
 
-const { goTo } = useNavigation()
+const router = useRouter()
 
 /**
  * 跳转到规则介绍页
@@ -93,7 +93,7 @@ function goToRules(wenId: string) {
   // 从 poemList 查找匹配的 poemId，避免正则提取
   const targetPoem = poemList.find((p) => p.wenId === wenId)
   const poemId = targetPoem?.poemId ?? wenId.replace(/\D/g, '')
-  goTo('rules', poemId)
+  router.push({ name: 'rules', params: { id: poemId } })
 }
 
 function closeDropdown() {

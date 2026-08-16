@@ -7,7 +7,7 @@
   - 底部：BackContinue 导航按钮
 
   数据来源：pages_level3_adaptive_quiz（与Block模式隔离）
-  页面顺序：stepone -> rule1 -> rule2 -> rule3 -> steptwo -> stepthree -> detail
+  页面顺序：stepone -> stepthree -> detail
 -->
 <template>
   <div class="stepthree-view">

@@ -136,19 +136,15 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
 
   /**
    * 判断是否有下一页
-   * 非顺序页面（未传 currentRouteName）返回 false
    */
   const hasNext = computed(() => {
-    if (!currentRouteName) return false
     return currentIndex.value < pageSequence.length - 1
   })
 
   /**
    * 判断是否有上一页
-   * 非顺序页面（未传 currentRouteName）返回 false
    */
   const hasPrev = computed(() => {
-    if (!currentRouteName) return false
     return currentIndex.value > 0
   })
 

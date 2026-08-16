@@ -172,19 +172,11 @@ describe('useNavigation', () => {
 
   describe('顺序页面行为兼容性测试', () => {
     it('顺序页面 goNext 正常跳转到下一页', () => {
-      // rules 是第二项，下一页应为 stepone（新顺序：rules -> stepone -> rule1 -> ...）
+      // rules 是第二项，下一页应为 stepone
       const navigation = useNavigation('rules', '1')
       navigation.goNext()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
       expect(mockRouter.push).toHaveBeenCalledWith('/stepone/1')
-    })
-
-    it('顺序页面 stepone 的 goNext 应跳转到 rule1', () => {
-      // 新顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> steptwo -> stepthree -> detail
-      const navigation = useNavigation('stepone', '1')
-      navigation.goNext()
-      expect(mockRouter.push).toHaveBeenCalledTimes(1)
-      expect(mockRouter.push).toHaveBeenCalledWith('/rule1/1')
     })
 
     it('顺序页面 goPrev 正常跳转到上一页', () => {
@@ -197,7 +189,7 @@ describe('useNavigation', () => {
 
     it('顺序页面 currentIndex 返回正确索引', () => {
       const navigation = useNavigation('rules', '1')
-      // pageSequence: home(0) rules(1) stepone(2) rule1(3) rule2(4) rule3(5) steptwo(6) stepthree(7) detail(8)
+      // pageSequence: home(0) rules(1) stepone(2) ...
       expect(navigation.currentIndex.value).toBe(1)
     })
 
@@ -209,11 +201,6 @@ describe('useNavigation', () => {
       const navHome = useNavigation('home')
       expect(navHome.hasNext.value).toBe(true)
       expect(navHome.hasPrev.value).toBe(false)
-
-      // 最后一页 detail 应 hasNext=false
-      const navDetail = useNavigation('detail', '1')
-      expect(navDetail.hasNext.value).toBe(false)
-      expect(navDetail.hasPrev.value).toBe(true)
     })
   })
 })

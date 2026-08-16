@@ -6,7 +6,7 @@
   - 下方：MultiRoleReading 组件（多角色朗读）
   - 底部：BackContinue 导航按钮
 
-  页面顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> steptwo -> stepthree -> detail
+  页面顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> detail
 -->
 <template>
   <div class="annotated-segment-view">
