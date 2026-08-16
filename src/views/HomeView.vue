@@ -29,13 +29,15 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import PoetryMenu from '@/components/PoetryMenu.vue'
 import LoginModal from '@/components/LoginModal.vue'
+import { useNavigation } from '@/composables/useNavigation'
 import { getAssetUrl } from '@/utils/asset'
 import { track } from '@/utils/tracking'
 
-const router = useRouter()
+const route = useRoute()
+const { goTo } = useNavigation()
 
 // 首页埋点
 const enterTime = Date.now()
@@ -67,8 +69,13 @@ function closeLogin() {
 
 function handleLoginSuccess() {
   showLoginModal.value = false
-  // 登录成功后跳转到学习页面
-  router.push({ name: 'rules', params: { id: '1' } })
+  // 优先跳转 redirect 参数指向的页面（路由守卫携带），否则跳转 rules/1
+  const redirect = route.query.redirect as string | undefined
+  if (redirect && redirect !== '/') {
+    window.location.href = redirect
+  } else {
+    goTo('rules', '1')
+  }
 }
 </script>
 

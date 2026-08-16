@@ -76,7 +76,7 @@ describe('PoetryMenu.vue（C10 核心验证）', () => {
   })
 
   describe('导航跳转测试（goToRules 行为验证）', () => {
-    it('点击诗文条目应该调用 router.push 跳转到 rules 路由，参数为对应 poemId', async () => {
+    it('点击诗文条目应该调用 router.push 跳转到 /rules/poemId', async () => {
       const pushSpy = vi.spyOn(router, 'push')
       const wrapper = mount(PoetryMenu, {
         global: {
@@ -89,18 +89,12 @@ describe('PoetryMenu.vue（C10 核心验证）', () => {
       // 点击 WEN_01（陈涉世家）
       await items[0].trigger('click')
       expect(pushSpy).toHaveBeenCalledTimes(1)
-      expect(pushSpy).toHaveBeenLastCalledWith({
-        name: 'rules',
-        params: { id: poems[0].poemId }, // '1'
-      })
+      expect(pushSpy).toHaveBeenLastCalledWith(`/rules/${poems[0].poemId}`) // '/rules/1'
 
       // 点击 WEN_02（马说）
       await items[1].trigger('click')
       expect(pushSpy).toHaveBeenCalledTimes(2)
-      expect(pushSpy).toHaveBeenLastCalledWith({
-        name: 'rules',
-        params: { id: poems[1].poemId }, // '2'
-      })
+      expect(pushSpy).toHaveBeenLastCalledWith(`/rules/${poems[1].poemId}`) // '/rules/2'
 
       pushSpy.mockRestore()
     })
@@ -116,10 +110,7 @@ describe('PoetryMenu.vue（C10 核心验证）', () => {
       // 第一项文本应该是"陈涉世家"
       expect(items[0].text().trim()).toBe('陈涉世家')
       await items[0].trigger('click')
-      expect(pushSpy).toHaveBeenLastCalledWith({
-        name: 'rules',
-        params: { id: '1' },
-      })
+      expect(pushSpy).toHaveBeenLastCalledWith('/rules/1')
       pushSpy.mockRestore()
     })
   })
