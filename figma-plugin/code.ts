@@ -125,15 +125,17 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
   if ('fills' in node) {
     const fills = (node as GeometryMixin).fills
     if (fills && typeof fills !== 'symbol') {
-      style.fills = (fills as Paint[]).map((f) => {
-        const fill: Record<string, any> = { type: f.type, visible: f.visible, opacity: f.opacity }
-        if (f.type === 'SOLID' && 'color' in f) {
-          fill.color = f.color
-          // RGB 百分比转十六进制
-          fill.hex = rgbToHex(f.color.r, f.color.g, f.color.b)
-        }
-        return fill
-      }).filter((f) => f.visible !== false)
+      style.fills = (fills as Paint[])
+        .map((f) => {
+          const fill: Record<string, any> = { type: f.type, visible: f.visible, opacity: f.opacity }
+          if (f.type === 'SOLID' && 'color' in f) {
+            fill.color = f.color
+            // RGB 百分比转十六进制
+            fill.hex = rgbToHex(f.color.r, f.color.g, f.color.b)
+          }
+          return fill
+        })
+        .filter((f) => f.visible !== false)
     }
   }
 
@@ -141,14 +143,16 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
   if ('strokes' in node) {
     const strokes = (node as GeometryMixin).strokes as Paint[]
     if (strokes && strokes.length > 0) {
-      style.strokes = strokes.map((s) => {
-        const stroke: Record<string, any> = { type: s.type, visible: s.visible }
-        if (s.type === 'SOLID' && 'color' in s) {
-          stroke.color = s.color
-          stroke.hex = rgbToHex(s.color.r, s.color.g, s.color.b)
-        }
-        return stroke
-      }).filter((s) => s.visible !== false)
+      style.strokes = strokes
+        .map((s) => {
+          const stroke: Record<string, any> = { type: s.type, visible: s.visible }
+          if (s.type === 'SOLID' && 'color' in s) {
+            stroke.color = s.color
+            stroke.hex = rgbToHex(s.color.r, s.color.g, s.color.b)
+          }
+          return stroke
+        })
+        .filter((s) => s.visible !== false)
     }
   }
 
@@ -163,6 +167,11 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
   // 描边对齐
   if ('strokeAlign' in node) {
     style.strokeAlign = (node as GeometryMixin).strokeAlign
+  }
+
+  // 约束（缩放/固定）
+  if ('constraints' in node) {
+    style.constraints = (node as ConstraintsMixin).constraints
   }
 
   // 圆角
@@ -189,18 +198,20 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
   if ('effects' in node) {
     const effects = (node as BlendMixin).effects
     if (effects && effects.length > 0) {
-      style.effects = effects.map((e) => {
-        const effect: Record<string, any> = { type: e.type, visible: e.visible }
-        // radius 存在于部分效果类型
-        if ('radius' in e) effect.radius = (e as any).radius
-        // 阴影偏移和颜色
-        if (e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') {
-          const shadow = e as DropShadowEffect
-          effect.offset = { x: shadow.offset.x, y: shadow.offset.y }
-          effect.color = shadow.color
-        }
-        return effect
-      }).filter((e) => e.visible !== false)
+      style.effects = effects
+        .map((e) => {
+          const effect: Record<string, any> = { type: e.type, visible: e.visible }
+          // radius 存在于部分效果类型
+          if ('radius' in e) effect.radius = (e as any).radius
+          // 阴影偏移和颜色
+          if (e.type === 'DROP_SHADOW' || e.type === 'INNER_SHADOW') {
+            const shadow = e as DropShadowEffect
+            effect.offset = { x: shadow.offset.x, y: shadow.offset.y }
+            effect.color = shadow.color
+          }
+          return effect
+        })
+        .filter((e) => e.visible !== false)
     }
   }
 
@@ -216,6 +227,35 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
       style.itemSpacing = autoLayout.itemSpacing
       style.primaryAxisAlignItems = autoLayout.primaryAxisAlignItems
       style.counterAxisAlignItems = autoLayout.counterAxisAlignItems
+      // 补充：主轴/交叉轴尺寸模式（固定/自适应）
+      style.primaryAxisSizingMode = autoLayout.primaryAxisSizingMode
+      style.counterAxisSizingMode = autoLayout.counterAxisSizingMode
+      // 补充：最小/最大宽高限制
+      style.minWidth = autoLayout.minWidth
+      style.maxWidth = autoLayout.maxWidth
+      style.minHeight = autoLayout.minHeight
+      style.maxHeight = autoLayout.maxHeight
+    }
+  }
+
+  // 混合模式
+  if ('blendMode' in node) {
+    style.blendMode = (node as BlendMixin).blendMode
+  }
+
+  // 裁切内容
+  if ('clipsContent' in node) {
+    style.clipsContent = (node as any).clipsContent
+  }
+
+  // 单独描边宽度（左/右/上/下）
+  if ('strokeTopWeight' in node) {
+    const sw = node as IndividualStrokesMixin
+    style.strokeWeights = {
+      top: sw.strokeTopWeight,
+      right: sw.strokeRightWeight,
+      bottom: sw.strokeBottomWeight,
+      left: sw.strokeLeftWeight,
     }
   }
 
@@ -265,6 +305,51 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
         return fill
       })
     }
+
+    // 文本自动尺寸调整（宽度/高度行为）
+    style.textAutoResize = textNode.textAutoResize
+
+    // 文本装饰（下划线/删除线）
+    const textDecoration = textNode.getRangeTextDecoration(0, 1)
+    if (textDecoration !== figma.mixed) {
+      style.textDecoration = textDecoration
+    }
+
+    // 文本大小写
+    const textCase = textNode.getRangeTextCase(0, 1)
+    if (textCase !== figma.mixed) {
+      style.textCase = textCase
+    }
+
+    // 段落间距
+    const paragraphSpacing = textNode.getRangeParagraphSpacing(0, 1)
+    if (paragraphSpacing !== figma.mixed && paragraphSpacing !== 0) {
+      style.paragraphSpacing = paragraphSpacing
+    }
+
+    // 段落缩进
+    const paragraphIndent = textNode.getRangeParagraphIndent(0, 1)
+    if (paragraphIndent !== figma.mixed && paragraphIndent !== 0) {
+      style.paragraphIndent = paragraphIndent
+    }
+
+    // 列表间距
+    const listSpacing = textNode.getRangeListSpacing(0, 1)
+    if (listSpacing !== figma.mixed && listSpacing !== 0) {
+      style.listSpacing = listSpacing
+    }
+
+    // 悬挂标点
+    const hangingPunctuation = textNode.getRangeHangingPunctuation(0, 1)
+    if (hangingPunctuation !== figma.mixed && hangingPunctuation !== 'NONE') {
+      style.hangingPunctuation = hangingPunctuation
+    }
+
+    // 连字符
+    const hyphenation = textNode.getRangeHyphenation(0, 1)
+    if (hyphenation !== figma.mixed) {
+      style.hyphenation = hyphenation
+    }
   }
 
   return style
@@ -274,7 +359,10 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
  * RGB 0-1 值转十六进制颜色字符串
  */
 function rgbToHex(r: number, g: number, b: number): string {
-  const toHex = (v: number) => Math.round(v * 255).toString(16).padStart(2, '0')
+  const toHex = (v: number) =>
+    Math.round(v * 255)
+      .toString(16)
+      .padStart(2, '0')
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
@@ -328,12 +416,16 @@ function scanAllStyles(page: PageNode): AssetItem[] {
 
     const fileName = `styles.json`
     const ossPath = `styles/${data.frameName}.json`
-    const jsonContent = JSON.stringify({
-      frameName: data.frameName,
-      frameId,
-      exportTime: new Date().toISOString(),
-      nodes: data.nodes,
-    }, null, 2)
+    const jsonContent = JSON.stringify(
+      {
+        frameName: data.frameName,
+        frameId,
+        exportTime: new Date().toISOString(),
+        nodes: data.nodes,
+      },
+      null,
+      2,
+    )
 
     logDebug(`  [样式] "${data.frameName}" → ${data.nodes.length} 个节点`)
     assets.push({
@@ -416,7 +508,9 @@ async function main() {
   ) as FrameNode[]
 
   if (textFrames.length > 0) {
-    logInfo(`找到 ${textFrames.length} 个文字资源 Frame: ${textFrames.map((f) => f.name).join(', ')}`)
+    logInfo(
+      `找到 ${textFrames.length} 个文字资源 Frame: ${textFrames.map((f) => f.name).join(', ')}`,
+    )
     for (const frame of textFrames) {
       logDebug(`扫描文字资源 Frame: "${frame.name}"`)
       const textAssets = scanTextFrame(frame)
@@ -442,7 +536,8 @@ async function main() {
     }
     figma.ui.postMessage({
       type: 'no-assets',
-      message: '未找到 Export Assets 或 文字资源_ Frame\n请在当前文件中创建以下 Frame：\n\n1. Export Assets（图片资源，子 Frame 名即 OSS 路径）\n2. 文字资源_{名称}（文字资源，导出为 JSON）',
+      message:
+        '未找到 Export Assets 或 文字资源_ Frame\n请在当前文件中创建以下 Frame：\n\n1. Export Assets（图片资源，子 Frame 名即 OSS 路径）\n2. 文字资源_{名称}（文字资源，导出为 JSON）',
     })
     return
   }
@@ -451,8 +546,12 @@ async function main() {
   const imageCount = allAssets.filter((a) => a.type === 'image').length
   const textCount = allAssets.filter((a) => a.type === 'text').length
   const styleCount = allAssets.filter((a) => a.type === 'style').length
-  logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字 + ${styleCount} 样式） =====`)
-  allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '图片' : a.type === 'text' ? '文字' : '样式'} ${a.ossPath}`))
+  logInfo(
+    `===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字 + ${styleCount} 样式） =====`,
+  )
+  allAssets.forEach((a) =>
+    logDebug(`  ${a.type === 'image' ? '图片' : a.type === 'text' ? '文字' : '样式'} ${a.ossPath}`),
+  )
 
   // 7. 发送到 UI 显示变更列表
   figma.ui.postMessage({
@@ -486,7 +585,9 @@ function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
     // 子 Frame 名称作为 OSS 路径
     const ossPath = child.name.replace(/\/$/, '')
     const subChildrenCount = child.children?.length || 0
-    logDebug(`  [${i + 1}/${totalChildren}] 处理目录 "${child.name}" → OSS "${ossPath}" (${subChildrenCount} 个子节点)`)
+    logDebug(
+      `  [${i + 1}/${totalChildren}] 处理目录 "${child.name}" → OSS "${ossPath}" (${subChildrenCount} 个子节点)`,
+    )
 
     if (!child.children) {
       logDebug(`    → 空目录，跳过`)
@@ -506,8 +607,14 @@ function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
 
       // 只处理可导出的图层类型
       const exportableTypes = [
-        'RECTANGLE', 'ELLIPSE', 'VECTOR', 'IMAGE',
-        'INSTANCE', 'COMPONENT', 'FRAME', 'GROUP',
+        'RECTANGLE',
+        'ELLIPSE',
+        'VECTOR',
+        'IMAGE',
+        'INSTANCE',
+        'COMPONENT',
+        'FRAME',
+        'GROUP',
       ]
       if (!exportableTypes.includes(leaf.type)) {
         logDebug(`    → [跳过] 不支持的图层类型(${leaf.type}): "${leaf.name}"`)
@@ -568,11 +675,15 @@ function scanTextFrame(frame: FrameNode): AssetItem[] {
       const fieldName = child.name
       const textContent = textNode.characters
       jsonData[fieldName] = textContent
-      logDebug(`  [字段] "${fieldName}" = "${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}" (${textContent.length} 字)`)
+      logDebug(
+        `  [字段] "${fieldName}" = "${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}" (${textContent.length} 字)`,
+      )
     } else if (child.type === 'FRAME') {
       // 子 Frame 中的文本节点
       const subFrame = child as FrameNode
-      logDebug(`  [子组] 发现子 Frame: "${child.name}" (${subFrame.children?.length || 0} 个子节点)`)
+      logDebug(
+        `  [子组] 发现子 Frame: "${child.name}" (${subFrame.children?.length || 0} 个子节点)`,
+      )
       const subData: Record<string, any> = {}
 
       if (subFrame.children) {
@@ -582,7 +693,9 @@ function scanTextFrame(frame: FrameNode): AssetItem[] {
             const subFieldName = subChild.name
             const subTextContent = subText.characters
             subData[subFieldName] = subTextContent
-            logDebug(`    [子字段] "${subFieldName}" = "${subTextContent.substring(0, 50)}${subTextContent.length > 50 ? '...' : ''}"`)
+            logDebug(
+              `    [子字段] "${subFieldName}" = "${subTextContent.substring(0, 50)}${subTextContent.length > 50 ? '...' : ''}"`,
+            )
           } else {
             logDebug(`    [跳过] 非 TEXT 子节点: "${subChild.name}" (${subChild.type})`)
           }
@@ -649,7 +762,7 @@ function resolveTextOssPath(frameName: string): string {
  */
 async function exportSingleNode(nodeId: string, ossPath: string): Promise<Uint8Array> {
   try {
-    const node = await figma.getNodeByIdAsync(nodeId) as SceneNode | null
+    const node = (await figma.getNodeByIdAsync(nodeId)) as SceneNode | null
     if (!node) {
       logError(`  节点不存在或不可访问: "${ossPath}" (nodeId: ${nodeId})`)
       return new Uint8Array(0)
@@ -708,7 +821,9 @@ async function prepareAssetsForUpload(assets: AssetItem[]): Promise<AssetItem[]>
   }
 
   const imageCount = result.filter((a) => a.type === 'image' && a.data && a.data.length > 0).length
-  const errorCount = result.filter((a) => a.type === 'image' && (!a.data || a.data.length === 0)).length
+  const errorCount = result.filter(
+    (a) => a.type === 'image' && (!a.data || a.data.length === 0),
+  ).length
   logInfo(`===== 导出完成: ${imageCount} 图片, ${errorCount} 失败 =====`)
 
   return result
@@ -767,8 +882,12 @@ figma.ui.onmessage = async (msg) => {
     if (msg.type === 'sync-done') {
       // UI 线程上传完成，将结果转发到 UI 显示（同时保留主线程日志）
       const verified = (msg as any).summary?.verified || 0
-      logInfo(`===== 同步完成: ${(msg as any).summary.uploaded} 上传, ${verified} 已验证, ${(msg as any).summary.errors} 失败 =====`)
-      ;(msg as any).summary.errorDetails?.forEach((e: any) => logError(`  失败 ${e.fileName}: ${e.error}`))
+      logInfo(
+        `===== 同步完成: ${(msg as any).summary.uploaded} 上传, ${verified} 已验证, ${(msg as any).summary.errors} 失败 =====`,
+      )
+      ;(msg as any).summary.errorDetails?.forEach((e: any) =>
+        logError(`  失败 ${e.fileName}: ${e.error}`),
+      )
 
       figma.ui.postMessage({
         type: 'sync-complete',
