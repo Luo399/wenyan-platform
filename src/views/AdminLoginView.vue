@@ -108,11 +108,6 @@ onMounted(() => {
   })
 })
 
-function clearValidation(): void {
-  hasError.value = false
-  authStore.clearError()
-}
-
 async function handleSubmit(): Promise<void> {
   // 清除上次错误
   hasError.value = false
