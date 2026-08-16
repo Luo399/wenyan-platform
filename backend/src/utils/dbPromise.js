@@ -87,7 +87,13 @@ function stmtRun(stmt, ...params) {
 async function dbTransaction(db, fn) {
   await dbRun(db, 'BEGIN TRANSACTION')
   try {
-    const result = await fn({ dbGet, dbAll, dbRun, stmtRun })
+    // 将 dbRun/dbGet/dbAll 预绑定 db 参数，事务内调用时无需重复传 db
+    const result = await fn({
+      dbGet: (sql, params = []) => dbGet(db, sql, params),
+      dbAll: (sql, params = []) => dbAll(db, sql, params),
+      dbRun: (sql, params = []) => dbRun(db, sql, params),
+      stmtRun,
+    })
     await dbRun(db, 'COMMIT')
     return result
   } catch (err) {
