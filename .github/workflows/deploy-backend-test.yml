@@ -12,6 +12,7 @@ on:
       - 'Dockerfile'
       - 'docker-compose.yml'
       - '.dockerignore'
+      - 'scripts/configure-nginx-test.sh'
 
 env:
   REGISTRY: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com
