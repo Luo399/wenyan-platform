@@ -321,7 +321,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { get, apiBase } from '@/utils/api'
+import { get, post, batchPost } from '@/utils/api'
 import { formatDate } from '@/utils/format'
 import {
   createStudent,
@@ -401,9 +401,8 @@ type QueryTab = 'students' | 'wenId' | 'studentId'
 const DEFAULT_PAGE_SIZE = 10 as const
 const TOAST_DURATION_MS = 3000 as const
 
-/** 当前登录的 auth token（用于管理员 API 调用） */
+/** 当前登录的 auth store */
 const authStore = useAuthStore()
-const authToken = computed(() => authStore.token || '')
 
 // ============================================================
 // 基础状态
@@ -503,43 +502,26 @@ async function batchCreateTeachers() {
   batchCreating.value = true
   batchCreateResult.value = []
 
-  const teachers = Array.from({ length: 9 }, (_, i) => {
+  const items = Array.from({ length: 9 }, (_, i) => {
     const num = String(i + 1).padStart(3, '0')
     return {
-      phone: `a${num}`,
-      name: `a${num}`,
-      password: '12345678',
-      school_id: 1,
-      class_codes: ['000000'],
+      key: `a${num}`,
+      body: {
+        phone: `a${num}`,
+        name: `a${num}`,
+        password: '12345678',
+        school_id: 1,
+        class_codes: ['000000'],
+      },
     }
   })
 
-  for (const teacher of teachers) {
-    try {
-      const res = await fetch(`${apiBase}/api/admin/teachers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify(teacher),
-      })
-      const data = await res.json()
-      if (data.success || res.status === 409) {
-        batchCreateResult.value.push({
-          phone: teacher.phone,
-          success: true,
-          message: data.message || '创建成功',
-        })
-      } else {
-        batchCreateResult.value.push({
-          phone: teacher.phone,
-          success: false,
-          message: data.message || '创建失败',
-        })
-      }
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : '请求异常'
-      batchCreateResult.value.push({ phone: teacher.phone, success: false, message: errMsg })
-    }
-  }
+  const results = await batchPost('/api/admin/teachers', items)
+  batchCreateResult.value = results.map((r) => ({
+    phone: r.key,
+    success: r.success || r.message.includes('已注册'),
+    message: r.message,
+  }))
 
   batchCreating.value = false
 }
