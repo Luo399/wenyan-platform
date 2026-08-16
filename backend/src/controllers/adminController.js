@@ -1,9 +1,10 @@
 const { db } = require('../config/database')
-const { dbGet, dbRun, dbAll } = require('../utils/dbPromise')
+const { dbGet, dbRun, dbAll, dbTransaction } = require('../utils/dbPromise')
 const logger = require('../utils/logger')
 const {
   resetStudentPassword,
   resetTeacherPasswordByAdmin,
+  hashPassword,
 } = require('../services/authService')
 
 /**
@@ -175,6 +176,82 @@ async function listPasswordResets(req, res) {
   }
 }
 
+/**
+ * 管理员：创建教师账号（批量）
+ * POST /api/admin/teachers  { phone, name, password, school_id, class_codes }
+ *
+ * 与公开注册接口的区别：
+ * - 不校验手机号格式（允许非手机号用户名）
+ * - 需要管理员登录鉴权
+ */
+async function createTeacher(req, res) {
+  try {
+    const { phone, name, password, school_id, class_codes } = req.body
+
+    // 参数校验
+    if (!phone || typeof phone !== 'string') {
+      return res.status(400).json({ success: false, error: 'INVALID_PHONE', message: '手机号/用户名必填' })
+    }
+    if (!name || typeof name !== 'string' || name.length > 20) {
+      return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '姓名必填，最长 20 字符' })
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, error: 'INVALID_PASSWORD', message: '密码长度不能少于 6 位' })
+    }
+    if (!school_id || typeof school_id !== 'number') {
+      return res.status(400).json({ success: false, error: 'INVALID_SCHOOL', message: '学校 ID 必填且为数字' })
+    }
+    if (!Array.isArray(class_codes) || class_codes.length === 0) {
+      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
+    }
+    for (const cc of class_codes) {
+      if (!/^\d{6}$/.test(cc)) {
+        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是 6 位数字` })
+      }
+    }
+
+    // 学校是否存在
+    const school = await dbGet(db, 'SELECT id FROM schools WHERE id = ?', [school_id])
+    if (!school) {
+      return res.status(400).json({ success: false, error: 'SCHOOL_NOT_FOUND', message: '所选学校不存在' })
+    }
+
+    // 手机号是否已被占用
+    const exists = await dbGet(db, 'SELECT 1 FROM teachers WHERE phone = ? LIMIT 1', [phone])
+    if (exists) {
+      return res.status(409).json({ success: false, error: 'PHONE_ALREADY_REGISTERED', message: '该手机号/用户名已注册' })
+    }
+
+    const passwordHash = await hashPassword(password)
+    const now = new Date().toISOString()
+
+    await dbTransaction(db, async ({ dbRun: txRun }) => {
+      const result = await txRun(
+        `INSERT INTO teachers (phone, name, school_id, password_hash, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'active', ?, ?)`,
+        [phone, name, school_id, passwordHash, now, now],
+      )
+      const teacherId = result.lastID
+      // 批量写入 teacher_classes（UNIQUE 约束防护）
+      for (const cc of class_codes) {
+        await txRun(
+          `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code, created_at) VALUES (?, ?, ?)`,
+          [teacherId, cc, now],
+        )
+      }
+    })
+
+    res.status(201).json({
+      success: true,
+      message: '教师账号创建成功',
+      data: { phone, name },
+    })
+  } catch (err) {
+    logger.error('[admin] 创建教师失败:', err)
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '创建教师失败' })
+  }
+}
+
 module.exports = {
   listTeachers,
   listStudents,
@@ -182,4 +259,5 @@ module.exports = {
   resetTeacher,
   setTeacherStatus,
   listPasswordResets,
+  createTeacher,
 }

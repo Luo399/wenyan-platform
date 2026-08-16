@@ -39,7 +39,7 @@ const teacherRegisterSchema = z.object({
 })
 
 const teacherLoginSchema = z.object({
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确'),
+  phone: z.string().min(1, '手机号/用户名必填'),
   password: z.string().min(1, '密码必填'),
 })
 

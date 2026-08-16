@@ -23,6 +23,50 @@
       <p class="subtitle">管理系统中的学生信息，支持增删查改操作</p>
     </div>
 
+    <!-- 教师工具导航 -->
+    <div class="tool-nav">
+      <a href="/resource-upload" class="tool-nav-link">音视频资源上传</a>
+      <span class="tool-nav-sep">|</span>
+      <a href="/answer-query" class="tool-nav-link">学生信息查询</a>
+      <span class="tool-nav-sep">|</span>
+      <button class="tool-nav-btn" @click="showBatchCreateDialog = true">批量创建教师</button>
+    </div>
+
+    <!-- 批量创建教师弹窗 -->
+    <Transition name="fade">
+      <div v-if="showBatchCreateDialog" class="modal-overlay" @click.self="showBatchCreateDialog = false">
+        <div class="modal-dialog">
+          <div class="modal-header">
+            <h2>批量创建教师账号</h2>
+            <button class="modal-close" @click="showBatchCreateDialog = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <p>将创建 <strong>a001 ~ a009</strong> 共 9 个教师账号，密码统一为 <code>12345678</code>。</p>
+            <p class="modal-hint">账号创建后可用 phone（如 a001）+ 密码登录教师端。</p>
+            <div v-if="batchCreateResult.length > 0" class="batch-result">
+              <div
+                v-for="(item, idx) in batchCreateResult"
+                :key="idx"
+                :class="['result-item', item.success ? 'success' : 'error']"
+              >
+                {{ item.success ? '✓' : '✕' }} {{ item.phone }}: {{ item.message }}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-cancel" @click="showBatchCreateDialog = false">取消</button>
+            <button
+              class="btn-primary"
+              :disabled="batchCreating"
+              @click="batchCreateTeachers"
+            >
+              {{ batchCreating ? '创建中...' : '确认创建' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 操作反馈提示 -->
     <Transition name="fade">
       <div v-if="toast.show" :class="['toast', toast.type]">
@@ -274,7 +318,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { get } from '@/utils/api'
+import { get, apiBase } from '@/utils/api'
 import { formatDate } from '@/utils/format'
 import {
   createStudent,
@@ -283,6 +327,7 @@ import {
   type StudentInfo,
 } from '@/services/studentService'
 import { debugError } from '@/utils/debug'
+import { useAuthStore } from '@/stores/auth'
 import StudentTable from '@/components/StudentTable.vue'
 import AnswerTable from '@/components/AnswerTable.vue'
 import StudentFormModal from '@/components/StudentFormModal.vue'
@@ -352,6 +397,10 @@ type QueryTab = 'students' | 'wenId' | 'studentId'
 /** 分页常量（R47：移除硬编码 10） */
 const DEFAULT_PAGE_SIZE = 10 as const
 const TOAST_DURATION_MS = 3000 as const
+
+/** 当前登录的 auth token（用于管理员 API 调用） */
+const authStore = useAuthStore()
+const authToken = computed(() => authStore.token || '')
 
 // ============================================================
 // 基础状态
@@ -433,6 +482,50 @@ onUnmounted(() => {
     toastTimer = null
   }
 })
+
+// ============================================================
+// 批量创建教师（a001 ~ a009）
+// ============================================================
+const showBatchCreateDialog = ref(false)
+const batchCreating = ref(false)
+interface BatchCreateItem {
+  phone: string
+  success: boolean
+  message: string
+}
+const batchCreateResult = ref<BatchCreateItem[]>([])
+
+async function batchCreateTeachers() {
+  if (batchCreating.value) return
+  batchCreating.value = true
+  batchCreateResult.value = []
+
+  const teachers = Array.from({ length: 9 }, (_, i) => {
+    const num = String(i + 1).padStart(3, '0')
+    return { phone: `a${num}`, name: `a${num}`, password: '12345678', school_id: 1, class_codes: ['000000'] }
+  })
+
+  for (const teacher of teachers) {
+    try {
+      const res = await fetch(`${apiBase}/api/admin/teachers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify(teacher),
+      })
+      const data = await res.json()
+      if (data.success || res.status === 409) {
+        batchCreateResult.value.push({ phone: teacher.phone, success: true, message: data.message || '创建成功' })
+      } else {
+        batchCreateResult.value.push({ phone: teacher.phone, success: false, message: data.message || '创建失败' })
+      }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : '请求异常'
+      batchCreateResult.value.push({ phone: teacher.phone, success: false, message: errMsg })
+    }
+  }
+
+  batchCreating.value = false
+}
 
 // ============================================================
 // 计算属性
@@ -959,6 +1052,196 @@ onMounted(() => {
 .page-header .subtitle {
   font-family: var(--font-family-serif);
   color: var(--color-text-secondary);
+}
+
+/* 教师工具导航 */
+.tool-nav {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tool-nav-link {
+  color: var(--color-primary, #4a90d9);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 4px 8px;
+  transition: color 0.2s;
+}
+
+.tool-nav-link:hover {
+  color: var(--color-primary-dark, #357abd);
+  text-decoration: underline;
+}
+
+.tool-nav-sep {
+  color: var(--color-text-tertiary, #ccc);
+  margin: 0 8px;
+  font-size: 14px;
+}
+
+.tool-nav-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary, #4a90d9);
+  font-size: 14px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.tool-nav-btn:hover {
+  color: var(--color-primary-dark, #357abd);
+  text-decoration: underline;
+}
+
+/* 批量创建教师弹窗 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-dialog {
+  background: #fff;
+  border-radius: 12px;
+  width: 480px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.modal-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  background: #e0e0e0;
+}
+
+.modal-body {
+  padding: 16px 24px;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+}
+
+.modal-body code {
+  background: #f0f0f0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.modal-hint {
+  font-size: 13px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.batch-result {
+  margin-top: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+}
+
+.result-item {
+  padding: 2px 0;
+}
+
+.result-item.success {
+  color: #52c41a;
+}
+
+.result-item.error {
+  color: #ff4d4f;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 24px 20px;
+}
+
+.btn-cancel,
+.btn-primary {
+  padding: 8px 20px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-cancel {
+  background: #f0f0f0;
+  color: #555;
+}
+
+.btn-cancel:hover {
+  background: #e0e0e0;
+}
+
+.btn-primary {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #357abd;
+}
+
+.btn-primary:disabled {
+  background: #b0c4de;
+  cursor: not-allowed;
+}
+
+/* 弹窗过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 /* 反馈提示条 */

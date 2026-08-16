@@ -107,6 +107,7 @@ function registerRoutes(app) {
     adminController.resetStudent,
   )
   app.get('/api/admin/password-resets', ...adminAuth, adminController.listPasswordResets)
+  app.post('/api/admin/teachers', ...adminAuth, adminController.createTeacher)
 
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
@@ -184,6 +185,11 @@ function registerRoutes(app) {
   app.post('/api/assets/upload', assetAuthMiddleware, uploadMiddleware.any(), assetController.upload)
   app.post('/api/assets/pre-signed', assetAuthMiddleware, assetController.generatePreSignedUrl)
   app.get('/api/assets/version', assetController.getVersion)
+
+  // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
+  const resourceController = require('../controllers/resourceController')
+  const singleUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } }).single('file')
+  app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin']), singleUpload, resourceController.uploadResource)
 }
 
 module.exports = {
