@@ -340,9 +340,10 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
       style.listSpacing = listSpacing
     }
 
-    // 悬挂标点
-    if (textNode.hangingPunctuation && textNode.hangingPunctuation !== 'NONE') {
-      style.hangingPunctuation = textNode.hangingPunctuation
+    // 悬挂标点（Figma API 类型为 boolean，运行时值可能为字符串）
+    const hangingPunct = (textNode as any).hangingPunctuation
+    if (hangingPunct && hangingPunct !== 'NONE') {
+      style.hangingPunctuation = hangingPunct
     }
 
     // 连字符（Figma API 类型未直接暴露，尝试通过 any 访问）
