@@ -226,6 +226,46 @@ export async function del<T = unknown>(
   return request<T>(url, { ...config, method: 'DELETE' })
 }
 
+/**
+ * 批量 POST 请求工具函数
+ * 对 items 数组中的每一项依次发送 POST 请求，返回每项的执行结果
+ * 自动添加 auth headers，统一处理 401/网络异常等错误
+ */
+export interface BatchResult<T = unknown> {
+  key: string
+  success: boolean
+  message: string
+  data?: T
+}
+
+export async function batchPost<T = unknown>(
+  url: string,
+  items: Array<{ key: string; body: Record<string, unknown> }>,
+): Promise<BatchResult<T>[]> {
+  const results: BatchResult<T>[] = []
+
+  for (const item of items) {
+    try {
+      const res = await post<T>(url, item.body)
+      results.push({
+        key: item.key,
+        success: true,
+        message: res.message || '操作成功',
+        data: res.data,
+      })
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : '请求异常'
+      results.push({
+        key: item.key,
+        success: false,
+        message: errMsg,
+      })
+    }
+  }
+
+  return results
+}
+
 // ============================================================
 // 文件结束
 // ============================================================

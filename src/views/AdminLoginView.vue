@@ -108,12 +108,11 @@ onMounted(() => {
   })
 })
 
-function clearValidation(): void {
+async function handleSubmit(): Promise<void> {
+  // 清除上次错误
   hasError.value = false
   authStore.clearError()
-}
 
-async function handleSubmit(): Promise<void> {
   if (!username.value.trim()) {
     hasError.value = true
     return
@@ -127,8 +126,14 @@ async function handleSubmit(): Promise<void> {
     await authStore.login(username.value.trim(), password.value, undefined, 'admin')
     router.push('/answer-query')
   } catch (err) {
+    // authStore.login() 已设置 error 消息，此处仅记录日志
     debugError('管理员登录失败:', err)
   }
+}
+
+function clearValidation(): void {
+  hasError.value = false
+  // 不清除 authStore.error，让错误消息保持可见直到用户明确重试
 }
 
 function goHome(): void {
