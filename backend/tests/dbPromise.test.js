@@ -90,8 +90,9 @@ describe('dbPromise 工具函数', () => {
   describe('dbTransaction', () => {
     it('事务成功时应提交', async () => {
       await dbTransaction(db, async ({ dbRun }) => {
-        await dbRun(db, 'INSERT INTO test_table (name, value) VALUES (?, ?)', ['tx1', 1])
-        await dbRun(db, 'INSERT INTO test_table (name, value) VALUES (?, ?)', ['tx2', 2])
+        // dbRun 已预绑定 db 参数，无需重复传入
+        await dbRun('INSERT INTO test_table (name, value) VALUES (?, ?)', ['tx1', 1])
+        await dbRun('INSERT INTO test_table (name, value) VALUES (?, ?)', ['tx2', 2])
       })
 
       const rows = await dbAll(db, 'SELECT * FROM test_table')
@@ -101,7 +102,7 @@ describe('dbPromise 工具函数', () => {
     it('事务失败时应回滚', async () => {
       await expect(async () => {
         await dbTransaction(db, async ({ dbRun }) => {
-          await dbRun(db, 'INSERT INTO test_table (name, value) VALUES (?, ?)', ['tx1', 1])
+          await dbRun('INSERT INTO test_table (name, value) VALUES (?, ?)', ['tx1', 1])
           throw new Error('测试错误')
         })
       }).rejects.toThrow('测试错误')
