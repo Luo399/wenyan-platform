@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 // 首屏组件同步加载
-import HomeView from '@/views/HomeView.vue'
+import NewHomeView from '@/views/NewHomeView.vue'
 
 // R114: 扩展 RouteMeta 类型，避免 meta 字段无类型提示
 declare module 'vue-router' {
@@ -24,7 +24,17 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    component: HomeView,
+    component: NewHomeView,
+  },
+  {
+    path: '/student-login',
+    name: 'student-login',
+    component: () => import('@/views/StudentLoginView.vue'),
+  },
+  {
+    path: '/teacher-login',
+    name: 'teacher-login',
+    component: () => import('@/views/TeacherLoginView.vue'),
   },
   {
     path: '/rules/:id',

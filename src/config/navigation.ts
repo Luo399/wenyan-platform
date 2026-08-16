@@ -41,6 +41,8 @@
 // 页面路由名称定义
 export type RouteName =
   | 'home'
+  | 'student-login'
+  | 'teacher-login'
   | 'rules'
   | 'stepone'
   | 'steptwo'
@@ -64,6 +66,14 @@ export const pageSequence: PageConfig[] = [
   {
     name: 'home',
     getPath: () => '/',
+  },
+  {
+    name: 'student-login',
+    getPath: () => '/student-login',
+  },
+  {
+    name: 'teacher-login',
+    getPath: () => '/teacher-login',
   },
   {
     name: 'rules',
