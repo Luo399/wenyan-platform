@@ -25,16 +25,19 @@ function resolveDbPath() {
 
 const dbPath = resolveDbPath()
 
-// 数据库就绪 Promise：连接、PRAGMA、建表全部完成后 resolve
+// 数据库连接就绪 Promise（仅连接，不包括建表）
 let _dbReadyResolve, _dbReadyReject
 const dbReady = new Promise((resolve, reject) => {
   _dbReadyResolve = resolve
   _dbReadyReject = reject
 })
 
+// 数据库实例（模块级变量，恢复后重新赋值）
+let db
+
 /**
- * 数据库损坏后自动恢复：备份损坏文件 → 重建连接 → 重新初始化
- * 返回 true 表示恢复成功，false 表示失败
+ * 数据库损坏后自动恢复：备份损坏文件
+ * 返回 true 表示备份成功，false 表示失败
  */
 function recoverFromCorruption() {
   logger.error('数据库文件损坏，尝试自动恢复...')
@@ -50,61 +53,42 @@ function recoverFromCorruption() {
 }
 
 /**
- * 在已连接的数据库实例上执行 PRAGMA 和建表初始化
- */
-function initConnectedDb(instance) {
-  instance.run('PRAGMA journal_mode = WAL', (pragmaErr) => {
-    if (pragmaErr) console.error('设置 WAL 模式失败:', pragmaErr.message)
-  })
-  instance.run('PRAGMA foreign_keys = ON', (pragmaErr) => {
-    if (pragmaErr) console.error('启用外键约束失败:', pragmaErr.message)
-  })
-  initAllTables()
-    .then(() => _dbReadyResolve(instance))
-    .catch((initErr) => {
-      // 检测 initAllTables 过程中的 SQLITE_CORRUPT
-      const errMsg = String(initErr && initErr.message || initErr || '')
-      if (errMsg.includes('SQLITE_CORRUPT') || errMsg.includes('database disk image is malformed')) {
-        logger.error('初始化过程中检测到数据库损坏，尝试恢复...')
-        if (recoverFromCorruption()) {
-          // 备份成功，重建连接
-          connectToDatabase()
-        } else {
-          _dbReadyReject(initErr)
-        }
-        return
-      }
-      console.error('数据库初始化失败:', initErr)
-      _dbReadyReject(initErr)
-    })
-}
-
-/**
  * 连接到数据库（首次连接或损坏恢复后重连）
+ * 返回一个 Promise，连接完成后 resolve
  */
 function connectToDatabase() {
-  db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-      // 检测 SQLITE_CORRUPT：数据库文件损坏
-      if (err.message && err.message.includes('SQLITE_CORRUPT')) {
-        if (recoverFromCorruption()) {
-          connectToDatabase() // 递归重试
-        } else {
-          _dbReadyReject(err)
+  return new Promise((resolve) => {
+    db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        // 检测 SQLITE_CORRUPT：数据库文件损坏
+        if (err.message && err.message.includes('SQLITE_CORRUPT')) {
+          if (recoverFromCorruption()) {
+            resolve(connectToDatabase()) // 递归重试
+          } else {
+            _dbReadyReject(err)
+            resolve()
+          }
+          return
         }
+        console.error('数据库连接失败:', err.message)
+        _dbReadyReject(err)
+        resolve()
         return
       }
-      console.error('数据库连接失败:', err.message)
-      _dbReadyReject(err)
-      return
-    }
-    console.log('成功连接到 SQLite 数据库:', dbPath)
-    initConnectedDb(db)
+      console.log('成功连接到 SQLite 数据库:', dbPath)
+      db.run('PRAGMA journal_mode = WAL', (pragmaErr) => {
+        if (pragmaErr) console.error('设置 WAL 模式失败:', pragmaErr.message)
+      })
+      db.run('PRAGMA foreign_keys = ON', (pragmaErr) => {
+        if (pragmaErr) console.error('启用外键约束失败:', pragmaErr.message)
+      })
+      _dbReadyResolve(db)
+      resolve()
+    })
   })
 }
 
 // 首次连接
-let db
 connectToDatabase()
 
 /**
@@ -179,13 +163,10 @@ let _initStarted = false
 let _initPromise = null
 
 /**
- * 初始化所有业务表（幂等：多次调用只执行一次）
+ * 执行建表 SQL 链（不含 dbReady 等待，由外层调用者保证连接已就绪）
  */
-function initAllTables() {
-  if (_initStarted) return _initPromise
-  _initStarted = true
-
-  _initPromise = (
+function buildInitChain() {
+  return (
     Promise.resolve()
       // 1. 学校字典表
       .then(() =>
@@ -318,6 +299,32 @@ function initAllTables() {
         logger.info('[database] 所有表初始化/升级完成')
       })
   )
+}
+
+/**
+ * 尝试执行初始化，若 SQLITE_CORRUPT 则恢复后重试（最多 3 次）
+ */
+function initAllTables() {
+  if (_initStarted) return _initPromise
+  _initStarted = true
+
+  _initPromise = dbReady
+    .then(() => buildInitChain())
+    .catch((err) => {
+      // 检测 SQLITE_CORRUPT
+      const errMsg = String(err && err.message || err || '')
+      if (errMsg.includes('SQLITE_CORRUPT') || errMsg.includes('database disk image is malformed')) {
+        logger.error('初始化过程中检测到数据库损坏，尝试恢复...')
+        if (recoverFromCorruption()) {
+          // 重置幂等标记，允许重试
+          _initStarted = false
+          _initPromise = null
+          // 等新连接建立后再重试
+          return connectToDatabase().then(() => initAllTables())
+        }
+      }
+      throw err
+    })
 
   return _initPromise
 }
@@ -431,7 +438,7 @@ function seedDefaultAdmin() {
 }
 
 module.exports = {
-  db,
+  get db() { return db },
   dbReady,
   initAllTables,
 }
