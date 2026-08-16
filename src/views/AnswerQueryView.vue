@@ -34,14 +34,21 @@
 
     <!-- 批量创建教师弹窗 -->
     <Transition name="fade">
-      <div v-if="showBatchCreateDialog" class="modal-overlay" @click.self="showBatchCreateDialog = false">
+      <div
+        v-if="showBatchCreateDialog"
+        class="modal-overlay"
+        @click.self="showBatchCreateDialog = false"
+      >
         <div class="modal-dialog">
           <div class="modal-header">
             <h2>批量创建教师账号</h2>
             <button class="modal-close" @click="showBatchCreateDialog = false">✕</button>
           </div>
           <div class="modal-body">
-            <p>将创建 <strong>a001 ~ a009</strong> 共 9 个教师账号，密码统一为 <code>12345678</code>。</p>
+            <p>
+              将创建 <strong>a001 ~ a009</strong> 共 9 个教师账号，密码统一为
+              <code>12345678</code>。
+            </p>
             <p class="modal-hint">账号创建后可用 phone（如 a001）+ 密码登录教师端。</p>
             <div v-if="batchCreateResult.length > 0" class="batch-result">
               <div
@@ -55,11 +62,7 @@
           </div>
           <div class="modal-footer">
             <button class="btn-cancel" @click="showBatchCreateDialog = false">取消</button>
-            <button
-              class="btn-primary"
-              :disabled="batchCreating"
-              @click="batchCreateTeachers"
-            >
+            <button class="btn-primary" :disabled="batchCreating" @click="batchCreateTeachers">
               {{ batchCreating ? '创建中...' : '确认创建' }}
             </button>
           </div>
@@ -502,7 +505,13 @@ async function batchCreateTeachers() {
 
   const teachers = Array.from({ length: 9 }, (_, i) => {
     const num = String(i + 1).padStart(3, '0')
-    return { phone: `a${num}`, name: `a${num}`, password: '12345678', school_id: 1, class_codes: ['000000'] }
+    return {
+      phone: `a${num}`,
+      name: `a${num}`,
+      password: '12345678',
+      school_id: 1,
+      class_codes: ['000000'],
+    }
   })
 
   for (const teacher of teachers) {
@@ -514,9 +523,17 @@ async function batchCreateTeachers() {
       })
       const data = await res.json()
       if (data.success || res.status === 409) {
-        batchCreateResult.value.push({ phone: teacher.phone, success: true, message: data.message || '创建成功' })
+        batchCreateResult.value.push({
+          phone: teacher.phone,
+          success: true,
+          message: data.message || '创建成功',
+        })
       } else {
-        batchCreateResult.value.push({ phone: teacher.phone, success: false, message: data.message || '创建失败' })
+        batchCreateResult.value.push({
+          phone: teacher.phone,
+          success: false,
+          message: data.message || '创建失败',
+        })
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : '请求异常'

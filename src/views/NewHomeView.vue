@@ -21,7 +21,9 @@
         <button type="button" class="login-link" @click="goToLogin('teacher')">教师登录</button>
       </div>
       <div class="admin-entry">
-        <button type="button" class="admin-link" @click="router.push('/admin-login')">管理员</button>
+        <button type="button" class="admin-link" @click="router.push('/admin-login')">
+          管理员
+        </button>
       </div>
     </div>
   </div>
