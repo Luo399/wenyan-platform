@@ -406,8 +406,11 @@ function assignFileToSlot(slotKey: string, file: File) {
   if (slotKey === 'rule') {
     ruleVideoFile.value = file
   } else if (slotKey.startsWith('culture-')) {
-    const id = parseInt(slotKey.split('-')[1])
-    cultureCardFiles.value = { ...cultureCardFiles.value, [id]: file }
+    const idStr = slotKey.split('-')[1]
+    if (idStr) {
+      const id = parseInt(idStr, 10)
+      cultureCardFiles.value = { ...cultureCardFiles.value, [id]: file }
+    }
   } else if (slotKey === 'reading') {
     readingFile.value = file
   } else if (slotKey === 'words') {
