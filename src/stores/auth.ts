@@ -87,18 +87,27 @@ export const useAuthStore = defineStore('auth', () => {
     studentId: string,
     password: string,
     studentName?: string,
-    role: 'student' | 'teacher' = 'student',
+    role: 'student' | 'teacher' | 'admin' = 'student',
   ): Promise<void> {
     isLoading.value = true
     error.value = null
 
-    const endpoint = role === 'teacher' ? '/api/auth/teacher/login' : '/api/auth/student/login'
+    let endpoint: string
+    let body: Record<string, string>
+
+    if (role === 'admin') {
+      endpoint = '/api/auth/admin/login'
+      body = { username: studentId, password }
+    } else if (role === 'teacher') {
+      endpoint = '/api/auth/teacher/login'
+      body = { phone: studentId, password }
+    } else {
+      endpoint = '/api/auth/student/login'
+      body = { student_id: studentId, password }
+    }
 
     try {
-      const response = await post<AuthTokenResponse>(endpoint, {
-        student_id: studentId,
-        password,
-      })
+      const response = await post<AuthTokenResponse>(endpoint, body)
 
       if (!response.success) {
         throw new Error(response.message || '登录失败')
