@@ -26,6 +26,10 @@ const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
 const MAX_JSON_SIZE = 500 * 1024
 /** 允许的图片扩展名 */
 const ALLOWED_IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg)$/i
+/** 允许的音频扩展名 */
+const ALLOWED_AUDIO_EXT = /\.(mp3|wav|ogg|aac|flac)$/i
+/** 允许的视频扩展名 */
+const ALLOWED_VIDEO_EXT = /\.(mp4|webm|ogg)$/i
 
 /**
  * 校验上传文件（字段白名单 + 路径白名单 + 防路径穿越 + JSON 合法性 + 大小限制）
@@ -82,6 +86,22 @@ function validateUpload(files) {
       }
       if (!ALLOWED_IMAGE_EXT.test(ossPath)) {
         return { ok: false, reason: 'INVALID_EXT', message: `图片扩展名不合法: ${ossPath}` }
+      }
+    } else if (type === 'audio') {
+      // 音频资源：必须在 audio/ 目录内，且扩展名合法
+      if (!ossPath.startsWith('audio/')) {
+        return { ok: false, reason: 'PATH_NOT_ALLOWED', message: `音频路径必须在 audio/ 下: ${ossPath}` }
+      }
+      if (!ALLOWED_AUDIO_EXT.test(ossPath)) {
+        return { ok: false, reason: 'INVALID_EXT', message: `音频扩展名不合法: ${ossPath}` }
+      }
+    } else if (type === 'video') {
+      // 视频资源：必须在 video/ 目录内，且扩展名合法
+      if (!ossPath.startsWith('video/')) {
+        return { ok: false, reason: 'PATH_NOT_ALLOWED', message: `视频路径必须在 video/ 下: ${ossPath}` }
+      }
+      if (!ALLOWED_VIDEO_EXT.test(ossPath)) {
+        return { ok: false, reason: 'INVALID_EXT', message: `视频扩展名不合法: ${ossPath}` }
       }
     } else {
       return { ok: false, reason: 'INVALID_TYPE', message: `未知资源类型: ${type}` }

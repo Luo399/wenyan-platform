@@ -77,18 +77,37 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 登录（正式端点 /api/auth/student/login）
-   * R77: 拆分为 requestLogin + applyLoginResult，保持单一职责
+   * 登录
+   * @param studentId - 学号/手机号
+   * @param password - 密码
+   * @param studentName - 学生姓名（可选）
+   * @param role - 登录角色：'student' 或 'teacher'，默认 'student'
    */
-  async function login(studentId: string, password: string, studentName?: string): Promise<void> {
+  async function login(
+    studentId: string,
+    password: string,
+    studentName?: string,
+    role: 'student' | 'teacher' | 'admin' = 'student',
+  ): Promise<void> {
     isLoading.value = true
     error.value = null
 
+    let endpoint: string
+    let body: Record<string, string>
+
+    if (role === 'admin') {
+      endpoint = '/api/auth/admin/login'
+      body = { username: studentId, password }
+    } else if (role === 'teacher') {
+      endpoint = '/api/auth/teacher/login'
+      body = { phone: studentId, password }
+    } else {
+      endpoint = '/api/auth/student/login'
+      body = { student_id: studentId, password }
+    }
+
     try {
-      const response = await post<AuthTokenResponse>('/api/auth/student/login', {
-        student_id: studentId,
-        password,
-      })
+      const response = await post<AuthTokenResponse>(endpoint, body)
 
       if (!response.success) {
         throw new Error(response.message || '登录失败')

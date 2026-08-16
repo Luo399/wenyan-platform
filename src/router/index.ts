@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 // 首屏组件同步加载
-import HomeView from '@/views/HomeView.vue'
+import NewHomeView from '@/views/NewHomeView.vue'
 
 // R114: 扩展 RouteMeta 类型，避免 meta 字段无类型提示
 declare module 'vue-router' {
@@ -24,13 +24,24 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    component: HomeView,
+    component: NewHomeView,
+  },
+  {
+    path: '/student-login',
+    name: 'student-login',
+    component: () => import('@/views/StudentLoginView.vue'),
+  },
+  {
+    path: '/teacher-login',
+    name: 'teacher-login',
+    component: () => import('@/views/TeacherLoginView.vue'),
   },
   {
     path: '/rules/:id',
     name: 'rules',
     component: RuleVideoView,
     props: { videoKey: 'bg', navKey: 'rules', titlePrefix: '规则介绍' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/stepone/:id',
@@ -43,18 +54,21 @@ export const routes: RouteRecordRaw[] = [
     name: 'rule1',
     component: RuleVideoView,
     props: { videoKey: '1', navKey: 'rule1', titlePrefix: '规则介绍（一）' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/rule2/:id',
     name: 'rule2',
     component: RuleVideoView,
     props: { videoKey: '2', navKey: 'rule2', titlePrefix: '规则介绍（二）' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/rule3/:id',
     name: 'rule3',
     component: RuleVideoView,
     props: { videoKey: '3', navKey: 'rule3', titlePrefix: '规则介绍（三）' },
+    meta: { requiresAuth: true },
   },
   {
     path: '/stepthree/:id',
@@ -83,6 +97,17 @@ export const routes: RouteRecordRaw[] = [
     path: '/answer-query',
     name: 'answer-query',
     component: AnswerQueryView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin-login',
+    name: 'admin-login',
+    component: () => import('@/views/AdminLoginView.vue'),
+  },
+  {
+    path: '/resource-upload',
+    name: 'resource-upload',
+    component: () => import('@/views/ResourceUploadTool.vue'),
     meta: { requiresAuth: true },
   },
   {

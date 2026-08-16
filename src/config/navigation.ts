@@ -41,6 +41,8 @@
 // 页面路由名称定义
 export type RouteName =
   | 'home'
+  | 'student-login'
+  | 'teacher-login'
   | 'rules'
   | 'stepone'
   | 'steptwo'
@@ -66,20 +68,20 @@ export const pageSequence: PageConfig[] = [
     getPath: () => '/',
   },
   {
+    name: 'student-login',
+    getPath: () => '/student-login',
+  },
+  {
+    name: 'teacher-login',
+    getPath: () => '/teacher-login',
+  },
+  {
     name: 'rules',
     getPath: (id) => `/rules/${id || '1'}`,
   },
   {
     name: 'stepone',
     getPath: (id) => `/stepone/${id || '1'}`,
-  },
-  {
-    name: 'steptwo',
-    getPath: (id) => `/steptwo/${id || '1'}`,
-  },
-  {
-    name: 'stepthree',
-    getPath: (id) => `/stepthree/${id || '1'}`,
   },
   {
     name: 'rule1',
@@ -92,6 +94,14 @@ export const pageSequence: PageConfig[] = [
   {
     name: 'rule3',
     getPath: (id) => `/rule3/${id || '1'}`,
+  },
+  {
+    name: 'steptwo',
+    getPath: (id) => `/steptwo/${id || '1'}`,
+  },
+  {
+    name: 'stepthree',
+    getPath: (id) => `/stepthree/${id || '1'}`,
   },
   {
     name: 'detail',
