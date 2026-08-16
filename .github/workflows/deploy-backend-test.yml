@@ -166,11 +166,12 @@ jobs:
               echo "=== Container status ==="
               docker ps -a --filter name=wenyan-backend-test --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
 
-              # 检测 SQLITE_CORRUPT 错误，尝试恢复数据库
-              if docker logs wenyan-backend-test 2>&1 | grep -q "SQLITE_CORRUPT"; then
-                echo "=== Database corruption detected, attempting recovery ==="
+              # 检查容器是否在重启循环（如 SQLITE_CORRUPT 导致反复崩溃）
+              CONTAINER_STATUS=$(docker ps -a --filter name=wenyan-backend-test --format "{{.Status}}")
+              if echo "$CONTAINER_STATUS" | grep -q "Restarting"; then
+                echo "=== Container is restarting, attempting database recovery ==="
                 docker compose down
-                echo "Removing corrupted database file..."
+                echo "Removing database file to fix corruption..."
                 rm -f backend/database/answers.db
                 echo "Database file removed, restarting container..."
                 docker compose up -d --remove-orphans
