@@ -100,6 +100,17 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/admin-login',
+    name: 'admin-login',
+    component: () => import('@/views/AdminLoginView.vue'),
+  },
+  {
+    path: '/resource-upload',
+    name: 'resource-upload',
+    component: () => import('@/views/ResourceUploadTool.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue'),

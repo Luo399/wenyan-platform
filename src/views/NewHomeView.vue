@@ -20,6 +20,9 @@
         <span class="link-separator">|</span>
         <button type="button" class="login-link" @click="goToLogin('teacher')">教师登录</button>
       </div>
+      <div class="admin-entry">
+        <button type="button" class="admin-link" @click="router.push('/admin-login')">管理员</button>
+      </div>
     </div>
   </div>
 </template>
@@ -180,5 +183,28 @@ function goToStudentLogin() {
 .link-separator {
   color: var(--color-text-secondary);
   font-size: var(--font-size-body);
+}
+
+/* 管理员入口 */
+.admin-entry {
+  text-align: center;
+  margin-top: var(--spacing-xs);
+}
+
+.admin-link {
+  background: none;
+  border: none;
+  font-family: var(--font-family-serif);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #999);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.admin-link:hover {
+  color: var(--color-primary-hover);
 }
 </style>
