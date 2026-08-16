@@ -161,18 +161,66 @@ jobs:
             docker compose pull
 
             echo "=== [5/5] Restart backend ==="
-            pm2 delete wenyan-backend 2>/dev/null || true
+            docker rm -f wenyan-backend 2>/dev/null || true
             mkdir -p backend/database backend/data backend/logs
             chown -R 1000:1000 backend/database backend/data backend/logs
             docker compose up -d --remove-orphans
-            sleep 15
 
-            echo "=== Health check ==="
-            curl -s http://127.0.0.1:3000/api/health || {
-              echo "HEALTH_CHECK_FAILED"
+            echo "=== Health check (with retry) ==="
+            HEALTH_OK=false
+            MAX_RETRIES=6
+            RETRY_DELAY=10
+            for ((i=1; i<=MAX_RETRIES; i++)); do
+              echo "Attempt $i/$MAX_RETRIES to check health..."
+              if curl -s http://127.0.0.1:3000/api/health 2>/dev/null; then
+                HEALTH_OK=true
+                echo "=== Health check passed ==="
+                break
+              fi
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "Health check failed, retrying in $RETRY_DELAY seconds..."
+                sleep $RETRY_DELAY
+              fi
+            done
+
+            if [ "$HEALTH_OK" != "true" ]; then
+              echo "HEALTH_CHECK_FAILED after $MAX_RETRIES attempts"
               echo "=== Container logs ==="
               docker logs wenyan-backend 2>&1 || true
               echo "=== Container status ==="
               docker ps -a --filter name=wenyan-backend --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
-            }
+
+              # 检查容器是否在重启循环（如 SQLITE_CORRUPT 导致反复崩溃）
+              CONTAINER_STATUS=$(docker ps -a --filter name=wenyan-backend --format "{{.Status}}")
+              if echo "$CONTAINER_STATUS" | grep -q "Restarting"; then
+                echo "=== Container is restarting, attempting database recovery ==="
+                docker compose down
+                echo "Removing database file to fix corruption..."
+                rm -f backend/database/answers.db
+                docker rm -f wenyan-backend 2>/dev/null || true
+                echo "Database file removed, restarting container..."
+                docker compose up -d --remove-orphans
+                # 恢复后重试健康检查
+                for ((i=1; i<=MAX_RETRIES; i++)); do
+                  echo "Recovery attempt $i/$MAX_RETRIES to check health..."
+                  if curl -s http://127.0.0.1:3000/api/health 2>/dev/null; then
+                    HEALTH_OK=true
+                    echo "=== Database recovery successful ==="
+                    break
+                  fi
+                  if [ $i -lt $MAX_RETRIES ]; then
+                    sleep $RETRY_DELAY
+                  fi
+                done
+                if [ "$HEALTH_OK" != "true" ]; then
+                  echo "=== Database recovery failed ==="
+                  docker logs wenyan-backend 2>&1 || true
+                fi
+              fi
+            fi
+
+            if [ "$HEALTH_OK" != "true" ]; then
+              echo "FATAL: Backend health check failed after all recovery attempts"
+              exit 1
+            fi
           EOF
