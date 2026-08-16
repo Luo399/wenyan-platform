@@ -171,7 +171,7 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
 
   // 约束（缩放/固定）
   if ('constraints' in node) {
-    style.constraints = (node as ConstraintsMixin).constraints
+    style.constraints = (node as ConstraintMixin).constraints
   }
 
   // 圆角
@@ -230,11 +230,12 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
       // 补充：主轴/交叉轴尺寸模式（固定/自适应）
       style.primaryAxisSizingMode = autoLayout.primaryAxisSizingMode
       style.counterAxisSizingMode = autoLayout.counterAxisSizingMode
-      // 补充：最小/最大宽高限制
-      style.minWidth = autoLayout.minWidth
-      style.maxWidth = autoLayout.maxWidth
-      style.minHeight = autoLayout.minHeight
-      style.maxHeight = autoLayout.maxHeight
+      // 补充：最小/最大宽高限制（通过 any 访问，Figma 类型定义可能不全）
+      const anyNode = autoLayout as any
+      style.minWidth = anyNode.minWidth
+      style.maxWidth = anyNode.maxWidth
+      style.minHeight = anyNode.minHeight
+      style.maxHeight = anyNode.maxHeight
     }
   }
 
@@ -340,15 +341,17 @@ function extractNodeStyle(node: SceneNode): Record<string, any> {
     }
 
     // 悬挂标点
-    const hangingPunctuation = textNode.getRangeHangingPunctuation(0, 1)
-    if (hangingPunctuation !== figma.mixed && hangingPunctuation !== 'NONE') {
-      style.hangingPunctuation = hangingPunctuation
+    if (textNode.hangingPunctuation && textNode.hangingPunctuation !== 'NONE') {
+      style.hangingPunctuation = textNode.hangingPunctuation
     }
 
-    // 连字符
-    const hyphenation = textNode.getRangeHyphenation(0, 1)
-    if (hyphenation !== figma.mixed) {
-      style.hyphenation = hyphenation
+    // 连字符（Figma API 类型未直接暴露，尝试通过 any 访问）
+    const anyTextNode = textNode as any
+    if (anyTextNode.getRangeHyphenation) {
+      const hyphenation = anyTextNode.getRangeHyphenation(0, 1)
+      if (hyphenation !== figma.mixed) {
+        style.hyphenation = hyphenation
+      }
     }
   }
 
