@@ -127,8 +127,12 @@
               @click="triggerFileInput(`culture-${slot.id}`)"
             >
               <template v-if="cultureCardFiles[slot.id]">
-                <span class="file-name">{{ cultureCardFiles[slot.id].name }}</span>
-                <span class="file-size">({{ formatSize(cultureCardFiles[slot.id].size) }})</span>
+                <span class="file-name">{{ cultureCardFiles[slot.id]?.name }}</span>
+                <span class="file-size"
+                  >({{
+                    cultureCardFiles[slot.id] ? formatSize(cultureCardFiles[slot.id]!.size) : ''
+                  }})</span
+                >
                 <button
                   class="btn-remove"
                   @click.stop="cultureCardFiles[slot.id] = null"
@@ -264,7 +268,7 @@ const isAuthorized = computed(() => userRole.value === 'teacher' || userRole.val
 
 const poemList = getAllPoems()
 const selectedPoemId = ref('')
-const selectedType = ref<'rule' | 'culture' | 'reading' | 'words'>('rule')
+const selectedType = ref<ResourceType>('rule')
 const dragOverSlot = ref('')
 const hiddenInput = ref<HTMLInputElement | null>(null)
 const pendingSlotKey = ref('') // 当前等待文件选择的槽位 key
@@ -293,7 +297,9 @@ const wenId = computed(() => {
   return getWenId(selectedPoemId.value)
 })
 
-const typeTabs = [
+type ResourceType = 'rule' | 'culture' | 'reading' | 'words'
+
+const typeTabs: { key: ResourceType; label: string }[] = [
   { key: 'rule', label: 'Rule 视频' },
   { key: 'culture', label: '文化卡片' },
   { key: 'reading', label: '朗读音频' },

@@ -45,6 +45,12 @@
             'card-media-video': cardMediaType(card) === 'video',
             'card-media-text': cardMediaType(card) === 'text',
             'card-flipped': flippedCards.has(card.card_id || index),
+            'has-background': !!card.background_image,
+          }"
+          :style="{
+            backgroundImage: card.background_image
+              ? `url(${getCardBackgroundUrl(card)})`
+              : undefined,
           }"
           :role="isUnlocked(card) ? 'button' : undefined"
           :tabindex="isUnlocked(card) ? 0 : -1"
@@ -154,6 +160,8 @@ interface CultureCard {
   image_file: string
   /** 视频封面图（仅视频类型时有效） */
   poster_file?: string
+  /** 卡片背景图（可选，统一使用，不区分卡片类型） */
+  background_image?: string
   knowledge_text: string
   unlock_condition?: string
 }
@@ -251,6 +259,15 @@ function cardMediaType(card: CultureCard): 'text' | 'image' | 'video' {
 function getCardImageUrl(card: CultureCard): string {
   if (cardMediaType(card) === 'text') return ''
   return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
+}
+
+/**
+ * 获取卡片背景图 URL
+ * 背景图路径：{ossBase}/images/culture_cards/{wenId}/{background_image}
+ */
+function getCardBackgroundUrl(card: CultureCard): string {
+  if (!card.background_image) return ''
+  return `${ossBase}/images/culture_cards/${card.text_id}/${card.background_image}`
 }
 
 /**
@@ -375,6 +392,9 @@ function flipNextCard() {
    ============================================================ */
 .card-item {
   background: var(--color-white);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   border-radius: var(--radius-card);
   padding: 20px;
   box-shadow: var(--shadow-small);
@@ -382,6 +402,22 @@ function flipNextCard() {
   border: 2px solid transparent;
   position: relative;
   overflow: hidden;
+}
+
+/* 有背景图时，内容区域增加半透明遮罩提升可读性 */
+.card-item.has-background .card-inner {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-small);
+  padding: var(--spacing-sm);
+  backdrop-filter: blur(2px);
+}
+
+/* 图片/视频卡片覆盖背景图，不使用半透明遮罩 */
+.card-item.card-media-image.has-background .card-inner,
+.card-item.card-media-video.has-background .card-inner {
+  background: transparent;
+  padding: 0;
+  backdrop-filter: none;
 }
 
 .card-item:hover:not(.locked) {
@@ -530,6 +566,13 @@ function flipNextCard() {
   background: var(--color-bg-highlight);
 }
 
+/* 有背景图时，图片容器全宽覆盖 */
+.card-item.has-background .image-container {
+  margin: calc(-1 * var(--spacing-sm));
+  border-radius: 0;
+  background: transparent;
+}
+
 .card-image {
   width: 100%;
   height: auto;
@@ -537,6 +580,12 @@ function flipNextCard() {
   object-fit: contain;
   display: block;
   transition: transform 0.3s ease;
+}
+
+/* 有背景图时，图片全宽覆盖 */
+.card-item.has-background .card-image {
+  max-height: 400px;
+  object-fit: cover;
 }
 
 .card-image:hover {
@@ -550,6 +599,12 @@ function flipNextCard() {
   border-radius: var(--radius-small);
   overflow: hidden;
   background: var(--color-placeholder);
+}
+
+/* 有背景图时，视频容器全宽覆盖 */
+.card-item.has-background .video-container {
+  margin: calc(-1 * var(--spacing-sm));
+  border-radius: 0;
 }
 
 .video-thumbnail {
