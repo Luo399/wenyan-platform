@@ -487,9 +487,8 @@ async function main() {
  *
  *   子 Frame: images/general
  *   图层名: home_bg.png
- *   → OSS: images/general/home_bg.png
+ *   → OSS: images/home_bg.png（插件自动移除 general/ 前缀）
  *   → 前端: getAssetUrl('images', 'home_bg.png') = {ossBase}/images/home_bg.png
- *     ↑ 注意：general 子目录被省略，需要前端显式拼接
  *
  * 视频/音频路径映射（前端通过 ResourceUploadTool 上传，命名规则见 uploadAll）：
  *   video/{wenId}_rule_bg.mp4 → 前端: {ossBase}/video/{wenId}_rule_bg.mp4
@@ -514,7 +513,12 @@ function scanExportAssetsFrame(frame) {
             continue;
         }
         // 子 Frame 名称作为 OSS 路径
-        const ossPath = child.name.replace(/\/$/, '');
+        // 移除 general/ 前缀，使路径与前端 getAssetUrl('images', 'home_bg.png') 一致
+        // 前端期望路径: images/home_bg.png，而非 images/general/home_bg.png
+        let ossPath = child.name.replace(/\/$/, '');
+        if (ossPath === 'images/general') {
+            ossPath = 'images';
+        }
         const subChildrenCount = child.children?.length || 0;
         logDebug(`  [${i + 1}/${totalChildren}] 处理目录 "${child.name}" → OSS "${ossPath}" (${subChildrenCount} 个子节点)`);
         if (!child.children) {
