@@ -69,20 +69,33 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
    * 非顺序页面（未传 currentRouteName）调用时仅 warn 不跳转。
    */
   function goNext(targetId?: string) {
+    // 调试日志：生产环境也输出，避免 debugWarn 仅在 dev 模式生效
+    console.log(
+      '[useNavigation.goNext] currentRouteName:',
+      currentRouteName,
+      'currentId:',
+      currentId,
+      'targetId:',
+      targetId,
+    )
     if (!currentRouteName) {
-      debugWarn('useNavigation.goNext：未提供 currentRouteName，非顺序页面不支持 goNext')
+      console.warn('useNavigation.goNext：未提供 currentRouteName，非顺序页面不支持 goNext')
       return
     }
     const nextPage = getNextPage(currentRouteName)
+    console.log('[useNavigation.goNext] nextPage:', nextPage)
     if (!nextPage) {
-      debugWarn('已是最后一页')
+      console.warn('已是最后一页')
       return
     }
     // 标记退出类型为"前进"
     setPendingExitType('forward')
     const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
-    router.push(path)
+    console.log('[useNavigation.goNext] pushing to:', path)
+    router.push(path).catch((err: unknown) => {
+      console.error('[useNavigation.goNext] router.push 失败:', err)
+    })
   }
 
   /**

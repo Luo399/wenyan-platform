@@ -26,4 +26,9 @@ studentStore.restoreFromStorage()
 const authStore = useAuthStore(pinia)
 authStore.initialize()
 
+// 暴露全局引用，方便调试
+if (import.meta.env.DEV) {
+  ;(window as unknown as Record<string, unknown>).__router = router
+}
+
 app.mount('#app')
