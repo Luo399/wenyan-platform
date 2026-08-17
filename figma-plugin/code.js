@@ -474,7 +474,30 @@ async function main() {
 }
 /**
  * 扫描 Export Assets Frame 下的图片资源
- * 子 Frame 名称 = OSS 路径，图层名称 = 文件名
+ *
+ * 子 Frame 名称 = OSS 路径前缀，图层名称 = 文件名
+ * 命名规则必须与前端消费路径对齐：
+ *
+ * 图片资源路径映射（前端通过 getAssetUrl / ossBase 拼接消费）：
+ *   子 Frame: images/culture_cards/WEN_01
+ *   图层名: card_bg.png
+ *   → OSS: images/culture_cards/WEN_01/card_bg.png
+ *   → 前端: {ossBase}/images/culture_cards/WEN_01/card_bg.png
+ *     ↑ 对应 CultureCards.vue 的 getCardImageUrl
+ *
+ *   子 Frame: images/general
+ *   图层名: home_bg.png
+ *   → OSS: images/general/home_bg.png
+ *   → 前端: getAssetUrl('images', 'home_bg.png') = {ossBase}/images/home_bg.png
+ *     ↑ 注意：general 子目录被省略，需要前端显式拼接
+ *
+ * 视频/音频路径映射（前端通过 ResourceUploadTool 上传，命名规则见 uploadAll）：
+ *   video/{wenId}_rule_bg.mp4 → 前端: {ossBase}/video/{wenId}_rule_bg.mp4
+ *     ↑ 对应 RuleVideoView.vue 的 videoUrl 拼接
+ *   audio/{wenId}_reading.mp3 → 前端: {audioBaseUrl}/{wenId}_reading.mp3
+ *     ↑ 对应 MultiRoleReading.vue 的 audio_file 字段
+ *
+ * 后端白名单见 backend/src/controllers/assetController.js 的 ALLOWED_MEDIA_DIRS
  */
 function scanExportAssetsFrame(frame) {
     const assets = [];
@@ -628,10 +651,23 @@ function scanTextFrame(frame) {
 /**
  * 解析文字资源 Frame 的目标 OSS 路径
  *
- * 新命名（推荐）：Frame 名 = 相对路径，如 文字资源_culture_cards_WEN_01
- *   → data/culture_cards/WEN_01.json
+ * 命名规则必须与前端消费路径对齐（见 src/utils/asset.ts 的 getDataUrl）：
+ *
+ * 新命名（推荐）：Frame 名 = 文字资源_{dir}_{fileName}，如：
+ *   文字资源_culture_cards_WEN_01 → data/culture_cards/WEN_01.json
+ *     ↑ 对应 getDataUrl('culture_cards', 'WEN_01.json')
+ *   文字资源_text_basic_info_WEN_01 → data/text_basic_info/WEN_01.json
+ *     ↑ 对应 getDataUrl('text_basic_info', 'WEN_01.json')
+ *   文字资源_word_list_WEN_01 → data/word_list/WEN_01.json
+ *     ↑ 对应 getDataUrl('word_list', 'WEN_01.json')
+ *   文字资源_level1_quiz_WEN_01 → data/level1_quiz/WEN_01.json
+ *     ↑ 对应 getDataUrl('level1_quiz', 'WEN_01.json')
+ *
  * 旧命名（兼容）：文字资源_论语·学而篇
  *   → data/texts/文字资源_论语·学而篇.json
+ *   ↑ 对应 getDataUrl('texts', '文字资源_论语·学而篇.json')
+ *
+ * 后端白名单见 backend/src/controllers/assetController.js 的 ALLOWED_JSON_DIRS
  */
 function resolveTextOssPath(frameName) {
     const rest = frameName.replace(/^文字资源_/, '').replace(/\/+$/, '');
