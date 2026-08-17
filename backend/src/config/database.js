@@ -295,6 +295,8 @@ function buildInitChain() {
       .then(() => seedDefaultSchool())
       // 10. 种子数据：默认管理员 admin/admin123（若 admins 为空）
       .then(() => seedDefaultAdmin())
+      // 11. 种子数据：测试学生 99999999 / 123456
+      .then(() => seedTestStudent())
       .then(() => {
         logger.info('[database] 所有表初始化/升级完成')
       })
@@ -432,6 +434,43 @@ function seedDefaultAdmin() {
             resolve()
           },
         )
+      })
+    })
+  })
+}
+
+/**
+ * 种子数据：测试学生 99999999 / 123456（仅开发/测试环境）
+ * 判断条件：students 表为空，且当前不是生产环境
+ */
+function seedTestStudent() {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT id FROM students WHERE student_id = ?', ['99999999'], (err, row) => {
+      if (err) return reject(err)
+      if (row) {
+        logger.debug('[database] 测试学生 99999999 已存在，跳过')
+        return resolve()
+      }
+      // 获取默认学校 ID
+      db.get('SELECT id FROM schools LIMIT 1', (err2, school) => {
+        if (err2) return reject(err2)
+        const schoolId = school ? school.id : 1
+        const now = new Date().toISOString()
+        bcrypt.hash('123456', 10, (hashErr, hash) => {
+          if (hashErr) return reject(hashErr)
+          db.run(
+            `INSERT INTO students
+              (student_id, student_name, class_code, school_id,
+               password_hash, must_reset_password, created_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+            ['99999999', '测试学生', '999999', schoolId, hash, 'system', now, now],
+            (insertErr) => {
+              if (insertErr) return reject(insertErr)
+              logger.info('[database] 已插入测试学生  student_id=99999999  password=123456')
+              resolve()
+            },
+          )
+        })
       })
     })
   })
