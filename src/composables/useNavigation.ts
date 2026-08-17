@@ -21,7 +21,7 @@
  */
 
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, isNavigationFailure, NavigationFailureType } from 'vue-router'
 import { type RouteName, getNextPage, getPrevPage, pageSequence } from '@/config/navigation'
 import { debugError, debugWarn } from '@/utils/debug'
 import { markNextEnterFromBackButton, setPendingExitType } from '@/utils/tracking'
@@ -42,7 +42,10 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       debugError('pageSequence 中未找到 home 配置，无法跳转首页')
       return
     }
-    router.push(homePage.getPath())
+    router.push(homePage.getPath()).catch((err: unknown) => {
+      console.error('[useNavigation.goHome] router.push 失败:', err)
+      window.location.href = homePage.getPath()
+    })
   }
 
   /**
@@ -93,9 +96,29 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
     console.log('[useNavigation.goNext] pushing to:', path)
-    router.push(path).catch((err: unknown) => {
-      console.error('[useNavigation.goNext] router.push 失败:', err)
-    })
+    router
+      .push(path)
+      .then((result) => {
+        // R136: 检查导航结果，如果是重定向或失败，记录详细日志
+        if (result && isNavigationFailure(result, NavigationFailureType.redirected)) {
+          console.warn('[useNavigation.goNext] 导航被重定向:', result.to?.fullPath)
+        } else if (result && isNavigationFailure(result)) {
+          console.warn('[useNavigation.goNext] 导航失败:', result)
+        } else {
+          console.log('[useNavigation.goNext] 导航成功到:', path)
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('[useNavigation.goNext] router.push 失败:', err)
+        // R136: router.push 失败时 fallback 到 router.replace
+        console.log('[useNavigation.goNext] 尝试 router.replace 回退到:', path)
+        router.replace(path).catch((err2: unknown) => {
+          console.error('[useNavigation.goNext] router.replace 也失败:', err2)
+          // 最后的 fallback：直接修改 window.location
+          console.log('[useNavigation.goNext] 最终 fallback 到 window.location.href:', path)
+          window.location.href = path
+        })
+      })
   }
 
   /**
@@ -120,7 +143,10 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     markNextEnterFromBackButton()
     const id = targetId ?? getTargetId()
     const path = prevPage.getPath(id)
-    router.push(path)
+    router.push(path).catch((err: unknown) => {
+      console.error('[useNavigation.goPrev] router.push 失败:', err)
+      window.location.href = path
+    })
   }
 
   /**
@@ -134,7 +160,10 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     }
     const targetId = id ?? getTargetId()
     const path = page.getPath(targetId)
-    router.push(path)
+    router.push(path).catch((err: unknown) => {
+      console.error('[useNavigation.goTo] router.push 失败:', err)
+      window.location.href = path
+    })
   }
 
   /**

@@ -9,7 +9,6 @@
  */
 
 import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-router'
-import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { debugLog } from '@/utils/debug'
@@ -28,11 +27,13 @@ function requiresAuth(to: RouteLocationNormalized): boolean {
  * R03: 未登录访问鉴权页时重定向到首页并携带 ?redirect=<原目标>，
  * 替代原"设置 showLoginModal meta 后 next() 放行"的死代码逻辑。
  * 原逻辑下鉴权页内容会直接渲染，且登录成功后无法回到原目标页。
+ * R135: 添加详细调试日志，排查导航被拦截问题
  */
 export function setupAuthGuard(router: Router): void {
   router.beforeEach(
     (to: RouteLocationNormalized, _from: RouteLocationNormalized, next: NavigationGuardNext) => {
       const authStore = useAuthStore()
+      const { isLoggedIn } = storeToRefs(authStore)
 
       // token 过期自动登出，避免用过期 token 访问鉴权页
       if (authStore.token && authStore.isTokenExpired()) {
@@ -40,13 +41,23 @@ export function setupAuthGuard(router: Router): void {
         authStore.logout()
       }
 
+      debugLog(
+        '[AuthGuard] Checking navigation to:',
+        to.fullPath,
+        'requiresAuth:',
+        requiresAuth(to),
+        'isLoggedIn:',
+        isLoggedIn.value,
+      )
+
       // 需要登录但未登录：重定向到首页并携带 redirect 参数
-      if (requiresAuth(to) && !authStore.isLoggedIn) {
+      if (requiresAuth(to) && !isLoggedIn.value) {
         debugLog('[AuthGuard] 需要登录，重定向到首页并携带 redirect:', to.fullPath)
         next({ name: 'home', query: { redirect: to.fullPath } })
         return
       }
 
+      debugLog('[AuthGuard] Navigation allowed to:', to.fullPath)
       next()
     },
   )
