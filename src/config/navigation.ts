@@ -68,14 +68,6 @@ export const pageSequence: PageConfig[] = [
     getPath: () => '/',
   },
   {
-    name: 'student-login',
-    getPath: () => '/student-login',
-  },
-  {
-    name: 'teacher-login',
-    getPath: () => '/teacher-login',
-  },
-  {
     name: 'rules',
     getPath: (id) => `/rules/${id || '1'}`,
   },
