@@ -74,7 +74,22 @@ jobs:
             echo "OSS_BUCKET_DASHBOARD not set, skipping dashboard deployment"
           fi
 
-      - name: Purge CDN cache
+      - name: Refresh Alibaba Cloud CDN cache (www.classicalab.cn)
+        run: |
+          # 使用 aliyun CLI 刷新 CDN 缓存，确保 www 域名也能立即获取最新版本
+          if [ -n "${{ secrets.OSS_ACCESS_KEY_ID }}" ]; then
+            wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+            tar xzf aliyun-cli-linux-latest-amd64.tgz
+            chmod +x aliyun
+            ./aliyun configure set --access-key-id ${{ secrets.OSS_ACCESS_KEY_ID }} --access-key-secret ${{ secrets.OSS_ACCESS_KEY_SECRET }} --region cn-zhongwei
+            # 刷新 www 域名的根目录缓存
+            ./aliyun cdn RefreshObjectCaches --ObjectPath "https://www.classicalab.cn/" --ObjectType Directory || \
+              echo "Warning: CDN refresh failed, user may need to clear browser cache manually"
+          else
+            echo "OSS_ACCESS_KEY_ID not set, skipping CDN cache refresh"
+          fi
+
+      - name: Purge CloudFront CDN cache (legacy)
         run: |
           if [ -n "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" ]; then
             aws cloudfront create-invalidation \
