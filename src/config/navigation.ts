@@ -72,24 +72,24 @@ export const pageSequence: PageConfig[] = [
     getPath: (id) => `/rules/${id || '1'}`,
   },
   {
-    name: 'stepone',
-    getPath: (id) => `/stepone/${id || '1'}`,
-  },
-  {
     name: 'rule1',
     getPath: (id) => `/rule1/${id || '1'}`,
+  },
+  {
+    name: 'stepone',
+    getPath: (id) => `/stepone/${id || '1'}`,
   },
   {
     name: 'rule2',
     getPath: (id) => `/rule2/${id || '1'}`,
   },
   {
-    name: 'rule3',
-    getPath: (id) => `/rule3/${id || '1'}`,
-  },
-  {
     name: 'steptwo',
     getPath: (id) => `/steptwo/${id || '1'}`,
+  },
+  {
+    name: 'rule3',
+    getPath: (id) => `/rule3/${id || '1'}`,
   },
   {
     name: 'stepthree',
