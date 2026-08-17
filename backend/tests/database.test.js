@@ -216,7 +216,8 @@ describe('学生密码重置 + 审计落库', () => {
   })
 
   test('resetStudentPassword：学生不存在时返回 STUDENT_NOT_FOUND', async () => {
-    const r = await resetStudentPassword('99999999', 'teacher', '13800001111')
+    // 注意：99999999 是预定义测试账号，使用 99999998 来测试不存在的情况
+    const r = await resetStudentPassword('99999998', 'teacher', '13800001111')
     expect(r.success).toBe(false)
     expect(r.reason).toBe('STUDENT_NOT_FOUND')
   })
