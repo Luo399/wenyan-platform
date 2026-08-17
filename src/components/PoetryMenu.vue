@@ -26,11 +26,15 @@
 <script setup lang="ts">
 import { getAllPoems, type PoemEntry } from '@/utils/wenUtils'
 import { useNavigation } from '@/composables/useNavigation'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 
 // 诗题列表数据：从 wenUtils 统一读取，按 wenId 升序
 const poemList: PoemEntry[] = getAllPoems()
 
 const { goTo } = useNavigation()
+const authStore = useAuthStore()
+const router = useRouter()
 
 /**
  * 跳转到规则介绍页
@@ -42,8 +46,20 @@ function goToRules(wenId: string) {
   goTo('rules', poemId)
 }
 
+/** 获取 poemId 的辅助函数 */
+function getPoemIdFromWenId(wenId: string): string {
+  const targetPoem = poemList.find((p) => p.wenId === wenId)
+  return targetPoem?.poemId ?? wenId.replace(/\D/g, '')
+}
+
 /** 点击或键盘选择某项：跳转到规则页 */
 function handleSelect(wenId: string) {
+  if (!authStore.isLoggedIn) {
+    // 未登录：跳转到学生登录页，携带 redirect 参数指向目标规则页
+    const poemId = getPoemIdFromWenId(wenId)
+    router.push(`/student-login?redirect=/rules/${poemId}`)
+    return
+  }
   goToRules(wenId)
 }
 </script>

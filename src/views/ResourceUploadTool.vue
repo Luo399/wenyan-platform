@@ -7,6 +7,19 @@
   - 文件拖拽上传
   - 自动命名预览
   - 上传进度反馈
+
+  命名规则对齐说明（必须与前端消费路径一致）：
+  - Rule 视频：{wenId}_rule_bg.{ext} → OSS: video/{fileName}
+    → 前端消费: RuleVideoView.vue 拼接 video/{wenId}_rule_{videoKey}.mp4
+  - 文化卡片：{wenId}_culture_card_{index}.{ext} → OSS: images/culture_cards/{wenId}/{fileName}
+    → 前端消费: CultureCards.vue 从 JSON 中读取 image_file 字段拼接
+  - 朗读音频：{wenId}_reading.{ext} → OSS: audio/{fileName}
+    → 前端消费: MultiRoleReading.vue 从 JSON 的 audio_file 字段读取文件名
+  - 字词音频：{wenId}_words.{ext} → OSS: audio/{fileName}
+    → 前端消费: WordList.vue 从 JSON 数据中读取
+
+  Figma 插件的命名规则见 figma-plugin/code.ts 的 scanExportAssetsFrame 注释
+  后端白名单见 backend/src/controllers/assetController.js 的 ALLOWED_JSON_DIRS / ALLOWED_MEDIA_DIRS
 -->
 <template>
   <div class="resource-upload-tool">
