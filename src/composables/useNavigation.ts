@@ -21,7 +21,7 @@
  */
 
 import { computed } from 'vue'
-import { useRouter, isNavigationFailure, NavigationFailureType } from 'vue-router'
+import { useRouter, isNavigationFailure } from 'vue-router'
 import { type RouteName, getNextPage, getPrevPage, pageSequence } from '@/config/navigation'
 import { debugError, debugWarn } from '@/utils/debug'
 import { markNextEnterFromBackButton, setPendingExitType } from '@/utils/tracking'
@@ -99,10 +99,8 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     router
       .push(path)
       .then((result) => {
-        // R136: 检查导航结果，如果是重定向或失败，记录详细日志
-        if (result && isNavigationFailure(result, NavigationFailureType.redirected)) {
-          console.warn('[useNavigation.goNext] 导航被重定向:', result.to?.fullPath)
-        } else if (result && isNavigationFailure(result)) {
+        // R136: 检查导航结果，如果是失败类型，记录详细日志
+        if (result && isNavigationFailure(result)) {
           console.warn('[useNavigation.goNext] 导航失败:', result)
         } else {
           console.log('[useNavigation.goNext] 导航成功到:', path)

@@ -9,6 +9,7 @@
  */
 
 import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-router'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { debugLog } from '@/utils/debug'
