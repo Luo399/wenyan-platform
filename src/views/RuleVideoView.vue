@@ -105,7 +105,8 @@ const currentPoem = computed(() => {
 
 .page-title {
   font-family: var(--font-family-serif);
-  font-size: var(--font-size-heading);
+  /* Figma 设计：规则标题使用 70px 字号（--font-size-subheading），SemiBold，居中 */
+  font-size: var(--font-size-subheading);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   margin-bottom: var(--spacing-lg);
@@ -118,23 +119,19 @@ const currentPoem = computed(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* 居中容器，视频保持 16:9 比例 */
+  align-items: center;
+  justify-content: center;
 }
 
 .video-section :deep(.video-player-container) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  /* 视频播放器最大宽度，保持居中 */
+  max-width: 90%;
 }
 
 .video-section :deep(.video-wrapper) {
-  flex: 1;
-  aspect-ratio: auto;
-  min-height: 0;
-}
-
-.video-section :deep(.video-wrapper video) {
-  height: 100%;
-  width: 100%;
-  object-fit: contain;
+  /* 视频保持 16:9 宽高比，不拉伸 */
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
 }
 </style>

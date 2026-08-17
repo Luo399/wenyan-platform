@@ -93,7 +93,8 @@ function extractNodeStyle(node) {
     if ('fills' in node) {
         const fills = node.fills;
         if (fills && typeof fills !== 'symbol') {
-            style.fills = fills.map((f) => {
+            style.fills = fills
+                .map((f) => {
                 const fill = { type: f.type, visible: f.visible, opacity: f.opacity };
                 if (f.type === 'SOLID' && 'color' in f) {
                     fill.color = f.color;
@@ -101,21 +102,24 @@ function extractNodeStyle(node) {
                     fill.hex = rgbToHex(f.color.r, f.color.g, f.color.b);
                 }
                 return fill;
-            }).filter((f) => f.visible !== false);
+            })
+                .filter((f) => f.visible !== false);
         }
     }
     // 描边
     if ('strokes' in node) {
         const strokes = node.strokes;
         if (strokes && strokes.length > 0) {
-            style.strokes = strokes.map((s) => {
+            style.strokes = strokes
+                .map((s) => {
                 const stroke = { type: s.type, visible: s.visible };
                 if (s.type === 'SOLID' && 'color' in s) {
                     stroke.color = s.color;
                     stroke.hex = rgbToHex(s.color.r, s.color.g, s.color.b);
                 }
                 return stroke;
-            }).filter((s) => s.visible !== false);
+            })
+                .filter((s) => s.visible !== false);
         }
     }
     // 描边宽度
@@ -128,6 +132,10 @@ function extractNodeStyle(node) {
     // 描边对齐
     if ('strokeAlign' in node) {
         style.strokeAlign = node.strokeAlign;
+    }
+    // 约束（缩放/固定）
+    if ('constraints' in node) {
+        style.constraints = node.constraints;
     }
     // 圆角
     if ('cornerRadius' in node) {
@@ -151,7 +159,8 @@ function extractNodeStyle(node) {
     if ('effects' in node) {
         const effects = node.effects;
         if (effects && effects.length > 0) {
-            style.effects = effects.map((e) => {
+            style.effects = effects
+                .map((e) => {
                 const effect = { type: e.type, visible: e.visible };
                 // radius 存在于部分效果类型
                 if ('radius' in e)
@@ -163,7 +172,8 @@ function extractNodeStyle(node) {
                     effect.color = shadow.color;
                 }
                 return effect;
-            }).filter((e) => e.visible !== false);
+            })
+                .filter((e) => e.visible !== false);
         }
     }
     // 自动布局
@@ -178,7 +188,34 @@ function extractNodeStyle(node) {
             style.itemSpacing = autoLayout.itemSpacing;
             style.primaryAxisAlignItems = autoLayout.primaryAxisAlignItems;
             style.counterAxisAlignItems = autoLayout.counterAxisAlignItems;
+            // 补充：主轴/交叉轴尺寸模式（固定/自适应）
+            style.primaryAxisSizingMode = autoLayout.primaryAxisSizingMode;
+            style.counterAxisSizingMode = autoLayout.counterAxisSizingMode;
+            // 补充：最小/最大宽高限制（通过 any 访问，Figma 类型定义可能不全）
+            const anyNode = autoLayout;
+            style.minWidth = anyNode.minWidth;
+            style.maxWidth = anyNode.maxWidth;
+            style.minHeight = anyNode.minHeight;
+            style.maxHeight = anyNode.maxHeight;
         }
+    }
+    // 混合模式
+    if ('blendMode' in node) {
+        style.blendMode = node.blendMode;
+    }
+    // 裁切内容
+    if ('clipsContent' in node) {
+        style.clipsContent = node.clipsContent;
+    }
+    // 单独描边宽度（左/右/上/下）
+    if ('strokeTopWeight' in node) {
+        const sw = node;
+        style.strokeWeights = {
+            top: sw.strokeTopWeight,
+            right: sw.strokeRightWeight,
+            bottom: sw.strokeBottomWeight,
+            left: sw.strokeLeftWeight,
+        };
     }
     // 文本属性
     if (node.type === 'TEXT') {
@@ -222,6 +259,46 @@ function extractNodeStyle(node) {
                 return fill;
             });
         }
+        // 文本自动尺寸调整（宽度/高度行为）
+        style.textAutoResize = textNode.textAutoResize;
+        // 文本装饰（下划线/删除线）
+        const textDecoration = textNode.getRangeTextDecoration(0, 1);
+        if (textDecoration !== figma.mixed) {
+            style.textDecoration = textDecoration;
+        }
+        // 文本大小写
+        const textCase = textNode.getRangeTextCase(0, 1);
+        if (textCase !== figma.mixed) {
+            style.textCase = textCase;
+        }
+        // 段落间距
+        const paragraphSpacing = textNode.getRangeParagraphSpacing(0, 1);
+        if (paragraphSpacing !== figma.mixed && paragraphSpacing !== 0) {
+            style.paragraphSpacing = paragraphSpacing;
+        }
+        // 段落缩进
+        const paragraphIndent = textNode.getRangeParagraphIndent(0, 1);
+        if (paragraphIndent !== figma.mixed && paragraphIndent !== 0) {
+            style.paragraphIndent = paragraphIndent;
+        }
+        // 列表间距
+        const listSpacing = textNode.getRangeListSpacing(0, 1);
+        if (listSpacing !== figma.mixed && listSpacing !== 0) {
+            style.listSpacing = listSpacing;
+        }
+        // 悬挂标点（Figma API 类型为 boolean，运行时值可能为字符串）
+        const hangingPunct = textNode.hangingPunctuation;
+        if (hangingPunct && hangingPunct !== 'NONE') {
+            style.hangingPunctuation = hangingPunct;
+        }
+        // 连字符（Figma API 类型未直接暴露，尝试通过 any 访问）
+        const anyTextNode = textNode;
+        if (anyTextNode.getRangeHyphenation) {
+            const hyphenation = anyTextNode.getRangeHyphenation(0, 1);
+            if (hyphenation !== figma.mixed) {
+                style.hyphenation = hyphenation;
+            }
+        }
     }
     return style;
 }
@@ -229,7 +306,9 @@ function extractNodeStyle(node) {
  * RGB 0-1 值转十六进制颜色字符串
  */
 function rgbToHex(r, g, b) {
-    const toHex = (v) => Math.round(v * 255).toString(16).padStart(2, '0');
+    const toHex = (v) => Math.round(v * 255)
+        .toString(16)
+        .padStart(2, '0');
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 /**
@@ -430,8 +509,14 @@ function scanExportAssetsFrame(frame) {
             }
             // 只处理可导出的图层类型
             const exportableTypes = [
-                'RECTANGLE', 'ELLIPSE', 'VECTOR', 'IMAGE',
-                'INSTANCE', 'COMPONENT', 'FRAME', 'GROUP',
+                'RECTANGLE',
+                'ELLIPSE',
+                'VECTOR',
+                'IMAGE',
+                'INSTANCE',
+                'COMPONENT',
+                'FRAME',
+                'GROUP',
             ];
             if (!exportableTypes.includes(leaf.type)) {
                 logDebug(`    → [跳过] 不支持的图层类型(${leaf.type}): "${leaf.name}"`);
@@ -563,7 +648,7 @@ function resolveTextOssPath(frameName) {
  */
 async function exportSingleNode(nodeId, ossPath) {
     try {
-        const node = await figma.getNodeByIdAsync(nodeId);
+        const node = (await figma.getNodeByIdAsync(nodeId));
         if (!node) {
             logError(`  节点不存在或不可访问: "${ossPath}" (nodeId: ${nodeId})`);
             return new Uint8Array(0);
