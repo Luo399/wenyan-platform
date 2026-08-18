@@ -579,6 +579,26 @@
     }
 
     /**
+     * 处理 fetch 响应：检查 HTTP 状态码，非 2xx 时读取错误详情
+     * 后端返回 502 时会返回 HTML 页面，导致 response.json() 解析失败
+     */
+    async function handleResponse(response) {
+      if (!response.ok) {
+        var errorText = ''
+        try {
+          errorText = await response.text()
+        } catch(e) {
+          errorText = '无法读取响应内容'
+        }
+        if (errorText.length > 200) {
+          errorText = errorText.substring(0, 200) + '...'
+        }
+        throw new Error('HTTP ' + response.status + ': ' + errorText)
+      }
+      return response.json()
+    }
+
+    /**
      * 带超时的 fetch 请求
      * 使用 AbortController 实现超时取消
      */
@@ -658,7 +678,7 @@
                 }],
               }),
             })
-            var result = await response.json()
+            var result = await handleResponse(response)
             if (result.success) {
               // 从后端响应中提取 OSS 公开 URL 并验证
               var ossUrl = result.data?.uploaded?.[0]?.ossUrl || ''
@@ -702,7 +722,7 @@
               headers: apiToken ? { 'X-API-Key': apiToken } : {},
               body: formData,
             })
-            var result = await response.json()
+            var result = await handleResponse(response)
             if (result.success) {
               // 从后端响应中提取 OSS 公开 URL 并验证
               var ossUrl = result.data?.uploaded?.[0]?.ossUrl || ''
