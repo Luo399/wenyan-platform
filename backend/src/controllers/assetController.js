@@ -311,8 +311,34 @@ function parseArrayField(body, fieldName) {
   return []
 }
 
+/**
+ * GET /api/assets/styles/:name
+ * 临时端点：读取服务器上的样式文件
+ */
+async function getStyleFile(req, res, next) {
+  try {
+    const path = require('path')
+    const fs = require('fs')
+    const { name } = req.params
+    // 防路径穿越
+    if (!name || name.includes('..') || name.includes('/') || name.includes('\\')) {
+      return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '非法文件名' })
+    }
+    const config = require('../config/app')
+    const filePath = path.join(config.data.basePath, 'styles', name.endsWith('.json') ? name : `${name}.json`)
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: `文件不存在: ${name}` })
+    }
+    const content = fs.readFileSync(filePath, 'utf-8')
+    res.json({ success: true, data: JSON.parse(content) })
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   upload,
   getVersion,
   generatePreSignedUrl,
+  getStyleFile,
 }

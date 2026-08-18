@@ -185,6 +185,8 @@ function registerRoutes(app) {
   app.post('/api/assets/upload', assetAuthMiddleware, uploadMiddleware.any(), assetController.upload)
   app.post('/api/assets/pre-signed', assetAuthMiddleware, assetController.generatePreSignedUrl)
   app.get('/api/assets/version', assetController.getVersion)
+  // 临时端点：读取服务器上的样式文件（后续移除）
+  app.get('/api/assets/styles/:name', assetController.getStyleFile)
 
   // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
   const resourceController = require('../controllers/resourceController')
