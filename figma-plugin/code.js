@@ -41,6 +41,57 @@ function logError(...args) {
 const DEFAULT_API_BASE = 'https://api.classicalab.cn';
 // 导出超时时间（毫秒）：单个资源导出超过 30 秒视为失败
 const EXPORT_TIMEOUT_MS = 30000;
+// ============ 错误码定义 ============
+// 错误码系统：用于统一标识和排查插件运行时错误
+// 错误码 1：net::ERR_FAILED - 后端 API 不可达或返回 502/503
+//   触发场景：生产环境 API 服务宕机或网络不可达，所有上传请求均失败
+//   排查方向：检查后端服务是否正常运行（pm2 status），检查 API 域名 DNS 解析
+// 错误码 2：API 域名不在 manifest.json allowedDomains 中
+//   触发场景：Figaa 安全策略拦截了向未声明域名的请求
+//   排查方向：将 API 域名添加到 manifest.json 的 networkAccess.allowedDomains
+const ERROR_CODES = {
+    /** 错误码 1：后端 API 不可达（net::ERR_FAILED / 502 / 503） */
+    API_UNREACHABLE: { code: 1, label: 'API_UNREACHABLE', message: '后端 API 不可达' },
+    /** 错误码 2：API 域名不在 manifest.json allowedDomains 中 */
+    DOMAIN_NOT_ALLOWED: { code: 2, label: 'DOMAIN_NOT_ALLOWED', message: 'API 域名不在 allowedDomains 白名单中' },
+    /** 错误码 3：请求超时（超过 FETCH_TIMEOUT_MS） */
+    REQUEST_TIMEOUT: { code: 3, label: 'REQUEST_TIMEOUT', message: '网络请求超时' },
+    /** 错误码 4：上传数据校验失败（后端返回 400 校验错误） */
+    VALIDATION_FAILED: { code: 4, label: 'VALIDATION_FAILED', message: '上传数据校验失败' },
+    /** 错误码 5：Figma 节点导出失败 */
+    NODE_EXPORT_FAILED: { code: 5, label: 'NODE_EXPORT_FAILED', message: 'Figma 节点导出失败' },
+    /** 错误码 6：未知错误 */
+    UNKNOWN: { code: 6, label: 'UNKNOWN', message: '未知错误' },
+};
+/**
+ * 根据错误信息推断错误码
+ * 通过关键词匹配识别已知错误类型
+ */
+function inferErrorCode(err) {
+    const msg = String(err);
+    if (/Failed to fetch|net::ERR_FAILED|502|503/.test(msg))
+        return ERROR_CODES.API_UNREACHABLE.code;
+    if (/not in the list of allowed domains|allowedDomains/.test(msg))
+        return ERROR_CODES.DOMAIN_NOT_ALLOWED.code;
+    if (/超时|timeout|AbortError/.test(msg))
+        return ERROR_CODES.REQUEST_TIMEOUT.code;
+    if (/400|VALIDATION|校验|不合法/.test(msg))
+        return ERROR_CODES.VALIDATION_FAILED.code;
+    if (/导出失败|exportAsync|exportSingleNode/.test(msg))
+        return ERROR_CODES.NODE_EXPORT_FAILED.code;
+    return ERROR_CODES.UNKNOWN.code;
+}
+/**
+ * 获取错误码对应的描述信息
+ */
+function getErrorCodeInfo(code) {
+    for (const key of Object.keys(ERROR_CODES)) {
+        const ec = ERROR_CODES[key];
+        if (ec.code === code)
+            return ec;
+    }
+    return ERROR_CODES.UNKNOWN;
+}
 // 资源类型枚举
 const ASSET_TYPE = {
     IMAGE: 'image',
