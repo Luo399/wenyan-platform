@@ -336,6 +336,47 @@
     // 网络请求超时时间（毫秒）
     var FETCH_TIMEOUT_MS = 30000
 
+    // ============ 错误码定义 ============
+    // 与 code.ts 中的 ERROR_CODES 保持一致
+    // 错误码 1：后端 API 不可达（net::ERR_FAILED / 502 / 503）
+    //   触发场景：生产环境 API 服务宕机或网络不可达，所有上传请求均失败
+    //   排查方向：检查后端服务是否正常运行（pm2 status），检查 API 域名 DNS 解析
+    // 错误码 2：API 域名不在 manifest.json allowedDomains 中
+    //   触发场景：Figma 安全策略拦截了向未声明域名的请求
+    //   排查方向：将 API 域名添加到 manifest.json 的 networkAccess.allowedDomains
+    var ERROR_CODES = {
+      API_UNREACHABLE: { code: 1, label: 'API_UNREACHABLE', message: '后端 API 不可达' },
+      DOMAIN_NOT_ALLOWED: { code: 2, label: 'DOMAIN_NOT_ALLOWED', message: 'API 域名不在 allowedDomains 白名单中' },
+      REQUEST_TIMEOUT: { code: 3, label: 'REQUEST_TIMEOUT', message: '网络请求超时' },
+      VALIDATION_FAILED: { code: 4, label: 'VALIDATION_FAILED', message: '上传数据校验失败' },
+      NODE_EXPORT_FAILED: { code: 5, label: 'NODE_EXPORT_FAILED', message: 'Figma 节点导出失败' },
+      UNKNOWN: { code: 6, label: 'UNKNOWN', message: '未知错误' },
+    }
+
+    /**
+     * 根据错误信息推断错误码
+     * 通过关键词匹配识别已知错误类型
+     */
+    function inferErrorCode(err) {
+      var msg = String(err)
+      if (/Failed to fetch|net::ERR_FAILED|502|503/.test(msg)) return ERROR_CODES.API_UNREACHABLE.code
+      if (/not in the list of allowed domains|allowedDomains/.test(msg)) return ERROR_CODES.DOMAIN_NOT_ALLOWED.code
+      if (/超时|timeout|AbortError/.test(msg)) return ERROR_CODES.REQUEST_TIMEOUT.code
+      if (/400|VALIDATION|校验|不合法/.test(msg)) return ERROR_CODES.VALIDATION_FAILED.code
+      if (/导出失败|exportAsync|exportSingleNode/.test(msg)) return ERROR_CODES.NODE_EXPORT_FAILED.code
+      return ERROR_CODES.UNKNOWN.code
+    }
+
+    /**
+     * 获取错误码对应的描述信息
+     */
+    function getErrorCodeInfo(code) {
+      for (var key in ERROR_CODES) {
+        if (ERROR_CODES[key].code === code) return ERROR_CODES[key]
+      }
+      return ERROR_CODES.UNKNOWN
+    }
+
     var assets = []
     var isSyncing = false
     // 版本数据（用于对比判断是否已上传）
@@ -416,7 +457,11 @@
           isSyncing = false
           document.getElementById('syncBtn').disabled = false
           document.getElementById('progressBar').style.display = 'none'
-          showError(msg.error)
+          // 推断错误码并显示
+          var errorCode = inferErrorCode(msg.error)
+          var errorCodeInfo = getErrorCodeInfo(errorCode)
+          var errorWithCode = '[错误码' + errorCode + '] ' + errorCodeInfo.message + ': ' + msg.error
+          showError(errorWithCode)
           break
 
         case 'scan-error':
@@ -579,7 +624,9 @@
     }
 
     /**
-     * 处理 fetch 响应：检查 HTTP 状态码，非 2xx 时读取错误详情
+     * 处理 fetch 响应：检查 HTTP 状态码，非 2xx 时读取错误详情并附上错误码
+     * 错误码 1：502/503 服务不可达 → 后端宕机
+     * 错误码 4：400 校验失败 → 数据格式错误
      * 后端返回 502 时会返回 HTML 页面，导致 response.json() 解析失败
      */
     async function handleResponse(response) {
@@ -593,7 +640,13 @@
         if (errorText.length > 200) {
           errorText = errorText.substring(0, 200) + '...'
         }
-        throw new Error('HTTP ' + response.status + ': ' + errorText)
+        // 根据 HTTP 状态码推断错误码
+        var errorCode = response.status === 502 || response.status === 503
+          ? ERROR_CODES.API_UNREACHABLE.code
+          : response.status === 400
+            ? ERROR_CODES.VALIDATION_FAILED.code
+            : ERROR_CODES.UNKNOWN.code
+        throw new Error('[错误码' + errorCode + '] HTTP ' + response.status + ': ' + errorText)
       }
       return response.json()
     }
@@ -697,9 +750,15 @@
               })
             }
           } catch (err) {
+            var errorCode = inferErrorCode(err)
+            var errorCodeInfo = getErrorCodeInfo(errorCode)
             var errorMsg = err.name === 'AbortError'
-              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
+              ? '[错误码' + ERROR_CODES.REQUEST_TIMEOUT.code + '] 请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
               : String(err)
+            // 如果错误信息中不包含错误码前缀，则附加
+            if (errorMsg.indexOf('[错误码') === -1) {
+              errorMsg = '[错误码' + errorCode + '] ' + errorCodeInfo.message + ': ' + errorMsg
+            }
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
               type: asset.type, size: 0, status: 'error',
@@ -741,9 +800,15 @@
               })
             }
           } catch (err) {
+            var errorCode = inferErrorCode(err)
+            var errorCodeInfo = getErrorCodeInfo(errorCode)
             var errorMsg = err.name === 'AbortError'
-              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
+              ? '[错误码' + ERROR_CODES.REQUEST_TIMEOUT.code + '] 请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
               : String(err)
+            // 如果错误信息中不包含错误码前缀，则附加
+            if (errorMsg.indexOf('[错误码') === -1) {
+              errorMsg = '[错误码' + errorCode + '] ' + errorCodeInfo.message + ': ' + errorMsg
+            }
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
               type: asset.type, size: 0, status: 'error',
