@@ -107,6 +107,7 @@
                     :alt="card.card_name"
                     class="video-poster"
                     loading="lazy"
+                    @error="handleImageError"
                   />
                   <div class="video-play-overlay">
                     <i class="fas fa-play-circle"></i>
@@ -279,10 +280,28 @@ function getCardVideoUrl(card: CultureCard): string {
 
 /**
  * 图片加载失败处理
+ * 替换为内联占位图，避免显示空白区域
  */
 function handleImageError(event: Event) {
   const img = event.target as HTMLImageElement
-  img.style.display = 'none'
+  // 避免重复替换
+  if (img.src.startsWith('data:image/svg+xml')) return
+  img.src = getPlaceholderSvg('图片加载失败')
+}
+
+/**
+ * 生成内联 SVG 占位图
+ * 用于图片加载失败时显示友好的占位提示
+ */
+function getPlaceholderSvg(text: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+    <rect width="200" height="200" fill="#f5f5f5"/>
+    <rect x="60" y="50" width="80" height="60" rx="4" fill="#ddd" stroke="#ccc" stroke-width="1"/>
+    <circle cx="100" cy="80" r="12" fill="none" stroke="#bbb" stroke-width="1.5"/>
+    <path d="M85 100l10-15 8 10 12-18 15 23" stroke="#bbb" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="100" y="135" text-anchor="middle" fill="#999" font-size="12" font-family="sans-serif">${text}</text>
+  </svg>`
+  return 'data:image/svg+xml,' + encodeURIComponent(svg)
 }
 
 // 解锁状态判断
