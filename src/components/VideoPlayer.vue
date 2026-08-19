@@ -300,7 +300,7 @@ function handleEnded() {
 function handleVideoError() {
   loadError.value = true
   isPlaying.value = false
-  debugWarn('视频加载失败:', src)
+  debugWarn('视频加载失败:', props.src)
 }
 
 /**
