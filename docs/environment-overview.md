@@ -101,7 +101,7 @@
 
 | 变量 | 开发环境 | 测试环境 | 生产环境 |
 |------|---------|---------|---------|
-| `VITE_OSS_BASE_URL` | `http://localhost:5173` | OSS test 桶域名 | `https://classicalab.cn` |
+| `VITE_OSS_BASE_URL` | `http://localhost:5173` | OSS test 桶域名 | `https://www.classicalab.cn` |
 | `VITE_API_BASE_URL` | `http://localhost:3000` | `http://test-api.classicalab.cn` | `https://api.classicalab.cn` |
 <!-- R90: VITE_AUTH_SECRET 已移除，前端不持有服务端密钥 -->
 

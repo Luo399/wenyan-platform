@@ -35,7 +35,7 @@ jobs:
         run: npm run build
         env:
           VITE_API_BASE_URL: https://api.classicalab.cn
-          VITE_OSS_BASE_URL: https://classicalab.cn
+          VITE_OSS_BASE_URL: https://www.classicalab.cn
 
       - name: Install ossutil
         run: |
