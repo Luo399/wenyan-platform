@@ -38,6 +38,7 @@ import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
+import { getAssetUrl } from '@/utils/asset'
 
 // Props: 参数化 4 个原文件的差异点
 interface Props {
@@ -75,14 +76,15 @@ function handleGoPrev() {
 /**
  * 当前篇目信息
  * 视频路径：/video/{wenId}_rule_{videoKey}.mp4
+ * 使用 getAssetUrl 确保 OSS 环境正确加载
  */
 const currentPoem = computed(() => {
   const wenId = getWenId(poemId)
   const title = getPoemTitle(poemId)
 
-  // 动态拼接视频路径
-  // 视频文件位于 public/video/ 目录下，命名格式：WEN_xx_rule_{videoKey}.mp4
-  const videoUrl = `/video/${wenId}_rule_${props.videoKey}.mp4`
+  // 动态拼接视频文件名，通过 getAssetUrl 获取完整 URL
+  const videoFileName = `${wenId}_rule_${props.videoKey}.mp4`
+  const videoUrl = getAssetUrl('video', videoFileName)
 
   return {
     title,

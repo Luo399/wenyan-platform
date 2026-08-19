@@ -277,7 +277,13 @@ function toggleAudio() {
 // 处理图片加载错误
 function handleImageError(event: Event) {
   const target = event.target as HTMLImageElement
-  target.style.display = 'none'
+  // 替换为内联占位图，避免重复触发
+  if (target.src.startsWith('data:image/svg+xml')) return
+  target.src =
+    'data:image/svg+xml,' +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f5f5f5"/><circle cx="50" cy="40" r="10" fill="none" stroke="#ccc" stroke-width="1.5"/><rect x="35" y="55" width="30" height="20" rx="3" fill="none" stroke="#ccc" stroke-width="1.5"/><text x="50" y="88" text-anchor="middle" fill="#bbb" font-size="8" font-family="sans-serif">加载失败</text></svg>`,
+    )
 }
 
 // 重试加载
