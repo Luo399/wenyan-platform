@@ -14,8 +14,37 @@
 <template>
   <!-- 播放器最外层容器 -->
   <div class="video-player-container">
-    <!-- 视频播放区域 -->
-    <div class="video-wrapper">
+    <!-- 视频加载失败占位符 -->
+    <div v-if="loadError" class="video-error-placeholder">
+      <div class="error-icon">
+        <svg viewBox="0 0 64 64" fill="none" width="48" height="48">
+          <rect
+            x="8"
+            y="12"
+            width="48"
+            height="36"
+            rx="4"
+            stroke="currentColor"
+            stroke-width="2.5"
+            fill="none"
+          />
+          <circle cx="32" cy="34" r="8" stroke="currentColor" stroke-width="2" fill="none" />
+          <path
+            d="M28 30l8 8M36 30l-8 8"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+          <polygon points="28,24 44,34 28,44" fill="currentColor" opacity="0.3" />
+        </svg>
+      </div>
+      <p class="error-text">视频加载失败</p>
+      <p class="error-hint">请检查网络后刷新页面重试</p>
+      <button class="retry-btn" @click="retryLoad">重新加载</button>
+    </div>
+
+    <!-- 视频播放区域（加载失败时隐藏） -->
+    <div v-show="!loadError" class="video-wrapper">
       <!--
         video 元素：
         - ref: 用于获取 DOM 引用，以便 JavaScript 操作
@@ -27,6 +56,7 @@
           * play: 开始播放时触发
           * pause: 暂停播放时触发
           * ended: 播放结束时触发
+          * error: 视频加载失败时触发
       -->
       <video
         ref="videoRef"
@@ -37,6 +67,7 @@
         @play="handlePlay"
         @pause="handlePause"
         @ended="handleEnded"
+        @error="handleVideoError"
       ></video>
     </div>
 
@@ -139,6 +170,11 @@ const currentTime = ref(0)
  * 在 loadedmetadata 事件触发后从元数据中获取
  */
 const duration = ref(0)
+
+/**
+ * 视频加载失败标记
+ */
+const loadError = ref(false)
 
 // ============================================================
 // 计算属性
@@ -258,6 +294,36 @@ function handleEnded() {
 }
 
 /**
+ * 处理视频加载错误
+ * 显示加载失败占位符
+ */
+function handleVideoError() {
+  loadError.value = true
+  isPlaying.value = false
+  debugWarn('视频加载失败:', props.src)
+}
+
+/**
+ * 重新加载视频
+ * 重置错误状态，重新加载视频源
+ */
+function retryLoad() {
+  loadError.value = false
+  // 通过重新设置 src 触发重新加载
+  if (videoRef.value) {
+    const currentSrc = videoRef.value.src
+    videoRef.value.src = ''
+    // 强制浏览器重新加载
+    setTimeout(() => {
+      if (videoRef.value) {
+        videoRef.value.src = currentSrc
+        videoRef.value.load()
+      }
+    }, 100)
+  }
+}
+
+/**
  * 处理进度条点击跳转
  *
  * 功能：
@@ -367,6 +433,54 @@ function formatTime(seconds: number): string {
   height: 100%; /* 高度100%适配容器 */
   /* object-fit: contain 保持视频原始比例，完整显示 */
   object-fit: contain;
+}
+
+/* 视频加载失败占位符 */
+.video-error-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-secondary, #f5f5f5);
+  gap: var(--spacing-sm, 8px);
+  color: var(--color-text-secondary, #999);
+}
+
+.error-icon {
+  opacity: 0.6;
+  margin-bottom: 4px;
+}
+
+.error-text {
+  font-size: var(--font-size-body, 16px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text, #333);
+  margin: 0;
+}
+
+.error-hint {
+  font-size: var(--font-size-small, 13px);
+  color: var(--color-text-secondary, #999);
+  margin: 0;
+}
+
+.retry-btn {
+  margin-top: 8px;
+  padding: 6px 20px;
+  border: 1px solid var(--color-border, #ccc);
+  border-radius: var(--radius-button, 50px);
+  background-color: var(--color-white, #fff);
+  color: var(--color-text, #333);
+  font-family: var(--font-family-serif, serif);
+  font-size: var(--font-size-small, 13px);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-btn:hover {
+  background-color: var(--color-bg-highlight, #f0efe9);
 }
 
 /* ============================================================
