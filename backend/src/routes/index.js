@@ -185,6 +185,8 @@ function registerRoutes(app) {
   app.post('/api/assets/upload', assetAuthMiddleware, uploadMiddleware.any(), assetController.upload)
   app.post('/api/assets/pre-signed', assetAuthMiddleware, assetController.generatePreSignedUrl)
   app.get('/api/assets/version', assetController.getVersion)
+  // 资源清单（带最近更新时间，供 Figma 插件展示）
+  app.get('/api/assets/inventory', assetController.getInventory)
   // 临时端点：读取服务器上的样式文件（后续移除）
   app.get('/api/assets/styles/:name', assetController.getStyleFile)
 

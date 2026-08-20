@@ -128,5 +128,9 @@ Thumbs.db
 desktop.ini
 ehthumbs.db
 
+# SSH private keys（安全红线：私钥严禁入 git）
+trae_ed25519
+trae_ed25519.txt
+
 # IDE history
 .history/

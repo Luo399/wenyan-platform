@@ -165,6 +165,22 @@ export function getDataUrl(dir: string, fileName: string): string {
 }
 
 /**
+ * 获取组件样式 JSON 完整 URL
+ *
+ * @param componentName - 组件名（如 'Navigation'），对应 OSS styles/{组件名}.json
+ * @returns 完整样式 JSON URL
+ *
+ * @example
+ * getStyleUrl('Navigation')
+ * // 开发环境 => /styles/Navigation.json
+ * // 生产环境 => https://oss-bucket/styles/Navigation.json
+ */
+export function getStyleUrl(componentName: string): string {
+  const safe = encodeURIComponent(componentName)
+  return ossBase ? `${ossBase}/styles/${safe}.json` : `/styles/${safe}.json`
+}
+
+/**
  * 获取带版本戳的 JSON 数据 URL（用于 CDN/浏览器缓存刷新）
  *
  * 自动从后端 version.json 获取 lastSyncAt 时间戳拼接到 URL 末尾，
