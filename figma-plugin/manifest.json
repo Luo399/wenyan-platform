@@ -11,6 +11,5 @@
     "allowedDomains": ["https://api.classicalab.cn"],
     "reasoning": "需要连接后端 API 上传资源到服务器",
     "devAllowedDomains": ["http://localhost:3000"]
-  },
-  "documentAccess": "dynamic-page"
+  }
 }
