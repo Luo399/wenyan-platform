@@ -47,36 +47,18 @@ function createApp() {
     }),
   )
 
-  // S06: CORS 白名单数组化（config.cors.origin 为 parseOriginList 解析后的数组）
-  // fixedOrigins 为始终放行的前端 / OSS 看板域名；API 域名（api.classicalab.cn）不作为 CORS 源
+  // CORS：临时放开所有来源（origin: true），用于 Figma 插件在 data: iframe 内跨域访问接口。
+  // 注意：这是临时方案，存在安全降级风险。安全版本已备份至 backend/src/app.cjs.bak，
+  // 待解决后恢复为显式白名单策略。
   app.use(
     cors({
-      origin: function (origin, callback) {
-        const fixedOrigins = [
-          'https://www.classicalab.cn',
-          'https://classicalab.cn',
-          'https://test.classicalab.cn',
-          'https://needed-data.classicalab.cn',
-          'https://www.figma.com',
-          // Figma 插件运行在 data: URL iframe 中，origin 为字符串 'null'
-          'null',
-        ]
-        // 合并 CORS_ORIGIN 环境变量中配置的域名（config 已解析为数组）
-        const configuredOrigins = Array.isArray(config.cors.origin) ? config.cors.origin : []
-        const allowedOrigins = [...new Set([...fixedOrigins, ...configuredOrigins])]
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true)
-        } else {
-          callback(null, false)
-        }
-      },
-      methods: config.cors.methods,
-      allowedHeaders: config.cors.allowedHeaders,
+      origin: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
       exposedHeaders: ['Authorization'],
-      credentials: config.cors.credentials,
+      credentials: false,
       preflightContinue: false,
       optionsSuccessStatus: 204,
-      maxAge: 86400,
     }),
   )
 
