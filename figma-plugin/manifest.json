@@ -8,14 +8,8 @@
   "enableProposedApi": false,
   "editorType": ["figma"],
   "networkAccess": {
-    "allowedDomains": [
-      "https://api.classicalab.cn",
-      "https://test-api.classicalab.cn",
-      "https://classic-chinese.oss-cn-zhongwei.aliyuncs.com",
-      "https://wenyan-online.oss-cn-guangzhou.aliyuncs.com",
-      "https://wenyan-test-online.oss-cn-guangzhou.aliyuncs.com"
-    ],
-    "reasoning": "需要通过后端签名接口获取 OSS 预签名 URL，并直传资源到 OSS",
+    "allowedDomains": ["https://api.classicalab.cn"],
+    "reasoning": "需要连接后端 API 上传资源到服务器",
     "devAllowedDomains": ["http://localhost:3000"]
   },
   "documentAccess": "dynamic-page"
