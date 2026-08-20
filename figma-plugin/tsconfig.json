@@ -13,6 +13,6 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["@figma/plugin-typings"]
   },
-  "include": ["code.ts"],
+  "include": ["code.ts", "core.ts"],
   "exclude": ["node_modules", "__tests__"]
 }

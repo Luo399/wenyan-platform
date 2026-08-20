@@ -4,12 +4,16 @@
   "description": "文言文预习平台 - Figma 资源同步插件",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "watch": "tsc -p tsconfig.json --watch",
-    "type-check": "tsc --noEmit -p tsconfig.json"
+    "build": "esbuild code.ts --bundle --format=iife --outfile=code.js --log-level=warning",
+    "watch": "esbuild code.ts --bundle --format=iife --outfile=code.js --watch",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.90.0",
-    "typescript": "^5.4.0"
+    "esbuild": "^0.28.2",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.11"
   }
 }
