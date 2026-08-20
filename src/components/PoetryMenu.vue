@@ -1,5 +1,5 @@
 <template>
-  <div class="poetry-menu">
+  <div class="poetry-menu" :style="rootStyle">
     <!-- 目录标题 -->
     <div class="menu-header">
       <span class="menu-title">诗题选集</span>
@@ -24,10 +24,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { getAllPoems, type PoemEntry } from '@/utils/wenUtils'
 import { useNavigation } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { getStyleUrl } from '@/utils/asset'
 
 // 诗题列表数据：从 wenUtils 统一读取，按 wenId 升序
 const poemList: PoemEntry[] = getAllPoems()
@@ -62,6 +64,52 @@ function handleSelect(wenId: string) {
   }
   goToRules(wenId)
 }
+
+// ==== 远端样式（styles/Navigation.json，美术在 Figma 编辑后经插件同步） ====
+/**
+ * 远端样式的默认状态对象，形如：
+ *   { backgroundColor, textColor, fontFamily, fontSize, fontWeight,
+ *     paddingTop/Right/Bottom/Left, itemSpacing }
+ * 读取失败时保持 null，组件回退到本地设计 token。
+ */
+const remoteDefaultStyle = ref<Record<string, any> | null>(null)
+
+/** 把远端样式归一化为根节点内联样式对象 */
+const rootStyle = computed<Record<string, string>>(() => {
+  const s = remoteDefaultStyle.value
+  if (!s) return {}
+  const style: Record<string, string> = {}
+  if (s.backgroundColor) style.backgroundColor = String(s.backgroundColor)
+  if (s.textColor) style.color = String(s.textColor)
+  if (s.fontFamily) style.fontFamily = String(s.fontFamily)
+  if (s.fontSize) style.fontSize = `${Number(s.fontSize)}px`
+  if (s.fontWeight) style.fontWeight = String(s.fontWeight)
+  if (s.cornerRadius !== undefined) style.borderRadius = `${Number(s.cornerRadius)}px`
+  if (s.paddingTop !== undefined || s.paddingBottom !== undefined) {
+    style.paddingTop = s.paddingTop !== undefined ? `${Number(s.paddingTop)}px` : '0px'
+    style.paddingBottom = s.paddingBottom !== undefined ? `${Number(s.paddingBottom)}px` : '0px'
+    style.paddingLeft = s.paddingLeft !== undefined ? `${Number(s.paddingLeft)}px` : '0px'
+    style.paddingRight = s.paddingRight !== undefined ? `${Number(s.paddingRight)}px` : '0px'
+  }
+  if (s.itemSpacing !== undefined) style.rowGap = `${Number(s.itemSpacing)}px`
+  return style
+})
+
+/** 挂载后尝试加载 Navigation 组件的默认状态样式 */
+onMounted(async () => {
+  try {
+    const response = await fetch(getStyleUrl('Navigation'), {
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!response.ok) return
+    const data = await response.json()
+    // 兼容不同大小写的状态名：优先取小写 default/active/hover
+    const states = data?.states || {}
+    remoteDefaultStyle.value = states.default || states.Default || null
+  } catch {
+    // 加载失败不阻塞，使用本地设计 token 默认样式
+  }
+})
 </script>
 
 <style scoped>

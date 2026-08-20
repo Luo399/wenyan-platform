@@ -17,10 +17,11 @@
  * 使用方式：
  *   在 Figma 中打开任意课文文件/通用文件 → 运行插件 → 自动扫描 → 确认同步
  *
- * OSS 路径规则：
- *   - 图片：Export Assets → 子 Frame 名即为 OSS 路径（如 images/culture_cards/WEN_01/card_bg.png）
- *   - 文字：文字资源_xxx Frame → data/texts/文字资源_xxx.json
+ * OSS 路径规则（与现有生产前端消费路径对齐）：
+ *   - 图片：Export Assets → 子 Frame 名即为 OSS 路径（如 images/culture_cards/WEN_01/card_1.png）
+ *   - 文字：文字资源_{标题} Frame → data/text_basic_info/<WEN>.json + data/word_list/<WEN>.json
  *   - 样式：styles/{Frame名}.json
+ *   - 版本：version.json（sync_time / files / placeholders）
  */
 // ============ 日志工具 ============
 // 在 Figma 中通过 Plugins → Development → Open Console 查看日志
@@ -62,6 +63,12 @@ const ERROR_CODES = {
     NODE_EXPORT_FAILED: { code: 5, label: 'NODE_EXPORT_FAILED', message: 'Figma 节点导出失败' },
     /** 错误码 6：未知错误 */
     UNKNOWN: { code: 6, label: 'UNKNOWN', message: '未知错误' },
+    /**
+     * 错误码 7：接口不存在 / 无权限（后端返回 404/403）
+     * 触发场景：后端未部署该路由、或部署的是旧版本后端、或接口被权限策略拦截
+     * 排查方向：确认后端已部署最新代码；测试环境常见于只部署了前端未部署后端新接口
+     */
+    ENDPOINT_NOT_FOUND: { code: 7, label: 'ENDPOINT_NOT_FOUND', message: '接口不存在或无访问权限（HTTP 404/403）' },
 };
 /**
  * 根据错误信息推断错误码
@@ -73,6 +80,8 @@ function inferErrorCode(err) {
         return ERROR_CODES.API_UNREACHABLE.code;
     if (/not in the list of allowed domains|allowedDomains/.test(msg))
         return ERROR_CODES.DOMAIN_NOT_ALLOWED.code;
+    if (/404|403/.test(msg))
+        return ERROR_CODES.ENDPOINT_NOT_FOUND.code;
     if (/超时|timeout|AbortError/.test(msg))
         return ERROR_CODES.REQUEST_TIMEOUT.code;
     if (/400|VALIDATION|校验|不合法/.test(msg))
@@ -363,95 +372,334 @@ function rgbToHex(r, g, b) {
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 /**
- * 扫描页面中所有节点的视觉属性
- * 跳过视频（VIDEO）和音频节点，扫描颜色、字体、边框、圆角等
+ * 已知前端组件名清单（占位符判断 & 未知组件提示的依据）
+ * 前端已定义的组件，新增组件时需要在此登记，否则同步时给出提示。
  */
-function scanAllStyles(page) {
-    const assets = [];
-    logDebug('scanAllStyles: 开始扫描所有节点样式');
-    // 递归遍历所有节点
-    const allNodes = page.findAll(() => true);
-    // 按 Frame 组织样式数据
-    const frameStyles = {};
-    for (const node of allNodes) {
-        // 跳过视频和音频节点（使用字符串比较避免类型错误）
-        const nodeType = node.type;
-        if (nodeType === 'VIDEO' || nodeType === 'AUDIO' || nodeType === 'MEDIA') {
-            logDebug(`  [跳过] 媒体节点: "${node.name}" (${nodeType})`);
+const KNOWN_COMPONENTS = ['Navigation'];
+// ============ 篇目映射（标题 → WEN_xx） ============
+// 与前端 src/utils/wenUtils.ts 的 poemMap 保持一致（37 篇部编版顺序）
+// 插件通过文字资源 Frame 名（去掉"文字资源_"前缀 = 标题）反推 wenId
+const TITLE_TO_WEN_ID = {
+    陈涉世家: 'WEN_01',
+    马说: 'WEN_02',
+    岳阳楼记: 'WEN_03',
+    庄子与惠子: 'WEN_04',
+    论语十二章: 'WEN_05',
+    诫子书: 'WEN_06',
+    陋室铭: 'WEN_07',
+    爱莲说: 'WEN_08',
+    孟子三章: 'WEN_09',
+    虽有嘉肴: 'WEN_10',
+    大道之行: 'WEN_11',
+    鱼我所欲也: 'WEN_12',
+    送东阳马生序: 'WEN_13',
+    出师表: 'WEN_14',
+    三峡: 'WEN_15',
+    答谢中书书: 'WEN_16',
+    记承天寺夜游: 'WEN_17',
+    与朱元思书: 'WEN_18',
+    桃花源记: 'WEN_19',
+    小石潭记: 'WEN_20',
+    核舟记: 'WEN_21',
+    醉翁亭记: 'WEN_22',
+    湖心亭看雪: 'WEN_23',
+    孙权劝学: 'WEN_24',
+    卖油翁: 'WEN_25',
+    周亚夫军细柳: 'WEN_26',
+    唐雎不辱使命: 'WEN_27',
+    曹刿论战: 'WEN_28',
+    邹忌讽齐王纳谏: 'WEN_29',
+    穿井得一人: 'WEN_30',
+    杞人忧天: 'WEN_31',
+    愚公移山: 'WEN_32',
+    北冥有鱼: 'WEN_33',
+    咏雪: 'WEN_34',
+    陈太丘与友期行: 'WEN_35',
+    狼: 'WEN_36',
+    活板: 'WEN_37',
+};
+/** 提取标题 → wenId；未收录返回空串 */
+function resolveWenIdByTitle(title) {
+    return TITLE_TO_WEN_ID[title] || '';
+}
+/** 是否属于 01-04 已在生产上线的篇目（用于保护现网文件不被覆盖） */
+function isLegacyWenId(wenId) {
+    const seq = Number(wenId.replace('WEN_', ''));
+    return seq >= 1 && seq <= 4;
+}
+// ============ 文字/词表文件名约定 ============
+// 与现有生产前端对齐（src/composables/useDataLoader 消费路径）：
+//   data/text_basic_info/<WEN>.json   课文基础信息（text_id/title/author/dynasty/original_text）
+//   data/word_list/<WEN>.json         课文字词列表（text_id/word/basic_meaning/follow_up_questions）
+const DATA_DIR_TEXT_BASIC_INFO = 'data/text_basic_info';
+const DATA_DIR_WORD_LIST = 'data/word_list';
+/** 文字资源 Frame 内的固定字段节点命名（美术按此组织，勿改名） */
+const TEXT_FRAME_NAMES = {
+    ORIGINAL: '原文', // 课文原文
+    AUTHOR: '作者', // 作者（新版本结构：美术在 Frame 内新增）
+    DYNASTY: '朝代', // 朝代（新版本结构：美术在 Frame 内新增）
+    WORD: '词', // 注释词组
+    GLOSS: '注释', // 注释解释
+};
+// ============ 预期资源清单与占位符 ============
+/** 1x1 白色 PNG（占位图），base64 编码，用于缺失资源 */
+const PLACEHOLDER_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+/**
+ * 预期图片清单（占位符判断依据）
+ *
+ * 与现有生产前端 `getAssetUrl('images', fileName)` 的 `images/*` 路径约定对齐：
+ *   - 通用页面图：home_bg / home_title / login_bg（HomeView / LoginView 引用）
+ *   - 每篇配图背景：WEN_xx_illus_bg.png（对应 text_basic_info 的 illustration 字段）
+ *
+ * 范围只覆盖「通用资源 + WEN_05~WEN_37」；WEN_01~04 为生产已上线篇目，
+ * 现网文件已存在，绝不作占位（buildVersionAndPlaceholders 中另有 isLegacyKey 兜底）。
+ * 若某篇新增自定义图片（如对话图标），请在 FIXED_IMAGE_KEYS 中追加。
+ */
+const FIXED_IMAGE_KEYS = [
+    'images/home_bg.png',
+    'images/home_title.png',
+    'images/login_bg.png',
+];
+const START_WEN_SEQ = 5;
+const END_WEN_SEQ = 37;
+/** 动态生成 通用 + WEN_05~WEN_37 的预期图片 key（避免硬编码 33 行） */
+function buildExpectedImageKeys() {
+    const keys = [...FIXED_IMAGE_KEYS];
+    for (let seq = START_WEN_SEQ; seq <= END_WEN_SEQ; seq++) {
+        const wenId = `WEN_${String(seq).padStart(2, '0')}`;
+        keys.push(`images/${wenId}_illus_bg.png`);
+    }
+    return keys;
+}
+const EXPECTED_IMAGE_KEYS = buildExpectedImageKeys();
+/** base64 字符串解码为 Uint8Array */
+function base64ToUint8Array(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++)
+        bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+/**
+ * 生成缺失资源的占位符资产 + 汇总 version.json
+ *
+ * 说明：01-04 为生产已上线篇目，其文件已在 OSS 上存在，绝不对其生成占位图覆盖。
+ * EXPECTED_IMAGE_KEYS 清单只覆盖「通用资源 + WEN_05~WEN_37」。
+ *
+ * @param scanned - 已扫描到的所有资产
+ * @returns { assets, placeholders } placeholders 为缺失的图片占位资产列表
+ */
+function buildVersionAndPlaceholders(scanned) {
+    // 收集已存在图片的 OSS Key
+    const scannedImageKeys = new Set(scanned.filter((a) => a.type === ASSET_TYPE.IMAGE).map((a) => a.ossPath));
+    // 是否属于 01-04 的 OSS Key（如 images/culture_cards/WEN_01/xxx.png）
+    const isLegacyKey = (key) => /\/WEN_0[1-4]\//.test(key);
+    const placeholders = [];
+    for (const key of EXPECTED_IMAGE_KEYS) {
+        if (isLegacyKey(key)) {
+            logWarn(`[占位] "${key}" 命中 01-04 已上线篇目，跳过占位以免覆盖现网文件`);
             continue;
         }
-        // 跳过隐藏节点
-        if (node.visible === false)
-            continue;
-        // 跳过组件定义（ComponentSetItem 等内部节点）
-        if (node.type === 'COMPONENT_SET' || node.parent?.type === 'COMPONENT_SET')
-            continue;
-        try {
-            const style = extractNodeStyle(node);
-            // 确定所属 Frame（顶层容器）
-            const frameId = findTopFrameId(node);
-            const frameName = findTopFrameName(node);
-            if (!frameStyles[frameId]) {
-                frameStyles[frameId] = { frameName, nodes: [] };
-            }
-            frameStyles[frameId].nodes.push(style);
-        }
-        catch (err) {
-            logDebug(`  [跳过] 提取样式失败: "${node.name}"`, err);
+        if (!scannedImageKeys.has(key)) {
+            const fileName = key.split('/').pop() || `${key.replace(/\//g, '_')}.png`;
+            placeholders.push({
+                ossPath: key,
+                fileName,
+                type: ASSET_TYPE.IMAGE,
+                nodeId: '',
+                data: base64ToUint8Array(PLACEHOLDER_PNG_BASE64),
+                status: 'placeholder',
+            });
+            logWarn(`[占位] 缺失资源 "${key}"，将上传占位图`);
         }
     }
-    // 生成样式资产
-    for (const [frameId, data] of Object.entries(frameStyles)) {
-        // 跳过没有有效节点的 Frame
-        if (data.nodes.length === 0)
-            continue;
-        const fileName = `styles.json`;
-        const ossPath = `styles/${data.frameName}.json`;
-        const jsonContent = JSON.stringify({
-            frameName: data.frameName,
-            frameId,
-            exportTime: new Date().toISOString(),
-            nodes: data.nodes,
-        }, null, 2);
-        logDebug(`  [样式] "${data.frameName}" → ${data.nodes.length} 个节点`);
+    return { placeholders };
+}
+/**
+ * 生成 version.json 资产（新格式：sync_time / files / placeholders）
+ *
+ * @param allAssets - 全部待同步资产（含占位符）
+ */
+function buildVersionAsset(allAssets) {
+    const files = allAssets
+        .filter((a) => a.status !== 'placeholder')
+        .map((a) => ({ key: a.ossPath, type: a.type }));
+    const placeholders = allAssets
+        .filter((a) => a.status === 'placeholder')
+        .map((a) => ({ key: a.ossPath, reason: 'missing' }));
+    const content = JSON.stringify({ sync_time: new Date().toISOString(), files, placeholders }, null, 2);
+    return {
+        ossPath: 'version.json',
+        fileName: 'version.json',
+        type: ASSET_TYPE.TEXT,
+        nodeId: '',
+        content,
+        status: 'new',
+    };
+}
+/**
+ * 扫描样式资源（适用于 样式_{组件} 顶层 Frame）
+ *
+ * 结构约定：
+ *   样式_Navigation（顶层 Frame，组件名 = 去掉 "样式_" 前缀）
+ *   ├── Default（状态 Frame，必选）
+ *   │   ├── Background（图层，背景色）
+ *   │   ├── Text（TEXT，文字样式）
+ *   │   └── Icon（图层，图标）
+ *   ├── Active（状态 Frame，可选）
+ *   └── Hover（可选）
+ *
+ * 产出（OSS: styles/{组件名}.json）：
+ *   { "component": "Navigation", "states": { "default": {...}, "active": {...} } }
+ */
+function scanStyleFrames(page) {
+    const assets = [];
+    logDebug('scanStyleFrames: 扫描 样式_ 顶层 Frame');
+    // 只扫描以 "样式_" 开头的顶层 Frame
+    const styleFrames = page.findAll((node) => node.type === 'FRAME' && node.name.startsWith('样式_'));
+    logInfo(`找到 ${styleFrames.length} 个样式 Frame: ${styleFrames.map((f) => f.name).join(', ')}`);
+    for (const frame of styleFrames) {
+        const componentName = frame.name.replace(/^样式_/, '').replace(/\/+$/, '');
+        const states = {};
+        // 遍历直接子 Frame，子 Frame 名称即状态名
+        for (const child of frame.children || []) {
+            if (child.type !== 'FRAME')
+                continue;
+            states[child.name] = extractStateStyle(child);
+            logDebug(`  [状态] "${child.name}" for "${componentName}"`);
+        }
+        // 未知组件提示：前端未定义该组件时警告
+        if (!KNOWN_COMPONENTS.includes(componentName)) {
+            logWarn(`组件 "${componentName}" 前端未定义（KNOWN_COMPONENTS 中不存在），请确认是否新增组件`);
+        }
+        const content = JSON.stringify({ component: componentName, states }, null, 2);
         assets.push({
-            ossPath,
-            fileName,
+            ossPath: `styles/${componentName}.json`,
+            fileName: `${componentName}.json`,
             type: ASSET_TYPE.STYLE,
-            nodeId: frameId,
-            content: jsonContent,
-            styleData: { nodeCount: data.nodes.length },
+            nodeId: frame.id,
+            content,
+            styleData: { component: componentName, stateCount: Object.keys(states).length },
             status: 'new',
         });
+        logDebug(`  [样式] "${componentName}" → ${Object.keys(states).length} 个状态`);
     }
-    logInfo(`scanAllStyles 完成: 共 ${assets.length} 个样式文件`);
+    logInfo(`scanStyleFrames 完成: 共 ${assets.length} 个样式文件`);
     return assets;
 }
 /**
- * 查找节点所属的顶层 Frame 名称
+ * 提取单个状态 Frame 的归一化样式对象
+ * 通过子图层名称（大小写不敏感）识别 Background / Text / Icon
  */
-function findTopFrameId(node) {
-    let current = node;
-    while (current) {
-        if (current.type === 'FRAME' || current.type === 'COMPONENT' || current.type === 'PAGE') {
-            return current.id;
-        }
-        current = current.parent;
+function extractStateStyle(stateFrame) {
+    const result = {};
+    // 自动布局 / 内边距 / 间距
+    const autoLayout = stateFrame;
+    if (typeof autoLayout.paddingLeft === 'number') {
+        result.paddingTop = autoLayout.paddingTop;
+        result.paddingRight = autoLayout.paddingRight;
+        result.paddingBottom = autoLayout.paddingBottom;
+        result.paddingLeft = autoLayout.paddingLeft;
+        result.itemSpacing = autoLayout.itemSpacing;
     }
-    return node.id;
+    // 圆角（cornerRadius 不在 RectangleCornerMixin 类型上，用 any 读取）
+    const corner = stateFrame;
+    if (typeof corner.cornerRadius === 'number' && !isNaN(corner.cornerRadius)) {
+        result.cornerRadius = corner.cornerRadius;
+    }
+    for (const child of stateFrame.children || []) {
+        const name = (child.name || '').toLowerCase();
+        // 背景图层 → backgroundColor
+        if (name.includes('background') || name.includes('bg')) {
+            const bg = firstSolidFill(child);
+            if (bg)
+                result.backgroundColor = bg;
+        }
+        // 文字图层 → 字体/字号/字重/字色
+        if (child.type === 'TEXT') {
+            const t = child;
+            const fFamily = readTextFontFamily(t);
+            const fSize = readTextFontSize(t);
+            const fWeight = readTextFontWeight(t);
+            const fColor = readTextColor(t);
+            if (fFamily)
+                result.fontFamily = fFamily;
+            if (fSize)
+                result.fontSize = fSize;
+            if (fWeight)
+                result.fontWeight = fWeight;
+            if (fColor)
+                result.textColor = fColor;
+        }
+        // 图标 → 记录宽高
+        if (name.includes('icon')) {
+            if ('width' in child)
+                result.iconSize = child.width;
+        }
+    }
+    // 清理 undefined / NaN
+    for (const key of Object.keys(result)) {
+        const v = result[key];
+        if (v === undefined || v === null || (typeof v === 'number' && isNaN(v))) {
+            delete result[key];
+        }
+    }
+    return result;
 }
-/**
- * 查找节点所属的顶层 Frame 名称
- */
-function findTopFrameName(node) {
-    let current = node;
-    while (current) {
-        if (current.type === 'FRAME' || current.type === 'COMPONENT' || current.type === 'PAGE') {
-            return current.name;
-        }
-        current = current.parent;
+/** 读取节点第一个可见纯色填充，返回十六进制颜色串 */
+function firstSolidFill(node) {
+    if (!('fills' in node))
+        return undefined;
+    const fills = node.fills;
+    if (!fills || typeof fills === 'symbol')
+        return undefined;
+    const solid = fills.find((f) => f.type === 'SOLID' && f.visible !== false && 'color' in f);
+    if (!solid || !('color' in solid))
+        return undefined;
+    return rgbToHex(solid.color.r, solid.color.g, solid.color.b);
+}
+/** 读取文本字体族（仅对整段统一字号时） */
+function readTextFontFamily(node) {
+    try {
+        const f = node.getRangeFontName(0, 1);
+        if (f !== figma.mixed)
+            return f.family;
     }
-    return node.name.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fff]/g, '_');
+    catch { /* 忽略 */ }
+    return undefined;
+}
+/** 读取文本字号 */
+function readTextFontSize(node) {
+    try {
+        const s = node.getRangeFontSize(0, 1);
+        if (s !== figma.mixed)
+            return s;
+    }
+    catch { /* 忽略 */ }
+    return undefined;
+}
+/** 读取文本字重 */
+function readTextFontWeight(node) {
+    try {
+        const w = node.getRangeFontWeight(0, 1);
+        if (w !== figma.mixed)
+            return w;
+    }
+    catch { /* 忽略 */ }
+    return undefined;
+}
+/** 读取文本颜色（十六进制） */
+function readTextColor(node) {
+    try {
+        const fills = node.getRangeFills(0, 1);
+        if (fills !== figma.mixed && fills.length > 0) {
+            const solid = fills.find((f) => f.type === 'SOLID' && 'color' in f);
+            if (solid && 'color' in solid)
+                return rgbToHex(solid.color.r, solid.color.g, solid.color.b);
+        }
+    }
+    catch { /* 忽略 */ }
+    return undefined;
 }
 /**
  * 主入口
@@ -492,11 +740,11 @@ async function main() {
     else {
         logWarn('未找到文字资源 Frame（如不需要文字资源可忽略）');
     }
-    // 3. 扫描视觉属性（颜色、字体、边框等）
-    figma.ui.postMessage({ type: 'scan-phase', phase: 'scanning', message: '提取视觉属性...' });
-    logDebug('开始扫描视觉属性...');
-    const styleAssets = scanAllStyles(page);
-    logInfo(`视觉属性扫描完成，生成 ${styleAssets.length} 个样式文件`);
+    // 3. 扫描样式资源（样式_{组件} Frame）
+    figma.ui.postMessage({ type: 'scan-phase', phase: 'scanning', message: '提取样式资源...' });
+    logDebug('开始扫描样式资源...');
+    const styleAssets = scanStyleFrames(page);
+    logInfo(`样式资源扫描完成，生成 ${styleAssets.length} 个样式文件`);
     allAssets.push(...styleAssets);
     // 4. 如果没有找到任何资源，提示用户
     if (allAssets.length === 0) {
@@ -510,11 +758,19 @@ async function main() {
         });
         return;
     }
+    // 5. 生成缺失图片占位符 + 汇总 version.json（始终最后上传）
+    logDebug('生成占位符与 version.json...');
+    const { placeholders } = buildVersionAndPlaceholders(allAssets);
+    allAssets.push(...placeholders);
+    const versionAsset = buildVersionAsset(allAssets);
+    allAssets.push(versionAsset);
+    logInfo(`占位符 ${placeholders.length} 个，version.json 已生成`);
     // 6. 汇总日志
     const imageCount = allAssets.filter((a) => a.type === 'image').length;
     const textCount = allAssets.filter((a) => a.type === 'text').length;
     const styleCount = allAssets.filter((a) => a.type === 'style').length;
-    logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字 + ${styleCount} 样式） =====`);
+    const placeholderCount = allAssets.filter((a) => a.status === 'placeholder').length;
+    logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字 + ${styleCount} 样式 + ${placeholderCount} 占位） =====`);
     allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '图片' : a.type === 'text' ? '文字' : '样式'} ${a.ossPath}`));
     // 7. 发送到 UI 显示变更列表
     figma.ui.postMessage({
@@ -526,7 +782,7 @@ async function main() {
 /**
  * 扫描 Export Assets Frame 下的图片资源
  *
- * 子 Frame 名称 = OSS 路径前缀，图层名称 = 文件名
+ * 子 Frame 名称 = OSS 路径前缀，图层名称 = 文件名（可无扩展名，插件自动补 .png）
  * 命名规则必须与前端消费路径对齐：
  *
  * 图片资源路径映射（前端通过 getAssetUrl / ossBase 拼接消费）：
@@ -578,6 +834,8 @@ function scanExportAssetsFrame(frame) {
         }
         let hitCount = 0;
         let skipCount = 0;
+        // 记录当前目录已使用的文件名，避免"同一目录下图层名重复"
+        const seenNames = new Set();
         for (const leaf of child.children) {
             // 跳过非可视节点
             if (leaf.visible === false) {
@@ -601,13 +859,23 @@ function scanExportAssetsFrame(frame) {
                 skipCount++;
                 continue;
             }
-            // 文件名 = 图层名（必须包含扩展名）
-            const fileName = leaf.name;
-            if (!/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fileName)) {
-                logDebug(`    → [跳过] 无有效图片扩展名: "${leaf.name}"`);
+            // 文件名 = 图层名；无有效图片扩展名时自动补 .png（与美术命名约定一致）
+            let fileName = (leaf.name || '').trim();
+            if (!fileName) {
+                logDebug(`    → [跳过] 图层名为空`);
                 skipCount++;
                 continue;
             }
+            if (!/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fileName)) {
+                fileName = `${fileName}.png`;
+            }
+            // 同一目录下图层名不能重复：重复则跳过并记录警告
+            if (seenNames.has(fileName)) {
+                logWarn(`    → [跳过] 目录 "${child.name}" 下图层名重复: "${fileName}"`);
+                skipCount++;
+                continue;
+            }
+            seenNames.add(fileName);
             const fullPath = `${ossPath}/${fileName}`;
             logDebug(`    → [命中] ${leaf.type} → "${fullPath}"`);
             hitCount++;
@@ -625,113 +893,94 @@ function scanExportAssetsFrame(frame) {
     return assets;
 }
 /**
- * 扫描文字资源 Frame 下的文本节点
- * Frame 命名格式：文字资源_{名称}（如 文字资源_论语·学而篇）
- * 子节点命名格式：{field_name}（如 knowledge_text, card_name）
- * 导出路径：data/texts/文字资源_{名称}.json
+ * 扫描文字资源 Frame（适用于 文字资源_{标题} 顶层 Frame）
+ *
+ * 结构约定（新版本，与现有生产端对齐）：
+ *   文字资源_论语·学而篇（顶层 Frame，名 = 标题，用于映射 WEN_xx）
+ *   ├── 原文（TEXT，固定名称）        → original_text
+ *   ├── 作者（TEXT，固定名称）        → author
+ *   ├── 朝代（TEXT，固定名称）        → dynasty
+ *   ├── 注释词_1（Frame）
+ *   │   ├── 词    （TEXT，固定名称）  → word
+ *   │   └── 注释  （TEXT，固定名称）  → basic_meaning
+ *   └── 注释词_2 ...
+ *
+ * 产出（与前端 data/text_basic_info、data/word_list 对齐）：
+ *   data/text_basic_info/<WEN>.json：
+ *     { "text_id": "WEN_05", "title": "论语·学而篇", "author": "…", "dynasty": "…", "original_text": "…" }
+ *   data/word_list/<WEN>.json：
+ *     [ { "text_id": "WEN_05", "word": "…", "basic_meaning": "…", "follow_up_questions": [] } ]
+ *
+ * 保护：01-04 为生产已上线篇目，保留现网文件，跳过生成；未收录标题的 Frame 跳过。
+ * 缺失处理：缺「原文」→ original_text:""；缺「作者/朝代」→ 空串；
+ * 缺词或注释的注释 Frame → 仍写入，空字段以空串占位。
  */
 function scanTextFrame(frame) {
     const assets = [];
-    logDebug(`scanTextFrame: "${frame.name}" (${frame.children?.length || 0} 个子节点)`);
-    // 构建 JSON 对象
-    const jsonData = {};
-    if (!frame.children) {
-        logWarn(`文字资源 Frame "${frame.name}" 没有子节点`);
-        return assets;
+    // 标题 = 去掉 "文字资源_" 前缀（可用标题映射得到 wenId）
+    const title = frame.name.replace(/^文字资源_/, '').replace(/\/+$/, '');
+    const wenId = resolveWenIdByTitle(title);
+    if (!wenId) {
+        logWarn(`文字资源 "${title}" 未在篇目映射中找到对应 wenId，跳过`);
+        return [];
     }
-    for (const child of frame.children) {
-        if (child.type === 'TEXT') {
-            // 直接读取 TextNode.characters
-            const textNode = child;
-            const fieldName = child.name;
-            const textContent = textNode.characters;
-            jsonData[fieldName] = textContent;
-            logDebug(`  [字段] "${fieldName}" = "${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}" (${textContent.length} 字)`);
-        }
-        else if (child.type === 'FRAME') {
-            // 子 Frame 中的文本节点
-            const subFrame = child;
-            logDebug(`  [子组] 发现子 Frame: "${child.name}" (${subFrame.children?.length || 0} 个子节点)`);
-            const subData = {};
-            if (subFrame.children) {
-                for (const subChild of subFrame.children) {
-                    if (subChild.type === 'TEXT') {
-                        const subText = subChild;
-                        const subFieldName = subChild.name;
-                        const subTextContent = subText.characters;
-                        subData[subFieldName] = subTextContent;
-                        logDebug(`    [子字段] "${subFieldName}" = "${subTextContent.substring(0, 50)}${subTextContent.length > 50 ? '...' : ''}"`);
-                    }
-                    else {
-                        logDebug(`    [跳过] 非 TEXT 子节点: "${subChild.name}" (${subChild.type})`);
-                    }
-                }
-            }
-            else {
-                logDebug(`    [跳过] 子 Frame 为空`);
-            }
-            if (Object.keys(subData).length > 0) {
-                jsonData[child.name] = subData;
-                logDebug(`  [子组] "${child.name}" 已添加 ${Object.keys(subData).length} 个字段`);
-            }
-            else {
-                logDebug(`  [子组] "${child.name}" 无有效文本字段，跳过`);
-            }
-        }
-        else {
-            logDebug(`  [跳过] 非 TEXT/FRAME 节点: "${child.name}" (${child.type})`);
-        }
+    if (isLegacyWenId(wenId)) {
+        logWarn(`[保留] "${title}" (${wenId}) 属于 01-04 已上线篇目，跳过生成以免覆盖现网文件`);
+        return [];
     }
-    if (Object.keys(jsonData).length > 0) {
-        const jsonFileName = `${frame.name}.json`;
-        const fieldCount = Object.keys(jsonData).length;
-        const jsonContent = JSON.stringify(jsonData, null, 2);
-        // 解析目标路径：使导出的 JSON 路径与前端消费路径一致（见方案文档 §8.2）
-        const ossPath = resolveTextOssPath(frame.name);
-        logInfo(`  [产出] JSON: "${ossPath}" (${fieldCount} 个字段, ${jsonContent.length} 字节)`);
-        assets.push({
-            ossPath,
-            fileName: jsonFileName,
-            type: ASSET_TYPE.TEXT,
-            nodeId: frame.id,
-            content: jsonContent,
-            status: 'new',
+    // 读取元数据
+    const original = findTextByExactName(frame, TEXT_FRAME_NAMES.ORIGINAL);
+    const author = findTextByExactName(frame, TEXT_FRAME_NAMES.AUTHOR);
+    const dynasty = findTextByExactName(frame, TEXT_FRAME_NAMES.DYNASTY);
+    // 遍历直接子 Frame（注释词_N），提取 词 + 注释
+    const wordList = [];
+    for (const child of frame.children || []) {
+        if (child.type !== 'FRAME')
+            continue;
+        const word = findTextByExactName(child, TEXT_FRAME_NAMES.WORD);
+        const gloss = findTextByExactName(child, TEXT_FRAME_NAMES.GLOSS);
+        wordList.push({
+            text_id: wenId,
+            word: word || '',
+            basic_meaning: gloss || '',
+            follow_up_questions: [],
         });
+        logDebug(`  [注释] "${child.name}" word="${(word || '').substring(0, 20)}" basic_meaning="${(gloss || '').substring(0, 20)}${(gloss || '').length > 20 ? '...' : ''}"`);
     }
-    else {
-        logWarn(`文字资源 Frame "${frame.name}" 未提取到任何文本内容`);
-    }
+    // data/text_basic_info/<WEN>.json
+    const basicInfoContent = JSON.stringify({ text_id: wenId, title, author, dynasty, original_text: original }, null, 2);
+    assets.push({
+        ossPath: `${DATA_DIR_TEXT_BASIC_INFO}/${wenId}.json`,
+        fileName: `${wenId}.json`,
+        type: ASSET_TYPE.TEXT,
+        nodeId: frame.id,
+        content: basicInfoContent,
+        status: 'new',
+    });
+    logInfo(`  [产出] text_basic_info: "${DATA_DIR_TEXT_BASIC_INFO}/${wenId}.json" (${basicInfoContent.length} 字节, author="${author}", dynasty="${dynasty}")`);
+    // data/word_list/<WEN>.json
+    const wordListContent = JSON.stringify(wordList, null, 2);
+    assets.push({
+        ossPath: `${DATA_DIR_WORD_LIST}/${wenId}.json`,
+        fileName: `${wenId}.json`,
+        type: ASSET_TYPE.TEXT,
+        nodeId: frame.id,
+        content: wordListContent,
+        status: 'new',
+    });
+    logInfo(`  [产出] word_list: "${DATA_DIR_WORD_LIST}/${wenId}.json" (${wordListContent.length} 字节, ${wordList.length} 条注释)`);
     return assets;
 }
-/**
- * 解析文字资源 Frame 的目标 OSS 路径
- *
- * 命名规则必须与前端消费路径对齐（见 src/utils/asset.ts 的 getDataUrl）：
- *
- * 新命名（推荐）：Frame 名 = 文字资源_{dir}_{fileName}，如：
- *   文字资源_culture_cards_WEN_01 → data/culture_cards/WEN_01.json
- *     ↑ 对应 getDataUrl('culture_cards', 'WEN_01.json')
- *   文字资源_text_basic_info_WEN_01 → data/text_basic_info/WEN_01.json
- *     ↑ 对应 getDataUrl('text_basic_info', 'WEN_01.json')
- *   文字资源_word_list_WEN_01 → data/word_list/WEN_01.json
- *     ↑ 对应 getDataUrl('word_list', 'WEN_01.json')
- *   文字资源_level1_quiz_WEN_01 → data/level1_quiz/WEN_01.json
- *     ↑ 对应 getDataUrl('level1_quiz', 'WEN_01.json')
- *
- * 旧命名（兼容）：文字资源_论语·学而篇
- *   → data/texts/文字资源_论语·学而篇.json
- *   ↑ 对应 getDataUrl('texts', '文字资源_论语·学而篇.json')
- *
- * 后端白名单见 backend/src/controllers/assetController.js 的 ALLOWED_JSON_DIRS
- */
-function resolveTextOssPath(frameName) {
-    const rest = frameName.replace(/^文字资源_/, '').replace(/\/+$/, '');
-    if (rest.includes('/')) {
-        // 新命名：去掉前缀后的剩余部分即相对目录，拼接为 data/{相对路径}.json
-        return `data/${rest}.json`;
+/** 在指定 Frame 的直接子节点中，按精确名称查找 TEXT 节点并返回 characters */
+function findTextByExactName(frame, exactName) {
+    if (!('children' in frame))
+        return '';
+    for (const child of frame.children || []) {
+        if (child.type === 'TEXT' && child.name === exactName) {
+            return child.characters;
+        }
     }
-    // 旧命名兼容：保持 data/texts/ 目录结构
-    return `data/texts/${frameName}.json`;
+    return '';
 }
 /**
  * 导出单个图片节点，带超时保护
