@@ -162,8 +162,16 @@ jobs:
 
             echo "=== [5/5] Restart backend ==="
             docker rm -f wenyan-backend 2>/dev/null || true
+            # 释放 3000 端口：可能出现残留 PM2 进程（如旧的 /www/wwwroot/api.classicalab.cn 部署）
+            # 占用 3000 导致 Docker 容器 bind 失败（项目经验：PM2 与 Docker 不能同时监听同一端口）。
+            # 这里统一停掉占用 3000 的进程，避免健康检查 FATAL。
+            echo "Releasing port 3000 (stop stale process holding 3000)..."
+            fuser -k 3000/tcp 2>/dev/null || true
+            sleep 2
             mkdir -p backend/database backend/data backend/logs
             chown -R 1000:1000 backend/database backend/data backend/logs
+            # 重新确保旧容器已移除（可能在端口释放后更稳妥地重新创建）
+            docker rm -f wenyan-backend 2>/dev/null || true
             docker compose up -d --remove-orphans
 
             echo "=== Health check (with retry) ==="
