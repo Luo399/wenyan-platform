@@ -1,5 +1,7 @@
 name: Deploy Backend to Aliyun Server
 
+# 生产后端部署（PM2 方式）
+# 项目约定：生产后端用 PM2 守护，Docker 为历史残留，部署时先清除以免 3000 端口冲突。
 on:
   push:
     branches:
@@ -12,10 +14,6 @@ on:
       - '.dockerignore'
   workflow_dispatch:
 
-env:
-  REGISTRY: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com
-  IMAGE_NAME: luo-hui-ning/wenyan-platform-backend
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -23,35 +21,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Aliyun Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: false
-          sbom: false
-
-      - name: Verify image push
-        run: |
-          echo "=== Verifying pushed image ==="
-          docker buildx imagetools inspect \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --format '{{json .}}' 2>&1 || echo "WARNING: Image verification failed (may be transient)"
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.8.0
@@ -63,14 +32,14 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to server
+      - name: Deploy to server via PM2
         run: |
           ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
             PROD_PATH="${{ secrets.SERVER_PROJECT_PATH }}"
             BRANCH="main"
 
-            echo "=== [1/4] Clone or update repo ==="
+            echo "=== [1/5] Clone or update repo ==="
             if [ ! -d "$PROD_PATH" ]; then
               git clone https://github.com/Luo399/wenyan-platform.git "$PROD_PATH"
             fi
@@ -79,12 +48,13 @@ jobs:
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            echo "=== [2/4] Create .env file ==="
+            echo "=== [2/5] Create .env file ==="
             if [ -f backend/.env ]; then
               cp backend/.env backend/.env.bak
             fi
             echo "PORT=3000" > backend/.env
             echo "CORS_ORIGIN=https://www.classicalab.cn,https://classicalab.cn,https://www.figma.com,https://needed-data.classicalab.cn" >> backend/.env
+            # JWT_SECRET：保留备份值或从 Secret 读取，最后兜底自动生成
             SAVED_SECRET=""
             if [ -f backend/.env.bak ]; then
               SAVED_SECRET=$(grep '^JWT_SECRET=' backend/.env.bak | cut -d= -f2-)
@@ -100,7 +70,7 @@ jobs:
               echo "JWT_SECRET=$NEW_SECRET" >> backend/.env
               echo "JWT_SECRET auto-generated"
             fi
-            # ASSET_SYNC_TOKEN：保留备份值或从 Secret 读取
+            # ASSET_SYNC_TOKEN：尽可能保留原值避免破坏已签发的直传凭证
             SAVED_TOKEN=""
             if [ -f backend/.env.bak ]; then
               SAVED_TOKEN=$(grep '^ASSET_SYNC_TOKEN=' backend/.env.bak | cut -d= -f2-)
@@ -116,65 +86,26 @@ jobs:
 
             echo "OSS_PUBLIC_URL=https://wenyan-online.oss-cn-guangzhou.aliyuncs.com" >> backend/.env
 
-            echo "=== [3/5] Install Docker if not present ==="
-            if ! command -v docker &>/dev/null; then
-              echo "Installing Docker..."
-              dnf install -y --disablerepo='nodesource-*' dnf-utils device-mapper-persistent-data lvm2
-              dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-              dnf install -y --disablerepo='nodesource-*' docker-ce docker-ce-cli containerd.io docker-compose-plugin
-              systemctl enable --now docker
-              echo "Docker installed successfully"
-            else
-              echo "Docker already installed"
-            fi
-
-            echo "=== [3b] Check server time ==="
-            SERVER_TIME=$(date +%s)
-            echo "Server time: $(date -d @$SERVER_TIME '+%Y-%m-%d %H:%M:%S')"
-
-            REF_TIME="${{ github.event.repository.updated_at }}"
-            REF_TS=$(date -d "$REF_TIME" +%s 2>/dev/null || echo "0")
-            if [ "$REF_TS" -ne 0 ]; then
-              DIFF=$((SERVER_TIME - REF_TS))
-              echo "Time diff: ${DIFF#-} seconds"
-              if [ "${DIFF#-}" -gt 300 ]; then
-                echo "WARNING: Server time off by more than 5 minutes, syncing..."
-                if command -v chronyd &>/dev/null; then
-                  chronyd -q 'server ntp.aliyun.com iburst' 2>/dev/null || true
-                elif command -v ntpdate &>/dev/null; then
-                  ntpdate -u ntp.aliyun.com 2>/dev/null || true
-                else
-                  dnf install -y chrony 2>/dev/null
-                  chronyd -q 'server ntp.aliyun.com iburst' 2>/dev/null || true
-                fi
-                echo "Time after sync: $(date '+%Y-%m-%d %H:%M:%S')"
-              else
-                echo "Server time is within acceptable range"
-              fi
-            fi
-
-            echo "=== [4/5] Login to ACR and pull latest image ==="
-            echo "${{ secrets.ACR_PASSWORD }}" | docker login \
-              --username "${{ secrets.ACR_USERNAME }}" \
-              --password-stdin \
-              ${{ env.REGISTRY }}
-            docker compose pull
-
-            echo "=== [5/5] Restart backend ==="
+            echo "=== [3/5] Remove stale Docker container (生产回归 PM2) ==="
+            # 项目约定：生产后端使用 PM2，Docker 为历史残留。
+            # 残留容器（如 wenyan-backend）会占用 3000 端口，导致 PM2 启动 bind 失败，必须先清除。
             docker rm -f wenyan-backend 2>/dev/null || true
-            # 释放 3000 端口：可能出现残留 PM2 进程（如旧的 /www/wwwroot/api.classicalab.cn 部署）
-            # 占用 3000 导致 Docker 容器 bind 失败（项目经验：PM2 与 Docker 不能同时监听同一端口）。
-            # 这里统一停掉占用 3000 的进程，避免健康检查 FATAL。
-            echo "Releasing port 3000 (stop stale process holding 3000)..."
-            fuser -k 3000/tcp 2>/dev/null || true
+            docker compose down 2>/dev/null || true
+            # 再兜底释放 3000 端口占用（可能是旧的 PM2 进程或其宿主机进程）
+            if command -v fuser &>/dev/null; then
+              fuser -k 3000/tcp 2>/dev/null || true
+            fi
             sleep 2
             mkdir -p backend/database backend/data backend/logs
-            chown -R 1000:1000 backend/database backend/data backend/logs
-            # 重新确保旧容器已移除（可能在端口释放后更稳妥地重新创建）
-            docker rm -f wenyan-backend 2>/dev/null || true
-            docker compose up -d --remove-orphans
 
-            echo "=== Health check (with retry) ==="
+            echo "=== [4/5] Install deps and restart via PM2 ==="
+            cd "$PROD_PATH/backend"
+            # 必须从 backend 目录启动，dotenv 依赖当前目录查找 .env
+            npm install --production
+            pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
+            cd "$PROD_PATH"
+
+            echo "=== [5/5] Health check (with retry) ==="
             HEALTH_OK=false
             MAX_RETRIES=6
             RETRY_DELAY=10
@@ -193,22 +124,17 @@ jobs:
 
             if [ "$HEALTH_OK" != "true" ]; then
               echo "HEALTH_CHECK_FAILED after $MAX_RETRIES attempts"
-              echo "=== Container logs ==="
-              docker logs wenyan-backend 2>&1 || true
-              echo "=== Container status ==="
-              docker ps -a --filter name=wenyan-backend --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
+              echo "=== PM2 status ==="
+              pm2 status wenyan-backend || true
+              echo "=== PM2 log (tail) ==="
+              pm2 logs wenyan-backend --lines 50 --nostream 2>&1 || true
 
-              # 检查容器是否在重启循环（如 SQLITE_CORRUPT 导致反复崩溃）
-              CONTAINER_STATUS=$(docker ps -a --filter name=wenyan-backend --format "{{.Status}}")
-              if echo "$CONTAINER_STATUS" | grep -q "Restarting"; then
-                echo "=== Container is restarting, attempting database recovery ==="
-                docker compose down
-                echo "Removing database file to fix corruption..."
+              # 数据库损坏时会导致进程反复崩溃（PM2 AUTORESTART 循环），检测并重建
+              PM2_STATUS=$(pm2 status wenyan-backend --porcelain 2>/dev/null | grep wenyan-backend || echo "")
+              if pm2 stop wenyan-backend >/dev/null 2>&1; then
+                echo "=== Attempting database recovery ==="
                 rm -f backend/database/answers.db
-                docker rm -f wenyan-backend 2>/dev/null || true
-                echo "Database file removed, restarting container..."
-                docker compose up -d --remove-orphans
-                # 恢复后重试健康检查
+                pm2 restart wenyan-backend --update-env
                 for ((i=1; i<=MAX_RETRIES; i++)); do
                   echo "Recovery attempt $i/$MAX_RETRIES to check health..."
                   if curl -s http://127.0.0.1:3000/api/health 2>/dev/null; then
@@ -222,7 +148,7 @@ jobs:
                 done
                 if [ "$HEALTH_OK" != "true" ]; then
                   echo "=== Database recovery failed ==="
-                  docker logs wenyan-backend 2>&1 || true
+                  pm2 logs wenyan-backend --lines 50 --nostream 2>&1 || true
                 fi
               fi
             fi
