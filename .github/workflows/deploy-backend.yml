@@ -101,6 +101,10 @@ jobs:
             echo "=== [4/5] Install deps and restart via PM2 ==="
             cd "$PROD_PATH/backend"
             # 必须从 backend 目录启动，dotenv 依赖当前目录查找 .env
+            # 服务器残留的 node_modules（rc/glob 等旧包）与当前 Node 版本不兼容，
+            # 会导致 sqlite3 原生模块 prebuild-install 崩溃（deepExtend.apply is not a function）。
+            # 这里先清空再全新安装（项目约定禁 npm ci，lock 文件不同步）。
+            rm -rf node_modules
             npm install --production
             pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
             cd "$PROD_PATH"
