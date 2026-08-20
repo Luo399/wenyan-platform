@@ -81,23 +81,21 @@ Page 1
 ```
 Page 1
 ├── Export Assets（顶层 Frame，名称固定）
-│   ├── images/culture_cards/WEN_05/
-│   │   ├── card_bg
-│   │   ├── card_1
-│   │   └── card_2
+│   ├── images/culture_cards/WEN_01/
+│   │   ├── card_bg.png
+│   │   ├── card_1.png
+│   │   └── card_2.svg
 │   └── images/cover/
-│       └── cover_lesson
+│       └── cover_lesson.png
 │
-└── 文字资源_论语·学而篇（顶层 Frame，名 = 课文标题，用于映射 WEN_xx）
-    ├── 原文                    ← TEXT，固定名称，课文原文（→ original_text）
-    ├── 作者                    ← TEXT，固定名称（→ author）
-    ├── 朝代                    ← TEXT，固定名称（→ dynasty）
-    └── 注释词_1（子 Frame，名称可任意，建议 注释词_N）
-        ├── 词                  ← TEXT，固定名称（→ word）
-        └── 注释                ← TEXT，固定名称（→ basic_meaning）
+└── 文字资源_论语·学而篇（顶层 Frame，前缀固定）
+    ├── knowledge_text           ← TEXT 节点，name = JSON 字段名
+    ├── card_name                ← TEXT 节点
+    ├── card_desc                ← TEXT 节点
+    └── sub_data（子 Frame，name = JSON 子对象名）
+        ├── sub_field_1          ← TEXT 节点
+        └── sub_field_2          ← TEXT 节点
 ```
-
-> **说明**：`文字资源_` 后的标题必须命中内置的 37 篇篇目映射（与 `src/utils/wenUtils.ts` 的 `poemMap` 一致），插件据此推断 `WEN_xx` 并生成对应文件。**01-04 为生产已上线篇目，插件会保留现有文件、跳过生成，避免覆盖**。
 
 ### 3.4 命名规则速查表
 
@@ -105,62 +103,17 @@ Page 1
 |-----------|------|---------|-------------|
 | `Export Assets` | 固定名称，图片容器 | 子 Frame 中的图层导出为 PNG/SVG | 子 Frame 名决定路径 |
 | `images/general/` | 子 Frame | 内部图层导出为图片 | `images/general/home_bg.png` |
-| `images/culture_cards/WEN_05/` | 子 Frame | 内部图层导出为图片 | `images/culture_cards/WEN_05/card_1.png` |
-| `images/cover/` | 子 Frame | 内部图层导出为图片 | `images/cover/cover_lesson.png` |
-| `文字资源_论语·学而篇` | 顶层 Frame | 读取 原文/作者/朝代/注释词 生成 JSON | `data/text_basic_info/WEN_05.json` + `data/word_list/WEN_05.json` |
+| `images/culture_cards/WEN_01/` | 子 Frame | 内部图层导出为图片 | `images/culture_cards/WEN_01/card_bg.png` |
+| `images/cover/` | 子 Frame | 内部图层导出为图片 | `images/cover/cover_main.png` |
+| `文字资源_论语·学而篇` | 顶层 Frame | 读取 TEXT 节点生成 JSON | `data/texts/文字资源_论语·学而篇.json` |
 
 ### 3.5 图层命名规则
 
-- **图片图层**：`{文件名}` 或 `{文件名}.{扩展名}`（支持 `png`、`jpg`、`jpeg`、`gif`、`webp`、`svg`）；**无扩展名会自动补 `.png`**
-- **同一目录下图层名不能重复**：重复图层会跳过并告警
-- **文字节点**：`原文` / `作者` / `朝代` / `词` / `注释`（固定名称，插件按名称识别取值，勿改名）
+- **图片图层**：`{文件名}.{扩展名}`，支持扩展名：`png`、`jpg`、`jpeg`、`gif`、`webp`、`svg`
+- **文字节点**：`{字段名}`，节点的 name 作为 JSON 字段的 key，characters 作为 value
 - **隐藏图层**：`visible = false` 的图层会被自动跳过
 - **不支持的类型**：`TEXT`、`LINE`、`STAR`、`POLYGON` 等非可导出类型会被跳过
-
-### 3.6 篇目映射清单（37 篇）
-
-`文字资源_` 后的标题必须命中下表，插件才能推断 `WEN_xx` 并生成对应文件。
-此表与前端 `src/utils/wenUtils.ts` 的 `poemMap` 保持一致（部编版顺序）。
-
-| WEN | 标题（Frame 名去掉 `文字资源_` 前缀） | WEN | 标题 |
-|-----|--------------------------------------|-----|------|
-| WEN_01 | 陈涉世家 | WEN_20 | 小石潭记 |
-| WEN_02 | 马说 | WEN_21 | 核舟记 |
-| WEN_03 | 岳阳楼记 | WEN_22 | 醉翁亭记 |
-| WEN_04 | 庄子与惠子 | WEN_23 | 湖心亭看雪 |
-| WEN_05 | 论语十二章 | WEN_24 | 孙权劝学 |
-| WEN_06 | 诫子书 | WEN_25 | 卖油翁 |
-| WEN_07 | 陋室铭 | WEN_26 | 周亚夫军细柳 |
-| WEN_08 | 爱莲说 | WEN_27 | 唐雎不辱使命 |
-| WEN_09 | 孟子三章 | WEN_28 | 曹刿论战 |
-| WEN_10 | 虽有嘉肴 | WEN_29 | 邹忌讽齐王纳谏 |
-| WEN_11 | 大道之行 | WEN_30 | 穿井得一人 |
-| WEN_12 | 鱼我所欲也 | WEN_31 | 杞人忧天 |
-| WEN_13 | 送东阳马生序 | WEN_32 | 愚公移山 |
-| WEN_14 | 出师表 | WEN_33 | 北冥有鱼 |
-| WEN_15 | 三峡 | WEN_34 | 咏雪 |
-| WEN_16 | 答谢中书书 | WEN_35 | 陈太丘与友期行 |
-| WEN_17 | 记承天寺夜游 | WEN_36 | 狼 |
-| WEN_18 | 与朱元思书 | WEN_37 | 活板 |
-| WEN_19 | 桃花源记 | — | — |
-
-> **01-04 已上线**：为生产已有篇目，插件会保留现网文件、跳过生成，避免覆盖。
-> 未收录标题（拼写错误/新增篇目）会跳过并告警，需先在代码 `TITLE_TO_WEN_ID` 中登记。
-
-### 3.7 图片路径规则（`images/*` 约定）
-
-与现有前端 `getAssetUrl('images', fileName)` 的 `images/{文件名}` 两级结构对齐：
-
-| 类别 | OSS Key | 说明 |
-|------|---------|------|
-| 通用页面图 | `images/home_bg.png` | 首页背景（HomeView） |
-| 通用页面图 | `images/home_title.png` | 首页标题（NewHomeView） |
-| 通用页面图 | `images/login_bg.png` | 登录页背景（Student/Teacher/Admin） |
-| 每篇配图 | `images/WEN_xx_illus_bg.png` | 课文插图背景，对应 `text_basic_info.illustration` 字段 |
-
-- 该规则即插件内置占位清单 `EXPECTED_IMAGE_KEYS` 的依据，范围 = 通用 3 张 + WEN_05~WEN_37 各 1 张
-- **WEN_01~04 不做占位**（现网已存在），代码内另有 `isLegacyKey` 二次兜底
-- 若某篇新增自定义图片（如对话图标 `WEN_xx_icon_dialog*.png`），需在插件 `FIXED_IMAGE_KEYS` 中追加
+- **无扩展名图层**：图层名不含图片扩展名会被跳过
 
 ---
 

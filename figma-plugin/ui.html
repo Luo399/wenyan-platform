@@ -54,20 +54,6 @@
     .config-row input:focus {
       border-color: var(--figma-color-border-brand, #18a0fb);
     }
-    .config-row select {
-      flex: 1;
-      padding: 6px 8px;
-      background: var(--figma-color-bg-secondary, #2a2a2a);
-      border: 1px solid var(--figma-color-border, #444);
-      border-radius: 4px;
-      color: var(--figma-color-text, #ccc);
-      font-size: 12px;
-      outline: none;
-      cursor: pointer;
-    }
-    .config-row select:focus {
-      border-color: var(--figma-color-border-brand, #18a0fb);
-    }
     .status-bar {
       display: flex;
       justify-content: space-between;
@@ -133,10 +119,6 @@
       background: var(--figma-color-bg-warning-tertiary, #3a2a1a);
       color: var(--figma-color-text-warning, #f5a623);
     }
-    .asset-icon.style {
-      background: var(--figma-color-bg-tertiary, #3a2a3a);
-      color: var(--figma-color-text-tertiary, #aaa);
-    }
     .asset-info {
       flex: 1;
       min-width: 0;
@@ -176,13 +158,6 @@
     .asset-status.uploaded {
       background: var(--figma-color-bg-success-tertiary, #1a3a1a);
       color: var(--figma-color-text-success, #4caf50);
-    }
-    .asset-status.verified {
-      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
-      color: var(--figma-color-text-success, #4caf50);
-    }
-    .asset-status.verified::after {
-      content: ' ✓';
     }
     .asset-status.error {
       background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
@@ -286,248 +261,6 @@
       max-height: 80px;
       overflow-y: auto;
     }
-    /* 可复制错误卡（美术一键复制完整日志，无需看控制台） */
-    .error-card {
-      margin-top: 8px;
-      padding: 10px;
-      background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
-      border: 1px solid var(--figma-color-border-danger, rgba(244,67,54,.35));
-      border-radius: 6px;
-      font-size: 12px;
-      text-align: left;
-    }
-    .error-card .error-title {
-      font-weight: 600;
-      color: var(--figma-color-text-danger, #f44336);
-      margin-bottom: 6px;
-      word-break: break-all;
-    }
-    .error-card .error-row {
-      margin-top: 6px;
-      color: var(--figma-color-text-secondary, #bbb);
-      line-height: 1.55;
-    }
-    .error-card .error-hint {
-      margin-top: 8px;
-      padding: 6px 8px;
-      background: rgba(255,255,255,.05);
-      border-radius: 4px;
-      line-height: 1.6;
-    }
-    .error-card .error-actions {
-      margin-top: 10px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .error-card textarea {
-      display: none;
-      width: 100%;
-      height: 96px;
-      margin-top: 8px;
-      padding: 6px;
-      background: var(--figma-color-bg-secondary, #2a2a2a);
-      border: 1px solid var(--figma-color-border, #444);
-      border-radius: 4px;
-      color: var(--figma-color-text, #ccc);
-      font-size: 11px;
-      font-family: monospace;
-      resize: vertical;
-    }
-    /* ============ Tab 切换样式 ============ */
-    .tabs {
-      display: flex;
-      gap: 0;
-      margin-bottom: 12px;
-      border-bottom: 1px solid var(--figma-color-border, #333);
-    }
-    .tab {
-      flex: 1;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--figma-color-text-secondary, #888);
-      background: none;
-      border: none;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      border-radius: 0;
-    }
-    .tab:hover {
-      color: var(--figma-color-text, #ccc);
-      background: none;
-      opacity: 1;
-    }
-    .tab.active {
-      color: var(--figma-color-text-brand, #18a0fb);
-      border-bottom-color: var(--figma-color-text-brand, #18a0fb);
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    /* ============ 资源清单表格样式 ============ */
-    .inventory-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      padding: 8px 12px;
-      background: var(--figma-color-bg-secondary, #2a2a2a);
-      border-radius: 6px;
-      font-size: 12px;
-    }
-    .inventory-header .count {
-      color: var(--figma-color-text-brand, #18a0fb);
-      font-weight: 600;
-    }
-    .inventory-section {
-      margin-bottom: 16px;
-    }
-    .inventory-section-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--figma-color-text, #eee);
-      padding: 6px 10px;
-      background: var(--figma-color-bg-secondary, #2a2a2a);
-      border-radius: 4px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .inventory-section-title .badge {
-      font-size: 11px;
-      font-weight: 400;
-      color: var(--figma-color-text-secondary, #888);
-      background: var(--figma-color-bg-tertiary, #333);
-      padding: 2px 6px;
-      border-radius: 3px;
-    }
-    .inventory-subsection {
-      margin-bottom: 12px;
-      padding-left: 8px;
-      border-left: 2px solid var(--figma-color-border, #444);
-    }
-    .inventory-subsection-title {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--figma-color-text, #ccc);
-      margin-bottom: 6px;
-      padding: 4px 8px;
-      background: var(--figma-color-bg-tertiary, #333);
-      border-radius: 3px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .inventory-subsection-title .badge {
-      font-size: 11px;
-      color: var(--figma-color-text-secondary, #888);
-    }
-    .inventory-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-    }
-    .inventory-table th {
-      text-align: left;
-      padding: 6px 8px;
-      background: var(--figma-color-bg-tertiary, #333);
-      color: var(--figma-color-text-secondary, #888);
-      font-weight: 500;
-      position: sticky;
-      top: 0;
-    }
-    .inventory-table td {
-      padding: 5px 8px;
-      border-bottom: 1px solid var(--figma-color-border, #222);
-      color: var(--figma-color-text, #ccc);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 180px;
-    }
-    .inventory-table tr:hover td {
-      background: var(--figma-color-bg-tertiary, #2f2f2f);
-    }
-    .inventory-table .col-type {
-      width: 50px;
-      text-align: center;
-    }
-    .inventory-table .col-time {
-      width: 100px;
-      color: var(--figma-color-text-tertiary, #888);
-      font-size: 10px;
-    }
-    .inventory-table .col-size {
-      width: 60px;
-      text-align: right;
-      color: var(--figma-color-text-tertiary, #888);
-    }
-    .type-badge {
-      display: inline-block;
-      padding: 1px 5px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: 500;
-    }
-    .type-badge.image {
-      background: var(--figma-color-bg-brand-tertiary, #1a3a5c);
-      color: var(--figma-color-text-brand, #18a0fb);
-    }
-    .type-badge.text {
-      background: var(--figma-color-bg-warning-tertiary, #3a2a1a);
-      color: var(--figma-color-text-warning, #f5a623);
-    }
-    .type-badge.style {
-      background: var(--figma-color-bg-tertiary, #3a2a3a);
-      color: var(--figma-color-text-tertiary, #aaa);
-    }
-    .inventory-scroll {
-      max-height: 320px;
-      overflow-y: auto;
-      margin-bottom: 12px;
-    }
-    .inventory-scroll::-webkit-scrollbar {
-      width: 6px;
-    }
-    .inventory-scroll::-webkit-scrollbar-thumb {
-      background: var(--figma-color-border, #555);
-      border-radius: 3px;
-    }
-    .inventory-scroll::-webkit-scrollbar-track {
-      background: var(--figma-color-bg-secondary, #2a2a2a);
-    }
-    .inventory-wen-row {
-      cursor: pointer;
-      user-select: none;
-    }
-    .inventory-wen-row:hover {
-      background: var(--figma-color-bg-tertiary, #333);
-    }
-    .inventory-wen-content {
-      display: none;
-      padding: 8px 0 8px 8px;
-    }
-    .inventory-wen-content.expanded {
-      display: block;
-    }
-    .refresh-hint {
-      font-size: 11px;
-      color: var(--figma-color-text-success, #4caf50);
-      padding: 4px 8px;
-      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
-      border-radius: 4px;
-      margin-bottom: 8px;
-    }
-    .refresh-hint.error {
-      color: var(--figma-color-text-danger, #f44336);
-      background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
-    }
   </style>
 </head>
 <body>
@@ -536,231 +269,54 @@
     <p>扫描当前文件中的 Export Assets 和 文字资源_ Frame，按 Frame 命名规则同步到 OSS</p>
   </div>
 
-  <div class="tabs">
-    <button id="tabSync" class="tab active" onclick="switchTab('sync')">同步</button>
-    <button id="tabInventory" class="tab" onclick="switchTab('inventory')">资源清单</button>
+  <div class="config-row">
+    <label>API 地址：</label>
+    <input type="text" id="apiBase" value="https://api.classicalab.cn" placeholder="后端 API 地址" />
   </div>
 
-  <!-- ============ 同步 Tab ============ -->
-  <div id="tabSyncContent" class="tab-content active">
-    <div class="config-row">
-      <label>API 地址：</label>
-      <select id="apiBaseSelect" onchange="onApiBaseChange()">
-        <option value="https://api.classicalab.cn">生产环境 (api.classicalab.cn)</option>
-        <option value="https://test-api.classicalab.cn">测试环境 (test-api.classicalab.cn)</option>
-        <option value="custom">自定义...</option>
-      </select>
-      <input type="text" id="apiBaseCustom" style="display:none" placeholder="输入自定义 API 地址" />
-    </div>
-
-    <div class="config-row">
-      <label>同步令牌：</label>
-      <input type="password" id="apiToken" oninput="saveToken()" placeholder="ASSET_SYNC_TOKEN（可选）" />
-    </div>
-
-    <div id="statusBar" class="status-bar">
-      <span class="status-text">扫描中...</span>
-      <span class="count">0 个资源</span>
-    </div>
-
-    <div id="progressBar" class="progress-bar" style="display:none">
-      <div id="progressFill" class="progress-fill"></div>
-    </div>
-
-    <div id="assetsContainer" class="assets-list">
-      <div class="empty-state">
-        <div class="icon">🔍</div>
-        <div class="message">正在扫描当前文件中的资源...</div>
-      </div>
-    </div>
-
-    <div id="actions" class="actions" style="display:none">
-      <button id="syncBtn" class="btn-primary" onclick="handleSync()">开始同步</button>
-      <button class="btn-secondary" onclick="handleCancel()">取消</button>
-    </div>
-
-    <div id="summary" class="summary" style="display:none"></div>
+  <div class="config-row">
+    <label>同步令牌：</label>
+    <input type="password" id="apiToken" placeholder="ASSET_SYNC_TOKEN（可选，未配置时走免令牌通道）" />
   </div>
 
-  <!-- ============ 资源清单 Tab ============ -->
-  <div id="tabInventoryContent" class="tab-content">
-    <div class="config-row">
-      <label>API 地址：</label>
-      <select id="invApiBaseSelect" onchange="onInvApiBaseChange()">
-        <option value="https://api.classicalab.cn">生产环境 (api.classicalab.cn)</option>
-        <option value="https://test-api.classicalab.cn">测试环境 (test-api.classicalab.cn)</option>
-      </select>
-    </div>
+  <div id="statusBar" class="status-bar">
+    <span class="status-text">扫描中...</span>
+    <span class="count">0 个资源</span>
+  </div>
 
-    <div id="inventoryHeader" class="inventory-header" style="display:none">
-      <span>生产桶资源清单</span>
-      <div>
-        <span id="invTotalCount" class="count">0</span>
-        <span id="invLastSync" style="margin-left:8px;color:var(--figma-color-text-secondary,#888);font-size:11px"></span>
-      </div>
-    </div>
+  <div id="progressBar" class="progress-bar" style="display:none">
+    <div id="progressFill" class="progress-fill"></div>
+  </div>
 
-    <div class="actions" style="margin-bottom:12px">
-      <button id="refreshInvBtn" class="btn-primary" onclick="loadInventory()" style="flex:1">刷新清单</button>
-    </div>
-
-    <div id="inventoryContainer" class="inventory-scroll">
-      <div class="empty-state">
-        <div class="icon">📋</div>
-        <div class="message">点击「刷新清单」加载 OSS 资源清单</div>
-      </div>
+  <div id="assetsContainer" class="assets-list">
+    <div class="empty-state">
+      <div class="icon">🔍</div>
+      <div class="message">正在扫描当前文件中的资源...</div>
     </div>
   </div>
+
+  <div id="actions" class="actions" style="display:none">
+    <button id="syncBtn" class="btn-primary" onclick="handleSync()">开始同步</button>
+    <button class="btn-secondary" onclick="handleCancel()">取消</button>
+  </div>
+
+  <div id="summary" class="summary" style="display:none"></div>
 
   <script>
     // 网络请求超时时间（毫秒）
     var FETCH_TIMEOUT_MS = 30000
 
-    // ============ 错误码定义 ============
-    // 与 code.ts 中的 ERROR_CODES 保持一致
-    // 错误码 1：后端 API 不可达（net::ERR_FAILED / 502 / 503）
-    //   触发场景：生产环境 API 服务宕机或网络不可达，所有上传请求均失败
-    //   排查方向：检查后端服务是否正常运行（pm2 status），检查 API 域名 DNS 解析
-    // 错误码 2：API 域名不在 manifest.json allowedDomains 中
-    //   触发场景：Figma 安全策略拦截了向未声明域名的请求
-    //   排查方向：将 API 域名添加到 manifest.json 的 networkAccess.allowedDomains
-    var ERROR_CODES = {
-      API_UNREACHABLE: { code: 1, label: 'API_UNREACHABLE', message: '后端 API 不可达' },
-      DOMAIN_NOT_ALLOWED: { code: 2, label: 'DOMAIN_NOT_ALLOWED', message: 'API 域名不在 allowedDomains 白名单中' },
-      REQUEST_TIMEOUT: { code: 3, label: 'REQUEST_TIMEOUT', message: '网络请求超时' },
-      VALIDATION_FAILED: { code: 4, label: 'VALIDATION_FAILED', message: '上传数据校验失败' },
-      NODE_EXPORT_FAILED: { code: 5, label: 'NODE_EXPORT_FAILED', message: 'Figma 节点导出失败' },
-      UNKNOWN: { code: 6, label: 'UNKNOWN', message: '未知错误' },
-      ENDPOINT_NOT_FOUND: { code: 7, label: 'ENDPOINT_NOT_FOUND', message: '接口不存在或无访问权限（HTTP 404/403）' },
-    }
-
-    // 错误码 → 可直接复制给开发的排查提示（美术无需自己看控制台）
-    var ERROR_HINTS = {
-      1: '① 后端服务可能未启动/宕机（找开发查 pm2 status）；② API 域名是否已加入插件 manifest.json 的 networkAccess.allowedDomains；③ 网络/代理是否拦截。请复制下方完整日志发给开发。',
-      2: '插件 manifest.json 的 networkAccess.allowedDomains 未包含当前 API 域名。需由开发在 manifest.json 中加入后重新加载插件。',
-      3: '网络请求超时。请检查网络后重试；若持续如此请复制日志发给开发。',
-      4: '上传的数据格式校验未通过。请确认 Figma 内命名是否符合规范，或复制日志发给开发。',
-      5: 'Figma 节点导出失败。请确认该图层的类型与命名是否规范，或复制日志发给开发。',
-      6: '发生了未知错误。请直接复制下方完整日志发给开发排查。',
-      7: '后端返回接口不存在或无权限。常见原因：后端未部署最新代码（测试环境只部署了前端）、路由未注册、或接口被权限策略拦截。请复制日志发给开发确认后端版本。',
-    }
-
-    function getErrorHint(code) {
-      return ERROR_HINTS[code] || ERROR_HINTS[6]
-    }
-
-    /**
-     * 在容器内渲染「可复制错误卡」，把错误码/详情/排查提示/复制按钮直接展示给美术。
-     * @param {Element} container - 用于渲染错误的 DOM 容器
-     * @param {string} scene - 出错场景，如 '加载资源清单' / '同步资源'
-     * @param {*} err - 捕获的异常对象
-     */
-    function renderCopyableError(container, scene, err) {
-      var info = describeError(scene, err)
-      var errId = 'copyErr' + Math.random().toString(36).slice(2, 8)
-      container.innerHTML =
-        '<div class="error-card">' +
-          '<div class="error-title">❌ ' + escapeHtml(scene) + ' 失败</div>' +
-          '<div class="error-row"><b>错误码：</b>' + escapeHtml('[代码' + info.code + '] ' + info.desc) + '</div>' +
-          '<div class="error-hint">💡 ' + escapeHtml(info.hint) + '</div>' +
-          '<div class="error-actions">' +
-            '<button class="btn-secondary" onclick="copyErrorText(\'' + errId + '\')">复制完整日志</button>' +
-            '<button class="btn-secondary" onclick="loadInventory()">重试</button>' +
-          '</div>' +
-          '<textarea id="' + errId + '" readonly>' + escapeHtml(info.logText) + '</textarea>' +
-        '</div>'
-    }
-
-    /** 复制错误日志到剪贴板（并自动选中 textarea 便于手动全选） */
-    function copyErrorText(id) {
-      var ta = document.getElementById(id)
-      if (!ta) return
-      ta.style.display = 'block'
-      ta.focus()
-      ta.select()
-      try {
-        document.execCommand('copy')
-        ta.value = '✅ 已复制到剪贴板，请直接粘贴发送给开发！'
-      } catch (e) {
-        alert('自动复制失败，请手动全选上面的日志后复制')
-      }
-    }
-
-    /**
-     * 统一生成「错误码 + 描述 + 完整详情」的可复制日志文本
-     * 供美术直接复制，无需理解如何在控制台查看日志。
-     * @param {string} scene - 出错场景，如 '加载资源清单' / '同步资源'
-     * @param {*} err - 捕获的异常对象
-     * @returns {object} { code, desc, hint, logText }
-     */
-    function describeError(scene, err) {
-      var code = inferErrorCode(err)
-      var info = getErrorCodeInfo(code)
-      var desc = '[错误码' + code + '] ' + info.message + '：' + String(err)
-      var logText =
-        '【文言文同步】' + scene + ' 失败\n' +
-        '时间: ' + new Date().toISOString() + '\n' +
-        '错误码: ' + code + ' (' + info.label + ')\n' +
-        '描述: ' + info.message + '\n' +
-        '接口地址: ' + getInventoryApiBase() + '\n' +
-        '详情: ' + String(err) + '\n' +
-        '排查提示: ' + (ERROR_HINTS[code] || '') + '\n'
-      return { code: code, desc: desc, hint: getErrorHint(code), logText: logText }
-    }
-
-    /**
-     * 根据错误信息推断错误码
-     * 通过关键词匹配识别已知错误类型
-     */
-    function inferErrorCode(err) {
-      var msg = String(err)
-      if (/Failed to fetch|net::ERR_FAILED|502|503/.test(msg)) return ERROR_CODES.API_UNREACHABLE.code
-      if (/not in the list of allowed domains|allowedDomains/.test(msg)) return ERROR_CODES.DOMAIN_NOT_ALLOWED.code
-      if (/404|403/.test(msg)) return ERROR_CODES.ENDPOINT_NOT_FOUND.code
-      if (/超时|timeout|AbortError/.test(msg)) return ERROR_CODES.REQUEST_TIMEOUT.code
-      if (/400|VALIDATION|校验|不合法/.test(msg)) return ERROR_CODES.VALIDATION_FAILED.code
-      if (/导出失败|exportAsync|exportSingleNode/.test(msg)) return ERROR_CODES.NODE_EXPORT_FAILED.code
-      return ERROR_CODES.UNKNOWN.code
-    }
-
-    /**
-     * 获取错误码对应的描述信息
-     */
-    function getErrorCodeInfo(code) {
-      for (var key in ERROR_CODES) {
-        if (ERROR_CODES[key].code === code) return ERROR_CODES[key]
-      }
-      return ERROR_CODES.UNKNOWN
-    }
-
     var assets = []
     var isSyncing = false
-    // 版本数据（用于对比判断是否已上传）
-    var versionData = { assets: {} }
-    var versionDataReady = false
-    var versionDataPromise = null
-    // 当前上传中的资源（用于重试匹配）
-    var currentUploadAssets = []
-    // 上传失败待重试的资源
-    var failedAssets = []
 
     // 接收来自主线程的消息（使用 onmessage 而非 window.onmessage，符合官方规范）
     onmessage = function(event) {
       var msg = event.data.pluginMessage || event.data
 
       switch (msg.type) {
-        case 'scan-phase':
-          // 显示扫描阶段进度
-          updateStatus(0, msg.message || '扫描中...')
-          break
-
         case 'scan-result':
           assets = msg.assets
-          // 等待版本数据就绪后对比并渲染
-          versionDataPromise.then(function() {
-            var enriched = compareAssetsWithVersion(assets, versionData)
-            renderAssets(enriched)
-          })
+          renderAssets(msg.assets)
           updateStatus(msg.assets.length)
           document.getElementById('actions').style.display = 'flex'
           break
@@ -784,8 +340,6 @@
 
         case 'sync-data':
           // 主线程已导出图片节点，UI 线程负责上传（支持 FormData）
-          // 存储当前上传资源，用于上传失败后重试匹配
-          currentUploadAssets = msg.assets
           updateStatus(msg.assets.length, '上传中...')
           uploadAssets(msg.apiBase, msg.apiToken, msg.assets)
           break
@@ -795,33 +349,15 @@
           document.getElementById('syncBtn').disabled = false
           document.getElementById('progressBar').style.display = 'none'
           document.getElementById('actions').style.display = 'none'
-          // 收集失败资源用于重试
-          failedAssets = []
-          for (var kr = 0; kr < msg.results.length; kr++) {
-            if (msg.results[kr].status === 'error') {
-              var match = currentUploadAssets.find(function(a) {
-                return a.ossPath === msg.results[kr].ossPath
-              })
-              if (match) failedAssets.push(match)
-            }
-          }
           showSummary(msg.summary, msg.results)
           renderResults(msg.results)
-          // 上传完成后自动刷新资源清单
-          setTimeout(function() {
-            refreshInventoryAfterUpload()
-          }, 1000)
           break
 
         case 'sync-error':
           isSyncing = false
           document.getElementById('syncBtn').disabled = false
           document.getElementById('progressBar').style.display = 'none'
-          // 推断错误码并显示
-          var errorCode = inferErrorCode(msg.error)
-          var errorCodeInfo = getErrorCodeInfo(errorCode)
-          var errorWithCode = '[错误码' + errorCode + '] ' + errorCodeInfo.message + ': ' + msg.error
-          showError(errorWithCode)
+          showError(msg.error)
           break
 
         case 'scan-error':
@@ -845,18 +381,6 @@
         .replace(/'/g, '&#039;')
     }
 
-    function getAssetIcon(type) {
-      if (type === 'image') return '🖼'
-      if (type === 'style') return '🎨'
-      return '📝' // text
-    }
-
-    function getAssetTypeLabel(type) {
-      if (type === 'image') return '图片'
-      if (type === 'style') return '样式'
-      return '文字'
-    }
-
     function renderAssets(assets) {
       var container = document.getElementById('assetsContainer')
       if (assets.length === 0) {
@@ -871,7 +395,7 @@
       var html = ''
       for (var i = 0; i < assets.length; i++) {
         var asset = assets[i]
-        var icon = getAssetIcon(asset.type)
+        var icon = asset.type === 'image' ? '🖼' : '📝'
         var statusClass = asset.status
         var statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
 
@@ -879,7 +403,7 @@
           '<div class="asset-item">' +
             '<div class="asset-icon ' + asset.type + '">' + icon + '</div>' +
             '<div class="asset-info">' +
-              '<div class="asset-name">' + escapeHtml(getAssetTypeLabel(asset.type) + ': ' + asset.fileName) + '</div>' +
+              '<div class="asset-name">' + escapeHtml(asset.fileName) + '</div>' +
               '<div class="asset-path">' + escapeHtml(asset.ossPath) + '</div>' +
             '</div>' +
             '<span class="asset-status ' + statusClass + '">' + statusLabel + '</span>' +
@@ -893,16 +417,16 @@
       var html = ''
       for (var i = 0; i < results.length; i++) {
         var result = results[i]
-        var icon = getAssetIcon(result.type)
+        var icon = result.type === 'image' ? '🖼' : '📝'
         var statusClass = result.status
-        var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'verified' ? '已验证' : result.status === 'skipped' ? '已跳过' : '失败'
+        var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
         var sizeStr = result.size > 1024 ? (result.size / 1024).toFixed(1) + ' KB' : result.size + ' B'
 
         html +=
           '<div class="asset-item">' +
             '<div class="asset-icon ' + result.type + '">' + icon + '</div>' +
             '<div class="asset-info">' +
-              '<div class="asset-name">' + escapeHtml(getAssetTypeLabel(result.type) + ': ' + result.fileName) + '</div>' +
+              '<div class="asset-name">' + escapeHtml(result.fileName) + '</div>' +
               '<div class="asset-path">' + escapeHtml(result.ossPath) + '</div>' +
             '</div>' +
             '<span class="asset-size">' + sizeStr + '</span>' +
@@ -932,14 +456,6 @@
           '<span class="success">' + summary.uploaded + '</span>' +
         '</div>'
 
-      if (summary.verified > 0) {
-        html +=
-          '<div class="summary-row">' +
-            '<span class="success">✓✓ 已验证（OSS 确认存在）</span>' +
-            '<span class="success">' + summary.verified + '</span>' +
-          '</div>'
-      }
-
       if (summary.skipped > 0) {
         html +=
           '<div class="summary-row">' +
@@ -959,11 +475,7 @@
           var e = summary.errorDetails[j]
           html += escapeHtml(e.fileName) + ': ' + escapeHtml(e.error) + '<br>'
         }
-        html +=
-          '</div>' +
-          '<button id="retryBtn" class="btn-danger" onclick="handleRetry()" style="margin-top:8px">' +
-            '↻ 重试失败项（' + summary.errors + ' 个）' +
-          '</button>'
+        html += '</div>'
       }
 
       summaryEl.innerHTML = html
@@ -981,36 +493,6 @@
 
     function updateProgress(percent) {
       document.getElementById('progressFill').style.width = Math.min(percent, 100) + '%'
-    }
-
-    /**
-     * 处理 fetch 响应：检查 HTTP 状态码，非 2xx 时读取错误详情并附上错误码
-     * 错误码 1：502/503 服务不可达 → 后端宕机
-     * 错误码 4：400 校验失败 → 数据格式错误
-     * 后端返回 502 时会返回 HTML 页面，导致 response.json() 解析失败
-     */
-    async function handleResponse(response) {
-      if (!response.ok) {
-        var errorText = ''
-        try {
-          errorText = await response.text()
-        } catch(e) {
-          errorText = '无法读取响应内容'
-        }
-        if (errorText.length > 200) {
-          errorText = errorText.substring(0, 200) + '...'
-        }
-        // 根据 HTTP 状态码推断错误码
-        var errorCode = response.status === 502 || response.status === 503
-          ? ERROR_CODES.API_UNREACHABLE.code
-          : response.status === 404 || response.status === 403
-            ? ERROR_CODES.ENDPOINT_NOT_FOUND.code
-            : response.status === 400
-              ? ERROR_CODES.VALIDATION_FAILED.code
-              : ERROR_CODES.UNKNOWN.code
-        throw new Error('[错误码' + errorCode + '] HTTP ' + response.status + ': ' + errorText)
-      }
-      return response.json()
     }
 
     /**
@@ -1036,36 +518,12 @@
     }
 
     /**
-     * 验证 OSS 文件是否真实存在（通过 HEAD 请求）
-     * 仅在生产环境执行，测试环境跳过验证
-     *
-     * @param {string} url - OSS 公开访问 URL
-     * @param {string} apiBase - 当前 API 基地址（用于判断是否生产环境）
-     * @returns {Promise<boolean>} 文件是否存在
-     */
-    async function verifyOssFileExists(url, apiBase) {
-      // 仅生产环境（非 test 地址）执行验证
-      if (!url || apiBase.includes('test') || apiBase.includes('127.0.0.1') || apiBase.includes('localhost')) {
-        return false
-      }
-      try {
-        var response = await fetchWithTimeout(url, { method: 'HEAD' }, 10000)
-        // 2xx/3xx 状态码视为存在
-        return response.ok || (response.status >= 300 && response.status < 400)
-      } catch (err) {
-        logDebug('OSS 验证请求失败:', err)
-        return false
-      }
-    }
-
-    /**
      * UI 线程上传资源（浏览器环境完全支持 FormData / Blob / AbortController）
      *
      * 架构说明：
      *   - 主线程（code.ts）负责 Figma 节点导出，数据通过 postMessage 传递
      *   - UI 线程（本函数）负责网络请求，支持 FormData 上传图片
      *   - 上传完成后通过 parent.postMessage 将结果传回主线程
-     *   - 上传成功后通过 HEAD 请求验证 OSS 文件真实存在
      */
     async function uploadAssets(apiBase, apiToken, assets) {
       var results = []
@@ -1075,86 +533,102 @@
         var asset = assets[i]
         updateProgress(((i + 1) / total) * 100)
 
-        try {
-          // 确定 Content-Type 与请求体
-          var contentType
-          var body
-          var isSvg = /\.svg$/i.test(asset.ossPath)
-          if (asset.type === 'image') {
-            contentType = isSvg ? 'image/svg+xml' : 'image/png'
-            body = new Blob([asset.data], { type: contentType })
-          } else {
-            // 文字/样式/version.json：application/json
-            contentType = 'application/json'
-            body = asset.content
+        if (asset.type === 'text') {
+          // 文字资源：JSON 格式上传
+          try {
+            var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(apiToken ? { 'X-API-Key': apiToken } : {}),
+              },
+              body: JSON.stringify({
+                files: [{
+                  ossPath: asset.ossPath,
+                  type: 'text',
+                  content: asset.content,
+                  encoding: 'utf-8',
+                }],
+              }),
+            })
+            var result = await response.json()
+            if (result.success) {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'text', size: (asset.content || '').length,
+                status: 'uploaded',
+              })
+            } else {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'text', size: 0, status: 'error',
+                error: result.message || '上传失败',
+              })
+            }
+          } catch (err) {
+            var errorMsg = err.name === 'AbortError'
+              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
+              : String(err)
+            results.push({
+              ossPath: asset.ossPath, fileName: asset.fileName,
+              type: 'text', size: 0, status: 'error',
+              error: errorMsg,
+            })
           }
+        } else {
+          // 图片资源：FormData 上传（UI 浏览器环境完全支持）
+          try {
+            var formData = new FormData()
+            var mimeType = asset.ossPath.toLowerCase().endsWith('.svg')
+              ? 'image/svg+xml' : 'image/png'
+            var blob = new Blob([asset.data], { type: mimeType })
+            formData.append('files', blob, asset.fileName)
+            formData.append('ossPath', asset.ossPath)
+            formData.append('type', 'image')
 
-          // 1) 后端签发 OSS 预签名 PUT URL（后端只发证，不接收字节）
-          var presignResponse = await fetchWithTimeout(apiBase + '/api/assets/pre-signed', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(apiToken ? { 'X-API-Key': apiToken } : {}),
-            },
-            body: JSON.stringify({ ossPath: asset.ossPath, contentType: contentType }),
-          })
-          var presignResult = await handleResponse(presignResponse)
-          if (!presignResult.success || !presignResult.data || !presignResult.data.url) {
-            throw new Error('获取预签名 URL 失败: ' + (presignResult.message || '未知错误'))
+            var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
+              method: 'POST',
+              headers: apiToken ? { 'X-API-Key': apiToken } : {},
+              body: formData,
+            })
+            var result = await response.json()
+            if (result.success) {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'image', size: blob.size, status: 'uploaded',
+              })
+            } else {
+              results.push({
+                ossPath: asset.ossPath, fileName: asset.fileName,
+                type: 'image', size: 0, status: 'error',
+                error: result.message || '上传失败',
+              })
+            }
+          } catch (err) {
+            var errorMsg = err.name === 'AbortError'
+              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
+              : String(err)
+            results.push({
+              ossPath: asset.ossPath, fileName: asset.fileName,
+              type: 'image', size: 0, status: 'error',
+              error: errorMsg,
+            })
           }
-
-          // 2) 文件字节直传 OSS（PUT）
-          var putResponse = await fetchWithTimeout(presignResult.data.url, {
-            method: 'PUT',
-            headers: { 'Content-Type': contentType },
-            body: body,
-          }, 60000)
-          if (!putResponse.ok) {
-            var putErrText = await putResponse.text().catch(function() { return '' })
-            throw new Error('OSS 直传失败 HTTP ' + putResponse.status + ': ' + putErrText.substring(0, 120))
-          }
-
-          // PUT 返回 2xx 即文件已落地 OSS
-          results.push({
-            ossPath: asset.ossPath, fileName: asset.fileName,
-            type: asset.type,
-            size: asset.type === 'image' ? body.size : (asset.content || '').length,
-            status: 'verified',
-            ossUrl: presignResult.data.url.split('?')[0],
-          })
-        } catch (err) {
-          var errorCode = inferErrorCode(err)
-          var errorCodeInfo = getErrorCodeInfo(errorCode)
-          var errorMsg = err.name === 'AbortError'
-            ? '[错误码' + ERROR_CODES.REQUEST_TIMEOUT.code + '] 请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
-            : String(err)
-          // 如果错误信息中不包含错误码前缀，则附加
-          if (errorMsg.indexOf('[错误码') === -1) {
-            errorMsg = '[错误码' + errorCode + '] ' + errorCodeInfo.message + ': ' + errorMsg
-          }
-          results.push({
-            ossPath: asset.ossPath, fileName: asset.fileName,
-            type: asset.type, size: 0, status: 'error',
-            error: errorMsg,
-          })
         }
       }
 
       // 汇总结果
       var uploaded = 0
-      var verified = 0
       var skipped = 0
       var errors = []
       for (var k = 0; k < results.length; k++) {
-        if (results[k].status === 'verified') verified++
-        else if (results[k].status === 'uploaded') uploaded++
+        if (results[k].status === 'uploaded') uploaded++
         else if (results[k].status === 'skipped') skipped++
         else if (results[k].status === 'error') errors.push(results[k])
       }
       var summary = {
         total: total,
         uploaded: uploaded,
-        verified: verified,
         skipped: skipped,
         errors: errors.length,
         errorDetails: errors,
@@ -1167,7 +641,7 @@
     function handleSync() {
       if (isSyncing || assets.length === 0) return
 
-      var apiBase = getApiBase()
+      var apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
       var apiToken = document.getElementById('apiToken').value.trim()
 
       // 发送消息到主线程
@@ -1177,434 +651,6 @@
     function handleCancel() {
       parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
     }
-
-    /** 获取当前 API 基地址 */
-    function getApiBase() {
-      var select = document.getElementById('apiBaseSelect')
-      if (select.value === 'custom') {
-        return document.getElementById('apiBaseCustom').value.trim() || 'https://api.classicalab.cn'
-      }
-      return select.value
-    }
-
-    /** API 地址下拉切换：显示/隐藏自定义输入框并保存 */
-    function onApiBaseChange() {
-      var select = document.getElementById('apiBaseSelect')
-      var customInput = document.getElementById('apiBaseCustom')
-      if (select.value === 'custom') {
-        customInput.style.display = 'block'
-        customInput.focus()
-      } else {
-        customInput.style.display = 'none'
-        customInput.value = ''
-      }
-      try { localStorage.setItem('wenyan_plugin_api_base', select.value) } catch(e) {}
-    }
-
-    /** 保存同步令牌到 localStorage */
-    function saveToken() {
-      try {
-        var token = document.getElementById('apiToken').value
-        localStorage.setItem('wenyan_plugin_api_token', token)
-      } catch(e) {}
-    }
-
-    /** 从 localStorage 加载已保存的配置 */
-    function loadSavedConfig() {
-      try {
-        var savedApiBase = localStorage.getItem('wenyan_plugin_api_base')
-        if (savedApiBase) {
-          var select = document.getElementById('apiBaseSelect')
-          if (savedApiBase === 'custom') {
-            select.value = 'custom'
-            document.getElementById('apiBaseCustom').style.display = 'block'
-            var savedCustom = localStorage.getItem('wenyan_plugin_api_base_custom')
-            if (savedCustom) document.getElementById('apiBaseCustom').value = savedCustom
-          } else {
-            // 检查保存的值是否在下拉选项中
-            var optionExists = Array.from(select.options).some(function(opt) {
-              return opt.value === savedApiBase
-            })
-            if (optionExists) {
-              select.value = savedApiBase
-            }
-          }
-        }
-        var savedToken = localStorage.getItem('wenyan_plugin_api_token')
-        if (savedToken) {
-          document.getElementById('apiToken').value = savedToken
-        }
-      } catch(e) {}
-    }
-
-    /** 获取版本信息（判断哪些资源已上传） */
-    function fetchVersionInfo() {
-      try {
-        var apiBase = getApiBase()
-        return fetchWithTimeout(apiBase + '/api/assets/version', { method: 'GET' }, 10000)
-          .then(function(response) {
-            if (!response.ok) throw new Error('HTTP ' + response.status)
-            return response.json()
-          })
-          .then(function(data) {
-            if (data.success && data.data) {
-              versionData = data.data
-            }
-            versionDataReady = true
-            return versionData
-          })
-          .catch(function(err) {
-            console.log('[文言文同步] 获取版本信息失败，所有资源将显示为"新增":', err.message)
-            versionData = { assets: {} }
-            versionDataReady = true
-            return versionData
-          })
-      } catch(e) {
-        versionData = { assets: {} }
-        versionDataReady = true
-        return Promise.resolve(versionData)
-      }
-    }
-
-    /** 对比资源与版本数据，修正状态：已上传的标记为"未变" */
-    function compareAssetsWithVersion(assets, versionData) {
-      if (!versionData || !versionData.assets) return assets
-      return assets.map(function(asset) {
-        if (versionData.assets[asset.ossPath]) {
-          return { ...asset, status: 'unchanged' }
-        }
-        return asset
-      })
-    }
-
-    /** 处理重试：重新上传失败资源 */
-    function handleRetry() {
-      if (failedAssets.length === 0) return
-
-      var apiBase = getApiBase()
-      var apiToken = document.getElementById('apiToken').value.trim()
-
-      // 禁用重试按钮防止重复点击
-      var retryBtn = document.getElementById('retryBtn')
-      if (retryBtn) retryBtn.disabled = true
-
-      // 隐藏摘要，重新进入上传流程
-      document.getElementById('summary').style.display = 'none'
-      document.getElementById('actions').style.display = 'none'
-      document.getElementById('progressBar').style.display = 'block'
-
-      updateStatus(failedAssets.length, '正在重试...')
-
-      // 发送重试消息到主线程
-      parent.postMessage({
-        pluginMessage: {
-          type: 'retry',
-          assets: failedAssets,
-          apiBase: apiBase,
-          apiToken: apiToken,
-        }
-      }, '*')
-    }
-
-    // 加载已保存的配置
-    loadSavedConfig()
-
-    // 启动后台获取版本信息（用于"新增"标签判断）
-    versionDataPromise = fetchVersionInfo()
-
-    // ============ Tab 切换逻辑 ============
-    var currentTab = 'sync'
-
-    /** 切换 Tab */
-    function switchTab(tabName) {
-      currentTab = tabName
-      var syncTab = document.getElementById('tabSync')
-      var invTab = document.getElementById('tabInventory')
-      var syncContent = document.getElementById('tabSyncContent')
-      var invContent = document.getElementById('tabInventoryContent')
-
-      if (tabName === 'sync') {
-        syncTab.classList.add('active')
-        invTab.classList.remove('active')
-        syncContent.classList.add('active')
-        invContent.classList.remove('active')
-      } else {
-        invTab.classList.add('active')
-        syncTab.classList.remove('active')
-        invContent.classList.add('active')
-        syncContent.classList.remove('active')
-        // 切换到资源清单 Tab 时自动加载
-        loadInventory()
-      }
-    }
-
-    /** 获取资源清单 API 地址 */
-    function getInventoryApiBase() {
-      var select = document.getElementById('invApiBaseSelect')
-      return select.value
-    }
-
-    /** 清单 API 地址切换 */
-    function onInvApiBaseChange() {
-      try { localStorage.setItem('wenyan_plugin_inv_api_base', document.getElementById('invApiBaseSelect').value) } catch(e) {}
-    }
-
-    /** 初始化清单 Tab 的 API 地址（与同步 Tab 联动） */
-    function initInventoryApiBase() {
-      try {
-        var saved = localStorage.getItem('wenyan_plugin_inv_api_base')
-        if (saved) {
-          document.getElementById('invApiBaseSelect').value = saved
-        } else {
-          // 默认跟随同步 Tab 的设置
-          var syncBase = document.getElementById('apiBaseSelect').value
-          document.getElementById('invApiBaseSelect').value = syncBase.startsWith('http') ? syncBase : 'https://api.classicalab.cn'
-        }
-      } catch(e) {}
-    }
-
-    // ============ 资源清单逻辑 ============
-
-    /** 格式化文件大小 */
-    function formatSize(bytes) {
-      if (!bytes) return '-'
-      if (bytes < 1024) return bytes + ' B'
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-      return (bytes / 1024 / 1024).toFixed(1) + ' MB'
-    }
-
-    /** 渲染单个资源表格行 */
-    function renderTableRow(entry) {
-      var typeBadge = '<span class="type-badge ' + entry.type + '">' + (entry.type_label || entry.type) + '</span>'
-      var timeCell = '<span class="col-time">' + (entry.updated_at || '-') + '</span>'
-      var sizeCell = '<span class="col-size">' + formatSize(entry.size) + '</span>'
-      return '<tr>' +
-        '<td class="col-type">' + typeBadge + '</td>' +
-        '<td title="' + escapeHtml(entry.oss_path) + '">' + escapeHtml(entry.oss_path) + '</td>' +
-        sizeCell +
-        timeCell +
-      '</tr>'
-    }
-
-    /** 渲染资源分组表格 */
-    function renderResourceTable(title, resources) {
-      if (!resources || resources.length === 0) return ''
-      var html = '<div class="inventory-subsection">' +
-        '<div class="inventory-subsection-title">' + escapeHtml(title) +
-        '<span class="badge">' + resources.length + ' 项</span></div>' +
-        '<table class="inventory-table">' +
-        '<thead><tr>' +
-        '<th class="col-type">类型</th>' +
-        '<th>OSS 路径</th>' +
-        '<th class="col-size">大小</th>' +
-        '<th class="col-time">最近更新</th>' +
-        '</tr></thead>' +
-        '<tbody>'
-      for (var i = 0; i < resources.length; i++) {
-        html += renderTableRow(resources[i])
-      }
-      html += '</tbody></table></div>'
-      return html
-    }
-
-    /** 渲染 WEN 资源清单 */
-    function renderWenSection(wenItem) {
-      var html = '<div class="inventory-section">' +
-        '<div class="inventory-wen-row" onclick="toggleWen(\'' + wenItem.wen_id + '\')">' +
-        '<div class="inventory-section-title">' +
-        '<span>' + escapeHtml(wenItem.wen_id) + ' · ' + escapeHtml(wenItem.title) + '</span>' +
-        '<span class="badge">' +
-        '🖼 ' + countWenImages(wenItem) + ' 图' +
-        ' · 🎨 ' + countWenStyles(wenItem) + ' 样式' +
-        ' · 📝 ' + (wenItem.texts ? wenItem.texts.length : 0) + ' 文字' +
-        '</span>' +
-        '</div>' +
-        '</div>' +
-        '<div id="wen-' + wenItem.wen_id + '" class="inventory-wen-content">'
-
-      // Screen 资源
-      if (wenItem.screens && wenItem.screens.length > 0) {
-        for (var s = 0; s < wenItem.screens.length; s++) {
-          var screen = wenItem.screens[s]
-          var screenTitle = screen.screen_label || screen.screen_type
-          if (screen.images && screen.images.length > 0) {
-            html += renderResourceTable(screenTitle + ' · 图片', screen.images)
-          }
-          if (screen.styles && screen.styles.length > 0) {
-            html += renderResourceTable(screenTitle + ' · 样式', screen.styles)
-          }
-        }
-      }
-
-      // 文化卡片
-      if (wenItem.culture_cards && wenItem.culture_cards.length > 0) {
-        html += renderResourceTable('文化卡片', wenItem.culture_cards)
-      }
-
-      // 其他图片
-      if (wenItem.other_images && wenItem.other_images.length > 0) {
-        html += renderResourceTable('其他图片', wenItem.other_images)
-      }
-
-      // 独立样式
-      if (wenItem.styles && wenItem.styles.length > 0) {
-        html += renderResourceTable('样式', wenItem.styles)
-      }
-
-      // 文字资源
-      if (wenItem.texts && wenItem.texts.length > 0) {
-        html += renderResourceTable('文字资源', wenItem.texts)
-      }
-
-      // 无资源
-      var hasContent = (wenItem.screens && wenItem.screens.length > 0) ||
-        (wenItem.culture_cards && wenItem.culture_cards.length > 0) ||
-        (wenItem.other_images && wenItem.other_images.length > 0) ||
-        (wenItem.styles && wenItem.styles.length > 0) ||
-        (wenItem.texts && wenItem.texts.length > 0)
-
-      if (!hasContent) {
-        html += '<div style="padding:8px;color:var(--figma-color-text-tertiary,#666);font-size:11px">暂无资源</div>'
-      }
-
-      html += '</div></div>'
-      return html
-    }
-
-    /** 统计 WEN 图片数量 */
-    function countWenImages(wenItem) {
-      var count = 0
-      if (wenItem.screens) {
-        for (var i = 0; i < wenItem.screens.length; i++) {
-          count += (wenItem.screens[i].images ? wenItem.screens[i].images.length : 0)
-        }
-      }
-      count += (wenItem.culture_cards ? wenItem.culture_cards.length : 0)
-      count += (wenItem.other_images ? wenItem.other_images.length : 0)
-      return count
-    }
-
-    /** 统计 WEN 样式数量 */
-    function countWenStyles(wenItem) {
-      var count = 0
-      if (wenItem.screens) {
-        for (var i = 0; i < wenItem.screens.length; i++) {
-          count += (wenItem.screens[i].styles ? wenItem.screens[i].styles.length : 0)
-        }
-      }
-      count += (wenItem.styles ? wenItem.styles.length : 0)
-      return count
-    }
-
-    /** 切换 WEN 展开/收起 */
-    function toggleWen(wenId) {
-      var content = document.getElementById('wen-' + wenId)
-      if (content) {
-        content.classList.toggle('expanded')
-      }
-    }
-
-    /** 渲染完整资源清单 */
-    function renderInventory(inventory) {
-      var container = document.getElementById('inventoryContainer')
-      var header = document.getElementById('inventoryHeader')
-
-      // 显示头部信息
-      header.style.display = 'flex'
-      document.getElementById('invTotalCount').textContent = (inventory.meta && inventory.meta.total_assets) || 0
-      document.getElementById('invLastSync').textContent = '最后同步: ' + ((inventory.meta && inventory.meta.last_sync_at) || '-')
-
-      var html = ''
-
-      // ============ 通用资源 ============
-      if (inventory.general) {
-        html += '<div class="inventory-section">' +
-          '<div class="inventory-section-title">' +
-          '<span>📦 通用资源</span>' +
-          '<span class="badge">' +
-          ((inventory.general.styles ? inventory.general.styles.length : 0) +
-           (inventory.general.images ? inventory.general.images.length : 0) +
-           (inventory.general.texts ? inventory.general.texts.length : 0)) +
-          ' 项</span>' +
-          '</div>'
-
-        if (inventory.general.styles && inventory.general.styles.length > 0) {
-          html += renderResourceTable('样式', inventory.general.styles)
-        }
-        if (inventory.general.images && inventory.general.images.length > 0) {
-          html += renderResourceTable('图片', inventory.general.images)
-        }
-        if (inventory.general.texts && inventory.general.texts.length > 0) {
-          html += renderResourceTable('文字', inventory.general.texts)
-        }
-
-        var generalTotal = (inventory.general.styles ? inventory.general.styles.length : 0) +
-          (inventory.general.images ? inventory.general.images.length : 0) +
-          (inventory.general.texts ? inventory.general.texts.length : 0)
-        if (generalTotal === 0) {
-          html += '<div style="padding:8px;color:var(--figma-color-text-tertiary,#666);font-size:11px">暂无通用资源</div>'
-        }
-        html += '</div>'
-      }
-
-      // ============ WEN 资源列表 ============
-      if (inventory.wen_list && inventory.wen_list.length > 0) {
-        html += '<div class="inventory-section">' +
-          '<div class="inventory-section-title">' +
-          '<span>📚 课文资源 (WEN_01 ~ WEN_37)</span>' +
-          '<span class="badge">' + inventory.wen_list.length + ' 篇</span>' +
-          '</div>'
-
-        for (var w = 0; w < inventory.wen_list.length; w++) {
-          html += renderWenSection(inventory.wen_list[w])
-        }
-        html += '</div>'
-      }
-
-      if (!html) {
-        html = '<div class="empty-state"><div class="icon">📋</div><div class="message">暂无资源</div></div>'
-      }
-
-      container.innerHTML = html
-    }
-
-    /** 加载资源清单 */
-    function loadInventory() {
-      var apiBase = getInventoryApiBase()
-      var container = document.getElementById('inventoryContainer')
-      container.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><div class="message">加载中...</div></div>'
-
-      fetchWithTimeout(apiBase + '/api/assets/inventory', { method: 'GET' }, 15000)
-        .then(function(response) {
-          if (!response.ok) throw new Error('HTTP ' + response.status)
-          return response.json()
-        })
-        .then(function(data) {
-          if (data.success && data.data) {
-            renderInventory(data.data)
-          } else {
-            throw new Error('返回数据格式错误')
-          }
-        })
-        .catch(function(err) {
-          console.error('[文言文同步] 加载资源清单失败:', err)
-          renderCopyableError(container, '加载资源清单', err)
-          document.getElementById('inventoryHeader').style.display = 'none'
-        })
-    }
-
-    /** 上传完成后刷新资源清单（如果当前在清单 Tab） */
-    function refreshInventoryAfterUpload() {
-      if (currentTab === 'inventory') {
-        loadInventory()
-      } else {
-        // 提示用户可以切换查看
-        console.log('[文言文同步] 上传完成，切换到「资源清单」Tab 查看更新')
-      }
-    }
-
-    // 初始化清单 API 地址
-    initInventoryApiBase()
 
     // 通知主线程 UI 已就绪
     parent.postMessage({ pluginMessage: { type: 'ui-ready' } }, '*')
