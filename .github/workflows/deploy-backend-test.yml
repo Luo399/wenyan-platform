@@ -102,7 +102,17 @@ jobs:
             fi
             rm -f backend/.env.bak
 
-            echo "OSS_PUBLIC_URL=https://wenyan-test-online.oss-cn-guangzhou.aliyuncs.com" >> backend/.env
+            # OSS 上传配置：复用测试前端桶 OSS_TEST_BUCKET（wenyan-test-online, cn-guangzhou）。
+            # 后端作为 Figma 插件上传中转，资源直接进测试前端桶，前端经 test.classicalab.cn 读取。
+            if [ -n "${{ secrets.OSS_TEST_BUCKET }}" ]; then
+              echo "OSS_PUBLIC_URL=https://${{ secrets.OSS_TEST_BUCKET }}.oss-cn-guangzhou.aliyuncs.com" >> backend/.env
+              echo "ALIYUN_OSS_BUCKET=${{ secrets.OSS_TEST_BUCKET }}" >> backend/.env
+              echo "ALIYUN_OSS_REGION=oss-cn-guangzhou" >> backend/.env
+              echo "ALIYUN_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}" >> backend/.env
+              echo "ALIYUN_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}" >> backend/.env
+            else
+              echo "WARNING: OSS_TEST_BUCKET not set, assets upload will fallback to local backend/data"
+            fi
 
             echo "=== [3/5] Install Docker if not present ==="
             if ! command -v docker &>/dev/null; then
