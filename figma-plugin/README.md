@@ -76,7 +76,12 @@ figma-plugin/
 在插件 UI 中配置：
 
 - **API 地址**：后端服务地址（默认 `https://api.classicalab.cn`）
-- **同步令牌**：`ASSET_SYNC_TOKEN`，用于接口鉴权
+- **同步令牌**：`ASSET_SYNC_TOKEN`，作为 `X-API-Key` 请求头，用于后端资源上传接口鉴权（等同插件内的验证码）
+
+> **令牌职责区分（勿混用）**
+> - `ASSET_SYNC_TOKEN`：后端 `/api/assets/upload` 的 `X-API-Key` 鉴权令牌，由后端 `.env` 注入，随 `pm2 reload` 生效。**在插件 UI 中填写**，等同"验证码"。
+> - `ASSET_SYNC_REPO_TOKEN`：GitHub Actions 用于操作 `Luo399/wenyan-asset-sync` 仓库的 PAT（需 `repo` + `PR` 权限）。**仅供 CI 使用，不在插件 UI 中填写**。
+> - 两者职责独立，改动一边不影响另一边。
 
 ## 关键注意事项
 

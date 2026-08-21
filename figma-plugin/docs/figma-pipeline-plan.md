@@ -309,7 +309,9 @@ Frame 名去掉前缀「文字资源_」 → 剩余部分即相对路径（不�
 补充说明：
 
 - **请求体白名单**：上传接口只接受 `{ files: [{ ossPath, type, content, encoding }] }` 字段，其余字段丢弃。
-- **令牌管理**：`ASSET_SYNC_TOKEN` 通过 GitHub Secrets 注入服务器 `.env`，不进入 git；令牌泄漏后可在服务器 `.env` 更换并 `pm2 reload` 生效。
+- **令牌管理**：
+  - `ASSET_SYNC_TOKEN`（上传鉴权）：插件上传的 `X-API-Key` 验证码，通过 GitHub Secrets 注入服务器 `.env`，不进入 git；泄漏后可改服务器 `.env` 并 `pm2 reload` 生效。
+  - `ASSET_SYNC_REPO_TOKEN`（仓库操作）：GitHub Actions 操作 `Luo399/wenyan-asset-sync` 仓库的 PAT（需 `repo` + `PR` 权限），仅用于插件代码自动同步，独立于上传鉴权令牌。
 - **版本戳**：每次成功上传后 `version.json` 的 `lastSyncAt` 更新，前端基于时间戳刷新 CDN/浏览器缓存。
 
 ### 8.4 前端展示链路（版本戳缓存刷新）
