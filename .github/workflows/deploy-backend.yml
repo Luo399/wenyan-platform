@@ -88,22 +88,26 @@ jobs:
 
             echo "=== [3/5] Release port 3000 (生产回归 PM2) ==="
             # 项目约定：生产后端使用 PM2，Docker 为历史残留。
-            # 逐一清除可能占用 3000 端口的残留，确保 PM2 新进程能干净绑定 3000。
-            # 1) 移除任何发布 3000 端口的 Docker 容器（不限容器名，兜底历史 docker 残留）
-            docker ps -a --format '{{.ID}} {{.Ports}}' 2>/dev/null | grep ':3000->' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
-            docker compose down 2>/dev/null || true
-            # 2) 通过 fuser / ss 定位并结束占用 3000 的宿主机进程（旧 PM2 或其它进程）
-            if command -v fuser &>/dev/null; then
-              fuser -k 3000/tcp 2>/dev/null || true
-            fi
-            if command -v ss &>/dev/null; then
-              PID=$(ss -ltnpH 2>/dev/null | grep ':3000' | grep -oP 'pid=\K[0-9]+' | head -1 || true)
-              if [ -n "$PID" ]; then kill -9 "$PID" 2>/dev/null || true; fi
-            fi
-            sleep 2
+            # 目标：确保 3000 在 PM2 启动前彻底空闲，杜绝 EADDRINUSE 导致的 crash-loop。
+            # 1) 停掉并删除旧的 wenyan-backend 进程，避免旧进程 crash-loop 干扰新进程绑定
+            pm2 delete wenyan-backend >/dev/null 2>&1 || true
+            pm2 flush wenyan-backend >/dev/null 2>&1 || true
+            # 2) 清除所有发布 3000 端口的 Docker 容器（不限名称）并 down compose
+            docker ps -a --format '{{.ID}} {{.Ports}}' 2>/dev/null | grep '3000' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
+            docker compose down >/dev/null 2>&1 || true
+            # 3) 反复清空宿主机上占用 3000 的进程（fuser + ss 兜底，覆盖 docker-proxy 被 docker 重新拉起的情况）
+            for i in 1 2 3; do
+              command -v fuser >/dev/null 2>&1 && fuser -k 3000/tcp >/dev/null 2>&1 || true
+              if command -v ss >/dev/null 2>&1; then
+                for PID in $(ss -ltnpH 2>/dev/null | grep -oP ':(3000)\s.*pid=\K[0-9]+' | sort -u); do
+                  kill -9 "$PID" >/dev/null 2>&1 || true
+                done
+              fi
+              sleep 2
+            done
             mkdir -p backend/database backend/data backend/logs
 
-            echo "=== [4/5] Install deps and restart via PM2 ==="
+            echo "=== [4/5] Install deps and fresh start via PM2 ==="
             cd "$PROD_PATH/backend"
             # 必须从 backend 目录启动，dotenv 依赖当前目录查找 .env
             # 服务器残留的 node_modules（rc/glob 等旧包）与当前 Node 版本不兼容，
@@ -111,7 +115,9 @@ jobs:
             # 这里先清空再全新安装（项目约定禁 npm ci，lock 文件不同步）。
             rm -rf node_modules
             npm install --production
-            pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-backend
+            # 全新启动（而非 reload）：旧进程已删，干净进程绑定 3000，避免 EADDRINUSE 遗留
+            pm2 start server.js --name wenyan-backend 2>/dev/null || pm2 restart wenyan-backend --update-env
+            sleep 5
             cd "$PROD_PATH"
 
             echo "=== [5/5] Health check (with retry) ==="
