@@ -138,6 +138,7 @@ Page 1
 |------|------|
 | **标题栏** | 显示插件名称和简要说明 |
 | **API 地址** | 后端 API 地址（默认 `https://api.classicalab.cn`） |
+| **同步令牌** | `ASSET_SYNC_TOKEN`（可选），作为 `X-API-Key` 请求头；不填时走免令牌通道 |
 | **状态栏** | 显示扫描结果数量和当前状态 |
 | **资源列表** | 列出所有扫描到的资源，显示文件名、路径和变更状态 |
 | **操作按钮** | "开始同步" 和 "取消" 按钮 |
@@ -217,6 +218,10 @@ type: image
   }]
 }
 ```
+
+> **上传鉴权令牌**
+> 插件上传调用 `/api/assets/upload` 时，需携带请求头 `X-API-Key: <ASSET_SYNC_TOKEN>`。该令牌等同"验证码"，在插件 UI 中填写，由后端 `.env` 注入即可生效。
+> 注意：GitHub Actions 操作 `wenyan-asset-sync` 仓库所使用的是另一独立的 `ASSET_SYNC_REPO_TOKEN`（PAT），两者不可混用，且后者无需在插件中填写。
 
 ---
 
