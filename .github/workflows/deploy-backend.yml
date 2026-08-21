@@ -120,8 +120,8 @@ jobs:
             RETRY_DELAY=10
             for ((i=1; i<=MAX_RETRIES; i++)); do
               echo "Attempt $i/$MAX_RETRIES to check health..."
-              RESP=$(curl -s http://127.0.0.1:3000/api/health 2>/dev/null)
-              if echo "$RESP" | grep -q '"success":true'; then
+              # 放在 if 条件内：避免 set -e 在 curl 连接失败（如端口刚释放/进程仍在起）时直接中断脚本
+              if RESP=$(curl -s http://127.0.0.1:3000/api/health 2>/dev/null) && echo "$RESP" | grep -q '"success":true'; then
                 HEALTH_OK=true
                 echo "=== Health check passed ==="
                 break
@@ -147,8 +147,7 @@ jobs:
                 pm2 restart wenyan-backend --update-env
                 for ((i=1; i<=MAX_RETRIES; i++)); do
                   echo "Recovery attempt $i/$MAX_RETRIES to check health..."
-                  RESP=$(curl -s http://127.0.0.1:3000/api/health 2>/dev/null)
-                  if echo "$RESP" | grep -q '"success":true'; then
+                  if RESP=$(curl -s http://127.0.0.1:3000/api/health 2>/dev/null) && echo "$RESP" | grep -q '"success":true'; then
                     HEALTH_OK=true
                     echo "=== Database recovery successful ==="
                     break
