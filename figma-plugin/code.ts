@@ -56,6 +56,8 @@ async function main() {
   const allAssets: AssetItem[] = []
 
   // 1. 扫描 Export Assets Frame
+  // 固定命名：顶层 Frame "Export Assets" 为图片资源容器。
+  // Fixed NAME: the top-level Frame "Export Assets" is the image container.
   logDebug('查找 Export Assets Frame...')
   const exportAssetsFrame = page.findOne(
     (node) => node.type === 'FRAME' && node.name === 'Export Assets',
@@ -71,6 +73,8 @@ async function main() {
   }
 
   // 2. 扫描 文字资源_ Frame
+  // 前缀固定: "文字资源_" 的顶层 Frame 为文字资源容器（导出为 JSON）。
+  // Fixed PREFIX: top-level Frames starting with "文字资源_" are text containers (exported as JSON).
   logDebug('查找文字资源 Frame...')
   const textFrames = page.findAll(
     (node) => node.type === 'FRAME' && node.name.startsWith('文字资源_'),

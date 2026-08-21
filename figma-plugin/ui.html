@@ -535,6 +535,7 @@
 
         if (asset.type === 'text') {
           // 文字资源：JSON 格式上传
+          // Text asset: uploaded as JSON. Key/field names come from Figma layer names.
           try {
             var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
               method: 'POST',
@@ -577,6 +578,7 @@
           }
         } else {
           // 图片资源：FormData 上传（UI 浏览器环境完全支持）
+          // IMAGE asset: upload via FormData/Blob (UI thread). fileName = Figma layer name.
           try {
             var formData = new FormData()
             var mimeType = asset.ossPath.toLowerCase().endsWith('.svg')

@@ -90,13 +90,17 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
 
 /**
  * 扫描 Export Assets Frame 下的图片资源
- * 子 Frame 名称 = OSS 路径，图层名称 = 文件名
+ * Scan image assets under the "Export Assets" Frame.
  *
- * 过滤规则：
- *   - 只处理 FRAME 子节点（作为 OSS 目录）
- *   - 隐藏图层跳过
+ * 命名映射 / NAMING MAP:
+ *   Export Assets 直接子 Frame 名  = OSS 目录      (child Frame name = OSS directory)
+ *   目录内图层名                    = 文件名         (layer name = filename, must include ext)
+ *
+ * 过滤规则 / FILTER RULES:
+ *   - 只处理 FRAME 子节点（作为 OSS 目录）/ only FRAME children act as OSS directories
+ *   - 隐藏图层跳过 / hidden layers skipped
  *   - 只处理可导出的图层类型（RECTANGLE/ELLIPSE/VECTOR/IMAGE/INSTANCE/COMPONENT/FRAME/GROUP）
- *   - 图层名必须包含合法图片扩展名
+ *   - 图层名必须包含合法图片扩展名 / layer name must include a valid image extension
  */
 export function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
   const assets: AssetItem[] = []
@@ -116,6 +120,7 @@ export function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
     }
 
     // 子 Frame 名称作为 OSS 路径（去掉末尾斜杠）
+    // Child Frame NAME = OSS DIR. Defines the prefix for every file inside this dir.
     const ossPath = child.name.replace(/\/$/, '')
     const subChildrenCount = child.children?.length || 0
     logDebug(`  [${i + 1}/${totalChildren}] 处理目录 "${child.name}" → OSS "${ossPath}" (${subChildrenCount} 个子节点)`)
@@ -144,6 +149,7 @@ export function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
       }
 
       // 文件名 = 图层名（必须包含扩展名）
+      // FILENAME = LAYER NAME (extension required, e.g. home_bg.png).
       const fileName = leaf.name
       if (!IMAGE_EXT_RE.test(fileName)) {
         logDebug(`    → [跳过] 无有效图片扩展名: "${leaf.name}"`)
@@ -173,24 +179,34 @@ export function scanExportAssetsFrame(frame: FrameNode): AssetItem[] {
 
 /**
  * 解析文字资源 Frame 的目标 OSS 路径
+ * Resolve the target OSS path for a text-resource Frame name.
  *
- * 新命名（推荐）：Frame 名 = 相对路径，如 文字资源_culture_cards_WEN_01
- *   → data/culture_cards/WEN_01.json
- * 旧命名（兼容）：文字资源_论语·学而篇
- *   → data/texts/文字资源_论语·学而篇.json
+ * 命名两种形态 / TWO NAMING FORMS:
+ *   新命名（推荐）/ NEW (recommended): Frame 名含 "/" = 相对路径，如 文字资源_culture_cards_WEN_01
+ *     → data/culture_cards/WEN_01.json
+ *   旧命名（兼容）/ LEGACY (compat): 文字资源_论语·学而篇（不含 "/"）
+ *     → data/texts/文字资源_论语·学而篇.json
  */
 export function resolveTextOssPath(frameName: string): string {
   const rest = frameName.replace(/^文字资源_/, '').replace(/\/+$/, '')
   if (rest.includes('/')) {
     // 新命名：去掉前缀后的剩余部分即相对目录，拼接为 data/{相对路径}.json
+    // NEW: strip prefix; the remainder (containing '/') is the relative dir → data/{rel}.json
     return `data/${rest}.json`
   }
   // 旧命名兼容：保持 data/texts/ 目录结构
+  // LEGACY: keep legacy data/texts/ layout
   return `data/texts/${frameName}.json`
 }
 
 /**
  * 扫描文字资源 Frame 下的文本节点
+ * Scan TEXT nodes inside a "文字资源_*" Frame.
+ *
+ * 命名映射 / NAMING MAP:
+ *   Frame 名        = 目标 JSON 路径（见 resolveTextOssPath）
+ *   TEXT 节点名     = JSON 字段 key   (TEXT node name = JSON key)
+ *   子 Frame 名     = JSON 子对象 key  (nested child FRAME name = nested object key)
  * Frame 命名格式：文字资源_{名称}（如 文字资源_论语·学而篇）
  * 子节点命名格式：{field_name}（如 knowledge_text, card_name）
  * 子 Frame 命名格式：{group_name}，其下 TEXT 节点作为嵌套字段
