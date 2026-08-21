@@ -86,14 +86,19 @@ jobs:
 
             echo "OSS_PUBLIC_URL=https://wenyan-online.oss-cn-guangzhou.aliyuncs.com" >> backend/.env
 
-            echo "=== [3/5] Remove stale Docker container (生产回归 PM2) ==="
+            echo "=== [3/5] Release port 3000 (生产回归 PM2) ==="
             # 项目约定：生产后端使用 PM2，Docker 为历史残留。
-            # 残留容器（如 wenyan-backend）会占用 3000 端口，导致 PM2 启动 bind 失败，必须先清除。
-            docker rm -f wenyan-backend 2>/dev/null || true
+            # 逐一清除可能占用 3000 端口的残留，确保 PM2 新进程能干净绑定 3000。
+            # 1) 移除任何发布 3000 端口的 Docker 容器（不限容器名，兜底历史 docker 残留）
+            docker ps -a --format '{{.ID}} {{.Ports}}' 2>/dev/null | grep ':3000->' | awk '{print $1}' | xargs --no-run-if-empty docker rm -f
             docker compose down 2>/dev/null || true
-            # 再兜底释放 3000 端口占用（可能是旧的 PM2 进程或其宿主机进程）
+            # 2) 通过 fuser / ss 定位并结束占用 3000 的宿主机进程（旧 PM2 或其它进程）
             if command -v fuser &>/dev/null; then
               fuser -k 3000/tcp 2>/dev/null || true
+            fi
+            if command -v ss &>/dev/null; then
+              PID=$(ss -ltnpH 2>/dev/null | grep ':3000' | grep -oP 'pid=\K[0-9]+' | head -1 || true)
+              if [ -n "$PID" ]; then kill -9 "$PID" 2>/dev/null || true; fi
             fi
             sleep 2
             mkdir -p backend/database backend/data backend/logs
@@ -115,7 +120,8 @@ jobs:
             RETRY_DELAY=10
             for ((i=1; i<=MAX_RETRIES; i++)); do
               echo "Attempt $i/$MAX_RETRIES to check health..."
-              if curl -s http://127.0.0.1:3000/api/health 2>/dev/null; then
+              RESP=$(curl -s http://127.0.0.1:3000/api/health 2>/dev/null)
+              if echo "$RESP" | grep -q '"success":true'; then
                 HEALTH_OK=true
                 echo "=== Health check passed ==="
                 break
@@ -141,7 +147,8 @@ jobs:
                 pm2 restart wenyan-backend --update-env
                 for ((i=1; i<=MAX_RETRIES; i++)); do
                   echo "Recovery attempt $i/$MAX_RETRIES to check health..."
-                  if curl -s http://127.0.0.1:3000/api/health 2>/dev/null; then
+                  RESP=$(curl -s http://127.0.0.1:3000/api/health 2>/dev/null)
+                  if echo "$RESP" | grep -q '"success":true'; then
                     HEALTH_OK=true
                     echo "=== Database recovery successful ==="
                     break
