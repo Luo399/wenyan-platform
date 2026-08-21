@@ -71,6 +71,39 @@
     .status-bar .status-text {
       color: var(--figma-color-text-secondary, #888);
     }
+    .validation-summary {
+      margin-bottom: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    .validation-summary.success {
+      background: rgba(52, 199, 89, 0.1);
+      border: 1px solid rgba(52, 199, 89, 0.3);
+      color: #34c759;
+    }
+    .validation-summary.warning {
+      background: rgba(255, 204, 0, 0.1);
+      border: 1px solid rgba(255, 204, 0, 0.3);
+      color: #ffcc00;
+    }
+    .validation-summary.error {
+      background: rgba(255, 59, 48, 0.1);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+      color: #ff3b30;
+    }
+    .validation-summary h3 {
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .validation-summary ul {
+      margin-left: 16px;
+      margin-bottom: 0;
+    }
+    .validation-summary li {
+      margin-bottom: 4px;
+    }
     .assets-list {
       max-height: 280px;
       overflow-y: auto;
@@ -100,24 +133,30 @@
     .asset-item:hover {
       background: var(--figma-color-bg-tertiary, #333);
     }
+    .asset-item.error {
+      border-left: 3px solid #ff3b30;
+    }
+    .asset-item.warning {
+      border-left: 3px solid #ffcc00;
+    }
+    .asset-item.success {
+      border-left: 3px solid #34c759;
+    }
     .asset-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
-      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: bold;
     }
     .asset-icon.image {
-      background: var(--figma-color-bg-brand-tertiary, #1a3a5c);
-      color: var(--figma-color-text-brand, #18a0fb);
+      background: #007aff;
     }
     .asset-icon.text {
-      background: var(--figma-color-bg-warning-tertiary, #3a2a1a);
-      color: var(--figma-color-text-warning, #f5a623);
+      background: #34c759;
     }
     .asset-info {
       flex: 1;
@@ -125,14 +164,15 @@
     }
     .asset-name {
       font-size: 12px;
-      color: var(--figma-color-text, #eee);
+      color: var(--figma-color-text, #ccc);
+      margin-bottom: 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .asset-path {
       font-size: 11px;
-      color: var(--figma-color-text-secondary, #666);
+      color: var(--figma-color-text-secondary, #888);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -140,520 +180,525 @@
     .asset-status {
       font-size: 11px;
       padding: 2px 6px;
-      border-radius: 3px;
-      flex-shrink: 0;
+      border-radius: 10px;
+      font-weight: 500;
     }
-    .asset-status.new {
-      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
-      color: var(--figma-color-text-success, #4caf50);
+    .asset-status.valid {
+      background: rgba(52, 199, 89, 0.2);
+      color: #34c759;
     }
-    .asset-status.changed {
-      background: var(--figma-color-bg-warning-tertiary, #3a3a1a);
-      color: var(--figma-color-text-warning, #f5a623);
+    .asset-status.invalid {
+      background: rgba(255, 59, 48, 0.2);
+      color: #ff3b30;
     }
-    .asset-status.unchanged {
-      background: var(--figma-color-bg-tertiary, #2a2a2a);
-      color: var(--figma-color-text-tertiary, #666);
+    .asset-status.warning {
+      background: rgba(255, 204, 0, 0.2);
+      color: #ffcc00;
     }
-    .asset-status.uploaded {
-      background: var(--figma-color-bg-success-tertiary, #1a3a1a);
-      color: var(--figma-color-text-success, #4caf50);
+    .stats-section {
+      margin-bottom: 12px;
+      padding: 12px;
+      background: var(--figma-color-bg-secondary, #2a2a2a);
+      border-radius: 6px;
     }
-    .asset-status.error {
-      background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
-      color: var(--figma-color-text-danger, #f44336);
+    .stats-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--figma-color-text, #ccc);
     }
-    .asset-size {
-      font-size: 11px;
-      color: var(--figma-color-text-secondary, #666);
-      flex-shrink: 0;
-      margin-left: 4px;
-    }
-    .actions {
-      display: flex;
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
-    button {
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--figma-color-text-secondary, #888);
+    }
+    .stat-value {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--figma-color-text-brand, #18a0fb);
+    }
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .button {
       flex: 1;
       padding: 10px 16px;
       border: none;
       border-radius: 6px;
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
+      outline: none;
     }
-    button:hover {
-      opacity: 0.9;
-    }
-    button:disabled {
-      opacity: 0.4;
+    .button:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
     }
-    .btn-primary {
-      background: var(--figma-color-bg-brand, #18a0fb);
-      color: var(--figma-color-text-onbrand, #fff);
+    .button-primary {
+      background: var(--figma-color-brand, #18a0fb);
+      color: white;
     }
-    .btn-primary:hover:not(:disabled) {
-      background: var(--figma-color-bg-brand-hover, #0e8cd9);
+    .button-primary:hover:not(:disabled) {
+      background: var(--figma-color-brand-hover, #1689ef);
     }
-    .btn-secondary {
-      background: var(--figma-color-bg-secondary, #333);
+    .button-secondary {
+      background: var(--figma-color-bg-tertiary, #333);
       color: var(--figma-color-text, #ccc);
     }
-    .btn-secondary:hover {
-      background: var(--figma-color-bg-tertiary, #444);
+    .button-secondary:hover:not(:disabled) {
+      background: var(--figma-color-border, #444);
     }
-    .btn-danger {
-      background: var(--figma-color-bg-danger, #f44336);
-      color: var(--figma-color-text-onbrand, #fff);
+    .button-danger {
+      background: #ff3b30;
+      color: white;
     }
-    .summary {
-      margin-top: 12px;
+    .button-danger:hover:not(:disabled) {
+      background: #ff2d28;
+    }
+    .hidden {
+      display: none;
+    }
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: var(--figma-color-text-secondary, #888);
+    }
+    .loading::after {
+      content: '';
+      width: 16px;
+      height: 16px;
+      margin-left: 8px;
+      border: 2px solid var(--figma-color-border, #555);
+      border-top-color: var(--figma-color-brand, #18a0fb);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .error-message {
+      background: rgba(255, 59, 48, 0.1);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+      color: #ff3b30;
       padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .help-section {
       background: var(--figma-color-bg-secondary, #2a2a2a);
       border-radius: 6px;
-      font-size: 12px;
-      line-height: 1.8;
-    }
-    .summary .success { color: var(--figma-color-text-success, #4caf50); }
-    .summary .warning { color: var(--figma-color-text-warning, #f5a623); }
-    .summary .error-text { color: var(--figma-color-text-danger, #f44336); }
-    .summary-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 2px 0;
-    }
-    .progress-bar {
-      height: 4px;
-      background: var(--figma-color-bg-tertiary, #333);
-      border-radius: 2px;
-      margin: 8px 0;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--figma-color-bg-brand, #18a0fb);
-      border-radius: 2px;
-      transition: width 0.3s ease;
-      width: 0%;
-    }
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--figma-color-text-tertiary, #666);
-    }
-    .empty-state .icon {
-      font-size: 40px;
+      padding: 12px;
       margin-bottom: 12px;
+      font-size: 12px;
+      line-height: 1.4;
     }
-    .empty-state .message {
+    .help-section h3 {
+      margin-bottom: 8px;
       font-size: 13px;
-      line-height: 1.6;
+      font-weight: 600;
     }
-    .error-detail {
-      margin-top: 8px;
-      padding: 8px;
-      background: var(--figma-color-bg-danger-tertiary, #3a1a1a);
-      border-radius: 4px;
-      font-size: 11px;
-      color: var(--figma-color-text-danger, #f44336);
-      max-height: 80px;
-      overflow-y: auto;
+    .help-section ul {
+      margin-left: 16px;
+      margin-bottom: 0;
+    }
+    .help-section li {
+      margin-bottom: 4px;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>文言文资源同步</h1>
-    <p>扫描当前文件中的 Export Assets 和 文字资源_ Frame，按 Frame 命名规则同步到 OSS</p>
+    <p>扫描 Figma 文件中的图片和文字资源，同步到云端</p>
   </div>
 
+  <!-- 配置区域 -->
   <div class="config-row">
     <label>API 地址：</label>
-    <input type="text" id="apiBase" value="https://api.classicalab.cn" placeholder="后端 API 地址" />
+    <input type="text" id="api-base" placeholder="https://api.classicalab.cn" />
   </div>
 
-  <div class="config-row">
-    <label>同步令牌：</label>
-    <input type="password" id="apiToken" placeholder="ASSET_SYNC_TOKEN（可选，未配置时走免令牌通道）" />
+  <!-- 验证结果摘要 -->
+  <div id="validation-summary" class="validation-summary hidden">
+    <h3>资源验证结果</h3>
+    <div id="validation-content"></div>
   </div>
 
-  <div id="statusBar" class="status-bar">
-    <span class="status-text">扫描中...</span>
-    <span class="count">0 个资源</span>
-  </div>
-
-  <div id="progressBar" class="progress-bar" style="display:none">
-    <div id="progressFill" class="progress-fill"></div>
-  </div>
-
-  <div id="assetsContainer" class="assets-list">
-    <div class="empty-state">
-      <div class="icon">🔍</div>
-      <div class="message">正在扫描当前文件中的资源...</div>
+  <!-- 统计信息 -->
+  <div id="stats-section" class="stats-section hidden">
+    <div class="stats-title">资源统计</div>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-label">总资源数</span>
+        <span id="stat-total" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">图片资源</span>
+        <span id="stat-images" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">文字资源</span>
+        <span id="stat-texts" class="stat-value">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">有效资源</span>
+        <span id="stat-valid" class="stat-value">0</span>
+      </div>
     </div>
   </div>
 
-  <div id="actions" class="actions" style="display:none">
-    <button id="syncBtn" class="btn-primary" onclick="handleSync()">开始同步</button>
-    <button class="btn-secondary" onclick="handleCancel()">取消</button>
+  <!-- 资源列表 -->
+  <div id="loading" class="loading">正在扫描资源...</div>
+  <div id="assets-container" class="hidden">
+    <div class="status-bar">
+      <span class="status-text">发现 <span id="asset-count" class="count">0</span> 个资源</span>
+      <span id="validation-status" class="status-text"></span>
+    </div>
+    <div id="assets-list" class="assets-list"></div>
   </div>
 
-  <div id="summary" class="summary" style="display:none"></div>
+  <!-- 错误消息 -->
+  <div id="error-message" class="error-message hidden"></div>
+
+  <!-- 帮助信息 -->
+  <div id="help-section" class="help-section hidden">
+    <h3>使用说明</h3>
+    <ul>
+      <li>确保 Figma 文件中有 <strong>Export Assets</strong>（图片资源）或 <strong>文字资源_</strong> Frame</li>
+      <li>Export Assets 下的子 Frame 名称 = OSS 路径</li>
+      <li>图层名称 = 文件名（必须包含扩展名）</li>
+      <li>文字资源 Frame 下的 TEXT 节点 = JSON 字段</li>
+    </ul>
+    <h3>常见问题</h3>
+    <ul>
+      <li><strong>未找到资源：</strong>检查 Frame 命名是否正确</li>
+      <li><strong>导出失败：</strong>检查节点是否被锁定或隐藏</li>
+      <li><strong>上传失败：</strong>检查网络连接和 API 配置</li>
+      <li><strong>验证错误：</strong>检查文件名格式和特殊字符</li>
+    </ul>
+  </div>
+
+  <!-- 按钮组 -->
+  <div class="button-group">
+    <button id="scan-btn" class="button button-primary">开始扫描</button>
+    <button id="sync-btn" class="button button-secondary hidden">开始同步</button>
+    <button id="help-btn" class="button button-secondary">帮助</button>
+    <button id="cancel-btn" class="button button-danger hidden">取消</button>
+  </div>
 
   <script>
-    // 网络请求超时时间（毫秒）
-    var FETCH_TIMEOUT_MS = 30000
+    // 状态管理
+    let currentAssets = [];
+    let currentValidation = null;
+    let currentStats = null;
 
-    var assets = []
-    var isSyncing = false
+    // DOM 元素
+    const elements = {
+      apiBase: document.getElementById('api-base'),
+      validationSummary: document.getElementById('validation-summary'),
+      validationContent: document.getElementById('validation-content'),
+      statsSection: document.getElementById('stats-section'),
+      loading: document.getElementById('loading'),
+      assetsContainer: document.getElementById('assets-container'),
+      errorMessage: document.getElementById('error-message'),
+      helpSection: document.getElementById('help-section'),
+      assetsList: document.getElementById('assets-list'),
+      assetCount: document.getElementById('asset-count'),
+      validationStatus: document.getElementById('validation-status'),
+      scanBtn: document.getElementById('scan-btn'),
+      syncBtn: document.getElementById('sync-btn'),
+      helpBtn: document.getElementById('help-btn'),
+      cancelBtn: document.getElementById('cancel-btn'),
+      statTotal: document.getElementById('stat-total'),
+      statImages: document.getElementById('stat-images'),
+      statTexts: document.getElementById('stat-texts'),
+      statValid: document.getElementById('stat-valid'),
+    };
 
-    // 接收来自主线程的消息（使用 onmessage 而非 window.onmessage，符合官方规范）
-    onmessage = function(event) {
-      var msg = event.data.pluginMessage || event.data
+    // 初始化
+    function init() {
+      // 设置默认 API 地址
+      elements.apiBase.value = 'https://api.classicalab.cn';
+      
+      // 绑定事件
+      elements.scanBtn.addEventListener('click', startScan);
+      elements.syncBtn.addEventListener('click', startSync);
+      elements.helpBtn.addEventListener('click', toggleHelp);
+      elements.cancelBtn.addEventListener('click', cancel);
+      
+      // 监听来自插件主线程的消息
+      window.onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (msg) {
+          handleMessage(msg);
+        }
+      };
+    }
 
+    // 处理来自插件的消息
+    function handleMessage(msg) {
       switch (msg.type) {
         case 'scan-result':
-          assets = msg.assets
-          renderAssets(msg.assets)
-          updateStatus(msg.assets.length)
-          document.getElementById('actions').style.display = 'flex'
-          break
-
-        case 'no-assets':
-          document.getElementById('assetsContainer').innerHTML =
-            '<div class="empty-state">' +
-              '<div class="icon">📭</div>' +
-              '<div class="message">' + escapeHtml(msg.message) + '</div>' +
-            '</div>'
-          updateStatus(0)
-          break
-
-        case 'sync-start':
-          isSyncing = true
-          document.getElementById('syncBtn').disabled = true
-          document.getElementById('progressBar').style.display = 'block'
-          document.getElementById('summary').style.display = 'none'
-          updateStatus(msg.total, '导出中...')
-          break
-
-        case 'sync-data':
-          // 主线程已导出图片节点，UI 线程负责上传（支持 FormData）
-          updateStatus(msg.assets.length, '上传中...')
-          uploadAssets(msg.apiBase, msg.apiToken, msg.assets)
-          break
-
+          showScanResult(msg);
+          break;
         case 'sync-complete':
-          isSyncing = false
-          document.getElementById('syncBtn').disabled = false
-          document.getElementById('progressBar').style.display = 'none'
-          document.getElementById('actions').style.display = 'none'
-          showSummary(msg.summary, msg.results)
-          renderResults(msg.results)
-          break
-
-        case 'sync-error':
-          isSyncing = false
-          document.getElementById('syncBtn').disabled = false
-          document.getElementById('progressBar').style.display = 'none'
-          showError(msg.error)
-          break
-
-        case 'scan-error':
-          document.getElementById('assetsContainer').innerHTML =
-            '<div class="empty-state">' +
-              '<div class="icon">❌</div>' +
-              '<div class="message">扫描失败：' + escapeHtml(msg.error) + '</div>' +
-            '</div>'
-          break
+          showSyncResult(msg);
+          break;
+        case 'error':
+          showError(msg.message);
+          break;
+        case 'no-assets':
+          showNoAssets(msg.message);
+          break;
+        case 'help':
+          showHelp(msg.message);
+          break;
       }
     }
 
-    /** 转义 HTML 特殊字符，防止 XSS */
-    function escapeHtml(str) {
-      if (typeof str !== 'string') return String(str)
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;')
+    // 开始扫描
+    function startScan() {
+      hideError();
+      elements.loading.classList.remove('hidden');
+      elements.assetsContainer.classList.add('hidden');
+      elements.validationSummary.classList.add('hidden');
+      elements.statsSection.classList.add('hidden');
+      
+      // 发送消息给插件主线程
+      parent.postMessage({
+        pluginMessage: {
+          type: 'start-scan',
+          apiBase: elements.apiBase.value,
+        },
+      }, '*');
     }
 
-    function renderAssets(assets) {
-      var container = document.getElementById('assetsContainer')
-      if (assets.length === 0) {
-        container.innerHTML =
-          '<div class="empty-state">' +
-            '<div class="icon">📭</div>' +
-            '<div class="message">未找到可同步的资源</div>' +
-          '</div>'
-        return
-      }
-
-      var html = ''
-      for (var i = 0; i < assets.length; i++) {
-        var asset = assets[i]
-        var icon = asset.type === 'image' ? '🖼' : '📝'
-        var statusClass = asset.status
-        var statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
-
-        html +=
-          '<div class="asset-item">' +
-            '<div class="asset-icon ' + asset.type + '">' + icon + '</div>' +
-            '<div class="asset-info">' +
-              '<div class="asset-name">' + escapeHtml(asset.fileName) + '</div>' +
-              '<div class="asset-path">' + escapeHtml(asset.ossPath) + '</div>' +
-            '</div>' +
-            '<span class="asset-status ' + statusClass + '">' + statusLabel + '</span>' +
-          '</div>'
-      }
-      container.innerHTML = html
+    // 开始同步
+    function startSync() {
+      elements.scanBtn.disabled = true;
+      elements.syncBtn.disabled = true;
+      elements.cancelBtn.classList.remove('hidden');
+      
+      // 发送消息给插件主线程
+      parent.postMessage({
+        pluginMessage: {
+          type: 'start-sync',
+          apiBase: elements.apiBase.value,
+        },
+      }, '*');
     }
 
-    function renderResults(results) {
-      var container = document.getElementById('assetsContainer')
-      var html = ''
-      for (var i = 0; i < results.length; i++) {
-        var result = results[i]
-        var icon = result.type === 'image' ? '🖼' : '📝'
-        var statusClass = result.status
-        var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
-        var sizeStr = result.size > 1024 ? (result.size / 1024).toFixed(1) + ' KB' : result.size + ' B'
-
-        html +=
-          '<div class="asset-item">' +
-            '<div class="asset-icon ' + result.type + '">' + icon + '</div>' +
-            '<div class="asset-info">' +
-              '<div class="asset-name">' + escapeHtml(result.fileName) + '</div>' +
-              '<div class="asset-path">' + escapeHtml(result.ossPath) + '</div>' +
-            '</div>' +
-            '<span class="asset-size">' + sizeStr + '</span>' +
-            '<span class="asset-status ' + statusClass + '">' + statusLabel + '</span>' +
-          '</div>'
-      }
-      container.innerHTML = html
+    // 取消操作
+    function cancel() {
+      parent.postMessage({
+        pluginMessage: { type: 'cancel' },
+      }, '*');
     }
 
-    function updateStatus(count, text) {
-      document.getElementById('statusBar').innerHTML =
-        '<span class="status-text">' + (text || '就绪') + '</span>' +
-        '<span class="count">' + count + ' 个资源</span>'
+    // 显示扫描结果
+    function showScanResult(msg) {
+      currentAssets = msg.assets;
+      currentValidation = msg.validation;
+      currentStats = msg.stats;
+      
+      elements.loading.classList.add('hidden');
+      elements.assetsContainer.classList.remove('hidden');
+      
+      // 更新统计信息
+      elements.assetCount.textContent = currentAssets.length;
+      elements.statTotal.textContent = currentStats.total;
+      elements.statImages.textContent = currentStats.byType.image || 0;
+      elements.statTexts.textContent = currentStats.byType.text || 0;
+      elements.statValid.textContent = currentStats.valid;
+      
+      // 更新验证状态
+      updateValidationStatus();
+      
+      // 显示验证摘要
+      showValidationSummary();
+      
+      // 渲染资源列表
+      renderAssetsList();
+      
+      // 显示同步按钮
+      elements.syncBtn.classList.remove('hidden');
     }
 
-    function showSummary(summary, results) {
-      var summaryEl = document.getElementById('summary')
-      summaryEl.style.display = 'block'
-
-      var html =
-        '<div class="summary-row">' +
-          '<span>总计</span>' +
-          '<span>' + summary.total + ' 个资源</span>' +
-        '</div>' +
-        '<div class="summary-row">' +
-          '<span class="success">✓ 已上传</span>' +
-          '<span class="success">' + summary.uploaded + '</span>' +
-        '</div>'
-
-      if (summary.skipped > 0) {
-        html +=
-          '<div class="summary-row">' +
-            '<span class="warning">− 已跳过（未变更）</span>' +
-            '<span class="warning">' + summary.skipped + '</span>' +
-          '</div>'
+    // 更新验证状态
+    function updateValidationStatus() {
+      if (!currentValidation) return;
+      
+      const { isValid, warnings, errors } = currentValidation;
+      const statusElement = elements.validationStatus;
+      
+      if (errors.length > 0) {
+        statusElement.textContent = `发现 ${errors.length} 个错误`;
+        statusElement.style.color = '#ff3b30';
+      } else if (warnings.length > 0) {
+        statusElement.textContent = `发现 ${warnings.length} 个警告`;
+        statusElement.style.color = '#ffcc00';
+      } else {
+        statusElement.textContent = '所有资源验证通过';
+        statusElement.style.color = '#34c759';
       }
+    }
 
-      if (summary.errors > 0) {
-        html +=
-          '<div class="summary-row">' +
-            '<span class="error-text">✗ 失败</span>' +
-            '<span class="error-text">' + summary.errors + '</span>' +
-          '</div>' +
-          '<div class="error-detail">'
-        for (var j = 0; j < summary.errorDetails.length; j++) {
-          var e = summary.errorDetails[j]
-          html += escapeHtml(e.fileName) + ': ' + escapeHtml(e.error) + '<br>'
+    // 显示验证摘要
+    function showValidationSummary() {
+      if (!currentValidation) return;
+      
+      const { isValid, warnings, errors } = currentValidation;
+      const summaryElement = elements.validationSummary;
+      const contentElement = elements.validationContent;
+      
+      summaryElement.classList.remove('hidden', 'success', 'warning', 'error');
+      
+      if (errors.length > 0) {
+        summaryElement.classList.add('error');
+        summaryElement.querySelector('h3').textContent = '发现错误';
+        contentElement.innerHTML = `
+          <ul>
+            ${errors.map(error => `<li>${error}</li>`).join('')}
+          </ul>
+        `;
+      } else if (warnings.length > 0) {
+        summaryElement.classList.add('warning');
+        summaryElement.querySelector('h3').textContent = '发现警告';
+        contentElement.innerHTML = `
+          <ul>
+            ${warnings.map(warning => `<li>${warning}</li>`).join('')}
+          </ul>
+        `;
+      } else {
+        summaryElement.classList.add('success');
+        summaryElement.querySelector('h3').textContent = '验证通过';
+        contentElement.innerHTML = '<p>所有资源格式正确，可以同步到云端。</p>';
+      }
+    }
+
+    // 渲染资源列表
+    function renderAssetsList() {
+      const listElement = elements.assetsList;
+      listElement.innerHTML = '';
+      
+      currentAssets.forEach(asset => {
+        const assetElement = createAssetElement(asset);
+        listElement.appendChild(assetElement);
+      });
+    }
+
+    // 创建资源元素
+    function createAssetElement(asset) {
+      const div = document.createElement('div');
+      div.className = `asset-item ${asset.validation?.status || 'success'}`;
+      
+      const iconClass = asset.type === 'image' ? 'image' : 'text';
+      const statusClass = asset.validation?.isValid ? 'valid' : 'invalid';
+      const statusText = asset.validation?.isValid ? '有效' : '无效';
+      
+      div.innerHTML = `
+        <div class="asset-icon ${iconClass}">${asset.type === 'image' ? '图' : '文'}</div>
+        <div class="asset-info">
+          <div class="asset-name">${asset.fileName}</div>
+          <div class="asset-path">${asset.ossPath}</div>
+        </div>
+        <div class="asset-status ${statusClass}">${statusText}</div>
+      `;
+      
+      // 点击显示详细信息
+      div.addEventListener('click', () => showAssetDetails(asset));
+      
+      return div;
+    }
+
+    // 显示资源详情
+    function showAssetDetails(asset) {
+      const details = [
+        `文件名: ${asset.fileName}`,
+        `OSS路径: ${asset.ossPath}`,
+        `类型: ${asset.type}`,
+        `节点ID: ${asset.nodeId}`,
+        `状态: ${asset.status}`,
+      ];
+      
+      if (asset.validation) {
+        details.push(`验证: ${asset.validation.isValid ? '通过' : '失败'}`);
+        if (asset.validation.warnings.length > 0) {
+          details.push(`警告: ${asset.validation.warnings.join(', ')}`);
         }
-        html += '</div>'
-      }
-
-      summaryEl.innerHTML = html
-    }
-
-    function showError(error) {
-      var summaryEl = document.getElementById('summary')
-      summaryEl.style.display = 'block'
-      summaryEl.innerHTML =
-        '<div class="summary-row">' +
-          '<span class="error-text">❌ 同步失败</span>' +
-        '</div>' +
-        '<div class="error-detail">' + escapeHtml(error) + '</div>'
-    }
-
-    function updateProgress(percent) {
-      document.getElementById('progressFill').style.width = Math.min(percent, 100) + '%'
-    }
-
-    /**
-     * 带超时的 fetch 请求
-     * 使用 AbortController 实现超时取消
-     */
-    function fetchWithTimeout(url, options, timeoutMs) {
-      var controller = new AbortController()
-      var timer = setTimeout(function() {
-        controller.abort()
-      }, timeoutMs || FETCH_TIMEOUT_MS)
-
-      return fetch(url, {
-        ...options,
-        signal: controller.signal,
-      }).then(function(response) {
-        clearTimeout(timer)
-        return response
-      }).catch(function(err) {
-        clearTimeout(timer)
-        throw err
-      })
-    }
-
-    /**
-     * UI 线程上传资源（浏览器环境完全支持 FormData / Blob / AbortController）
-     *
-     * 架构说明：
-     *   - 主线程（code.ts）负责 Figma 节点导出，数据通过 postMessage 传递
-     *   - UI 线程（本函数）负责网络请求，支持 FormData 上传图片
-     *   - 上传完成后通过 parent.postMessage 将结果传回主线程
-     */
-    async function uploadAssets(apiBase, apiToken, assets) {
-      var results = []
-      var total = assets.length
-
-      for (var i = 0; i < total; i++) {
-        var asset = assets[i]
-        updateProgress(((i + 1) / total) * 100)
-
-        if (asset.type === 'text') {
-          // 文字资源：JSON 格式上传
-          try {
-            var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(apiToken ? { 'X-API-Key': apiToken } : {}),
-              },
-              body: JSON.stringify({
-                files: [{
-                  ossPath: asset.ossPath,
-                  type: 'text',
-                  content: asset.content,
-                  encoding: 'utf-8',
-                }],
-              }),
-            })
-            var result = await response.json()
-            if (result.success) {
-              results.push({
-                ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'text', size: (asset.content || '').length,
-                status: 'uploaded',
-              })
-            } else {
-              results.push({
-                ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'text', size: 0, status: 'error',
-                error: result.message || '上传失败',
-              })
-            }
-          } catch (err) {
-            var errorMsg = err.name === 'AbortError'
-              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
-              : String(err)
-            results.push({
-              ossPath: asset.ossPath, fileName: asset.fileName,
-              type: 'text', size: 0, status: 'error',
-              error: errorMsg,
-            })
-          }
-        } else {
-          // 图片资源：FormData 上传（UI 浏览器环境完全支持）
-          try {
-            var formData = new FormData()
-            var mimeType = asset.ossPath.toLowerCase().endsWith('.svg')
-              ? 'image/svg+xml' : 'image/png'
-            var blob = new Blob([asset.data], { type: mimeType })
-            formData.append('files', blob, asset.fileName)
-            formData.append('ossPath', asset.ossPath)
-            formData.append('type', 'image')
-
-            var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
-              method: 'POST',
-              headers: apiToken ? { 'X-API-Key': apiToken } : {},
-              body: formData,
-            })
-            var result = await response.json()
-            if (result.success) {
-              results.push({
-                ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'image', size: blob.size, status: 'uploaded',
-              })
-            } else {
-              results.push({
-                ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'image', size: 0, status: 'error',
-                error: result.message || '上传失败',
-              })
-            }
-          } catch (err) {
-            var errorMsg = err.name === 'AbortError'
-              ? '请求超时（超过 ' + FETCH_TIMEOUT_MS + 'ms）'
-              : String(err)
-            results.push({
-              ossPath: asset.ossPath, fileName: asset.fileName,
-              type: 'image', size: 0, status: 'error',
-              error: errorMsg,
-            })
-          }
+        if (asset.validation.errors.length > 0) {
+          details.push(`错误: ${asset.validation.errors.join(', ')}`);
         }
       }
+      
+      alert(details.join('\n'));
+    }
 
-      // 汇总结果
-      var uploaded = 0
-      var skipped = 0
-      var errors = []
-      for (var k = 0; k < results.length; k++) {
-        if (results[k].status === 'uploaded') uploaded++
-        else if (results[k].status === 'skipped') skipped++
-        else if (results[k].status === 'error') errors.push(results[k])
+    // 显示同步结果
+    function showSyncResult(msg) {
+      const { success, uploaded, skipped, errors } = msg;
+      
+      elements.scanBtn.disabled = false;
+      elements.syncBtn.disabled = false;
+      elements.cancelBtn.classList.add('hidden');
+      
+      if (success) {
+        const message = `同步完成！成功上传 ${uploaded} 个资源，跳过 ${skipped} 个资源。`;
+        if (errors.length > 0) {
+          message += `\n\n${errors.length} 个资源上传失败：\n${errors.join('\n')}`;
+        }
+        alert(message);
+      } else {
+        alert(`同步失败：\n${errors.join('\n')}`);
       }
-      var summary = {
-        total: total,
-        uploaded: uploaded,
-        skipped: skipped,
-        errors: errors.length,
-        errorDetails: errors,
-      }
-
-      // 通过 parent.postMessage 将结果传回主线程（日志记录 + 转发到 UI 显示）
-      parent.postMessage({ pluginMessage: { type: 'sync-done', results: results, summary: summary } }, '*')
     }
 
-    function handleSync() {
-      if (isSyncing || assets.length === 0) return
-
-      var apiBase = document.getElementById('apiBase').value.trim() || 'https://api.classicalab.cn'
-      var apiToken = document.getElementById('apiToken').value.trim()
-
-      // 发送消息到主线程
-      parent.postMessage({ pluginMessage: { type: 'sync', assets: assets, apiBase: apiBase, apiToken: apiToken } }, '*')
+    // 显示错误信息
+    function showError(message) {
+      elements.errorMessage.textContent = message;
+      elements.errorMessage.classList.remove('hidden');
+      elements.loading.classList.add('hidden');
+      elements.assetsContainer.classList.add('hidden');
     }
 
-    function handleCancel() {
-      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
+    // 隐藏错误信息
+    function hideError() {
+      elements.errorMessage.classList.add('hidden');
     }
 
-    // 通知主线程 UI 已就绪
-    parent.postMessage({ pluginMessage: { type: 'ui-ready' } }, '*')
-  </script>
-</body>
-</html>
+    // 显示无资源信息
+    function showNoAssets(message) {
+      elements.loading.classList.add('hidden');
+      elements.errorMessage.textContent = message;
+      elements.errorMessage.classList.remove('hidden');
+    }
+
+    // 显示帮助信息
+    function showHelp(message) {
+      elements.helpSection.classList.remove('hidden');
+      elements.helpSection.querySelector('h3').textContent = message.title;
+      elements.helpSection.querySelector('p').textContent = message.content;
+    }
+
+    // 切换帮助信息
+    function toggleHelp() {
+      elements.helpSection.classList.toggle('hidden');
+    }
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', init);

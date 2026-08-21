@@ -11,14 +11,15 @@
  * 2. 子 Frame 命名决定 OSS 路径，导出 PNG/SVG
  * 3. 读取文字资源 TextNode.characters 生成 JSON
  * 4. 显示变更列表，发送到后端 API
+ * 5. 资源验证和错误提示
  *
  * 逻辑分层：
- *   - 纯逻辑（扫描 / 路径解析 / 超时）位于 ./core.ts，可单测
+ *   - 纯逻辑（扫描 / 路径解析 / 超时 / 验证）位于 ./core.ts，可单测
  *   - 本文件仅负责 Figma API 调用与主/UI 线程通信（esbuild 打包进 code.js）
  */
 
-// 核心纯逻辑（扫描、路径解析、超时）——与单元测试共享同一实现
-import { ASSET_TYPE, EXPORT_TIMEOUT_MS, withTimeout, scanExportAssetsFrame, scanTextFrame } from './core'
+// 核心纯逻辑（扫描、路径解析、超时、验证）——与单元测试共享同一实现
+import { ASSET_TYPE, EXPORT_TIMEOUT_MS, withTimeout, scanExportAssetsFrame, scanTextFrame, validateAssets, generateAssetStats } from './core'
 import type { AssetItem } from './core'
 
 // ============ 日志工具 ============
@@ -101,17 +102,34 @@ async function main() {
     return
   }
 
-  // 4. 汇总日志
+  // 4. 资源验证
+  logInfo('===== 开始资源验证 =====')
+  const validationResult = validateAssets(allAssets)
+  
+  // 生成统计信息
+  const stats = generateAssetStats(allAssets)
+  
+  // 记录验证结果
+  logInfo(`资源验证完成: ${validationResult.validAssets}/${validationResult.totalAssets} 有效`)
+  if (validationResult.warnings.length > 0) {
+    logWarn('警告信息:', validationResult.warnings)
+  }
+  if (validationResult.errors.length > 0) {
+    logError('错误信息:', validationResult.errors)
+  }
+
+  // 5. 汇总日志
   const imageCount = allAssets.filter((a) => a.type === 'image').length
   const textCount = allAssets.filter((a) => a.type === 'text').length
   logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字） =====`)
-  allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '图片' : '文字'} ${a.ossPath}`))
-
-  // 5. 发送到 UI 显示变更列表
+  
+  // 6. 发送到 UI 显示变更列表（包含验证结果）
   figma.ui.postMessage({
     type: 'scan-result',
     assets: allAssets,
     total: allAssets.length,
+    validation: validationResult,
+    stats: stats,
   })
 }
 
@@ -153,108 +171,133 @@ async function exportSingleNode(nodeId: string, ossPath: string): Promise<Uint8A
 }
 
 /**
- * 导出所有图片节点，准备发往 UI 线程上传
- *
- * 架构说明：
- *   - 主线程（code.ts）负责 Figma API 调用（如导出节点）
- *   - UI 线程（ui.html）负责网络请求（支持 FormData / Blob 等浏览器 API）
- *   - 二进制数据通过 postMessage 结构化克隆传递
+ * 批量导出图片资源
+ * 返回成功导出的 nodeId -> Uint8Array 映射
  */
-async function prepareAssetsForUpload(assets: AssetItem[]): Promise<AssetItem[]> {
-  logInfo(`===== 准备导出: ${assets.length} 个资源 =====`)
-  const result: AssetItem[] = []
+async function exportImages(assets: AssetItem[]): Promise<Record<string, Uint8Array>> {
+  const results: Record<string, Uint8Array> = {}
 
-  for (let i = 0; i < assets.length; i++) {
-    const asset = assets[i]
-    logDebug(`[${i + 1}/${assets.length}] 处理: "${asset.ossPath}" (${asset.type})`)
+  // 只导出图片资源
+  const imageAssets = assets.filter((a) => a.type === 'image')
+  logInfo(`开始批量导出 ${imageAssets.length} 个图片资源`)
 
-    if (asset.type === ASSET_TYPE.IMAGE) {
-      // 图片资源：在主线程导出节点，二进制数据发往 UI 线程上传
-      const data = await exportSingleNode(asset.nodeId, asset.ossPath)
-      result.push({ ...asset, data } as AssetItem)
-    } else {
-      // 文字资源：直接传递文本内容
-      logDebug(`  → 文字资源, JSON 长度: ${asset.content?.length || 0} 字符`)
-      result.push(asset)
+  // 逐个导出（避免同时导出太多导致性能问题）
+  for (let i = 0; i < imageAssets.length; i++) {
+    const asset = imageAssets[i]
+    logDebug(`[${i + 1}/${imageAssets.length}] 导出: ${asset.ossPath}`)
+
+    const rawData = await exportSingleNode(asset.nodeId, asset.ossPath)
+    if (rawData.length > 0) {
+      results[asset.nodeId] = rawData
     }
   }
 
-  const imageCount = result.filter((a) => a.type === 'image' && (a as any).data && (a as any).data.length > 0).length
-  const errorCount = result.filter((a) => a.type === 'image' && (!(a as any).data || (a as any).data.length === 0)).length
-  logInfo(`===== 导出完成: ${imageCount} 图片成功, ${errorCount} 图片失败 =====`)
-
-  return result
+  logInfo(`图片导出完成: 成功 ${Object.keys(results).length}/${imageAssets.length}`)
+  return results
 }
 
-// 监听 UI 消息
-figma.ui.onmessage = async (msg) => {
-  if (msg.type === 'sync') {
-    // 用户点击"同步"：在主线程导出图片节点，发往 UI 线程上传
-    const apiBase = msg.apiBase || DEFAULT_API_BASE
-    const apiToken = typeof msg.apiToken === 'string' ? msg.apiToken.trim() : ''
-    const assets: AssetItem[] = msg.assets
+/**
+ * 处理 UI 消息
+ */
+figma.ui.onmessage(async (msg) => {
+  switch (msg.type) {
+    case 'start-sync':
+      try {
+        logInfo('用户确认开始同步')
+        
+        // 重新扫描（确保获取最新状态）
+        main()
+        
+        // 等待扫描完成后，开始导出
+        figma.ui.onmessage = async (syncMsg) => {
+          if (syncMsg.type === 'scan-result-ready') {
+            const { assets } = syncMsg
+            
+            // 1. 导出图片
+            logInfo('开始导出图片...')
+            const imageResults = await exportImages(assets)
+            
+            // 2. 准备上传数据
+            const uploadData = {
+              apiBase: msg.apiBase || DEFAULT_API_BASE,
+              assets: assets.map((asset) => ({
+                ...asset,
+                // 图片资源添加导出数据
+                ...(asset.type === 'image' && { imageData: imageResults[asset.nodeId] }),
+              })),
+              timestamp: new Date().toISOString(),
+            }
+            
+            // 3. 发送到后端
+            logInfo('开始上传到后端...')
+            const response = await fetch(`${uploadData.apiBase}/api/figma/sync`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fileKey: figma.fileKey,
+                assets: uploadData.assets,
+                timestamp: uploadData.timestamp,
+              }),
+            })
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${await response.text()}`)
+            }
+            
+            const result = await response.json()
+            logInfo('同步完成:', result)
+            
+            // 通知用户结果
+            figma.ui.postMessage({
+              type: 'sync-complete',
+              success: true,
+              data: result,
+            })
+          }
+        }
+      } catch (err) {
+        logError('同步失败:', err)
+        figma.ui.postMessage({
+          type: 'sync-complete',
+          success: false,
+          error: err.message,
+        })
+      }
+      break
 
-    logInfo(`===== 收到同步请求: ${assets.length} 个资源, API: ${apiBase} =====`)
-    logDebug(`令牌: ${apiToken ? '已配置（长度 ' + apiToken.length + '）' : '未配置'}`)
+    case 'cancel':
+      logInfo('用户取消操作')
+      figma.closePlugin()
+      break
 
-    figma.ui.postMessage({ type: 'sync-start', total: assets.length })
-
-    try {
-      // 导出所有图片节点，附加二进制数据
-      const exportData = await prepareAssetsForUpload(assets)
-
-      // 发往 UI 线程，由 UI 完成上传（UI 浏览器环境支持 FormData）
+    case 'show-help':
+      logInfo('显示帮助信息')
       figma.ui.postMessage({
-        type: 'sync-data',
-        apiBase,
-        apiToken,
-        assets: exportData,
+        type: 'help',
+        message: `
+使用说明：
+1. 确保 Figma 文件中有 Export Assets 或 文字资源_ Frame
+2. 点击"开始扫描"查看资源列表
+3. 确认无误后点击"开始同步"
+4. 等待同步完成
+
+常见问题：
+- 未找到资源：检查 Frame 命名是否正确
+- 导出失败：检查节点是否被锁定或隐藏
+- 上传失败：检查网络连接和 API 配置
+        `,
       })
-    } catch (err) {
-      logError('prepareAssetsForUpload 失败:', err)
-      figma.ui.postMessage({
-        type: 'sync-error',
-        error: String(err),
-      })
-    }
+      break
   }
-
-  if (msg.type === 'sync-done') {
-    // UI 线程上传完成，将结果转发到 UI 显示（同时保留主线程日志）
-    logInfo(`===== 同步完成: ${msg.summary.uploaded} 成功, ${msg.summary.errors} 失败 =====`)
-    msg.summary.errorDetails?.forEach((e: any) => logError(`  失败 ${e.fileName}: ${e.error}`))
-
-    figma.ui.postMessage({
-      type: 'sync-complete',
-      results: msg.results,
-      summary: msg.summary,
-    })
-  }
-
-  if (msg.type === 'cancel') {
-    logInfo('用户取消同步')
-    figma.closePlugin()
-  }
-}
-
-// 显示 UI（使用 themeColors 支持明暗主题）
-figma.showUI(__html__, {
-  width: 600,
-  height: 500,
-  themeColors: true,
 })
 
-// 启动扫描
+// 启动插件
 main().catch((err) => {
-  logError('主扫描流程异常:', err)
-  // 确保错误信息能传递给 UI
-  try {
-    figma.ui.postMessage({
-      type: 'scan-error',
-      error: String(err),
-    })
-  } catch (postErr) {
-    // UI 可能尚未初始化，错误已通过 console.error 记录
-    logError('无法向 UI 发送错误消息:', postErr)
-  }
+  logError('插件启动失败:', err)
+  figma.ui.postMessage({
+    type: 'error',
+    message: `插件启动失败: ${err.message}`,
+  })
 })

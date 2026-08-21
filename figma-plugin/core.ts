@@ -5,6 +5,7 @@
  *   - 资源扫描（Export Assets → 图片；文字资源_* → JSON）
  *   - OSS 路径解析
  *   - 超时包装器
+ *   - 资源验证
  *
  * 说明：
  *   - code.ts 通过 import 引用本模块（由 esbuild 打包进 code.js）
@@ -54,6 +55,9 @@ const EXPORTABLE_TYPES = [
 // 合法图片扩展名
 const IMAGE_EXT_RE = /\.(png|jpg|jpeg|gif|webp|svg)$/i
 
+// 合法文本字段名（防止特殊字符）
+const TEXT_FIELD_NAME_RE = /^[a-zA-Z0-9_\u4e00-\u9fa5]+$/
+
 // 扫描结果
 export interface AssetItem {
   ossPath: string
@@ -64,6 +68,22 @@ export interface AssetItem {
   content?: string
   // 变更状态
   status: 'new' | 'changed' | 'unchanged'
+  // 验证信息
+  validation?: {
+    isValid: boolean
+    warnings: string[]
+    errors: string[]
+  }
+}
+
+// 资源验证结果
+export interface ValidationResult {
+  isValid: boolean
+  warnings: string[]
+  errors: string[]
+  totalAssets: number
+  validAssets: number
+  invalidAssets: number
 }
 
 /**
@@ -197,44 +217,67 @@ export function resolveTextOssPath(frameName: string): string {
  */
 export function scanTextFrame(frame: FrameNode): AssetItem[] {
   const assets: AssetItem[] = []
-  logDebug(`scanTextFrame: "${frame.name}" (${frame.children?.length || 0} 个子节点)`)
-
-  // 构建 JSON 对象
-  const jsonData: Record<string, any> = {}
+  const totalChildren = frame.children?.length || 0
+  logDebug(`scanTextFrame: Frame "${frame.name}" 共 ${totalChildren} 个子节点`)
 
   if (!frame.children) {
     logWarn(`文字资源 Frame "${frame.name}" 没有子节点`)
     return assets
   }
 
-  for (const child of frame.children) {
-    if (child.type === 'TEXT') {
-      // 直接读取 TextNode.characters
-      const textNode = child as TextNode
-      const fieldName = child.name
-      const textContent = textNode.characters
-      jsonData[fieldName] = textContent
-      logDebug(`  [字段] "${fieldName}" = "${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}" (${textContent.length} 字)`)
-    } else if (child.type === 'FRAME') {
-      // 子 Frame 中的文本节点
-      const subFrame = child as FrameNode
-      logDebug(`  [子组] 发现子 Frame: "${child.name}" (${subFrame.children?.length || 0} 个子节点)`)
-      const subData: Record<string, any> = {}
+  // 收集所有文本数据
+  const jsonData: Record<string, any> = {}
 
-      if (subFrame.children) {
-        for (const subChild of subFrame.children) {
-          if (subChild.type === 'TEXT') {
-            const subText = subChild as TextNode
-            const subFieldName = subChild.name
-            const subTextContent = subText.characters
-            subData[subFieldName] = subTextContent
-            logDebug(`    [子字段] "${subFieldName}" = "${subTextContent.substring(0, 50)}${subTextContent.length > 50 ? '...' : ''}"`)
-          } else {
-            logDebug(`    [跳过] 非 TEXT 子节点: "${subChild.name}" (${subChild.type})`)
+  for (let i = 0; i < frame.children.length; i++) {
+    const child = frame.children[i]
+
+    if (child.type === 'TEXT') {
+      // 直接 TEXT 节点：节点名 = 字段名，内容 = 文本内容
+      const fieldName = child.name
+      const textContent = child.characters
+
+      if (!fieldName || fieldName.trim() === '') {
+        logDebug(`    [跳过] TEXT 节点未命名`)
+        continue
+      }
+
+      if (!textContent || textContent.trim() === '') {
+        logDebug(`    [跳过] TEXT 节点 "${fieldName}" 内容为空`)
+        continue
+      }
+
+      // 验证字段名
+      if (!TEXT_FIELD_NAME_RE.test(fieldName)) {
+        logWarn(`    [警告] TEXT 节点字段名包含特殊字符: "${fieldName}"`)
+      }
+
+      jsonData[fieldName] = textContent
+      logDebug(`    [字段] "${fieldName}" = "${textContent.substring(0, 50)}${textContent.length > 50 ? '...' : ''}"`)
+    } else if (child.type === 'FRAME') {
+      // 子 Frame：遍历其下的 TEXT 节点作为嵌套字段
+      const subData: Record<string, string> = {}
+      const subChildrenCount = child.children?.length || 0
+
+      for (const subChild of child.children || []) {
+        if (subChild.type === 'TEXT') {
+          const subFieldName = subChild.name
+          const subTextContent = subChild.characters
+
+          if (!subFieldName || subFieldName.trim() === '') {
+            logDebug(`      [跳过] 子 TEXT 节点未命名`)
+            continue
           }
+
+          if (!subTextContent || subTextContent.trim() === '') {
+            logDebug(`      [跳过] 子 TEXT 节点 "${subFieldName}" 内容为空`)
+            continue
+          }
+
+          subData[subFieldName] = subTextContent
+          logDebug(`      [子字段] "${subFieldName}" = "${subTextContent.substring(0, 50)}${subTextContent.length > 50 ? '...' : ''}"`)
+        } else {
+          logDebug(`      [跳过] 非 TEXT 子节点: "${subChild.name}" (${subChild.type})`)
         }
-      } else {
-        logDebug(`    [跳过] 子 Frame 为空`)
       }
 
       if (Object.keys(subData).length > 0) {
@@ -268,4 +311,159 @@ export function scanTextFrame(frame: FrameNode): AssetItem[] {
   }
 
   return assets
+}
+
+/**
+ * 验证单个资源项
+ * @param asset 资源项
+ * @returns 验证结果
+ */
+export function validateAsset(asset: AssetItem): AssetItem['validation'] {
+  const validation = {
+    isValid: true,
+    warnings: [] as string[],
+    errors: [] as string[],
+  }
+
+  // 验证 OSS 路径
+  if (!asset.ossPath || asset.ossPath.trim() === '') {
+    validation.isValid = false
+    validation.errors.push('OSS 路径不能为空')
+  }
+
+  // 验证文件名
+  if (!asset.fileName || asset.fileName.trim() === '') {
+    validation.isValid = false
+    validation.errors.push('文件名不能为空')
+  }
+
+  // 图片资源验证
+  if (asset.type === ASSET_TYPE.IMAGE) {
+    // 检查文件名格式
+    if (!IMAGE_EXT_RE.test(asset.fileName)) {
+      validation.isValid = false
+      validation.errors.push(`图片文件名必须包含扩展名 (png, jpg, jpeg, gif, webp, svg): ${asset.fileName}`)
+    }
+
+    // 检查文件名长度
+    if (asset.fileName.length > 255) {
+      validation.warnings.push('文件名过长，可能影响兼容性')
+    }
+
+    // 检查路径中是否包含特殊字符
+    if (/[<>:"|?*]/.test(asset.ossPath)) {
+      validation.isValid = false
+      validation.errors.push('OSS 路径包含非法字符: < > : " | ? *')
+    }
+  }
+
+  // 文本资源验证
+  if (asset.type === ASSET_TYPE.TEXT) {
+    // 检查 JSON 内容
+    if (!asset.content) {
+      validation.isValid = false
+      validation.errors.push('文本资源内容不能为空')
+    } else {
+      try {
+        JSON.parse(asset.content)
+      } catch (e) {
+        validation.isValid = false
+        validation.errors.push(`JSON 格式错误: ${e.message}`)
+      }
+    }
+
+    // 检查文件大小（JSON 应该小于 1MB）
+    if (asset.content && asset.content.length > 1024 * 1024) {
+      validation.warnings.push('JSON 文件过大，建议拆分')
+    }
+  }
+
+  return validation
+}
+
+/**
+ * 批量验证资源
+ * @param assets 资源数组
+ * @returns 验证结果汇总
+ */
+export function validateAssets(assets: AssetItem[]): ValidationResult {
+  const result: ValidationResult = {
+    isValid: true,
+    warnings: [],
+    errors: [],
+    totalAssets: assets.length,
+    validAssets: 0,
+    invalidAssets: 0,
+  }
+
+  const assetValidations = assets.map(asset => ({
+    asset,
+    validation: validateAsset(asset)
+  }))
+
+  assetValidations.forEach(({ asset, validation }) => {
+    if (validation.isValid) {
+      result.validAssets++
+    } else {
+      result.isValid = false
+      result.invalidAssets++
+      result.errors.push(`${asset.ossPath}: ${validation.errors.join(', ')}`)
+    }
+
+    result.warnings.push(...validation.warnings.map(w => `${asset.ossPath}: ${w}`))
+  })
+
+  // 添加汇总信息
+  if (result.totalAssets === 0) {
+    result.isValid = false
+    result.errors.push('未找到任何有效资源')
+  }
+
+  return result
+}
+
+/**
+ * 生成资源统计信息
+ * @param assets 资源数组
+ * @returns 统计信息
+ */
+export function generateAssetStats(assets: AssetItem[]): {
+  total: number
+  byType: Record<string, number>
+  byExtension: Record<string, number>
+  largestFiles: Array<{ name: string; size: number }>
+} {
+  const byType: Record<string, number> = {}
+  const byExtension: Record<string, number> = {}
+  const fileSizes: Array<{ name: string; size: number }> = []
+
+  assets.forEach(asset => {
+    // 按类型统计
+    byType[asset.type] = (byType[asset.type] || 0) + 1
+
+    // 按扩展名统计
+    const ext = asset.fileName.split('.').pop()?.toLowerCase() || 'unknown'
+    byExtension[ext] = (byExtension[ext] || 0) + 1
+
+    // 估算文件大小（文本资源按内容长度，图片资源按固定大小）
+    let size = 0
+    if (asset.type === ASSET_TYPE.TEXT && asset.content) {
+      size = asset.content.length
+    } else if (asset.type === ASSET_TYPE.IMAGE) {
+      // 假设图片平均 100KB
+      size = 100 * 1024
+    }
+    fileSizes.push({ name: asset.fileName, size })
+  })
+
+  // 排序获取最大的文件
+  fileSizes.sort((a, b) => b.size - a.size)
+  const largestFiles = fileSizes.slice(0, 5)
+
+  return {
+    total: assets.length,
+    byType,
+    byExtension,
+    largestFiles,
+  }
 }
