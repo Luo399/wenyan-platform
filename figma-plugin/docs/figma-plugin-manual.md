@@ -97,23 +97,26 @@ Page 1
         └── sub_field_2          ← TEXT 节点
 ```
 
-### 3.4 命名规则速查表
+### 3.4 命名规则速查表（Naming Quick Reference）
 
-| Frame 名称 | 类型 | 导出产物 | OSS 路径示例 |
-|-----------|------|---------|-------------|
-| `Export Assets` | 固定名称，图片容器 | 子 Frame 中的图层导出为 PNG/SVG | 子 Frame 名决定路径 |
-| `images/general/` | 子 Frame | 内部图层导出为图片 | `images/general/home_bg.png` |
-| `images/culture_cards/WEN_01/` | 子 Frame | 内部图层导出为图片 | `images/culture_cards/WEN_01/card_bg.png` |
-| `images/cover/` | 子 Frame | 内部图层导出为图片 | `images/cover/cover_main.png` |
-| `文字资源_论语·学而篇` | 顶层 Frame | 读取 TEXT 节点生成 JSON | `data/texts/文字资源_论语·学而篇.json` |
+> 完整规范见 `naming-convention.md`（美术与前端共同参照的唯一事实源）。
+> Full spec: see `naming-convention.md` (single source of truth for designers & frontend).
 
-### 3.5 图层命名规则
+| Frame 名称 | 类型 | 导出产物 | OSS 路径示例 | English note |
+|-----------|------|---------|-------------|--------------|
+| `Export Assets` | 固定名称，图片容器 | 子 Frame 中的图层导出为 PNG/SVG | 子 Frame 名决定路径 | Fixed image container |
+| `images/general/` | 子 Frame | 内部图层导出为图片 | `images/general/home_bg.png` | Child Frame → OSS dir |
+| `images/culture_cards/WEN_01/` | 子 Frame | 内部图层导出为图片 | `images/culture_cards/WEN_01/card_bg.png` | Child Frame → OSS dir |
+| `images/cover/` | 子 Frame | 内部图层导出为图片 | `images/cover/cover_main.png` | Child Frame → OSS dir |
+| `文字资源_论语·学而篇` | 顶层 Frame | 读取 TEXT 节点生成 JSON | `data/texts/文字资源_论语·学而篇.json` | Fixed text prefix; legacy → `data/texts/` |
 
-- **图片图层**：`{文件名}.{扩展名}`，支持扩展名：`png`、`jpg`、`jpeg`、`gif`、`webp`、`svg`
-- **文字节点**：`{字段名}`，节点的 name 作为 JSON 字段的 key，characters 作为 value
-- **隐藏图层**：`visible = false` 的图层会被自动跳过
-- **不支持的类型**：`TEXT`、`LINE`、`STAR`、`POLYGON` 等非可导出类型会被跳过
-- **无扩展名图层**：图层名不含图片扩展名会被跳过
+### 3.5 图层命名规则（Layer Naming Rules）
+
+- **图片图层**：`{文件名}.{扩展名}`，支持扩展名：`png`、`jpg`、`jpeg`、`gif`、`webp`、`svg` / *Image layer: `{filename}.{ext}`, ext ∈ png/jpg/jpeg/gif/webp/svg*
+- **文字节点**：`{字段名}`，节点的 name 作为 JSON 字段的 key，characters 作为 value / *Text node: `{fieldName}`, name → JSON key, characters → value*
+- **隐藏图层**：`visible = false` 的图层会被自动跳过 / *Hidden layers (`visible=false`) skipped*
+- **不支持的类型**：`TEXT`、`LINE`、`STAR`、`POLYGON` 等非可导出类型会被跳过 / *Non-exportable types (TEXT/LINE/STAR/POLYGON) skipped*
+- **无扩展名图层**：图层名不含图片扩展名会被跳过 / *Layer names without a valid image extension skipped*
 
 ---
 

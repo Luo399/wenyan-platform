@@ -29,14 +29,17 @@
 3. 查看资源列表，点击"开始同步"
 4. 监控上传进度，查看同步结果
 
-### Frame 命名规则
+### Frame 命名规则（Naming Rules）
 
-| Frame 名称 | 说明 | 导出路径 |
-|-----------|------|---------|
-| `Export Assets` | 图片资源容器 | 子 Frame 名即为 OSS 路径 |
-| `Export Assets / images/general/` | 通用图片目录 | `images/general/xxx.png` |
-| `文字资源_xxx` | 文字资源容器 | `data/texts/文字资源_xxx.json` |
-| `文字资源_culture_cards/WEN_01` | 按目录组织 | `data/culture_cards/WEN_01.json` |
+> 完整规范见 `docs/naming-convention.md`（美术与前端共同参照的唯一事实源）。
+> Full spec: see `docs/naming-convention.md` (single source of truth for designers & frontend).
+
+| Frame 名称 | 说明 | 导出路径 | English note |
+|-----------|------|---------|--------------|
+| `Export Assets` | 图片资源容器，名称固定 | 子 Frame 名即为 OSS 路径 | Fixed image container |
+| `Export Assets / images/general/` | 通用图片目录 | `images/general/xxx.png` | Child Frame → OSS dir |
+| `文字资源_xxx` | 文字资源容器，前缀固定 | `data/texts/文字资源_xxx.json` | Fixed text prefix; legacy: `data/texts/` |
+| `文字资源_culture_cards/WEN_01` | 按目录组织（含 `/`） | `data/culture_cards/WEN_01.json` | New format: suffix → relative dir |
 
 ## 开发
 
