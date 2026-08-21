@@ -84,7 +84,17 @@ jobs:
             fi
             rm -f backend/.env.bak
 
-            echo "OSS_PUBLIC_URL=https://wenyan-online.oss-cn-guangzhou.aliyuncs.com" >> backend/.env
+            # OSS 上传配置：复用前端桶 OSS_BUCKET（classic-chinese, cn-zhongwei）。
+            # 后端作为 Figma 插件上传中转，资源直接进前端生产桶，前端经 www.classicalab.cn 读取。
+            if [ -n "${{ secrets.OSS_BUCKET }}" ]; then
+              echo "OSS_PUBLIC_URL=https://${{ secrets.OSS_BUCKET }}.oss-cn-zhongwei.aliyuncs.com" >> backend/.env
+              echo "ALIYUN_OSS_BUCKET=${{ secrets.OSS_BUCKET }}" >> backend/.env
+              echo "ALIYUN_OSS_REGION=oss-cn-zhongwei" >> backend/.env
+              echo "ALIYUN_ACCESS_KEY_ID=${{ secrets.OSS_ACCESS_KEY_ID }}" >> backend/.env
+              echo "ALIYUN_ACCESS_KEY_SECRET=${{ secrets.OSS_ACCESS_KEY_SECRET }}" >> backend/.env
+            else
+              echo "WARNING: OSS_BUCKET not set, assets upload will fallback to local backend/data"
+            fi
 
             echo "=== [3/5] Release port 3000 (生产回归 PM2) ==="
             # 项目约定：生产后端使用 PM2，Docker 为历史残留。
