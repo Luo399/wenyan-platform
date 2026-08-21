@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Luo399/wenyan-asset-sync
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.ASSET_SYNC_TOKEN }}
           path: wenyan-asset-sync
 
       - name: Sync plugin files
@@ -43,14 +43,14 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           path: wenyan-asset-sync
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.ASSET_SYNC_TOKEN }}
           commit-message: 'sync: 从 wenyan-platform 同步 Figma 插件更新'
           committer: GitHub Actions <actions@github.com>
           author: GitHub Actions <actions@github.com>
           title: 'sync: Figma 插件自动同步'
           body: |
             本次同步由 wenyan-platform 仓库的 Figma 插件变更自动触发。
-            # 注意：GH_TOKEN 需要访问 wenyan-asset-sync 仓库的 repo 和 PR 权限。
+            # 注意：ASSET_SYNC_TOKEN 需要访问 wenyan-asset-sync 仓库的 repo 和 PR 权限。
 
             **同步内容：**
             - `code.ts` / `code.js`：插件主逻辑
