@@ -351,7 +351,39 @@ async function getStyleFile(req, res, next) {
  * @param {string|null} lastSyncAt - 最近同步时间戳（version.json 传入；OSS 传入桶内最后修改时间）
  * @returns {object} inventory 结构 { meta, general, wen_list }
  */
-function buildInventory(entryList, lastSyncAt) {
+/**
+ * 从本地 data 目录动态读取课文标题（text_basic_info/WEN_xx.json 的 title 字段）
+ *
+ * 实现"资源 id → 标题"的动态绑定：只要某篇课文被扫描/上传、data 中存在其 JSON，
+ * 即可据此得到标题，无需依赖人工维护的硬编码表。读取失败或文件缺失时返回 null，
+ * 由调用方回退到内置标题表（见 buildInventory 内 POEMS）。
+ *
+ * @param {string} dataBasePath - 后端数据目录（ossConfig.dataBasePath）
+ * @returns {Record<string, string>} 形如 { WEN_06: '诫子书', ... }
+ */
+function loadWenTitles(dataBasePath) {
+  const fs = require('fs')
+  const path = require('path')
+  const titles = {}
+  if (!dataBasePath) return titles
+  for (let i = 1; i <= 37; i++) {
+    const wenId = `WEN_${String(i).padStart(2, '0')}`
+    const filePath = path.join(dataBasePath, 'text_basic_info', `${wenId}.json`)
+    try {
+      if (fs.existsSync(filePath)) {
+        const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+        if (parsed && typeof parsed.title === 'string' && parsed.title) {
+          titles[wenId] = parsed.title
+        }
+      }
+    } catch (e) {
+      // 单篇读取失败不影响整体，回退到内置表
+    }
+  }
+  return titles
+}
+
+function buildInventory(entryList, lastSyncAt, dataBasePath) {
   // 37篇诗文列表
   const POEMS = {
     'WEN_01': '陈涉世家', 'WEN_02': '马说', 'WEN_03': '岳阳楼记', 'WEN_04': '庄子与惠子',
@@ -364,6 +396,9 @@ function buildInventory(entryList, lastSyncAt) {
     'WEN_29': '邹忌讽齐王纳谏', 'WEN_30': '穿井得一人', 'WEN_31': '杞人忧天', 'WEN_32': '愚公移山',
     'WEN_33': '北冥有鱼', 'WEN_34': '咏雪', 'WEN_35': '陈太丘与友期行', 'WEN_36': '狼', 'WEN_37': '活板',
   }
+
+  // 动态标题：优先从 data JSON 读取（资源扫描/上传后即可得到），内置表仅作兜底
+  const wenTitles = loadWenTitles(dataBasePath)
 
   // 资源类型映射
   const TYPE_LABELS = {
@@ -386,7 +421,7 @@ function buildInventory(entryList, lastSyncAt) {
   for (let i = 1; i <= 37; i++) {
     const wenId = `WEN_${String(i).padStart(2, '0')}`
     wenResources[wenId] = {
-      title: POEMS[wenId] || '未知',
+      title: wenTitles[wenId] || POEMS[wenId] || '未知',
       screens: [],       // 按 screen 类型分组的图片
       culture_cards: [], // 文化卡片图片
       other_images: [],  // 其他图片
@@ -544,7 +579,7 @@ async function getInventory(req, res, next) {
     })
     res.json({
       success: true,
-      data: buildInventory(entryList, versionData.lastSyncAt),
+      data: buildInventory(entryList, versionData.lastSyncAt, ossConfig.dataBasePath),
     })
   } catch (err) {
     logger.error('[AssetController] 获取资源清单失败:', err)
@@ -591,7 +626,7 @@ async function getOssList(req, res, next) {
 
     res.json({
       success: true,
-      data: buildInventory(entryList, lastSyncAt),
+      data: buildInventory(entryList, lastSyncAt, ossConfig.dataBasePath),
     })
   } catch (err) {
     logger.error('[AssetController] 获取 OSS 资源清单失败:', err)
