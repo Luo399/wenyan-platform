@@ -217,13 +217,10 @@
       logWarn2("\u672A\u627E\u5230\u6587\u5B57\u8D44\u6E90 Frame\uFF08\u5982\u4E0D\u9700\u8981\u6587\u5B57\u8D44\u6E90\u53EF\u5FFD\u7565\uFF09");
     }
     if (allAssets.length === 0) {
-      logWarn2("\u672A\u627E\u5230\u4EFB\u4F55\u8D44\u6E90\uFF0C\u626B\u63CF\u7ED3\u675F");
-      figma.ui.onmessage = () => {
-        figma.closePlugin();
-      };
+      logWarn2("\u672A\u627E\u5230\u4EFB\u4F55\u8D44\u6E90\uFF0C\u7B49\u5F85\u7528\u6237\u5904\u7406");
       figma.ui.postMessage({
         type: "no-assets",
-        message: "\u672A\u627E\u5230 Export Assets \u6216 \u6587\u5B57\u8D44\u6E90_ Frame\n\u8BF7\u5728\u5F53\u524D\u6587\u4EF6\u4E2D\u521B\u5EFA\u4EE5\u4E0B Frame\uFF1A\n\n1. Export Assets\uFF08\u56FE\u7247\u8D44\u6E90\uFF0C\u5B50 Frame \u540D\u5373 OSS \u8DEF\u5F84\uFF09\n2. \u6587\u5B57\u8D44\u6E90_{\u540D\u79F0}\uFF08\u6587\u5B57\u8D44\u6E90\uFF0C\u5BFC\u51FA\u4E3A JSON\uFF09"
+        message: "\u672A\u627E\u5230 Export Assets \u6216 \u6587\u5B57\u8D44\u6E90_ Frame\n\u8BF7\u786E\u8BA4\uFF1A\n1. \u5F53\u524D\u3010\u9009\u4E2D\u9875\u9762\u3011\u786E\u5B9E\u5305\u542B\u8FD9\u4E24\u4E2A Frame\n2. Export Assets \u540D\u79F0\u5B8C\u5168\u4E00\u81F4\uFF08\u533A\u5206\u5927\u5C0F\u5199\uFF09\n3. \u8D44\u6E90\u547D\u540D\u7B26\u5408 docs/naming-convention.md\n\n\u2460 Export Assets\uFF08\u56FE\u7247\u8D44\u6E90\uFF0C\u5B50 Frame \u540D\u5373 OSS \u8DEF\u5F84\uFF09\n\u2461 \u6587\u5B57\u8D44\u6E90_{\u540D\u79F0}\uFF08\u6587\u5B57\u8D44\u6E90\uFF0C\u5BFC\u51FA\u4E3A JSON\uFF09"
       });
       return;
     }
@@ -314,10 +311,6 @@
         results: msg.results,
         summary: msg.summary
       });
-    }
-    if (msg.type === "cancel") {
-      logInfo2("\u7528\u6237\u53D6\u6D88\u540C\u6B65");
-      figma.closePlugin();
     }
   };
   figma.showUI(__html__, {

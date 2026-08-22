@@ -235,10 +235,56 @@ function getVersionInfo(dataBasePath) {
   return readVersionFile(dataBasePath)
 }
 
+/**
+ * 列出 OSS 桶内的全部对象（真实文件源，用于与 version.json 上传清单做对比排查）
+ *
+ * 说明：与 version.json（上传清单）是不同数据源——本函数直读 OSS 桶实际文件，
+ * 用于排查"显示上传成功、但实际未上传到 OSS"的情况。
+ * ali-oss 单次 list 最多返回 1000 个对象，这里用 continuation-token 分页拉全量。
+ *
+ * @param {object} ossConfig - OSS 配置（需含 accessKeyId/accessKeySecret/bucket/region）
+ * @returns {Promise<Array<{ name: string, size: number, lastModified: string }>>}
+ */
+async function listOssObjects(ossConfig) {
+  if (!ossConfig.bucket) {
+    logger.warn('[AssetService] OSS 未配置 bucket，无法列对象')
+    return []
+  }
+  const OSS = require('ali-oss')
+  const store = new OSS({
+    region: ossConfig.region || 'oss-cn-guangzhou',
+    bucket: ossConfig.bucket,
+    accessKeyId: ossConfig.accessKeyId,
+    accessKeySecret: ossConfig.accessKeySecret,
+    secure: true,
+  })
+
+  const objects = []
+  let continuationToken = undefined
+  do {
+    const query = { 'max-keys': 1000 }
+    if (continuationToken) query['continuation-token'] = continuationToken
+    const result = await store.list(query)
+    const items = result.objects || []
+    for (const obj of items) {
+      objects.push({
+        name: obj.name,
+        size: obj.size,
+        lastModified: obj.lastModified,
+      })
+    }
+    continuationToken = result.nextContinuationToken
+  } while (continuationToken)
+
+  logger.info(`[AssetService] OSS 列对象完成，共 ${objects.length} 个`)
+  return objects
+}
+
 module.exports = {
   computeMd5,
   processFileUpload,
   batchProcessFiles,
+  listOssObjects,
   getVersionInfo,
   readVersionFile,
   writeVersionFile,

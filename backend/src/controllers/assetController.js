@@ -344,204 +344,257 @@ async function getStyleFile(req, res, next) {
 }
 
 /**
+ * 按资源类型和 WEN 分组，构建资源清单（列表结构）
+ *
+ * @param {Array<{ ossPath: string, type: string, size: number, updatedAt: string|null }>} entryList
+ *   资源条目——来自 version.json（上传清单）或 OSS 桶（真实文件）两种数据源均可。
+ * @param {string|null} lastSyncAt - 最近同步时间戳（version.json 传入；OSS 传入桶内最后修改时间）
+ * @returns {object} inventory 结构 { meta, general, wen_list }
+ */
+function buildInventory(entryList, lastSyncAt) {
+  // 37篇诗文列表
+  const POEMS = {
+    'WEN_01': '陈涉世家', 'WEN_02': '马说', 'WEN_03': '岳阳楼记', 'WEN_04': '庄子与惠子',
+    'WEN_05': '论语十二章', 'WEN_06': '诫子书', 'WEN_07': '陋室铭', 'WEN_08': '爱莲说',
+    'WEN_09': '孟子三章', 'WEN_10': '虽有嘉肴', 'WEN_11': '大道之行', 'WEN_12': '鱼我所欲也',
+    'WEN_13': '送东阳马生序', 'WEN_14': '出师表', 'WEN_15': '三峡', 'WEN_16': '答谢中书书',
+    'WEN_17': '记承天寺夜游', 'WEN_18': '与朱元思书', 'WEN_19': '桃花源记', 'WEN_20': '小石潭记',
+    'WEN_21': '核舟记', 'WEN_22': '醉翁亭记', 'WEN_23': '湖心亭看雪', 'WEN_24': '孙权劝学',
+    'WEN_25': '卖油翁', 'WEN_26': '周亚夫军细柳', 'WEN_27': '唐雎不辱使命', 'WEN_28': '曹刿论战',
+    'WEN_29': '邹忌讽齐王纳谏', 'WEN_30': '穿井得一人', 'WEN_31': '杞人忧天', 'WEN_32': '愚公移山',
+    'WEN_33': '北冥有鱼', 'WEN_34': '咏雪', 'WEN_35': '陈太丘与友期行', 'WEN_36': '狼', 'WEN_37': '活板',
+  }
+
+  // 资源类型映射
+  const TYPE_LABELS = {
+    image: '图片',
+    text: '文字',
+    style: '样式',
+  }
+
+  // 按资源分类整理（通用资源）
+  const generalResources = {
+    styles: [],
+    images: [],
+    texts: [],
+  }
+
+  // WEN 资源 { wen_id: { screens: [], culture_cards: [], other: [], styles: [], texts: [] } }
+  const wenResources = {}
+
+  // 初始化 37 个 WEN
+  for (let i = 1; i <= 37; i++) {
+    const wenId = `WEN_${String(i).padStart(2, '0')}`
+    wenResources[wenId] = {
+      title: POEMS[wenId] || '未知',
+      screens: [],       // 按 screen 类型分组的图片
+      culture_cards: [], // 文化卡片图片
+      other_images: [],  // 其他图片
+      styles: [],        // 样式
+      texts: [],         // 文字
+    }
+  }
+
+  // 遍历所有资源条目
+  for (const asset of entryList) {
+    const ossPath = asset.ossPath
+    const infoType = asset.type || 'image'
+    const updatedAt = asset.updatedAt || null
+    const displayTime = updatedAt ? formatTime(updatedAt) : '-'
+
+    const entry = {
+      oss_path: ossPath,
+      type: infoType,
+      type_label: TYPE_LABELS[infoType] || infoType,
+      size: asset.size || 0,
+      md5: '',
+      updated_at: displayTime,
+    }
+
+    // 检查是否属于某个 WEN
+    let matchedWen = null
+    for (const wenId of Object.keys(POEMS)) {
+      if (ossPath.includes(wenId)) {
+        matchedWen = wenId
+        break
+      }
+    }
+
+    if (matchedWen) {
+      const wen = wenResources[matchedWen]
+
+      // 分类
+      if (infoType === 'text' || ossPath.startsWith('data/texts/')) {
+        wen.texts.push(entry)
+      } else if (infoType === 'style' || ossPath.startsWith('styles/')) {
+        // 按 screen 分组
+        const screenMatch = ossPath.match(/styles\/images\/screens\/\w+\/([^/]+)\//)
+        if (screenMatch) {
+          const screenType = screenMatch[1]
+          const existingScreen = wen.screens.find(s => s.screen_type === screenType)
+          if (existingScreen) {
+            existingScreen.styles.push(entry)
+          } else {
+            wen.screens.push({
+              screen_type: screenType,
+              screen_label: getScreenLabel(screenType),
+              images: [],
+              styles: [entry],
+            })
+          }
+        } else {
+          wen.styles.push(entry)
+        }
+      } else if (ossPath.includes('culture_cards')) {
+        wen.culture_cards.push(entry)
+      } else if (ossPath.startsWith('images/screens/')) {
+        // 按 screen 分组
+        const screenMatch = ossPath.match(/images\/screens\/\w+\/([^/]+)\//)
+        if (screenMatch) {
+          const screenType = screenMatch[1]
+          let screenEntry = wen.screens.find(s => s.screen_type === screenType)
+          if (!screenEntry) {
+            screenEntry = {
+              screen_type: screenType,
+              screen_label: getScreenLabel(screenType),
+              images: [],
+              styles: [],
+            }
+            wen.screens.push(screenEntry)
+          }
+          screenEntry.images.push(entry)
+        } else {
+          wen.other_images.push(entry)
+        }
+      } else {
+        wen.other_images.push(entry)
+      }
+    } else {
+      // 通用资源
+      if (infoType === 'text' || ossPath.startsWith('data/texts/')) {
+        generalResources.texts.push(entry)
+      } else if (infoType === 'style' || ossPath.startsWith('styles/')) {
+        generalResources.styles.push(entry)
+      } else {
+        generalResources.images.push(entry)
+      }
+    }
+  }
+
+  // 构建响应
+  const inventory = {
+    meta: {
+      last_sync_at: lastSyncAt ? formatTime(lastSyncAt) : '-',
+      total_assets: entryList.length,
+      general_count: generalResources.styles.length + generalResources.images.length + generalResources.texts.length,
+      wen_count: Object.keys(POEMS).length,
+    },
+    general: {
+      styles: generalResources.styles.sort((a, b) => a.oss_path.localeCompare(b.oss_path)),
+      images: generalResources.images.sort((a, b) => a.oss_path.localeCompare(b.oss_path)),
+      texts: generalResources.texts.sort((a, b) => a.oss_path.localeCompare(b.oss_path)),
+    },
+    wen_list: [],
+  }
+
+  // 构建 WEN 列表
+  for (let i = 1; i <= 37; i++) {
+    const wenId = `WEN_${String(i).padStart(2, '0')}`
+    const wen = wenResources[wenId]
+    const screens = wen.screens.sort((a, b) => {
+      const order = { video: 0, explanation: 1, dialogue: 2, quiz: 3, summary: 4 }
+      return (order[a.screen_type] || 99) - (order[b.screen_type] || 99)
+    })
+
+    inventory.wen_list.push({
+      wen_id: wenId,
+      title: wen.title,
+      screens: screens.map(s => ({
+        screen_type: s.screen_type,
+        screen_label: s.screen_label,
+        image_count: s.images.length,
+        style_count: s.styles.length,
+        images: s.images,
+        styles: s.styles,
+      })),
+      culture_cards: wen.culture_cards,
+      other_images: wen.other_images,
+      styles: wen.styles,
+      texts: wen.texts,
+    })
+  }
+
+  return inventory
+}
+
+/**
  * GET /api/assets/inventory
  * 获取完整资源清单（带最近更新时间）
  *
- * 从 version.json 读取所有资产记录，按资源类型和 WEN 分组，
- * 返回表格化的资源清单，最后一列为最近更新时间。
- * 文件没有修改的跳过（无 updatedAt 的不显示），缺失的填 "-"。
+ * 数据源：version.json（上传清单）——记录"声称已上传"的资源。
  */
 async function getInventory(req, res, next) {
   try {
     const ossConfig = getOssConfig()
     const versionData = assetService.getVersionInfo(ossConfig.dataBasePath)
     const assets = versionData.assets || {}
-    const lastSyncAt = versionData.lastSyncAt
+    const entryList = Object.keys(assets).map((ossPath) => {
+      const info = assets[ossPath]
+      return { ossPath, type: info.type || 'image', size: info.size || 0, updatedAt: info.updatedAt || null }
+    })
+    res.json({
+      success: true,
+      data: buildInventory(entryList, versionData.lastSyncAt),
+    })
+  } catch (err) {
+    logger.error('[AssetController] 获取资源清单失败:', err)
+    next(err)
+  }
+}
 
-    // 37篇诗文列表
-    const POEMS = {
-      'WEN_01': '陈涉世家', 'WEN_02': '马说', 'WEN_03': '岳阳楼记', 'WEN_04': '庄子与惠子',
-      'WEN_05': '论语十二章', 'WEN_06': '诫子书', 'WEN_07': '陋室铭', 'WEN_08': '爱莲说',
-      'WEN_09': '孟子三章', 'WEN_10': '虽有嘉肴', 'WEN_11': '大道之行', 'WEN_12': '鱼我所欲也',
-      'WEN_13': '送东阳马生序', 'WEN_14': '出师表', 'WEN_15': '三峡', 'WEN_16': '答谢中书书',
-      'WEN_17': '记承天寺夜游', 'WEN_18': '与朱元思书', 'WEN_19': '桃花源记', 'WEN_20': '小石潭记',
-      'WEN_21': '核舟记', 'WEN_22': '醉翁亭记', 'WEN_23': '湖心亭看雪', 'WEN_24': '孙权劝学',
-      'WEN_25': '卖油翁', 'WEN_26': '周亚夫军细柳', 'WEN_27': '唐雎不辱使命', 'WEN_28': '曹刿论战',
-      'WEN_29': '邹忌讽齐王纳谏', 'WEN_30': '穿井得一人', 'WEN_31': '杞人忧天', 'WEN_32': '愚公移山',
-      'WEN_33': '北冥有鱼', 'WEN_34': '咏雪', 'WEN_35': '陈太丘与友期行', 'WEN_36': '狼', 'WEN_37': '活板',
-    }
+/**
+ * 根据 OSS 路径推断资源类型（样式/文字/图片/其他）
+ * @param {string} ossPath
+ * @returns {string}
+ */
+function inferAssetType(ossPath) {
+  if (ossPath.startsWith('styles/')) return 'style'
+  if (ossPath.endsWith('.json')) return 'text'
+  if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(ossPath)) return 'image'
+  return '其他'
+}
 
-    // 资源类型映射
-    const TYPE_LABELS = {
-      image: '图片',
-      text: '文字',
-      style: '样式',
-    }
+/**
+ * GET /api/assets/oss-list
+ * 直读 OSS 桶真实文件的资源清单（与上传清单是不同数据源）
+ *
+ * 用途：排查"显示上传成功、但实际未上传到 OSS"的情况——
+ * 此接口列出 OSS 桶里【真实存在】的对象，按 WEN 分组返回。
+ */
+async function getOssList(req, res, next) {
+  try {
+    const ossConfig = getOssConfig()
+    const objects = await assetService.listOssObjects(ossConfig)
 
-    // 通用资源分类
-    const GENERAL_CATEGORIES = {
-      styles: '样式',
-      images: '图片',
-      texts: '文字',
-    }
+    const entryList = objects.map((obj) => ({
+      ossPath: obj.name,
+      type: inferAssetType(obj.name),
+      size: obj.size || 0,
+      updatedAt: obj.lastModified || null,
+    }))
 
-    // 按资源分类整理
-    const generalResources = {
-      styles: [],
-      images: [],
-      texts: [],
-    }
-
-    // WEN 资源 { wen_id: { screens: [], culture_cards: [], other: [], styles: [], texts: [] } }
-    const wenResources = {}
-
-    // 初始化 37 个 WEN
-    for (let i = 1; i <= 37; i++) {
-      const wenId = `WEN_${String(i).padStart(2, '0')}`
-      wenResources[wenId] = {
-        title: POEMS[wenId] || '未知',
-        screens: [],       // 按 screen 类型分组的图片
-        culture_cards: [], // 文化卡片图片
-        other_images: [],  // 其他图片
-        styles: [],        // 样式
-        texts: [],         // 文字
-      }
-    }
-
-    // 遍历所有资产
-    for (const [ossPath, info] of Object.entries(assets)) {
-      // 跳过没有 updatedAt 的文件（未修改过的跳过）
-      const updatedAt = info.updatedAt || null
-      const displayTime = updatedAt ? formatTime(updatedAt) : '-'
-
-      const entry = {
-        oss_path: ossPath,
-        type: info.type || 'image',
-        type_label: TYPE_LABELS[info.type] || info.type,
-        size: info.size || 0,
-        md5: info.md5 || '',
-        updated_at: displayTime,
-      }
-
-      // 检查是否属于某个 WEN
-      let matchedWen = null
-      for (const wenId of Object.keys(POEMS)) {
-        if (ossPath.includes(wenId)) {
-          matchedWen = wenId
-          break
-        }
-      }
-
-      if (matchedWen) {
-        const wen = wenResources[matchedWen]
-
-        // 分类
-        if (info.type === 'text' || ossPath.startsWith('data/texts/')) {
-          wen.texts.push(entry)
-        } else if (info.type === 'style' || ossPath.startsWith('styles/')) {
-          // 按 screen 分组
-          const screenMatch = ossPath.match(/styles\/images\/screens\/\w+\/([^/]+)\//)
-          if (screenMatch) {
-            const screenType = screenMatch[1]
-            const existingScreen = wen.screens.find(s => s.screen_type === screenType)
-            if (existingScreen) {
-              existingScreen.styles.push(entry)
-            } else {
-              wen.screens.push({
-                screen_type: screenType,
-                screen_label: getScreenLabel(screenType),
-                images: [],
-                styles: [entry],
-              })
-            }
-          } else {
-            wen.styles.push(entry)
-          }
-        } else if (ossPath.includes('culture_cards')) {
-          wen.culture_cards.push(entry)
-        } else if (ossPath.startsWith('images/screens/')) {
-          // 按 screen 分组
-          const screenMatch = ossPath.match(/images\/screens\/\w+\/([^/]+)\//)
-          if (screenMatch) {
-            const screenType = screenMatch[1]
-            let screenEntry = wen.screens.find(s => s.screen_type === screenType)
-            if (!screenEntry) {
-              screenEntry = {
-                screen_type: screenType,
-                screen_label: getScreenLabel(screenType),
-                images: [],
-                styles: [],
-              }
-              wen.screens.push(screenEntry)
-            }
-            screenEntry.images.push(entry)
-          } else {
-            wen.other_images.push(entry)
-          }
-        } else {
-          wen.other_images.push(entry)
-        }
-      } else {
-        // 通用资源
-        if (info.type === 'text' || ossPath.startsWith('data/texts/')) {
-          generalResources.texts.push(entry)
-        } else if (info.type === 'style' || ossPath.startsWith('styles/')) {
-          generalResources.styles.push(entry)
-        } else {
-          generalResources.images.push(entry)
-        }
-      }
-    }
-
-    // 构建响应
-    const inventory = {
-      meta: {
-        last_sync_at: lastSyncAt ? formatTime(lastSyncAt) : '-',
-        total_assets: Object.keys(assets).length,
-        general_count: generalResources.styles.length + generalResources.images.length + generalResources.texts.length,
-        wen_count: Object.keys(POEMS).length,
-      },
-      general: {
-        styles: generalResources.styles.sort((a, b) => a.oss_path.localeCompare(b.oss_path)),
-        images: generalResources.images.sort((a, b) => a.oss_path.localeCompare(b.oss_path)),
-        texts: generalResources.texts.sort((a, b) => a.oss_path.localeCompare(b.oss_path)),
-      },
-      wen_list: [],
-    }
-
-    // 构建 WEN 列表
-    for (let i = 1; i <= 37; i++) {
-      const wenId = `WEN_${String(i).padStart(2, '0')}`
-      const wen = wenResources[wenId]
-      const screens = wen.screens.sort((a, b) => {
-        const order = { video: 0, explanation: 1, dialogue: 2, quiz: 3, summary: 4 }
-        return (order[a.screen_type] || 99) - (order[b.screen_type] || 99)
-      })
-
-      inventory.wen_list.push({
-        wen_id: wenId,
-        title: wen.title,
-        screens: screens.map(s => ({
-          screen_type: s.screen_type,
-          screen_label: s.screen_label,
-          image_count: s.images.length,
-          style_count: s.styles.length,
-          images: s.images,
-          styles: s.styles,
-        })),
-        culture_cards: wen.culture_cards,
-        other_images: wen.other_images,
-        styles: wen.styles,
-        texts: wen.texts,
-      })
+    // 最近同步时间 = 桶内最后一个对象的最后修改时间（ISO 字符串可直接比较）
+    let lastSyncAt = null
+    for (const e of entryList) {
+      if (e.updatedAt && (!lastSyncAt || e.updatedAt > lastSyncAt)) lastSyncAt = e.updatedAt
     }
 
     res.json({
       success: true,
-      data: inventory,
+      data: buildInventory(entryList, lastSyncAt),
     })
   } catch (err) {
-    logger.error('[AssetController] 获取资源清单失败:', err)
+    logger.error('[AssetController] 获取 OSS 资源清单失败:', err)
     next(err)
   }
 }

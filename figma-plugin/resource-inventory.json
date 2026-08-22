@@ -1,10 +1,10 @@
 {
   "meta": {
-    "generated_at": "2026-08-19T13:43:04.771Z",
-    "production_last_sync": "2026-08-18T17:45:20.118Z",
+    "generated_at": "2026-08-21T16:00:10.545Z",
+    "production_last_sync": "2026-08-19T13:02:20.389Z",
     "test_last_sync": null,
     "total_wen_count": 37,
-    "total_asset_count": 1841
+    "total_asset_count": 1947
   },
   "general": {
     "styles": {
@@ -92,7 +92,13 @@
       "images/general/btn_submit.png",
       "images/general/btn_next.png",
       "images/general/card_bamboo.png",
-      "images/general/article_bg.png"
+      "images/general/article_bg.png",
+      "images/general/login_bg_02.png",
+      "images/general/login_bg_01.png",
+      "images/general/login_form_box_02.png",
+      "images/general/login_form_box_01.png",
+      "images/general/btn_primary_02.png",
+      "images/general/btn_primary_01.png"
     ],
     "texts": [
       "data/texts/文字资源_卖油翁.json",
@@ -103,9 +109,9 @@
       "data/texts/文字资源_周亚夫军细柳.json",
       "data/texts/文字资源_邹忌讽齐王纳谏.json"
     ],
-    "total_count": 82,
-    "total_size_mb": "85.0 MB",
-    "images_total_size_mb": "83.8 MB",
+    "total_count": 88,
+    "total_size_mb": "65.9 MB",
+    "images_total_size_mb": "64.7 MB",
     "texts_total_size_mb": "0.1 MB"
   },
   "wen_list": [
@@ -4263,32 +4269,122 @@
     {
       "wen_id": "WEN_19",
       "title": "桃花源记",
-      "status": "未配置",
+      "status": "缺数据文件",
       "production": {
-        "total_images": 0,
+        "total_images": 100,
         "total_styles": 0,
-        "total_size_mb": "-",
+        "total_size_mb": "218.3 MB",
         "screens": {
           "video": {
-            "image_count": 0,
+            "image_count": 30,
             "style_exists": false,
-            "total_size_mb": "-",
+            "total_size_mb": "80.8 MB",
             "page_description": "逐句讲解视频页",
-            "resource_list": []
+            "resource_list": [
+              "images/screens/WEN_19/video/article_bg_05.png",
+              "images/screens/WEN_19/video/article_title_WEN_19_05.png",
+              "images/screens/WEN_19/video/btn_next_05.png",
+              "images/screens/WEN_19/video/btn_back_05.png",
+              "images/screens/WEN_19/video/bgm-controller_05.png",
+              "images/screens/WEN_19/video/video_placeholder_05.png",
+              "images/screens/WEN_19/video/article_bg_04.png",
+              "images/screens/WEN_19/video/article_title_WEN_19_04.png",
+              "images/screens/WEN_19/video/bgm-controller_04.png",
+              "images/screens/WEN_19/video/btn_back_04.png",
+              "images/screens/WEN_19/video/btn_next_04.png",
+              "images/screens/WEN_19/video/video_placeholder_04.png",
+              "images/screens/WEN_19/video/article_bg_03.png",
+              "images/screens/WEN_19/video/article_title_WEN_19_03.png",
+              "images/screens/WEN_19/video/btn_next_03.png",
+              "images/screens/WEN_19/video/btn_back_03.png",
+              "images/screens/WEN_19/video/bgm-controller_03.png",
+              "images/screens/WEN_19/video/video_placeholder_03.png",
+              "images/screens/WEN_19/video/article_bg_02.png",
+              "images/screens/WEN_19/video/article_title_WEN_19_02.png",
+              "images/screens/WEN_19/video/btn_next_02.png",
+              "images/screens/WEN_19/video/btn_back_02.png",
+              "images/screens/WEN_19/video/bgm-controller.png",
+              "images/screens/WEN_19/video/video_placeholder_02.png",
+              "images/screens/WEN_19/video/article_bg_01.png",
+              "images/screens/WEN_19/video/video_placeholder_01.png",
+              "images/screens/WEN_19/video/article_title_WEN_19_01.png",
+              "images/screens/WEN_19/video/btn_next_01.png",
+              "images/screens/WEN_19/video/btn_back_01.png",
+              "images/screens/WEN_19/video/bgm-controller_01.png"
+            ]
           },
           "explanation": {
-            "image_count": 0,
+            "image_count": 5,
             "style_exists": false,
-            "total_size_mb": "-",
+            "total_size_mb": "16.1 MB",
             "page_description": "逐句讲解页",
-            "resource_list": []
+            "resource_list": [
+              "images/screens/WEN_19/explanation/bg_explanation_.png",
+              "images/screens/WEN_19/explanation/article_title_WEN_19.png",
+              "images/screens/WEN_19/explanation/btn_next.png",
+              "images/screens/WEN_19/explanation/btn_back.png",
+              "images/screens/WEN_19/explanation/bgm-controller.png"
+            ]
           },
           "dialogue": {
-            "image_count": 0,
+            "image_count": 52,
             "style_exists": false,
-            "total_size_mb": "-",
+            "total_size_mb": "87.7 MB",
             "page_description": "多角色对话页",
-            "resource_list": []
+            "resource_list": [
+              "images/screens/WEN_19/dialogue/bg_well_12.png",
+              "images/screens/WEN_19/dialogue/card_bamboo_12.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_12.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_12.png",
+              "images/screens/WEN_19/dialogue/btn_back_12.png",
+              "images/screens/WEN_19/dialogue/btn_next_12.png",
+              "images/screens/WEN_19/dialogue/bg_well_11.png",
+              "images/screens/WEN_19/dialogue/card_bamboo_11.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_11.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_11.png",
+              "images/screens/WEN_19/dialogue/btn_back_11.png",
+              "images/screens/WEN_19/dialogue/btn_next_11.png",
+              "images/screens/WEN_19/dialogue/card_character_servat_03.png",
+              "images/screens/WEN_19/dialogue/avatar_servant_03.png",
+              "images/screens/WEN_19/dialogue/btn_completed.png",
+              "images/screens/WEN_19/dialogue/bg_well_10.png",
+              "images/screens/WEN_19/dialogue/card_bamboo_10.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_10.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_10.png",
+              "images/screens/WEN_19/dialogue/btn_back_10.png",
+              "images/screens/WEN_19/dialogue/btn_next_10.png",
+              "images/screens/WEN_19/dialogue/card_character_yuan_fang_04.png",
+              "images/screens/WEN_19/dialogue/avatar_yuan_fang_04.png",
+              "images/screens/WEN_19/dialogue/bg_well_09.png",
+              "images/screens/WEN_19/dialogue/card_bamboo_09.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_09.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_09.png",
+              "images/screens/WEN_19/dialogue/btn_back_09.png",
+              "images/screens/WEN_19/dialogue/btn_next_09.png",
+              "images/screens/WEN_19/dialogue/card_character_servant_04.png",
+              "images/screens/WEN_19/dialogue/bg_well_08.png",
+              "images/screens/WEN_19/dialogue/card_bamboo_08.png",
+              "images/screens/WEN_19/dialogue/avatar_servant_04.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_08.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_08.png",
+              "images/screens/WEN_19/dialogue/btn_back_08.png",
+              "images/screens/WEN_19/dialogue/btn_next_08.png",
+              "images/screens/WEN_19/dialogue/avatar_yuan_fang_03.png",
+              "images/screens/WEN_19/dialogue/card_characte_yuan_fang_03.png",
+              "images/screens/WEN_19/dialogue/bg_well_07.png",
+              "images/screens/WEN_19/dialogue/card_bamboo_07.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_07.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_07.png",
+              "images/screens/WEN_19/dialogue/btn_back_07.png",
+              "images/screens/WEN_19/dialogue/btn_next_07.png",
+              "images/screens/WEN_19/dialogue/avatar_servant_01.png",
+              "images/screens/WEN_19/dialogue/card_character_servant_01.png",
+              "images/screens/WEN_19/dialogue/bg_well_06.png",
+              "images/screens/WEN_19/dialogue/article_title_WEN_19_06.png",
+              "images/screens/WEN_19/dialogue/btn_next_06.png",
+              "images/screens/WEN_19/dialogue/btn_back_06.png",
+              "images/screens/WEN_19/dialogue/bgm-controller_06.png"
+            ]
           },
           "quiz": {
             "image_count": 0,
@@ -4298,11 +4394,18 @@
             "resource_list": []
           },
           "summary": {
-            "image_count": 0,
+            "image_count": 6,
             "style_exists": false,
-            "total_size_mb": "-",
+            "total_size_mb": "16.6 MB",
             "page_description": "学习总结页",
-            "resource_list": []
+            "resource_list": [
+              "images/screens/WEN_19/summary/bg_summary.png",
+              "images/screens/WEN_19/summary/article_title_WEN_19.png",
+              "images/screens/WEN_19/summary/btn_next.png",
+              "images/screens/WEN_19/summary/btn_back.png",
+              "images/screens/WEN_19/summary/summary_text_box.png",
+              "images/screens/WEN_19/summary/bgm-controller.png"
+            ]
           }
         },
         "culture_cards": {
@@ -6751,15 +6854,15 @@
     }
   ],
   "summary": {
-    "with_oss_resources": 7,
+    "with_oss_resources": 8,
     "with_data_files": 4,
     "complete": 0,
-    "missing_data_files": 7,
+    "missing_data_files": 8,
     "missing_oss_resources": 4,
-    "unconfigured": 26,
-    "general_resource_count": 82,
-    "general_total_size_mb": "85.0 MB",
-    "wen_resource_count": 1759,
-    "grand_total_size_mb": "2731.8 MB"
+    "unconfigured": 25,
+    "general_resource_count": 88,
+    "general_total_size_mb": "65.9 MB",
+    "wen_resource_count": 1859,
+    "grand_total_size_mb": "2931.0 MB"
   }
 }

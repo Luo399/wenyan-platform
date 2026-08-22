@@ -285,3 +285,111 @@ export function scanTextFrame(frame: FrameNode): AssetItem[] {
 
   return assets
 }
+
+// ============ 资源清单（按课文 WEN 汇总） ============
+// 说明：与"上传清单（扫描结果）"不同，资源清单是"全量清单"——
+// 由当前扫描结果 + 后端已上传 version 合并，按课文(WEN) 维度汇总各类资源的存在情况。
+
+/** 从 OSS 路径提取课文编号，如 WEN_01；无则返回 null */
+export function extractWen(ossPath: string): string | null {
+  const m = String(ossPath).match(/WEN_\d{2}/)
+  return m ? m[0] : null
+}
+
+/** 资源类别：数据文件 / 文字资源 / 图片 / 样式 / 其他 */
+function classifyResourceCategory(ossPath: string): string {
+  if (ossPath.startsWith('data/texts/')) return '文字资源'
+  if (ossPath.startsWith('data/')) return '数据文件'
+  if (ossPath.startsWith('images/')) return '图片'
+  if (ossPath.startsWith('styles/')) return '样式'
+  return '其他'
+}
+
+/** 单个课文（或无课文）的资源组 */
+export interface WenGroup {
+  wen: string
+  categories: {
+    name: string
+    uploaded: number
+    scanned: number
+    examples: string[]
+  }[]
+}
+
+/** 全量资源清单（按课文汇总） */
+export interface ResourceInventory {
+  uploadedTotal: number
+  scannedTotal: number
+  groups: WenGroup[]
+}
+
+/**
+ * 构建资源清单：合并当前扫描结果与后端已上传 version，按 WEN 汇总。
+ *
+ * @param scanned  当前 Figma 文件扫描出的资源（上传清单的数据源）
+ * @param version  后端 /api/assets/version 返回结构 { assets: { ossPath: record } }
+ */
+export function buildResourceInventory(
+  scanned: AssetItem[],
+  version: { assets?: Record<string, any> } | null,
+): ResourceInventory {
+  // 后端已上传清单：只取路径集合用于对比
+  const uploadedPaths = new Set<string>()
+  if (version && version.assets && typeof version.assets === 'object') {
+    for (const key of Object.keys(version.assets)) uploadedPaths.add(key)
+  }
+
+  // Map<wen, Map<category, {uploaded:Set, scanned:Set}>>
+  const wenMap = new Map<string, Map<string, { uploaded: Set<string>; scanned: Set<string> }>>()
+  const ensure = (wen: string, category: string) => {
+    if (!wenMap.has(wen)) wenMap.set(wen, new Map())
+    const catMap = wenMap.get(wen)!
+    if (!catMap.has(category)) catMap.set(category, { uploaded: new Set(), scanned: new Set() })
+    return catMap.get(category)!
+  }
+
+  for (const path of uploadedPaths) {
+    const wen = extractWen(path) ?? '（无课文）'
+    ensure(wen, classifyResourceCategory(path)).uploaded.add(path)
+  }
+
+  for (const s of scanned) {
+    const wen = extractWen(s.ossPath) ?? '（无课文）'
+    ensure(wen, classifyResourceCategory(s.ossPath)).scanned.add(s.ossPath)
+  }
+
+  // 排序：WEN 数字升序，无课文放最后
+  const numOr = (s: string) => {
+    const m = s.match(/\d+/)
+    return m ? parseInt(m[0], 10) : -1
+  }
+  const sortedWen = [...wenMap.keys()].sort((a, b) => {
+    const diff = numOr(a) - numOr(b)
+    return diff !== 0 ? diff : a.localeCompare(b)
+  })
+  const categoryOrder = ['数据文件', '文字资源', '图片', '样式', '其他']
+
+  const groups: WenGroup[] = []
+  let uploadedTotal = 0
+  let scannedTotal = 0
+
+  for (const wen of sortedWen) {
+    const catMap = wenMap.get(wen)!
+    const categories = categoryOrder
+      .filter((c) => catMap.has(c))
+      .map((c) => {
+        const item = catMap.get(c)!
+        return {
+          name: c,
+          uploaded: item.uploaded.size,
+          scanned: item.scanned.size,
+          examples: [...item.uploaded].slice(0, 3),
+        }
+      })
+    uploadedTotal += categories.reduce((acc, c) => acc + c.uploaded, 0)
+    scannedTotal += categories.reduce((acc, c) => acc + c.scanned, 0)
+    groups.push({ wen, categories })
+  }
+
+  return { uploadedTotal, scannedTotal, groups }
+}
