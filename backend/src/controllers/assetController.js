@@ -635,6 +635,7 @@ module.exports = {
   upload,
   getVersion,
   getInventory,
+  getOssList,
   generatePreSignedUrl,
   getStyleFile,
 }
