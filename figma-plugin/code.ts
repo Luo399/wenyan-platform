@@ -92,15 +92,14 @@ async function main() {
     logWarn('未找到文字资源 Frame（如不需要文字资源可忽略）')
   }
 
-  // 3. 如果没有找到任何资源，提示用户
+  // 3. 如果没有找到任何资源，不自动关闭插件，仅提示用户处理。
+  //    血泪教训：这里若把 onmessage 覆盖为 closePlugin，UI 启动时的 `ui-ready`
+  //    消息会触发立即关闭，看起来像"闪退"。保留默认 onmessage，让用户可主动关闭/重扫。
   if (allAssets.length === 0) {
-    logWarn('未找到任何资源，扫描结束')
-    figma.ui.onmessage = () => {
-      figma.closePlugin()
-    }
+    logWarn('未找到任何资源，等待用户处理')
     figma.ui.postMessage({
       type: 'no-assets',
-      message: '未找到 Export Assets 或 文字资源_ Frame\n请在当前文件中创建以下 Frame：\n\n1. Export Assets（图片资源，子 Frame 名即 OSS 路径）\n2. 文字资源_{名称}（文字资源，导出为 JSON）',
+      message: '未找到 Export Assets 或 文字资源_ Frame\n请确认：\n1. 当前【选中页面】确实包含这两个 Frame\n2. Export Assets 名称完全一致（区分大小写）\n3. 资源命名符合 docs/naming-convention.md\n\n① Export Assets（图片资源，子 Frame 名即 OSS 路径）\n② 文字资源_{名称}（文字资源，导出为 JSON）',
     })
     return
   }
@@ -233,11 +232,6 @@ figma.ui.onmessage = async (msg) => {
       results: msg.results,
       summary: msg.summary,
     })
-  }
-
-  if (msg.type === 'cancel') {
-    logInfo('用户取消同步')
-    figma.closePlugin()
   }
 }
 
