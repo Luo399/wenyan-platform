@@ -66,10 +66,10 @@ SCREEN_TEXT_FIELDS = {
 
 
 def load_json(filepath):
-    """加载 JSON 文件，不存在则返回 None"""
+    """加载 JSON 文件，不存在则返回 None（兼容 UTF-8 BOM）"""
     if not os.path.exists(filepath):
         return None
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, 'r', encoding='utf-8-sig') as f:
         return json.load(f)
 
 

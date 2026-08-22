@@ -187,6 +187,8 @@ function registerRoutes(app) {
   app.get('/api/assets/version', assetController.getVersion)
   // 资源清单（带最近更新时间，供 Figma 插件展示）
   app.get('/api/assets/inventory', assetController.getInventory)
+  // OSS 真实文件清单（与上传清单不同数据源，排查"显示成功未上传"）
+  app.get('/api/assets/oss-list', assetController.getOssList)
   // 临时端点：读取服务器上的样式文件（后续移除）
   app.get('/api/assets/styles/:name', assetController.getStyleFile)
 
