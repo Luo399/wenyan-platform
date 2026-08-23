@@ -149,6 +149,64 @@ async function uploadToOss(buffer, ossPath, ossConfig) {
 }
 
 /**
+ * 删除 OSS 桶中的单个对象（清理误传/非业务资源用）
+ *
+ * @param {object} ossConfig - OSS 配置
+ * @param {string} ossPath - 要删除的对象路径（如 styles/Shopping cart.json）
+ * @returns {Promise<boolean>} 删除成功返回 true；对象不存在视为成功（幂等）
+ */
+async function deleteOssObject(ossConfig, ossPath) {
+  if (!ossConfig.bucket) {
+    // 无 OSS 配置时删除本地 data 目录下对应文件（开发/测试环境）
+    const fs = require('fs')
+    const localPath = path.join(ossConfig.dataBasePath || '.', ossPath)
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath)
+      logger.info(`[AssetService] 已删除本地文件: ${localPath}`)
+    }
+    return true
+  }
+
+  try {
+    const OSS = require('ali-oss')
+    const store = new OSS({
+      region: ossConfig.region || 'oss-cn-guangzhou',
+      bucket: ossConfig.bucket,
+      accessKeyId: ossConfig.accessKeyId,
+      accessKeySecret: ossConfig.accessKeySecret,
+      secure: true,
+    })
+    await store.delete(ossPath)
+    logger.info(`[AssetService] 已删除 OSS 对象: ${ossPath}`)
+    return true
+  } catch (err) {
+    if (err && (err.code === 'NoSuchKey' || err.status === 404)) {
+      // 对象不存在：幂等视为成功
+      return true
+    }
+    logger.error(`[AssetService] OSS 删除失败: ${ossPath}`, err)
+    throw err
+  }
+}
+
+/**
+ * 从 version.json 移除指定资源的记录
+ * @param {string} dataBasePath
+ * @param {string} ossPath - 要移除的资源路径
+ */
+function removeVersionRecord(dataBasePath, ossPath) {
+  const versionData = readVersionFile(dataBasePath)
+  if (versionData.assets && Object.prototype.hasOwnProperty.call(versionData.assets, ossPath)) {
+    delete versionData.assets[ossPath]
+    versionData.lastSyncAt = new Date().toISOString()
+    writeVersionFile(dataBasePath, versionData)
+    logger.info(`[AssetService] 已从 version.json 移除: ${ossPath}`)
+    return true
+  }
+  return false
+}
+
+/**
  * 更新 version.json 中的资产记录
  * @param {string} dataBasePath
  * @param {string} ossPath - OSS 路径
@@ -260,10 +318,13 @@ async function listOssObjects(ossConfig) {
   })
 
   const objects = []
-  let continuationToken = undefined
+  let marker = undefined
   do {
     const query = { 'max-keys': 1000 }
-    if (continuationToken) query['continuation-token'] = continuationToken
+    // ali-oss 默认走 ListObjects V1（marker 分页）；只有带 continuation-token 才走 V2。
+    // V1 响应字段是 nextMarker，读 nextContinuationToken 会一直为 undefined，
+    // 导致只取第一页就退出——这是"全量被截断为 1000"的根因，这里统一用 marker 分页。
+    if (marker) query.marker = marker
     const result = await store.list(query)
     const items = result.objects || []
     for (const obj of items) {
@@ -273,8 +334,8 @@ async function listOssObjects(ossConfig) {
         lastModified: obj.lastModified,
       })
     }
-    continuationToken = result.nextContinuationToken
-  } while (continuationToken)
+    marker = result.isTruncated ? result.nextMarker : undefined
+  } while (marker)
 
   logger.info(`[AssetService] OSS 列对象完成，共 ${objects.length} 个`)
   return objects
@@ -285,6 +346,8 @@ module.exports = {
   processFileUpload,
   batchProcessFiles,
   listOssObjects,
+  deleteOssObject,
+  removeVersionRecord,
   getVersionInfo,
   readVersionFile,
   writeVersionFile,
