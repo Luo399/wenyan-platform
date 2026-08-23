@@ -189,6 +189,8 @@ function registerRoutes(app) {
   app.get('/api/assets/inventory', assetController.getInventory)
   // OSS 真实文件清单（与上传清单不同数据源，排查"显示成功未上传"）
   app.get('/api/assets/oss-list', assetController.getOssList)
+  // 清理误传/非业务资源（删除 OSS 对象 + 移除 version.json 记录），与上传同鉴权
+  app.post('/api/assets/cleanup', assetAuthMiddleware, assetController.cleanup)
   // 临时端点：读取服务器上的样式文件（后续移除）
   app.get('/api/assets/styles/:name', assetController.getStyleFile)
 

@@ -666,11 +666,59 @@ function getScreenLabel(screenType) {
   return labels[screenType] || screenType
 }
 
+/**
+ * POST /api/assets/cleanup
+ * 清理误传/非业务资源：删除 OSS 对象并从 version.json 移除记录
+ *
+ * Body（JSON）: { paths: ['styles/Shopping cart.json', ...] }
+ * 说明：与上传共用 assetAuthMiddleware（X-API-Key 鉴权），
+ * 用于清理 Figma 工作文件等误传进上传清单的样式资源。
+ */
+async function cleanup(req, res, next) {
+  try {
+    const body = req.body || {}
+    const paths = Array.isArray(body.paths) ? body.paths : []
+    if (paths.length === 0) {
+      return res.status(400).json({ success: false, error: 'EMPTY_PATHS', message: '未提供要清理的路径列表' })
+    }
+
+    const ossConfig = getOssConfig()
+    const deleted = []
+    const errors = []
+
+    for (const rawPath of paths) {
+      const ossPath = String(rawPath || '').replace(/^\/+/, '')
+      // 防路径穿越 + 空路径
+      if (!ossPath || ossPath.includes('..')) {
+        errors.push({ ossPath: String(rawPath), error: '非法路径' })
+        continue
+      }
+      try {
+        await assetService.deleteOssObject(ossConfig, ossPath)
+        assetService.removeVersionRecord(ossConfig.dataBasePath, ossPath)
+        deleted.push(ossPath)
+      } catch (err) {
+        errors.push({ ossPath, error: err.message })
+        logger.error(`[AssetController] 清理失败: ${ossPath}`, err)
+      }
+    }
+
+    res.json({
+      success: true,
+      data: { deleted, errors },
+    })
+  } catch (err) {
+    logger.error('[AssetController] 清理接口异常:', err)
+    next(err)
+  }
+}
+
 module.exports = {
   upload,
   getVersion,
   getInventory,
   getOssList,
+  cleanup,
   generatePreSignedUrl,
   getStyleFile,
 }
