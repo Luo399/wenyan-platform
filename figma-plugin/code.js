@@ -263,20 +263,26 @@
   async function prepareAssetsForUpload(assets) {
     logInfo2(`===== \u51C6\u5907\u5BFC\u51FA: ${assets.length} \u4E2A\u8D44\u6E90 =====`);
     const result = [];
+    let imageSuccess = 0;
+    let imageFailed = 0;
     for (let i = 0; i < assets.length; i++) {
       const asset = assets[i];
       logDebug2(`[${i + 1}/${assets.length}] \u5904\u7406: "${asset.ossPath}" (${asset.type})`);
       if (asset.type === ASSET_TYPE.IMAGE) {
         const data = await exportSingleNode(asset.nodeId, asset.ossPath);
-        result.push({ ...asset, data });
+        if (data && data.length > 0) {
+          result.push({ ...asset, data });
+          imageSuccess++;
+        } else {
+          imageFailed++;
+          logError(`  \u2192 \u8DF3\u8FC7\u7A7A\u5BFC\u51FA\uFF080 \u5B57\u8282\uFF09: "${asset.ossPath}"`);
+        }
       } else {
         logDebug2(`  \u2192 \u6587\u5B57\u8D44\u6E90, JSON \u957F\u5EA6: ${asset.content?.length || 0} \u5B57\u7B26`);
         result.push(asset);
       }
     }
-    const imageCount = result.filter((a) => a.type === "image" && a.data && a.data.length > 0).length;
-    const errorCount = result.filter((a) => a.type === "image" && (!a.data || a.data.length === 0)).length;
-    logInfo2(`===== \u5BFC\u51FA\u5B8C\u6210: ${imageCount} \u56FE\u7247\u6210\u529F, ${errorCount} \u56FE\u7247\u5931\u8D25 =====`);
+    logInfo2(`===== \u5BFC\u51FA\u5B8C\u6210: ${imageSuccess} \u56FE\u7247\u6210\u529F, ${imageFailed} \u56FE\u7247\u5931\u8D25\uFF08\u5DF2\u8DF3\u8FC7\uFF0C\u4E0D\u8FDB\u5165\u4E0A\u4F20\u961F\u5217\uFF09 =====`);
     return result;
   }
   figma.ui.onmessage = async (msg) => {

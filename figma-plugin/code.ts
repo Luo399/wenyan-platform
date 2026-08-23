@@ -166,6 +166,8 @@ async function exportSingleNode(nodeId: string, ossPath: string): Promise<Uint8A
 async function prepareAssetsForUpload(assets: AssetItem[]): Promise<AssetItem[]> {
   logInfo(`===== 准备导出: ${assets.length} 个资源 =====`)
   const result: AssetItem[] = []
+  let imageSuccess = 0
+  let imageFailed = 0
 
   for (let i = 0; i < assets.length; i++) {
     const asset = assets[i]
@@ -174,7 +176,16 @@ async function prepareAssetsForUpload(assets: AssetItem[]): Promise<AssetItem[]>
     if (asset.type === ASSET_TYPE.IMAGE) {
       // 图片资源：在主线程导出节点，二进制数据发往 UI 线程上传
       const data = await exportSingleNode(asset.nodeId, asset.ossPath)
-      result.push({ ...asset, data } as AssetItem)
+      // 血泪教训：导出失败会返回空 Uint8Array(0)，
+      // 若不过滤，0 字节空文件会被上传到 OSS 并写入 version.json（假上传 / 0b 资源）。
+      // 这里直接跳过空导出，失败资源不进上传队列，避免污染生产桶与上传清单。
+      if (data && data.length > 0) {
+        result.push({ ...asset, data } as AssetItem)
+        imageSuccess++
+      } else {
+        imageFailed++
+        logError(`  → 跳过空导出（0 字节）: "${asset.ossPath}"`)
+      }
     } else {
       // 文字资源：直接传递文本内容
       logDebug(`  → 文字资源, JSON 长度: ${asset.content?.length || 0} 字符`)
@@ -182,10 +193,7 @@ async function prepareAssetsForUpload(assets: AssetItem[]): Promise<AssetItem[]>
     }
   }
 
-  const imageCount = result.filter((a) => a.type === 'image' && (a as any).data && (a as any).data.length > 0).length
-  const errorCount = result.filter((a) => a.type === 'image' && (!(a as any).data || (a as any).data.length === 0)).length
-  logInfo(`===== 导出完成: ${imageCount} 图片成功, ${errorCount} 图片失败 =====`)
-
+  logInfo(`===== 导出完成: ${imageSuccess} 图片成功, ${imageFailed} 图片失败（已跳过，不进入上传队列） =====`)
   return result
 }
 
