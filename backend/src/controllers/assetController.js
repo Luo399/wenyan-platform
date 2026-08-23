@@ -51,6 +51,13 @@ function validateUpload(files) {
       return { ok: false, reason: 'PATH_TRAVERSAL', message: `非法路径: ${ossPath}` }
     }
 
+    // 拒绝 0 字节文件：血泪教训——插件导出失败的图片会传空 buffer，
+    // 若不拦截会产生 OSS 0b 空对象 + version.json 0 字节记录（假上传/占位坏文件）。
+    const byteSize = Buffer.isBuffer(f.buffer) ? f.buffer.length : Buffer.byteLength(String(f.content || ''), 'utf-8')
+    if (byteSize === 0) {
+      return { ok: false, reason: 'EMPTY_FILE', message: `文件内容为空（0 字节）: ${ossPath}` }
+    }
+
     if (type === 'text' || type === 'style') {
       // 文字/样式资源：必须在 JSON 白名单目录内
       if (!ALLOWED_JSON_DIRS.some((dir) => ossPath.startsWith(`${dir}/`))) {
