@@ -1,20 +1,13 @@
 <template>
-  <div class="home" :style="{ backgroundImage: `url(${bgUrl})` }">
-    <PoetryMenu />
+  <div class="home">
+    <!-- 新选篇面板（逻辑完全迁移自 PoetryMenu，视觉对齐 Figma article_list 系列） -->
+    <NewMenu />
 
-    <div class="main-content">
-      <!-- 标题图（Figma: home_title.png） -->
-      <img class="home-title" :src="titleUrl" alt="文言文预习平台" />
-
-      <!-- 角色选择按钮 -->
-      <div class="role-buttons">
-        <button type="button" class="role-btn" @click="openLogin('student')" aria-label="学生登录">
-          学生登录
-        </button>
-        <button type="button" class="role-btn" @click="openLogin('teacher')" aria-label="教师登录">
-          教师登录
-        </button>
-      </div>
+    <!-- 登录入口悬浮条（右上角，保留学生/教师登录能力） -->
+    <div class="login-bar">
+      <button type="button" class="login-chip" @click="openLogin('student')">学生登录</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button type="button" class="login-chip" @click="openLogin('teacher')">教师登录</button>
     </div>
 
     <!-- 登录弹窗 -->
@@ -30,10 +23,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import PoetryMenu from '@/components/PoetryMenu.vue'
+import NewMenu from '@/components/NewMenu.vue'
 import LoginModal from '@/components/LoginModal.vue'
 import { useNavigation } from '@/composables/useNavigation'
-import { getAssetUrl } from '@/utils/asset'
 import { track } from '@/utils/tracking'
 
 const route = useRoute()
@@ -48,11 +40,6 @@ onUnmounted(() => {
   const duration = Date.now() - enterTime
   track('step_exit', 'home', { duration })
 })
-
-// 背景图（Figma: home_bg.png）
-const bgUrl = getAssetUrl('images', 'home_bg.png')
-// 标题图（Figma: home_title.png）
-const titleUrl = getAssetUrl('images', 'home_title.png')
 
 // 登录弹窗控制
 const showLoginModal = ref(false)
@@ -80,66 +67,46 @@ function handleLoginSuccess() {
 </script>
 
 <style scoped>
+/* 首页容器：选篇面板全屏铺底，登录入口浮于右上角 */
 .home {
-  display: flex;
   min-height: 100vh;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
 }
 
-.main-content {
-  margin-left: var(--sidebar-width);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xl);
-}
-
-/* 标题图 - Figma: home_title.png (1677x340) */
-.home-title {
-  width: clamp(300px, 48vw, 900px);
-  height: auto;
-  display: block;
-}
-
-/* 角色选择按钮区 */
-.role-buttons {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-lg);
-}
-
-/* 角色按钮 - Figma: 528x163, 深红底, 橄榄绿8px边框, 50px圆角, 白字100px */
-.role-btn {
-  width: clamp(280px, 28vw, 528px);
-  height: clamp(80px, 8vw, 163px);
+/* 登录入口悬浮条 */
+.login-bar {
+  position: fixed;
+  top: var(--spacing-md);
+  right: var(--spacing-xl);
+  z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background-color: var(--color-primary);
-  color: var(--color-white);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-button);
-  font-family: var(--font-family-serif);
-  font-weight: var(--font-weight-semibold);
-  font-size: clamp(2rem, 5vw, 5rem);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-small);
+}
+
+.login-chip {
+  background: none;
+  border: none;
   cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    transform 0.1s ease;
-  line-height: 1;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-small);
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+  line-height: 1.6;
+  transition: color 0.2s ease;
 }
 
-.role-btn:hover {
-  background-color: var(--color-primary-hover);
+.login-chip:hover {
+  color: var(--color-primary-hover);
 }
 
-.role-btn:active {
-  transform: scale(0.98);
+.sep {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
 }
 </style>

@@ -1,45 +1,41 @@
 <template>
-  <div class="new-home" :style="{ backgroundImage: `url(${bgUrl})` }">
-    <PoetryMenu />
+  <div class="new-home">
+    <!-- 新选篇面板（逻辑完全迁移自 PoetryMenu，视觉对齐 Figma article_list 系列） -->
+    <NewMenu />
 
-    <div class="main-content">
-      <!-- 标题图 -->
-      <img class="home-title" :src="titleUrl" alt="文言文预习平台" />
-
-      <!-- 副标题 -->
-      <p class="home-subtitle">品读经典，传承文化</p>
-
-      <!-- 进入学习按钮 -->
-      <button type="button" class="enter-btn" @click="goToStudentLogin" aria-label="进入学习">
-        进入学习
-      </button>
-
-      <!-- 登录入口 -->
-      <div class="login-links">
-        <button type="button" class="login-link" @click="goToLogin('student')">学生登录</button>
-        <span class="link-separator">|</span>
-        <button type="button" class="login-link" @click="goToLogin('teacher')">教师登录</button>
-      </div>
-      <div class="admin-entry">
-        <button type="button" class="admin-link" @click="router.push('/admin-login')">
-          管理员
-        </button>
-      </div>
+    <!-- 登录入口悬浮条（右上角，保留学生/教师登录能力） -->
+    <div class="login-bar">
+      <button type="button" class="login-chip" @click="openLogin('student')">学生登录</button>
+      <span class="sep" aria-hidden="true">|</span>
+      <button type="button" class="login-chip" @click="openLogin('teacher')">教师登录</button>
     </div>
+
+    <!-- 管理员入口（左下角） -->
+    <div class="admin-entry">
+      <button type="button" class="admin-link" @click="router.push('/admin-login')">管理员</button>
+    </div>
+
+    <!-- 登录弹窗 -->
+    <LoginModal
+      :visible="showLoginModal"
+      :role="loginRole"
+      @close="closeLogin"
+      @login-success="handleLoginSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import PoetryMenu from '@/components/PoetryMenu.vue'
-import { useAuthStore } from '@/stores/auth'
-import { getAssetUrl } from '@/utils/asset'
+import NewMenu from '@/components/NewMenu.vue'
+import LoginModal from '@/components/LoginModal.vue'
+import { useNavigation } from '@/composables/useNavigation'
 import { track } from '@/utils/tracking'
 
 const router = useRouter()
 const route = useRoute()
-const authStore = useAuthStore()
+const { goTo } = useNavigation()
 
 // 首页埋点
 const enterTime = Date.now()
@@ -51,146 +47,81 @@ onUnmounted(() => {
   track('step_exit', 'home', { duration })
 })
 
-// 背景图
-const bgUrl = getAssetUrl('images', 'home_bg.png')
-// 标题图
-const titleUrl = getAssetUrl('images', 'home_title.png')
+// 登录弹窗控制
+const showLoginModal = ref(false)
+const loginRole = ref<'student' | 'teacher'>('student')
 
-// 跳转到登录页
-function goToLogin(role: 'student' | 'teacher') {
-  const redirect = route.query.redirect as string | undefined
-  if (role === 'teacher') {
-    router.push(
-      redirect ? `/teacher-login?redirect=${encodeURIComponent(redirect)}` : '/teacher-login',
-    )
-  } else {
-    router.push(
-      redirect ? `/student-login?redirect=${encodeURIComponent(redirect)}` : '/student-login',
-    )
-  }
+function openLogin(role: 'student' | 'teacher') {
+  loginRole.value = role
+  showLoginModal.value = true
 }
 
-// 进入学习：已登录直接跳转规则页，否则跳转学生登录页并携带 redirect 参数
-function goToStudentLogin() {
-  if (authStore.isLoggedIn) {
-    // 已登录，直接跳转到规则页
-    const redirect = route.query.redirect as string | undefined
-    if (redirect && redirect !== '/') {
-      router.push(redirect)
-    } else {
-      router.push('/rules/1')
-    }
+function closeLogin() {
+  showLoginModal.value = false
+}
+
+function handleLoginSuccess() {
+  showLoginModal.value = false
+  // 优先跳转 redirect 参数指向的页面（路由守卫携带），否则跳转 rules/1
+  const redirect = route.query.redirect as string | undefined
+  if (redirect && redirect !== '/') {
+    window.location.href = redirect
   } else {
-    // 未登录，跳转到学生登录页，携带 redirect 参数
-    const redirect = route.query.redirect as string | undefined
-    if (redirect) {
-      router.push(`/student-login?redirect=${encodeURIComponent(redirect)}`)
-    } else {
-      router.push('/student-login')
-    }
+    goTo('rules', '1')
   }
 }
 </script>
 
 <style scoped>
+/* 首页容器：选篇面板全屏铺底，登录入口浮于右上角 */
 .new-home {
-  display: flex;
   min-height: 100vh;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
 }
 
-.main-content {
-  margin-left: var(--sidebar-width);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xl);
-}
-
-/* 标题图 */
-.home-title {
-  width: clamp(300px, 48vw, 900px);
-  height: auto;
-  display: block;
-}
-
-/* 副标题 */
-.home-subtitle {
-  font-family: var(--font-family-serif);
-  font-size: var(--font-size-heading);
-  color: var(--color-primary);
-  margin: 0;
-  letter-spacing: 0.15em;
-}
-
-/* 进入学习按钮 */
-.enter-btn {
-  width: clamp(280px, 28vw, 528px);
-  height: clamp(80px, 8vw, 163px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-primary);
-  color: var(--color-white);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-button);
-  font-family: var(--font-family-serif);
-  font-weight: var(--font-weight-semibold);
-  font-size: clamp(2rem, 5vw, 5rem);
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    transform 0.1s ease;
-  line-height: 1;
-}
-
-.enter-btn:hover {
-  background-color: var(--color-primary-hover);
-}
-
-.enter-btn:active {
-  transform: scale(0.98);
-}
-
-/* 登录入口链接 */
-.login-links {
+/* 登录入口悬浮条 */
+.login-bar {
+  position: fixed;
+  top: var(--spacing-md);
+  right: var(--spacing-xl);
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background-color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-small);
 }
 
-.login-link {
+.login-chip {
   background: none;
   border: none;
+  cursor: pointer;
   font-family: var(--font-family-serif);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-small);
   color: var(--color-primary);
   text-decoration: underline;
-  cursor: pointer;
+  text-underline-offset: 2px;
   padding: 0;
-  line-height: 1;
+  line-height: 1.6;
   transition: color 0.2s ease;
 }
 
-.login-link:hover {
+.login-chip:hover {
   color: var(--color-primary-hover);
 }
 
-.link-separator {
+.sep {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-body);
+  font-size: var(--font-size-small);
 }
 
-/* 管理员入口 */
+/* 管理员入口（左下角） */
 .admin-entry {
-  text-align: center;
-  margin-top: var(--spacing-xs);
+  position: fixed;
+  bottom: var(--spacing-md);
+  left: var(--spacing-lg);
+  z-index: 20;
 }
 
 .admin-link {
