@@ -8,7 +8,7 @@ const dashboardController = require('../controllers/dashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const exportController = require('../controllers/exportController')
-const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
+const { requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
 const figmaController = require('../controllers/figmaController')
 const { submitRateLimit, queryRateLimit, loginRateLimit } = require('../middleware/rateLimitMiddleware')
@@ -132,18 +132,20 @@ function registerRoutes(app) {
   app.get('/api/texts/:textId/level3-scenario-text', textsController.getLevel3ScenarioText)
   app.get('/api/texts/:textId/level3-adaptive-quiz', textsController.getLevel3AdaptiveQuiz)
 
-  // ============ 答题提交 ============
-  app.post('/api/submit', optionalAuthMiddleware, submitRateLimit, answerController.submitAnswers)
+  // ============ 答题提交（P0 安全修复：学生必鉴权，禁止匿名提交） ============
+  app.post('/api/submit', requireAuthMiddleware, submitRateLimit, answerController.submitAnswers)
   app.post(
     '/api/submit/single',
-    optionalAuthMiddleware,
+    requireAuthMiddleware,
     submitRateLimit,
     answerController.submitSingleAnswer,
   )
-  app.get('/api/answers/wen/:wenId', optionalAuthMiddleware, queryRateLimit, answerController.getAnswersByWenId)
+  // P0 安全修复：答题明细含学生学号/答案，仅教师/管理员可查询
+  const answerQueryAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin', 'super_admin'])]
+  app.get('/api/answers/wen/:wenId', ...answerQueryAuth, queryRateLimit, answerController.getAnswersByWenId)
   app.get(
     '/api/answers/student/:studentId',
-    optionalAuthMiddleware,
+    ...answerQueryAuth,
     queryRateLimit,
     answerController.getAnswersByStudentId,
   )
