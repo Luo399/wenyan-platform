@@ -4,7 +4,7 @@
  */
 
 const { db } = require('../config/database')
-const { dbGet, dbAll, dbRun, stmtRun } = require('../utils/dbPromise')
+const { dbGet, dbAll, dbRun, stmtRun, dbTransaction } = require('../utils/dbPromise')
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader')
 const { info, warn, logOperation } = require('../utils/logger')
 // B04: 答案比较逻辑统一到 utils/answerUtils，消除 controller/service 双份实现
@@ -71,9 +71,10 @@ async function submitAnswers(data) {
 
   await ensureStudentInfo(studentId, studentName)
 
-  // 计算得分并准备插入数据（使用子查询保证原子性）
-  const results = await Promise.all(
-    questions.map(async (question) => {
+  // P0: 批量提交整体置于事务中——任一题插入失败即回滚，避免"部分成功"脏数据
+  const results = await dbTransaction(db, async (tx) => {
+    const inserted = []
+    for (const question of questions) {
       const userAnswer = answers[question.id]
       // B06: correctAnswer 回退到 JSON 数据源，与 controller 行为一致
       const correctAnswer = question.correctAnswer ?? getCorrectAnswerFromJson(question.id, wenId)
@@ -109,20 +110,20 @@ async function submitAnswers(data) {
       stmt.finalize()
 
       // 获取刚插入的 attempt_number
-      const insertRow = await dbGet(
-        db,
+      const insertRow = await tx.dbGet(
         `SELECT attempt_number FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1`,
         [wenId, studentId, question.id]
       )
 
-      return {
+      inserted.push({
         questionId: question.id,
         score,
         isCorrect,
         attemptNumber: insertRow?.attempt_number || 1,
-      }
-    })
-  )
+      })
+    }
+    return inserted
+  })
 
   const totalScore = results.reduce((sum, r) => sum + r.score, 0)
   const correctCount = results.filter((r) => r.isCorrect === 1).length

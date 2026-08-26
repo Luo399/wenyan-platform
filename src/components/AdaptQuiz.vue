@@ -93,15 +93,16 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useStudentInfo } from '@/composables/useStudentInfo'
-import { submitSingleAnswer } from '@/services/apiService'
+// P1: 移除组件内后端提交（submitSingleAnswer），答题提交统一由父级经 useQuizSubmitter 处理，
+// 避免与 useQuizProgress 的逐题提交形成"双提交"（同一题在后端插入两条记录）
 import type { QuizItem } from '@/adapters/quizAdapter'
-import type { ProcessedLevel1QuizItem, RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
-import type { ProcessedLevel2QuizItem, RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
-import type { ProcessedLevel3QuizItem, RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
+import type { RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
+import type { RawLevel2QuizItem } from '@/adapters/level2QuizAdapter'
+import type { RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
 import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapter'
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
-import { debugLog, debugError, debugWarn } from '@/utils/debug'
+import { debugLog, debugError } from '@/utils/debug'
 import { appendQuizRecord } from '@/utils/localStorage'
 
 // ============================================================
@@ -310,8 +311,8 @@ function submitAnswer() {
     currentQuiz.value.correctAnswer ?? undefined,
   )
   emit('quiz-submitted')
-
-  submitToBackend(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer)
+  // P1: 后端提交由父级（如 StepTwoView 的 useQuizProgress）统一处理，这里只保留本地记录
+  void persistLocalRecord()
 }
 
 function saveToLocal(
@@ -350,7 +351,23 @@ function saveToLocal(
   return record
 }
 
-function downloadSingleReport(record: any, sid: string, studentName: string) {
+/** 本地答题报告的字段约束（仅用于下载文件名与序列化，避免 any） */
+type AnswerValue = string | number | (string | number)[]
+interface LocalReportRecord {
+  studentId: string
+  studentName?: string
+  wenId?: string
+  questionId: string
+  questionNumber?: number
+  level?: string
+  userAnswer?: string
+  correctAnswer: AnswerValue | null | undefined
+  isCorrect?: boolean
+  score?: number
+  submittedAt?: string
+}
+
+function downloadSingleReport(record: LocalReportRecord, sid: string, studentName: string) {
   const wenId = record.wenId || props.textId
   const filename = `答题记录_${sid}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
   const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })
@@ -363,50 +380,14 @@ function downloadSingleReport(record: any, sid: string, studentName: string) {
   debugLog('[AdaptQuiz] 报告已下载:', filename)
 }
 
-async function submitToBackend(
-  quiz: QuizItem,
-  userAnswer: string,
-  correctAnswer: string | number | (string | number)[] | null | undefined,
-) {
+async function persistLocalRecord() {
+  // P1: 仅做本地记录 + 报告下载（离线兜底），不再向后端提交；
+  // 后端提交由父级页面通过 useQuizSubmitter/useQuizProgress 统一处理。
   const id = studentId.value
-  if (!id) {
-    debugWarn('[AdaptQuiz] 未登录，跳过后端提交')
-    return
-  }
-
+  if (!id) return
   const name = await getStudentName()
-  const localRecord = saveToLocal(quiz, userAnswer, correctAnswer, id, name)
-
-  try {
-    const wenId = quiz.textId || props.textId
-    const questionId =
-      quiz.questionId ||
-      `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
-
-    debugLog('[AdaptQuiz] 提交答题数据到后端:', {
-      studentId: id,
-      studentName: name,
-      wenId,
-      questionId,
-      userAnswer,
-      correctAnswer,
-    })
-
-    const result = await submitSingleAnswer({
-      studentId: id,
-      studentName: name,
-      wenId,
-      questionId,
-      userAnswer,
-      correctAnswer: correctAnswer ?? undefined,
-      submittedAt: new Date().toISOString(),
-    })
-
-    debugLog('[AdaptQuiz] 答题数据已成功提交到后端:', result)
-  } catch (e) {
-    debugError('[AdaptQuiz] 后端提交失败，但本地已保存:', e)
-    debugLog('[AdaptQuiz] 本地保存的记录:', localRecord)
-  }
+  if (!currentQuiz.value) return
+  saveToLocal(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer, id, name)
 }
 
 function handleNext() {

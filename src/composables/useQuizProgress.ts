@@ -7,12 +7,18 @@
  * - 进度状态追踪
  * - 答案记录管理
  * - 完成状态检测
- * - sessionStorage 完成记录（关闭标签页后清除）
+ * - localStorage 完成记录（持久化，key 含学生维度，见 quizCompletionStorage）
  */
-
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitSingleAnswer } from '@/services/apiService'
+import { useQuizSubmitter } from '@/composables/useQuizSubmitter'
 import { useAuthStore } from '@/stores/auth'
+import { resolveQuestionId } from '@/utils/questionId'
+import {
+  getCompletionRecord,
+  setCompletionRecord,
+  clearCompletionRecord as clearCompletionRecordByScope,
+  type QuizCompletionRecord,
+} from '@/utils/quizCompletionStorage'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
 export interface QuizAnswer {
@@ -50,10 +56,6 @@ function generateCompletionId(): string {
   return `quiz_${timestamp}_${random}`
 }
 
-function getCompletionKey(prefix?: string): string {
-  return `quiz_completion_${prefix || 'default'}`
-}
-
 export function useQuizProgress(
   totalQuestionsRef: Ref<number>,
   onSubmit?: (questionIndex: number, answer: number | string, isCorrect?: boolean) => void,
@@ -63,6 +65,9 @@ export function useQuizProgress(
   const completedCount = ref(0)
   const answers = ref<QuizAnswer[]>([])
   const submittedList = ref<boolean[]>([])
+
+  // P1: 统一提交入口（学生身份/JWT 由入口注入）
+  const submitter = useQuizSubmitter()
 
   const progressPercent = computed(() => {
     if (totalQuestionsRef.value === 0) return 0
@@ -74,42 +79,28 @@ export function useQuizProgress(
     return completedCount.value >= totalQuestionsRef.value && totalQuestionsRef.value > 0
   })
 
+  // P2: 完成记录统一走 quizCompletionStorage（localStorage 持久化、key 含学生维度）
   const hasCompletionRecord = computed(() => {
-    const key = getCompletionKey(completionKeyPrefix)
-    // R89: 包裹 sessionStorage 读取异常
-    try {
-      return !!sessionStorage.getItem(key)
-    } catch (err) {
-      debugWarn('[useQuizProgress] sessionStorage 读取失败:', err)
-      return false
-    }
+    if (!completionKeyPrefix) return false
+    return getCompletionRecord(getStudentInfo().studentId, completionKeyPrefix) !== null
   })
 
   function saveCompletionRecord(): void {
-    const key = getCompletionKey(completionKeyPrefix)
-    const record = {
+    if (!completionKeyPrefix) return
+    const record: QuizCompletionRecord = {
       completionId: generateCompletionId(),
       completedAt: new Date().toISOString(),
       totalQuestions: totalQuestionsRef.value,
       answeredCount: completedCount.value,
     }
-    // R89: 包裹 sessionStorage 写入异常
-    try {
-      sessionStorage.setItem(key, JSON.stringify(record))
-      debugLog(`[useQuizProgress] 完成记录已保存:`, record)
-    } catch (err) {
-      debugWarn('[useQuizProgress] sessionStorage 写入失败:', err)
-    }
+    setCompletionRecord(getStudentInfo().studentId, completionKeyPrefix, record)
+    debugLog(`[useQuizProgress] 完成记录已保存:`, record)
   }
 
   function clearCompletionRecord(): void {
-    const key = getCompletionKey(completionKeyPrefix)
-    try {
-      sessionStorage.removeItem(key)
-      debugLog(`[useQuizProgress] 完成记录已清除`)
-    } catch (err) {
-      debugWarn('[useQuizProgress] sessionStorage 删除失败:', err)
-    }
+    if (!completionKeyPrefix) return
+    clearCompletionRecordByScope(getStudentInfo().studentId, completionKeyPrefix)
+    debugLog(`[useQuizProgress] 完成记录已清除`)
   }
 
   function getStudentInfo(): { studentId: string; studentName: string } {
@@ -132,19 +123,22 @@ export function useQuizProgress(
     }
 
     try {
-      const { studentId, studentName } = getStudentInfo()
+      const { studentId } = getStudentInfo()
 
       if (!studentId) {
         debugWarn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
         return
       }
 
-      const questionId =
-        answer.questionId || `${completionKeyPrefix}_question_${answer.questionIndex}`
+      // P2: questionId 统一——数据源 questionId 优先，缺失时用 `${wenId}_q{n}` 兜底
+      const questionId = resolveQuestionId(
+        completionKeyPrefix,
+        answer.questionId,
+        answer.questionIndex + 1,
+      )
 
-      await submitSingleAnswer({
-        studentId,
-        studentName,
+      // P1: 统一走 useQuizSubmitter 提交入口，学生身份/JWT 由入口统一注入
+      await submitter.submitSingle({
         wenId: completionKeyPrefix,
         questionId,
         userAnswer: answer.answer,

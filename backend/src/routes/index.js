@@ -8,9 +8,8 @@ const dashboardController = require('../controllers/dashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const exportController = require('../controllers/exportController')
-const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
+const { requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
-const figmaController = require('../controllers/figmaController')
 const { submitRateLimit, queryRateLimit, loginRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
@@ -132,18 +131,20 @@ function registerRoutes(app) {
   app.get('/api/texts/:textId/level3-scenario-text', textsController.getLevel3ScenarioText)
   app.get('/api/texts/:textId/level3-adaptive-quiz', textsController.getLevel3AdaptiveQuiz)
 
-  // ============ 答题提交 ============
-  app.post('/api/submit', optionalAuthMiddleware, submitRateLimit, answerController.submitAnswers)
+  // ============ 答题提交（P0 安全修复：学生必鉴权，禁止匿名提交） ============
+  app.post('/api/submit', requireAuthMiddleware, submitRateLimit, answerController.submitAnswers)
   app.post(
     '/api/submit/single',
-    optionalAuthMiddleware,
+    requireAuthMiddleware,
     submitRateLimit,
     answerController.submitSingleAnswer,
   )
-  app.get('/api/answers/wen/:wenId', optionalAuthMiddleware, queryRateLimit, answerController.getAnswersByWenId)
+  // P0 安全修复：答题明细含学生学号/答案，仅教师/管理员可查询
+  const answerQueryAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin', 'super_admin'])]
+  app.get('/api/answers/wen/:wenId', ...answerQueryAuth, queryRateLimit, answerController.getAnswersByWenId)
   app.get(
     '/api/answers/student/:studentId',
-    optionalAuthMiddleware,
+    ...answerQueryAuth,
     queryRateLimit,
     answerController.getAnswersByStudentId,
   )
@@ -172,9 +173,8 @@ function registerRoutes(app) {
   app.get('/api/export/answers', dashboardAuthMiddleware, exportController.exportAnswers)
   app.get('/api/export/dashboard-summary', dashboardAuthMiddleware, exportController.exportDashboardSummary)
 
-  // ============ Figma 资源同步（无认证，需服务端配置 FIGMA_ACCESS_TOKEN） ============
-  app.post('/api/figma/sync', figmaController.sync)
-  app.get('/api/figma/status', figmaController.status)
+  // P2: 旧 Figma REST 同步方案（/api/figma/sync、/api/figma/status，因 API 限流弃用）已下线，
+  // 统一走 Figma 插件 → /api/assets/upload 的上传链路（见下方资产同步段落）
 
   // ============ 资产同步（Figma 插件 → 后端 → OSS，需同步令牌鉴权） ============
   const assetController = require('../controllers/assetController')
@@ -191,8 +191,6 @@ function registerRoutes(app) {
   app.get('/api/assets/oss-list', assetController.getOssList)
   // 清理误传/非业务资源（删除 OSS 对象 + 移除 version.json 记录），与上传同鉴权
   app.post('/api/assets/cleanup', assetAuthMiddleware, assetController.cleanup)
-  // 临时端点：读取服务器上的样式文件（后续移除）
-  app.get('/api/assets/styles/:name', assetController.getStyleFile)
 
   // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
   const resourceController = require('../controllers/resourceController')

@@ -53,6 +53,7 @@ import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
+import { getWenId } from '@/utils/wenUtils'
 import type { MultiRoleData } from '@/components/MultiRoleReading.vue'
 import { debugLog, debugError } from '@/utils/debug'
 
@@ -61,22 +62,14 @@ const route = useRoute()
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
 
-// 将路由参数 id（数字）转换为 wenId 格式
-const wenId = computed(() => {
-  if (!poemId) return 'WEN_01'
-  // 如果已经是 WEN_xx 格式，直接返回
-  if (poemId.startsWith('WEN_')) return poemId
-  // 将数字转换为 WEN_xx 格式（如 1 -> WEN_01）
-  const num = parseInt(poemId, 10)
-  if (isNaN(num)) return 'WEN_01'
-  return `WEN_${num.toString().padStart(2, '0')}`
-})
+// 将路由参数 id（数字）转换为 wenId 格式（P2: 复用 getWenId 消除三处重复实现）
+const wenId = computed(() => getWenId(poemId))
 
 // 使用导航composable
 const { goNext, goPrev } = useNavigation('stepone', poemId)
 
 // 使用埋点composable
-const { trackInteraction, trackSearchWord } = useTracking('stepone', poemId)
+const { trackInteraction } = useTracking('stepone', poemId)
 
 // 包装 goPrev 以标记后退按钮
 function handleGoPrev() {

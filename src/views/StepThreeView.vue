@@ -11,110 +11,82 @@
 -->
 <template>
   <div class="stepthree-view">
-    <!-- 页面标题 -->
-    <header class="page-header">
-      <h1 class="page-title">情景测验</h1>
-      <p class="page-subtitle">完成以下测验，检验你的学习成果</p>
-    </header>
-
-    <!-- 进度统计 -->
-    <div class="progress-bar-container">
-      <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
-      </div>
-      <span class="progress-text">{{ completedCount }} / {{ totalQuestions }}</span>
-    </div>
-
-    <!-- 加载状态 -->
-    <div class="loading-state" v-if="loading">
-      <div class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
-        <span>加载测验数据...</span>
-      </div>
-    </div>
-
-    <!-- 错误状态 -->
-    <div class="error-state" v-else-if="error">
-      <div class="error-icon">
-        <i class="fas fa-exclamation-circle"></i>
-      </div>
-      <p class="error-message">{{ error }}</p>
-      <button class="error-retry" @click="retry">
-        <i class="fas fa-refresh"></i>
-        重新加载
-      </button>
-    </div>
-
-    <!-- 测验内容区域 -->
-    <template v-else-if="pageData">
-      <!-- 题目列表 -->
-      <div class="quiz-list">
-        <div
-          v-for="(item, index) in pageData.items"
-          :key="index"
-          class="quiz-item"
-          :class="{ hidden: index > currentIndex }"
-        >
-          <!-- 情景文本（仅显示第一个题目的情景） -->
-          <div class="scenario-text" v-if="index === 0 && item.text">
-            <p>{{ item.text }}</p>
-          </div>
-
-          <!-- 题目头部 -->
-          <div class="quiz-header">
-            <span class="quiz-number">第 {{ index + 1 }} 题</span>
-          </div>
-
-          <!-- QuizCard 组件 -->
-          <QuizCard
-            :data="item.quiz"
-            :submitted="isSubmitted(index)"
-            @submit="(option) => option !== null && handleSubmit(index, option)"
-          />
-        </div>
-      </div>
-
-      <!-- 完成状态 -->
-      <div class="complete-state" v-if="isCompleted">
-        <div class="complete-icon">
-          <i class="fas fa-trophy"></i>
-        </div>
-        <h2 class="complete-title">测验完成！</h2>
-        <p class="complete-stats">答对 {{ correctCount }} / {{ completedCount }} 题</p>
-      </div>
-
-      <!-- 文化卡片区域（测验完成后显示） -->
-      <div class="culture-cards-section" v-if="isCompleted">
-        <CultureCards
-          :wen-id="textId"
-          @load-success="handleCultureCardsLoad"
-          @card-click="handleCultureCardClick"
-        />
-      </div>
-    </template>
-
-    <!-- 空状态 -->
-    <div class="empty-state" v-else>
-      <div class="empty-icon">
-        <i class="fas fa-search"></i>
-      </div>
-      <p class="empty-message">暂无测验数据</p>
-    </div>
-
-    <!-- 底部导航按钮（全程显示返回，完成后显示继续） -->
-    <BackContinue
+    <!-- P1: 统一页面骨架（标题/加载/错误/空态/导航），进度与内容留在 slot -->
+    <PageScaffold
+      :title="meta.title"
+      subtitle="完成以下测验，检验你的学习成果"
+      :loading="loading"
+      :error="error"
+      :is-empty="!pageData"
+      empty-text="暂无测验数据"
+      :show-navigation="true"
       :show-continue="isCompleted"
-      back-text="返回"
+      @retry="retry"
       @back="handleGoPrev"
       @continue="handleGoNext"
-    />
+    >
+      <!-- 进度统计 -->
+      <div class="progress-bar-container" v-if="pageData">
+        <div class="progress-bar">
+          <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+        </div>
+        <span class="progress-text">{{ completedCount }} / {{ totalQuestions }}</span>
+      </div>
+
+      <!-- 测验内容区域 -->
+      <template v-if="pageData">
+        <div class="quiz-list">
+          <div
+            v-for="(item, index) in pageData.items"
+            :key="index"
+            class="quiz-item"
+            :class="{ hidden: index > currentIndex }"
+          >
+            <!-- 情景文本（仅显示第一个题目的情景） -->
+            <div class="scenario-text" v-if="index === 0 && item.text">
+              <p>{{ item.text }}</p>
+            </div>
+
+            <!-- 题目头部 -->
+            <div class="quiz-header">
+              <span class="quiz-number">第 {{ index + 1 }} 题</span>
+            </div>
+
+            <!-- QuizCard 组件 -->
+            <QuizCard
+              :data="item.quiz"
+              :submitted="isSubmitted(index)"
+              @submit="(option) => option !== null && handleSubmit(index, option)"
+            />
+          </div>
+        </div>
+
+        <!-- 完成状态 -->
+        <div class="complete-state" v-if="isCompleted">
+          <div class="complete-icon">
+            <i class="fas fa-trophy"></i>
+          </div>
+          <h2 class="complete-title">测验完成！</h2>
+          <p class="complete-stats">答对 {{ correctCount }} / {{ completedCount }} 题</p>
+        </div>
+
+        <!-- 文化卡片区域（测验完成后显示） -->
+        <div class="culture-cards-section" v-if="isCompleted">
+          <CultureCards
+            :wen-id="textId"
+            @load-success="handleCultureCardsLoad"
+            @card-click="handleCultureCardClick"
+          />
+        </div>
+      </template>
+    </PageScaffold>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import BackContinue from '@/components/BackContinue.vue'
+import PageScaffold from '@/components/PageScaffold.vue'
 import QuizCard from '@/components/QuizCard.vue'
 import CultureCards from '@/components/CultureCards.vue'
 import { useNavigation } from '@/composables/useNavigation'
@@ -122,6 +94,9 @@ import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton, track } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
+import { getFigmaPageMeta } from '@/config/pageRegistry'
+import { getWenId } from '@/utils/wenUtils'
+import { resolveQuestionId } from '@/utils/questionId'
 import { debugLog } from '@/utils/debug'
 
 // 数据类型定义
@@ -148,26 +123,25 @@ interface PageData {
 
 const route = useRoute()
 
+// P1: 从 Figma 页面注册表读取元信息（数据目录/标题），消除硬编码路径；
+// 注册表为静态常量，兜底仅用于类型防御
+const meta = getFigmaPageMeta('stepthree') ?? {
+  key: 'stepthree',
+  dataDir: 'pages_level3_adaptive_quiz',
+  renderMode: 'quiz-list' as const,
+  title: '情景测验',
+  navKey: 'stepthree' as const,
+  requiresAuth: true,
+}
+
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
 
-// 将路由参数转换为wenId格式
-const textId = computed(() => {
-  if (!poemId) {
-    return 'WEN_01'
-  }
-  if (poemId.startsWith('WEN_')) {
-    return poemId
-  }
-  const num = parseInt(poemId, 10)
-  if (isNaN(num)) {
-    return 'WEN_01'
-  }
-  return `WEN_${num.toString().padStart(2, '0')}`
-})
+// 将路由参数转换为 wenId 格式（P2: 复用 getWenId）
+const textId = computed(() => getWenId(poemId))
 
-// 页面配置URL（从pages_level3_adaptive_quiz目录加载）
-const pageUrl = computed(() => `/data/pages_level3_adaptive_quiz/${textId.value}.json`)
+// 页面配置URL（数据目录来自注册表）
+const pageUrl = computed(() => `/data/${meta?.dataDir}/${textId.value}.json`)
 
 // 使用数据加载器获取页面配置
 const { data: pageData, loading, error, retry } = useDataLoader<PageData>(() => pageUrl.value)
@@ -198,7 +172,6 @@ const {
   totalQuestions,
   progressPercent,
   isCompleted,
-  hasCompletionRecord,
   answers,
   handleSubmit: handleQuizSubmit,
   resetProgress,
@@ -243,7 +216,8 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   const isCorrect = item ? selectedOption === item.quiz.correct_answer : undefined
 
   // 获取 questionId、module 和 correctAnswer
-  const questionId = item?.quiz.question_id || ''
+  // P2: questionId 统一——Figma 数据 question_id 优先，缺失时按 textId + 序号兜底
+  const questionId = resolveQuestionId(textId.value, item?.quiz.question_id, quizIndex + 1)
   const module = item?.quiz.module || 'C'
   const correctAnswer = item?.quiz.correct_answer
 
