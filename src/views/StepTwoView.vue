@@ -11,36 +11,20 @@
 -->
 <template>
   <div class="steptwo-view">
-    <!-- 页面标题 -->
-    <header class="page-header" v-if="pageConfig?.title">
-      <h1 class="page-title">{{ pageConfig.title }}</h1>
-    </header>
-
-    <!-- 加载状态 -->
-    <div class="loading-state" v-if="loading">
-      <div class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
-        <span>加载页面内容...</span>
-      </div>
-    </div>
-
-    <!-- 错误状态 -->
-    <div class="error-state" v-else-if="error">
-      <div class="error-content">
-        <div class="error-icon">
-          <i class="fas fa-exclamation-circle"></i>
-        </div>
-        <p class="error-message">{{ error }}</p>
-        <button class="retry-button" @click="retry">
-          <i class="fas fa-redo"></i>
-          重新加载
-        </button>
-      </div>
-    </div>
-
-    <!-- 页面内容 -->
-    <template v-else-if="pageConfig">
-      <div class="blocks-container">
+    <!-- P1: 统一页面骨架（标题/加载/错误/空态/导航），内容由 blocks 渲染 -->
+    <PageScaffold
+      :title="pageConfig?.title || meta?.title"
+      :loading="loading"
+      :error="error"
+      :is-empty="!pageConfig"
+      empty-text="暂无内容"
+      :show-navigation="showNavigation"
+      :show-continue="allQuizzesSubmitted"
+      @retry="retry"
+      @back="handleGoPrev"
+      @continue="handleGoNext"
+    >
+      <div class="blocks-container" v-if="pageConfig">
         <BlockRenderer
           v-for="(block, index) in pageConfig.blocks"
           :key="`${block.type}-${index}`"
@@ -50,43 +34,36 @@
           @quiz-answer="handleQuizAnswer"
         />
       </div>
-    </template>
-
-    <!-- 空状态 -->
-    <div class="empty-state" v-else>
-      <div class="empty-content">
-        <div class="empty-icon">
-          <i class="fas fa-inbox"></i>
-        </div>
-        <p class="empty-message">暂无内容</p>
-      </div>
-    </div>
-
-    <!-- 底部导航按钮（全程显示返回，完成所有 quiz 后显示继续） -->
-    <BackContinue
-      v-if="showNavigation"
-      :show-continue="allQuizzesSubmitted"
-      back-text="返回"
-      @back="handleGoPrev"
-      @continue="handleGoNext"
-    />
+    </PageScaffold>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import PageScaffold from '@/components/PageScaffold.vue'
 import BlockRenderer from '@/components/BlockRenderer.vue'
-import BackContinue from '@/components/BackContinue.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
+import { getFigmaPageMeta } from '@/config/pageRegistry'
 import type { PageConfig } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
 const route = useRoute()
+
+// P1: 从 Figma 页面注册表读取元信息（数据目录/标题），消除硬编码路径；
+// 注册表为静态常量，兜底仅用于类型防御
+const meta = getFigmaPageMeta('steptwo') ?? {
+  key: 'steptwo',
+  dataDir: 'pages_level2_dialog_quiz',
+  renderMode: 'blocks' as const,
+  title: '课文研读',
+  navKey: 'steptwo' as const,
+  requiresAuth: true,
+}
 
 // 篇目ID（路由参数）
 const poemId = computed(() => route.params.id as string)
@@ -101,14 +78,14 @@ const wenId = computed(() => {
   return `WEN_${num.toString().padStart(2, '0')}`
 })
 
-// 页面配置URL
-const pageUrl = computed(() => `/data/pages_level2_dialog_quiz/${wenId.value}.json`)
+// 页面配置URL（数据目录来自注册表）
+const pageUrl = computed(() => `/data/${meta?.dataDir}/${wenId.value}.json`)
 
 // 使用数据加载器获取页面配置
 const { data: pageConfig, loading, error, retry } = useDataLoader<PageConfig>(() => pageUrl.value)
 
-// 是否显示导航按钮
-const showNavigation = computed(() => !loading.value && !error.value && pageConfig.value)
+// 是否显示导航按钮（显式转 Boolean，避免把 pageConfig 对象透传给 boolean prop）
+const showNavigation = computed(() => Boolean(!loading.value && !error.value && pageConfig.value))
 
 // 统计所有 quiz 块的数量（Ref类型，支持响应式更新）
 const totalQuizCount = ref(0)
@@ -128,9 +105,7 @@ watch(
 // 传入 wenId 作为 completionKeyPrefix，确保不同课文的完成记录相互独立
 const {
   currentIndex,
-  completedCount,
   isCompleted,
-  hasCompletionRecord,
   handleSubmit: handleQuizSubmit,
   resetProgress,
 } = useQuizProgress(

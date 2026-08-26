@@ -11,7 +11,7 @@
  */
 
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
-import { submitSingleAnswer } from '@/services/apiService'
+import { useQuizSubmitter } from '@/composables/useQuizSubmitter'
 import { useAuthStore } from '@/stores/auth'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
 
@@ -63,6 +63,9 @@ export function useQuizProgress(
   const completedCount = ref(0)
   const answers = ref<QuizAnswer[]>([])
   const submittedList = ref<boolean[]>([])
+
+  // P1: 统一提交入口（学生身份/JWT 由入口注入）
+  const submitter = useQuizSubmitter()
 
   const progressPercent = computed(() => {
     if (totalQuestionsRef.value === 0) return 0
@@ -132,7 +135,7 @@ export function useQuizProgress(
     }
 
     try {
-      const { studentId, studentName } = getStudentInfo()
+      const { studentId } = getStudentInfo()
 
       if (!studentId) {
         debugWarn('[useQuizProgress] submitSingleAnswerToBackend - 未登录，跳过后端提交')
@@ -142,9 +145,8 @@ export function useQuizProgress(
       const questionId =
         answer.questionId || `${completionKeyPrefix}_question_${answer.questionIndex}`
 
-      await submitSingleAnswer({
-        studentId,
-        studentName,
+      // P1: 统一走 useQuizSubmitter 提交入口，学生身份/JWT 由入口统一注入
+      await submitter.submitSingle({
         wenId: completionKeyPrefix,
         questionId,
         userAnswer: answer.answer,

@@ -5,7 +5,7 @@
  * - 提供统一的跳转函数
  * - 当前所有页面共用 poemId，跨页跳转直接透传 currentId
  * - 支持自定义 ID（用于跨页面跳转）
- * - 提供 goHome() 用于非顺序页面（如 BlockDemoView / NotFoundView）返回首页
+ * - 提供 goHome() 用于非顺序页面（如 NotFoundView）返回首页
  *
  * 使用方式：
  * ```ts

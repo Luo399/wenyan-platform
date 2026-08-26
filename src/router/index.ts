@@ -16,7 +16,6 @@ const RuleVideoView = () => import('@/views/RuleVideoView.vue')
 const StepOneView = () => import('@/views/StepOneView.vue')
 const StepTwoView = () => import('@/views/StepTwoView.vue')
 const StepThreeView = () => import('@/views/StepThreeView.vue')
-const BlockDemoView = () => import('@/views/BlockDemoView.vue')
 const AnswerQueryView = () => import('@/views/AnswerQueryView.vue')
 
 // R114: 标注 RouteRecordRaw 类型，保证 meta 字段有类型检查
@@ -81,11 +80,6 @@ export const routes: RouteRecordRaw[] = [
     name: 'steptwo',
     component: StepTwoView,
     meta: { requiresAuth: true },
-  },
-  {
-    path: '/block-demo',
-    name: 'block-demo',
-    component: BlockDemoView,
   },
   {
     path: '/detail/:id',
