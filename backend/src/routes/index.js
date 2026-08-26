@@ -10,7 +10,6 @@ const trackingAnalysisController = require('../controllers/trackingAnalysisContr
 const exportController = require('../controllers/exportController')
 const { requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
-const figmaController = require('../controllers/figmaController')
 const { submitRateLimit, queryRateLimit, loginRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
@@ -174,9 +173,8 @@ function registerRoutes(app) {
   app.get('/api/export/answers', dashboardAuthMiddleware, exportController.exportAnswers)
   app.get('/api/export/dashboard-summary', dashboardAuthMiddleware, exportController.exportDashboardSummary)
 
-  // ============ Figma 资源同步（无认证，需服务端配置 FIGMA_ACCESS_TOKEN） ============
-  app.post('/api/figma/sync', figmaController.sync)
-  app.get('/api/figma/status', figmaController.status)
+  // P2: 旧 Figma REST 同步方案（/api/figma/sync、/api/figma/status，因 API 限流弃用）已下线，
+  // 统一走 Figma 插件 → /api/assets/upload 的上传链路（见下方资产同步段落）
 
   // ============ 资产同步（Figma 插件 → 后端 → OSS，需同步令牌鉴权） ============
   const assetController = require('../controllers/assetController')
@@ -193,8 +191,6 @@ function registerRoutes(app) {
   app.get('/api/assets/oss-list', assetController.getOssList)
   // 清理误传/非业务资源（删除 OSS 对象 + 移除 version.json 记录），与上传同鉴权
   app.post('/api/assets/cleanup', assetAuthMiddleware, assetController.cleanup)
-  // 临时端点：读取服务器上的样式文件（后续移除）
-  app.get('/api/assets/styles/:name', assetController.getStyleFile)
 
   // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
   const resourceController = require('../controllers/resourceController')

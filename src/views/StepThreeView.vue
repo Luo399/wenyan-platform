@@ -95,6 +95,7 @@ import { markNextEnterFromBackButton, track } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
+import { getWenId } from '@/utils/wenUtils'
 import { debugLog } from '@/utils/debug'
 
 // 数据类型定义
@@ -135,20 +136,8 @@ const meta = getFigmaPageMeta('stepthree') ?? {
 // 篇目ID（路由参数）
 const poemId = route.params.id as string
 
-// 将路由参数转换为wenId格式
-const textId = computed(() => {
-  if (!poemId) {
-    return 'WEN_01'
-  }
-  if (poemId.startsWith('WEN_')) {
-    return poemId
-  }
-  const num = parseInt(poemId, 10)
-  if (isNaN(num)) {
-    return 'WEN_01'
-  }
-  return `WEN_${num.toString().padStart(2, '0')}`
-})
+// 将路由参数转换为 wenId 格式（P2: 复用 getWenId）
+const textId = computed(() => getWenId(poemId))
 
 // 页面配置URL（数据目录来自注册表）
 const pageUrl = computed(() => `/data/${meta?.dataDir}/${textId.value}.json`)

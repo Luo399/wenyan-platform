@@ -49,6 +49,7 @@ import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
+import { getWenId } from '@/utils/wenUtils'
 import type { PageConfig } from '@/types/pageConfig'
 import { debugLog } from '@/utils/debug'
 
@@ -68,15 +69,8 @@ const meta = getFigmaPageMeta('steptwo') ?? {
 // 篇目ID（路由参数）
 const poemId = computed(() => route.params.id as string)
 
-// 将路由参数转换为wenId格式
-const wenId = computed(() => {
-  const id = poemId.value
-  if (!id) return 'WEN_01'
-  if (id.startsWith('WEN_')) return id
-  const num = parseInt(id, 10)
-  if (isNaN(num)) return 'WEN_01'
-  return `WEN_${num.toString().padStart(2, '0')}`
-})
+// 将路由参数转换为wenId格式（P2: 复用 getWenId）
+const wenId = computed(() => getWenId(poemId.value))
 
 // 页面配置URL（数据目录来自注册表）
 const pageUrl = computed(() => `/data/${meta?.dataDir}/${wenId.value}.json`)
