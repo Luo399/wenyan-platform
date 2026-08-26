@@ -96,6 +96,7 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizProgress } from '@/composables/useQuizProgress'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { getWenId } from '@/utils/wenUtils'
+import { resolveQuestionId } from '@/utils/questionId'
 import { debugLog } from '@/utils/debug'
 
 // 数据类型定义
@@ -215,7 +216,8 @@ async function handleSubmit(quizIndex: number, selectedOption: number) {
   const isCorrect = item ? selectedOption === item.quiz.correct_answer : undefined
 
   // 获取 questionId、module 和 correctAnswer
-  const questionId = item?.quiz.question_id || ''
+  // P2: questionId 统一——Figma 数据 question_id 优先，缺失时按 textId + 序号兜底
+  const questionId = resolveQuestionId(textId.value, item?.quiz.question_id, quizIndex + 1)
   const module = item?.quiz.module || 'C'
   const correctAnswer = item?.quiz.correct_answer
 
