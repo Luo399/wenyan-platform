@@ -8,13 +8,8 @@
   <div class="dialogue-card">
     <div class="dialogue-bubble" :class="speakerClass">
       <!-- 头像 -->
-      <div class="dialogue-avatar" v-if="iconDialog">
-        <img
-          :src="getIconUrl(iconDialog)"
-          :alt="speakerName"
-          class="avatar-image"
-          @error="handleImageError"
-        />
+      <div class="dialogue-avatar" v-if="iconDialog && iconUrl">
+        <img :src="iconUrl" :alt="speakerName" class="avatar-image" @error="handleImageError" />
       </div>
       <div class="dialogue-avatar" v-else>
         <i class="fas fa-user-circle"></i>
@@ -48,6 +43,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { getAssetUrl } from '@/utils/asset'
+import { resolveScreenAsset } from '@/config/figmaAssets'
 import { debugError } from '@/utils/debug'
 
 interface Props {
@@ -100,6 +96,25 @@ const dialogContent = computed(() => {
 // 下划线属性兼容
 const audioFile = computed(() => props.audio_file || props.audioFile)
 const iconDialog = computed(() => props.icon_dialog || props.iconDialog)
+const wenId = computed(() => props.text_id || props.textId || '')
+
+// Figma 切片头像 URL（异步探测，图优先 / CSS 兜底）
+const iconUrl = ref('')
+watch(
+  [iconDialog, wenId],
+  async () => {
+    const name = iconDialog.value
+    if (!name || !wenId.value) {
+      iconUrl.value = ''
+      return
+    }
+    // 优先生产桶约定目录：images/screens/{wenId}/dialogue/{name}
+    const screenUrl = await resolveScreenAsset(wenId.value, 'dialogue', name)
+    // 约定目录不存在 → 回退旧位置 images/{name}（兼容历史数据）
+    iconUrl.value = screenUrl ?? getAssetUrl('images', name)
+  },
+  { immediate: true },
+)
 
 // 打字机效果
 const displayedText = ref('')
@@ -184,12 +199,6 @@ function pauseAudio() {
     isPlaying.value = false
     emit('audio-pause')
   }
-}
-
-// 获取头像URL
-// R70: 用 getAssetUrl 替代硬编码 /img/
-function getIconUrl(iconName: string): string {
-  return getAssetUrl('images', iconName)
 }
 
 // 处理图片加载失败

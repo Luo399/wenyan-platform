@@ -182,3 +182,42 @@ else → <slot /> 内容区
 2. **Figma 字段演变**：字段更名会影响适配器与 JSON，建议推进 schemaVersion。
 3. **多环境数据**：OSS test/prod 桶需按用例分别上传对应数据 JSON，version.json 时间戳保证缓存刷新。
 4. **鉴权**：注册表 `requiresAuth` 与路由 `meta.requiresAuth` 需保持一致，否则登录守卫与数据访问不一致。
+
+---
+
+## 八、Figma 切片资源消费约定（生产桶）
+
+生产桶（`www.classicalab.cn`）现网资源路径约定：
+
+```
+images/screens/{wenId}/{screenType}/{fileName}
+  ├── dialogue/     btn_back/btn_next、bgm-controller、avatar_*、card_bamboo、bg_mountain
+  ├── quiz/         option_a~d、btn_submit、grade_area、btn_completed
+  ├── video/        video_placeholder、article_bg
+  ├── summary/      summary_text_box、bg_summary
+  ├── explanation/  article_title 等
+```
+
+代码侧消费入口：[figmaAssets.ts](../src/config/figmaAssets.ts)
+
+- `getScreenAssetUrl(wenId, screenType, fileName)` —— 按约定构造完整 URL
+- `resolveScreenAsset(wenId, screenType, fileName)` —— HEAD 探测存在后返回 URL，否则 `null`
+- 组件统一采用"**图优先 / CSS 兜底**"：`resolveScreenAsset` 命中即渲染切片，未命中保持现有 design-tokens 样式
+- 已接入：`DialogueCard` 头像（`icon_dialog` 优先 `images/screens/{wenId}/dialogue/{name}`，缺失回退 `images/{name}`，再缺显示默认图标）
+
+### 需要 Figma 插件补传的资源清单（数据层断点）
+
+| # | 资源 | 目标路径 | 说明 |
+|---|---|---|---|
+| D1 | WEN_01 对话图标 | `images/screens/WEN_01/dialogue/WEN_01_icon_dialog*.png` | 生产/测试桶均 404，组件已按此目录解析 |
+| D2 | WEN_08/16/17/18/19 等课文 block JSON | `data/pages_level2_dialog_quiz/{wenId}.json`、`data/pages_level3_adaptive_quiz/{wenId}.json` 等 | 前端页面数据载体，目前仅 WEN_01 存在 |
+| D3 | 课文基础/字词/文化数据 | `data/text_basic_info/`、`data/word_list/`、`data/culture_cards/` | 与 D2 一起补齐 |
+| D4 | 对话角色头像等在 blocks 中引用 | 数据 block `icon_dialog`/`image` 字段指向 `images/screens/{wenId}/dialogue/avatar_*.png` | 直接引用现网已上传切片即可 |
+
+> 说明：切片图已大量在生产桶（WEN_08/18 全流程，共 376 张），**数据 JSON 是图被消费的前提**。数据补齐后，已在组件层接通的通道会直接呈现 Figma 效果。
+
+### 视觉取舍（本次确认）
+
+- **对话头像/图标**：用 Figma 切片图（已接通，补传即可显示）
+- **测验选项/提交/成绩区**：当前为 CSS 实现；如需材质还原，在数据 block 上声明 `image` 引用后由组件渲染切片（后续按课文试点）
+- **样式层**：桶内 styles JSON 为 0，视觉统一由 `design-tokens.css` 维护，不从 Figma 同步样式 JSON
