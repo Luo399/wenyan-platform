@@ -17,6 +17,7 @@
     <!-- 视频播放器 - 平铺整个宽度 -->
     <div class="video-section">
       <VideoPlayer
+        fill
         :src="currentPoem.videoUrl"
         @play="trackInteraction('视频', '播放', 0)"
         @pause="trackInteraction('视频', '暂停', 0)"
@@ -121,19 +122,8 @@ const currentPoem = computed(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* 居中容器，视频保持 16:9 比例 */
-  align-items: center;
+  /* 视频拉伸填满剩余空间，适配电脑端屏幕，避免出现上下滚动条 */
+  align-items: stretch;
   justify-content: center;
-}
-
-.video-section :deep(.video-player-container) {
-  /* 视频播放器最大宽度，保持居中 */
-  max-width: 90%;
-}
-
-.video-section :deep(.video-wrapper) {
-  /* 视频保持 16:9 宽高比，不拉伸 */
-  aspect-ratio: 16 / 9;
-  max-height: 100%;
 }
 </style>

@@ -9,6 +9,10 @@ const ossConfig = {
   accessKeyId: process.env.OSS_ACCESS_KEY_ID,
   accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
   bucket: process.env.OSS_BUCKET,
+  // 大视频（100MB+）默认 60s 响应超时不够，抬到 5 分钟避免 ResponseTimeoutError
+  timeout: 300000,
+  // 强制 HTTPS，比 HTTP 更稳定可靠
+  secure: true,
 }
 
 const args = process.argv.slice(2)
@@ -43,7 +47,10 @@ function validateConfig() {
   }
 }
 
-function scanFiles(dir, files = []) {
+// 媒体模式下只允许进入的音/视频顶层目录，避免把 images/data 等其他管线产物一起上传
+const MEDIA_ONLY_DIRS = ['audio', 'video']
+
+function scanFiles(dir, files = [], isTop = true) {
   if (!fs.existsSync(dir)) {
     console.log(`⚠️  目录不存在: ${dir}`)
     return files
@@ -55,7 +62,9 @@ function scanFiles(dir, files = []) {
     const fullPath = path.join(dir, entry.name)
 
     if (entry.isDirectory()) {
-      scanFiles(fullPath, files)
+      // 媒体上传模式（非 dist）：只深入 audio/video，其余（images/data/fonts）跳过
+      if (!uploadDist && isTop && !MEDIA_ONLY_DIRS.includes(entry.name)) continue
+      scanFiles(fullPath, files, false)
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase()
       if (uploadDist || mediaExtensions.includes(ext)) {

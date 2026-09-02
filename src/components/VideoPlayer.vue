@@ -12,8 +12,8 @@
   <VideoPlayer src="/path/to/video.mp4" poster="/path/to/poster.jpg" />
 -->
 <template>
-  <!-- 播放器最外层容器 -->
-  <div class="video-player-container">
+  <!-- 播放器最外层容器 is-fill：全屏铺满模式（视频拉伸适配，控制栏固定底部） -->
+  <div :class="['video-player-container', { 'is-fill': fill }]">
     <!-- 视频加载失败占位符 -->
     <div v-if="loadError" class="video-error-placeholder">
       <div class="error-icon">
@@ -128,9 +128,17 @@ const props = withDefaults(
      * 可选属性：视频未播放时显示的图片
      */
     poster?: string
+
+    /**
+     * 是否铺满容器（fill 模式）
+     * true：视频拉伸 cover 铺满、无上下滑动条、控制栏固定底部
+     * 默认 false：保持 16:9 contain 原始行为（内容页复用不受影响）
+     */
+    fill?: boolean
   }>(),
   {
     poster: '',
+    fill: false,
   },
 )
 
@@ -433,6 +441,43 @@ function formatTime(seconds: number): string {
   height: 100%; /* 高度100%适配容器 */
   /* object-fit: contain 保持视频原始比例，完整显示 */
   object-fit: contain;
+}
+
+/* ============================================================
+   fill 铺满模式（RuleVideoView 视频页专用）
+   - 容器撑满父元素高度，视频 cover 拉伸铺满、无黑边无滚动条
+   - 控制栏固定在底部，始终可见，不会被 overflow:hidden 裁掉
+   ============================================================ */
+.video-player-container.is-fill {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-player-container.is-fill .video-wrapper {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  /* 取消固定 16:9 比例，由视频对象占比填充决定 */
+  aspect-ratio: auto;
+}
+
+.video-player-container.is-fill .video-wrapper video {
+  /* 视频拉伸铺满播放区域，等比裁剪适配电脑端屏幕 */
+  object-fit: cover;
+  object-position: center;
+}
+
+.video-player-container.is-fill .video-error-placeholder {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  aspect-ratio: auto;
+}
+
+.video-player-container.is-fill .controls-bar {
+  flex-shrink: 0;
 }
 
 /* 视频加载失败占位符 */
