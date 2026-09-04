@@ -12,8 +12,8 @@
   <VideoPlayer src="/path/to/video.mp4" poster="/path/to/poster.jpg" />
 -->
 <template>
-  <!-- 播放器最外层容器 is-fill：全屏铺满模式（视频拉伸适配，控制栏固定底部） -->
-  <div :class="['video-player-container', { 'is-fill': fill }]">
+  <!-- 播放器最外层容器 is-fill：全屏铺满模式（视频适配屏幕，控制栏固定底部） -->
+  <div ref="containerRef" :class="['video-player-container', { 'is-fill': fill }]">
     <!-- 视频加载失败占位符 -->
     <div v-if="loadError" class="video-error-placeholder">
       <div class="error-icon">
@@ -103,13 +103,49 @@
       <!-- 时间显示区域 -->
       <!-- 格式：当前时间 / 总时长 -->
       <span class="time-display"> {{ formatTime(currentTime) }} / {{ formatTime(duration) }} </span>
+
+      <!-- 全屏切换按钮 -->
+      <button
+        class="control-btn fullscreen-btn"
+        :aria-label="isFullscreen ? '退出全屏' : '进入全屏'"
+        @click="toggleFullscreen"
+      >
+        <!-- 进入全屏图标（角落箭头） -->
+        <svg
+          v-if="!isFullscreen"
+          class="fs-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path
+            d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"
+          />
+        </svg>
+        <!-- 退出全屏图标（角落内缩箭头） -->
+        <svg
+          v-else
+          class="fs-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path
+            d="M8 3v3a2 2 0 0 1-2 2H3M16 3v3a2 2 0 0 0 2 2h3M8 21v-3a2 2 0 0 0-2-2H3M16 21v-3a2 2 0 0 1 2-2h3"
+          />
+        </svg>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { debugWarn } from '@/utils/debug'
 
 // ============================================================
@@ -183,6 +219,18 @@ const duration = ref(0)
  * 视频加载失败标记
  */
 const loadError = ref(false)
+
+/**
+ * 播放器根容器 DOM 引用
+ * 用于进入/退出全屏（requestFullscreen）
+ */
+const containerRef = ref<HTMLElement | null>(null)
+
+/**
+ * 全屏状态标记
+ * true = 已进入全屏，false = 普通窗口
+ */
+const isFullscreen = ref(false)
 
 // ============================================================
 // 计算属性
@@ -406,6 +454,50 @@ function formatTime(seconds: number): string {
   // 格式化为两位数并用冒号连接
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
+
+/**
+ * 切换全屏/退出全屏
+ *
+ * 全屏对象为播放器根容器（视频区域 + 底部控制栏）
+ * requestFullscreen 需由用户手势（点击）触发，浏览器允许此场景
+ */
+function toggleFullscreen() {
+  const el = containerRef.value
+  // 已在全屏则退出
+  if (document.fullscreenElement) {
+    void document.exitFullscreen().catch((err: unknown) => debugWarn('退出全屏失败:', err))
+    return
+  }
+  // 进入全屏（兼容不暴露 requestFullscreen 的场景）
+  if (!el) return
+  const reqFullscreen =
+    (
+      el as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void> | void
+      }
+    ).requestFullscreen ??
+    (el as HTMLElement & { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen
+  if (reqFullscreen) {
+    void reqFullscreen.call(el)
+  }
+}
+
+/**
+ * 监听全屏状态变化，同步图标显示
+ */
+function handleFullscreenChange() {
+  isFullscreen.value = document.fullscreenElement != null
+}
+
+// 组件挂载后注册全屏状态监听
+onMounted(() => {
+  document.addEventListener('fullscreenchange', handleFullscreenChange)
+})
+
+// 组件卸载时移除监听，避免内存泄漏
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', handleFullscreenChange)
+})
 </script>
 
 <style scoped>
@@ -464,8 +556,8 @@ function formatTime(seconds: number): string {
 }
 
 .video-player-container.is-fill .video-wrapper video {
-  /* 视频拉伸铺满播放区域，等比裁剪适配电脑端屏幕 */
-  object-fit: cover;
+  /* 视频完整显示、等比缩放适应当前屏幕尺寸，不裁剪画面 */
+  object-fit: contain;
   object-position: center;
 }
 
@@ -532,7 +624,7 @@ function formatTime(seconds: number): string {
    控制栏样式
    ============================================================ */
 
-/* 控制栏容器：水平排列各控制元素 */
+/* 控制栏容器：水平紧凑排列各控制元素（播放键/进度条/时间/全屏） */
 .controls-bar {
   display: flex; /* Flexbox 布局 */
   align-items: center; /* 垂直居中对齐 */
@@ -540,6 +632,10 @@ function formatTime(seconds: number): string {
   padding: var(--spacing-sm); /* 内边距 */
   /* 视频控制栏深色背景，设计 token 无对应深色变量，保留原值 */
   background-color: #1f2937;
+  /* 控制栏始终完整显示，不被压缩裁掉播放键或进度条 */
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 播放/暂停按钮样式（文字按钮：朱红底 + 橄榄绿边框 + 药丸圆角） */
@@ -598,5 +694,21 @@ function formatTime(seconds: number): string {
   flex-shrink: 0; /* 不允许收缩 */
   min-width: 90px; /* 最小宽度 */
   text-align: right; /* 右对齐 */
+}
+
+/* 全屏按钮：使用图标，垂直对齐播放键 */
+.fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xs); /* 图标按钮更紧凑 */
+  flex-shrink: 0; /* 不允许收缩 */
+}
+
+/* 全屏图标尺寸 */
+.fs-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 </style>
