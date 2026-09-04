@@ -20,6 +20,7 @@ const ALLOWED_JSON_DIRS = [
   'data/texts',
   'data/word_list',  // 字词注释数据（前端通过 getDataUrl('word_list', ...) 消费）
   'styles',  // Figma 插件视觉属性提取（颜色、字体、边框、圆角、自动布局等）
+  'data/sync_watch',  // 自动化清单与同步状态（非前端业务数据，仅 oss-auto-sync 写入）
 ]
 /** 允许的图片/媒体根目录（子路径由 Figma Frame 命名决定） */
 const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
