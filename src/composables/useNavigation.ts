@@ -23,8 +23,54 @@
 import { computed } from 'vue'
 import { useRouter, isNavigationFailure } from 'vue-router'
 import { type RouteName, getNextPage, getPrevPage, pageSequence } from '@/config/navigation'
-import { debugError, debugWarn } from '@/utils/debug'
-import { markNextEnterFromBackButton, setPendingExitType } from '@/utils/tracking'
+import { debugError, debugLog, debugWarn } from '@/utils/debug'
+import { markNextEnterFromBackButton, setPendingExitType, track } from '@/utils/tracking'
+
+/** 「继续」按钮跳转耗时告警阈值（毫秒）：超过即视为未达 <0.5s 的响应目标 */
+const NAV_LATENCY_WARN_MS = 500
+
+/**
+ * 读取高精度时间戳（毫秒）
+ * performance.now 不可用时回落到 Date.now，兼容各类浏览器与测试环境。
+ */
+function nowMs(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+}
+
+/**
+ * 上报「继续」按钮跳转耗时，用于统计不同浏览器环境下的响应延迟。
+ *
+ * - 埋点走 useTracking 的缓冲队列异步发送，不阻塞点击回调主线程
+ * - totalCost 超过 NAV_LATENCY_WARN_MS 时额外输出开发环境告警
+ *
+ * @param routeName - 当前顺序页面名称
+ * @param path - 目标路径
+ * @param syncCost - 点击回调内同步阶段耗时（主线程阻塞时间）
+ * @param totalCost - 从点击到路由跳转完成的端到端耗时
+ */
+function reportNextLatency(
+  routeName: RouteName | undefined,
+  path: string,
+  syncCost: number,
+  totalCost: number,
+): void {
+  debugLog('[useNavigation.goNext] 跳转耗时(ms):', { sync: syncCost, total: totalCost, path })
+  if (totalCost > NAV_LATENCY_WARN_MS) {
+    debugWarn(
+      `[useNavigation.goNext] 跳转耗时 ${totalCost}ms 超过 ${NAV_LATENCY_WARN_MS}ms 阈值，目标页: ${path}`,
+    )
+  }
+  track('interaction', routeName || 'unknown', {
+    module_type: 'navigation',
+    action: 'go_next',
+    sync_cost: syncCost,
+    cost_time: totalCost,
+    target_path: path,
+    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+  })
+}
 
 export function useNavigation(currentRouteName?: RouteName, currentId?: string) {
   const router = useRouter()
@@ -43,7 +89,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       return
     }
     router.push(homePage.getPath()).catch((err: unknown) => {
-      console.error('[useNavigation.goHome] router.push 失败:', err)
+      debugError('[useNavigation.goHome] router.push 失败:', err)
       window.location.href = homePage.getPath()
     })
   }
@@ -72,48 +118,42 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
    * 非顺序页面（未传 currentRouteName）调用时仅 warn 不跳转。
    */
   function goNext(targetId?: string) {
-    // 调试日志：生产环境也输出，避免 debugWarn 仅在 dev 模式生效
-    console.log(
-      '[useNavigation.goNext] currentRouteName:',
-      currentRouteName,
-      'currentId:',
-      currentId,
-      'targetId:',
-      targetId,
-    )
+    const startTime = nowMs()
+
     if (!currentRouteName) {
-      console.warn('useNavigation.goNext：未提供 currentRouteName，非顺序页面不支持 goNext')
+      debugWarn('useNavigation.goNext：未提供 currentRouteName，非顺序页面不支持 goNext')
       return
     }
     const nextPage = getNextPage(currentRouteName)
-    console.log('[useNavigation.goNext] nextPage:', nextPage)
     if (!nextPage) {
-      console.warn('已是最后一页')
+      debugWarn('useNavigation.goNext：已是最后一页，无下一页')
       return
     }
     // 标记退出类型为"前进"
     setPendingExitType('forward')
     const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
-    console.log('[useNavigation.goNext] pushing to:', path)
+    // 同步阶段耗时：点击回调内主线程阻塞时间，要求 < 0.5s
+    // 注意：此处不得再序列化 nextPage 等大对象到 console，否则会拖慢点击响应
+    const syncCost = Math.round(nowMs() - startTime)
+    debugLog('[useNavigation.goNext] 跳转到:', path, '同步耗时(ms):', syncCost)
+
     router
       .push(path)
       .then((result) => {
+        // 端到端耗时统计 + 埋点上报（异步，不阻塞主线程）
+        reportNextLatency(currentRouteName, path, syncCost, Math.round(nowMs() - startTime))
         // R136: 检查导航结果，如果是失败类型，记录详细日志
         if (result && isNavigationFailure(result)) {
-          console.warn('[useNavigation.goNext] 导航失败:', result)
-        } else {
-          console.log('[useNavigation.goNext] 导航成功到:', path)
+          debugWarn('[useNavigation.goNext] 导航失败:', result)
         }
       })
       .catch((err: unknown) => {
-        console.error('[useNavigation.goNext] router.push 失败:', err)
+        debugError('[useNavigation.goNext] router.push 失败:', err)
         // R136: router.push 失败时 fallback 到 router.replace
-        console.log('[useNavigation.goNext] 尝试 router.replace 回退到:', path)
         router.replace(path).catch((err2: unknown) => {
-          console.error('[useNavigation.goNext] router.replace 也失败:', err2)
+          debugError('[useNavigation.goNext] router.replace 也失败:', err2)
           // 最后的 fallback：直接修改 window.location
-          console.log('[useNavigation.goNext] 最终 fallback 到 window.location.href:', path)
           window.location.href = path
         })
       })
@@ -142,7 +182,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     const id = targetId ?? getTargetId()
     const path = prevPage.getPath(id)
     router.push(path).catch((err: unknown) => {
-      console.error('[useNavigation.goPrev] router.push 失败:', err)
+      debugError('[useNavigation.goPrev] router.push 失败:', err)
       window.location.href = path
     })
   }
@@ -159,7 +199,7 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
     const targetId = id ?? getTargetId()
     const path = page.getPath(targetId)
     router.push(path).catch((err: unknown) => {
-      console.error('[useNavigation.goTo] router.push 失败:', err)
+      debugError('[useNavigation.goTo] router.push 失败:', err)
       window.location.href = path
     })
   }
