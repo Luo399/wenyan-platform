@@ -164,14 +164,32 @@ async function buildFetchConfig(
 
 /**
  * R92: 处理 fetch 响应（从 request 拆分）
+ *
+ * 401 语义区分（R104）：
+ * - 已登录会话收到 401 → 会话失效，登出并抛 AUTH_EXPIRED
+ * - 未登录（如登录页姓名回显、登录失败）收到 401 → 不使用"登录已过期"文案，
+ *   直接透传后端错误码与消息（如 INVALID_CREDENTIALS / AUTH_REQUIRED）
  */
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (response.status === 401) {
-    const authStore = useAuthStore()
-    if (authStore.isLoggedIn) {
-      authStore.logout()
+    const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null
+    const hasSession = isLoggedInSafely()
+    if (hasSession) {
+      logoutSafely()
     }
-    throw new ApiError(401, 'AUTH_EXPIRED', '登录已过期，请重新登录')
+    const errCode =
+      errorData && typeof errorData.error === 'string'
+        ? errorData.error
+        : hasSession
+          ? 'AUTH_EXPIRED'
+          : 'AUTH_REQUIRED'
+    const errMsg =
+      errorData && typeof errorData.message === 'string'
+        ? errorData.message
+        : hasSession
+          ? '登录已过期，请重新登录'
+          : '请先登录'
+    throw new ApiError(401, errCode, errMsg)
   }
 
   if (!response.ok) {
@@ -187,6 +205,28 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
 
   const jsonResponse = await response.json()
   return normalizeResponse<T>(jsonResponse)
+}
+
+/**
+ * R104: 安全读取登录态（Pinia 未安装时视为未登录）
+ */
+function isLoggedInSafely(): boolean {
+  try {
+    return useAuthStore().isLoggedIn
+  } catch {
+    return false
+  }
+}
+
+/**
+ * R104: 安全登出（Pinia 未安装时忽略）
+ */
+function logoutSafely(): void {
+  try {
+    useAuthStore().logout()
+  } catch {
+    // 忽略：无 Pinia 实例时无需清理
+  }
 }
 
 export async function get<T = unknown>(
