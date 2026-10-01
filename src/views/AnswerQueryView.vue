@@ -29,6 +29,8 @@
       <span class="tool-nav-sep">|</span>
       <a href="/answer-query" class="tool-nav-link">学生信息查询</a>
       <span class="tool-nav-sep">|</span>
+      <a href="/teacher-completion" class="tool-nav-link">学生完成情况</a>
+      <span class="tool-nav-sep">|</span>
       <button class="tool-nav-btn" @click="showBatchCreateDialog = true">批量创建教师</button>
       <template v-if="isAdmin">
         <span class="tool-nav-sep">|</span>
