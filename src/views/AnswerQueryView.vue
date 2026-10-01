@@ -30,6 +30,10 @@
       <a href="/answer-query" class="tool-nav-link">学生信息查询</a>
       <span class="tool-nav-sep">|</span>
       <button class="tool-nav-btn" @click="showBatchCreateDialog = true">批量创建教师</button>
+      <template v-if="isAdmin">
+        <span class="tool-nav-sep">|</span>
+        <a href="/admin-console" class="tool-nav-link">账号管理控制台</a>
+      </template>
     </div>
 
     <!-- 批量创建教师弹窗 -->
@@ -403,6 +407,9 @@ const TOAST_DURATION_MS = 3000 as const
 
 /** 当前登录的 auth store */
 const authStore = useAuthStore()
+
+/** 是否管理员（管理员才展示账号管理入口） */
+const isAdmin = computed(() => authStore.user?.role === 'admin')
 
 // ============================================================
 // 基础状态

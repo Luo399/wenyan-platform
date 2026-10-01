@@ -34,9 +34,16 @@ function registerRoutes(app) {
         'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为123456',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
+        'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
+        'PUT    /api/admin/teachers/:phone': '管理员更新教师（姓名/学校/班级/状态）',
+        'DELETE /api/admin/teachers/:phone': '管理员删除教师账号',
         'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码',
         'POST   /api/admin/teachers/:phone/status': '管理员启用/禁用教师',
         'GET    /api/admin/students': '管理员查所有学生',
+        'GET    /api/admin/students/:studentId': '管理员查单个学生',
+        'POST   /api/admin/students': '管理员新增学生账号（初始密码 123456）',
+        'PUT    /api/admin/students/:studentId': '管理员更新学生信息',
+        'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
         'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为123456',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
         // 遗留学生管理（S04：已加 teacher/admin 鉴权，待前端迁移后下线）
@@ -94,6 +101,9 @@ function registerRoutes(app) {
   // ============ 管理员：教师/学生/重置审计 ============
   const adminAuth = [requireAuthMiddleware, requireRole(['admin', 'super_admin'])]
   app.get('/api/admin/teachers', ...adminAuth, adminController.listTeachers)
+  app.get('/api/admin/teachers/:phone', ...adminAuth, adminController.getTeacher)
+  app.put('/api/admin/teachers/:phone', ...adminAuth, adminController.updateTeacher)
+  app.delete('/api/admin/teachers/:phone', ...adminAuth, adminController.deleteTeacher)
   app.post(
     '/api/admin/teachers/:phone/reset-password',
     ...adminAuth,
@@ -101,6 +111,10 @@ function registerRoutes(app) {
   )
   app.post('/api/admin/teachers/:phone/status', ...adminAuth, adminController.setTeacherStatus)
   app.get('/api/admin/students', ...adminAuth, adminController.listStudents)
+  app.get('/api/admin/students/:studentId', ...adminAuth, adminController.getStudent)
+  app.post('/api/admin/students', ...adminAuth, adminController.createStudent)
+  app.put('/api/admin/students/:studentId', ...adminAuth, adminController.updateStudent)
+  app.delete('/api/admin/students/:studentId', ...adminAuth, adminController.deleteStudent)
   app.post(
     '/api/admin/students/:studentId/reset-password',
     ...adminAuth,
