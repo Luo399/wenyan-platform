@@ -295,7 +295,7 @@ function buildInitChain() {
       .then(() => seedDefaultSchool())
       // 10. 种子数据：默认管理员 admin/admin123（若 admins 为空）
       .then(() => seedDefaultAdmin())
-      // 11. 种子数据：测试学生 99999999 / 123456
+      // 11. 种子数据：测试学生 99999999 / 123456（非生产环境）
       .then(() => seedTestStudent())
       .then(() => {
         logger.info('[database] 所有表初始化/升级完成')
@@ -441,10 +441,15 @@ function seedDefaultAdmin() {
 
 /**
  * 种子数据：测试学生 99999999 / 123456（仅开发/测试环境）
- * 判断条件：students 表为空，且当前不是生产环境
+ * 判断条件：当前不是生产环境，且该学号尚未存在
  */
 function seedTestStudent() {
   return new Promise((resolve, reject) => {
+    // 生产环境禁止播种弱口令测试账号
+    if (process.env.NODE_ENV === 'production') {
+      logger.debug('[database] 生产环境跳过测试学生播种')
+      return resolve()
+    }
     db.get('SELECT id FROM students WHERE student_id = ?', ['99999999'], (err, row) => {
       if (err) return reject(err)
       if (row) {

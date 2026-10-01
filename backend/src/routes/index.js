@@ -40,6 +40,7 @@ function registerRoutes(app) {
         'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为123456',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
         // 遗留学生管理（S04：已加 teacher/admin 鉴权，待前端迁移后下线）
+        'GET  /api/students/:studentId/name': '公开：按学号查询学生姓名（登录页回显）',
         'POST /api/students': '[鉴权] 学生注册',
         'POST /api/submit': '提交答案',
         'GET /api/students': '[鉴权] 查询所有学生',
@@ -111,6 +112,8 @@ function registerRoutes(app) {
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
   // 前端 AnswerQueryView 迁移完成后在 Phase 2 物理删除
+  // 公开查询：登录页回显学生姓名（仅返回学号+姓名，无需鉴权）
+  app.get('/api/students/:studentId/name', studentController.getStudentPublicName)
   const legacyStudentAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin'])]
   app.get('/api/students', ...legacyStudentAuth, studentController.getStudentList)
   app.get('/api/students/:studentId', ...legacyStudentAuth, studentController.getStudent)
