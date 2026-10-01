@@ -343,6 +343,42 @@ async function resetStudent(req, res) {
   }
 }
 
+/**
+ * 教师删除本班学生账号
+ * DELETE /api/teacher/students/:studentId
+ *
+ * 权限：复用 teacherCanManageClass，仅能删除自己所教班级的学生
+ */
+async function deleteStudent(req, res) {
+  try {
+    const teacherId = await resolveTeacherId(req)
+    if (!teacherId) {
+      return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
+    }
+    // 先查学生，确认存在并拿到其班级编码用于鉴权
+    const student = await dbGet(
+      db,
+      `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`,
+      [req.params.studentId],
+    )
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
+    }
+    const ok = await teacherCanManageClass(teacherId, student.class_code)
+    if (!ok) {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权删除该学生' })
+    }
+    const info = await dbRun(db, 'DELETE FROM students WHERE student_id = ?', [req.params.studentId])
+    if (!info || info.changes === 0) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
+    }
+    res.status(200).json({ success: true, message: '学生账号已删除' })
+  } catch (err) {
+    logger.error('[teacher] 删除学生失败:', err)
+    res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '删除失败' })
+  }
+}
+
 module.exports = {
   listStudents,
   getStudent,
@@ -350,4 +386,5 @@ module.exports = {
   batchCreateStudents,
   updateStudent,
   resetStudent,
+  deleteStudent,
 }
