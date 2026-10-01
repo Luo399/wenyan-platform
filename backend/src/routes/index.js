@@ -33,6 +33,7 @@ function registerRoutes(app) {
         'PUT    /api/teacher/students/:studentId': '教师更新学生姓名',
         'DELETE /api/teacher/students/:studentId': '教师删除本班学生账号',
         'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为123456',
+        'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况（框架）',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
         'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
@@ -99,6 +100,8 @@ function registerRoutes(app) {
     ...teacherAuth,
     teacherController.resetStudent,
   )
+  // 教师查看所教班级学生完成情况（框架版，统计逻辑后续接入）
+  app.get('/api/teacher/completion/students', ...teacherAuth, teacherController.getStudentsCompletion)
 
   // ============ 管理员：教师/学生/重置审计 ============
   const adminAuth = [requireAuthMiddleware, requireRole(['admin', 'super_admin'])]

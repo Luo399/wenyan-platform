@@ -105,6 +105,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/teacher-completion',
+    name: 'teacher-completion',
+    component: () => import('@/views/TeacherCompletionView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/resource-upload',
     name: 'resource-upload',
     component: () => import('@/views/ResourceUploadTool.vue'),
