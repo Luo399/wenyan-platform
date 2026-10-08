@@ -25,6 +25,7 @@ function registerRoutes(app) {
         'POST /api/auth/teacher/login': '教师登录',
         'POST /api/auth/admin/login': '管理员登录',
         'POST /api/auth/change-password': '登录态自助修改密码（三角色通用）',
+        'POST /api/auth/refresh': '登录态令牌刷新（需携带有效 token）',
         // 教师侧 - 学生管理
         'GET    /api/teacher/students': '教师查自己班级学生列表',
         'GET    /api/teacher/students/:studentId': '教师查单个学生',
@@ -74,6 +75,8 @@ function registerRoutes(app) {
     requireAuthMiddleware,
     authController.changePassword,
   )
+  // F-004: 令牌刷新（需携带有效 token），供前端在过期前续期，避免被动登出
+  app.post('/api/auth/refresh', requireAuthMiddleware, authController.refreshToken)
 
   // S04: 遗留免密登录接口已物理下线（前端 R103 已迁移到 /api/auth/student/login）
 
