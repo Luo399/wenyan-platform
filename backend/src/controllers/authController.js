@@ -365,6 +365,114 @@ async function changePassword(req, res) {
   }
 }
 
+// ===== 令牌刷新（F-004）=====
+
+/**
+ * 刷新当前登录态令牌。
+ *
+ * 背景：前端 stores/auth.ts 早已实现 refreshToken()，但后端从未提供
+ * /api/auth/refresh，导致该函数是死代码、会话无法续期（F-004），
+ * 用户每到有效期就被强制登出（F-001）。
+ *
+ * 安全：必须携带有效 token（路由层 requireAuthMiddleware），
+ * 并重新校验账号仍存在、教师仍启用；禁止仅凭旧 token 字段原样重签。
+ */
+async function refreshToken(req, res) {
+  try {
+    const user = req.user
+    if (!user || !user.role) {
+      return res.status(401).json({
+        success: false,
+        error: 'AUTH_REQUIRED',
+        message: '需要登录',
+      })
+    }
+
+    let payload
+    let profile
+
+    if (user.role === 'student') {
+      const student = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [
+        user.student_id,
+      ])
+      if (!student) {
+        return res.status(401).json({
+          success: false,
+          error: 'AUTH_FAILED',
+          message: '账号不存在，请重新登录',
+        })
+      }
+      payload = { role: 'student', student_id: student.student_id }
+      profile = {
+        id: student.student_id,
+        username: student.student_id,
+        student_id: student.student_id,
+        student_name: student.student_name,
+        class_code: student.class_code,
+        must_reset_password: !!student.must_reset_password,
+        role: 'student',
+      }
+    } else if (user.role === 'teacher') {
+      const teacher = await dbGet(db, 'SELECT * FROM teachers WHERE phone = ?', [user.phone])
+      if (!teacher) {
+        return res.status(401).json({
+          success: false,
+          error: 'AUTH_FAILED',
+          message: '账号不存在，请重新登录',
+        })
+      }
+      if (teacher.status !== 'active') {
+        return res.status(403).json({
+          success: false,
+          error: 'ACCOUNT_DISABLED',
+          message: '账号已被禁用',
+        })
+      }
+      const classCodes = await dbAll(
+        db,
+        `SELECT class_code FROM teacher_classes WHERE teacher_id = ?`,
+        [teacher.id],
+      ).then((rows) => rows.map((r) => r.class_code))
+      payload = { role: 'teacher', phone: teacher.phone }
+      profile = {
+        id: teacher.phone,
+        username: teacher.phone,
+        phone: teacher.phone,
+        name: teacher.name,
+        school_id: teacher.school_id,
+        class_codes: classCodes,
+        role: 'teacher',
+      }
+    } else if (user.role === 'admin' || user.role === 'super_admin') {
+      const admin = await dbGet(db, 'SELECT * FROM admins WHERE username = ?', [user.username])
+      if (!admin) {
+        return res.status(401).json({
+          success: false,
+          error: 'AUTH_FAILED',
+          message: '账号不存在，请重新登录',
+        })
+      }
+      payload = { role: admin.role || 'admin', username: admin.username }
+      profile = {
+        id: admin.username,
+        username: admin.username,
+        name: admin.name,
+        role: admin.role || 'admin',
+      }
+    } else {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '未知角色' })
+    }
+
+    const token = signToken(payload)
+    res.status(200).json({
+      success: true,
+      data: { token, user: profile },
+    })
+  } catch (err) {
+    return handleAuthError(res, err, '刷新令牌失败')
+  }
+}
+
 // ===== 工具：统一错误处理 =====
 function handleAuthError(res, err, defaultMsg) {
   if (err && err instanceof z.ZodError) {
@@ -387,5 +495,6 @@ module.exports = {
   teacherRegister,
   teacherLogin,
   adminLogin,
+  refreshToken,
   changePassword,
 }
