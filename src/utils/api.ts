@@ -167,6 +167,19 @@ async function buildFetchConfig(
  */
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (response.status === 401) {
+    // F-002: 后端登录接口同样用 401 表示「凭证错误」(INVALID_CREDENTIALS)，
+    // 原实现把所有 401 一律改写成「登录已过期，请重新登录」，会把
+    // 「学号或密码错误」这类真实原因覆盖掉，既误导用户也误导排查。
+    const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null
+    const errCode = errorData && typeof errorData.error === 'string' ? errorData.error : ''
+    const errMsg = errorData && typeof errorData.message === 'string' ? errorData.message : ''
+
+    // 凭证错误：原样透传后端消息，不做登出（登录场景本就未建立会话）
+    if (errCode === 'INVALID_CREDENTIALS') {
+      throw new ApiError(401, 'INVALID_CREDENTIALS', errMsg || '账号或密码错误')
+    }
+
+    // 其余 401（AUTH_REQUIRED / AUTH_FAILED）才是会话问题：登出并提示重新登录
     const authStore = useAuthStore()
     if (authStore.isLoggedIn) {
       authStore.logout()
