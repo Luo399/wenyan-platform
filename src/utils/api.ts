@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth'
+import { getAuthData } from '@/utils/localStorage'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL as string
 export { apiBase }
@@ -21,16 +22,23 @@ function getBaseUrl(): string {
  * R95: 包裹 try/catch，避免 Pinia 安装前调用抛 getActivePinia 错误
  */
 function getAuthHeaders(): Record<string, string> {
+  let token: string | null = null
+
   try {
-    const authStore = useAuthStore()
-    if (!authStore.token) {
-      return {}
-    }
-    return { Authorization: `Bearer ${authStore.token}` }
+    token = useAuthStore().token
   } catch {
-    // Pinia 未安装时返回空 header，由后端 401 兜底
-    return {}
+    // Pinia 尚未安装：继续走下面的持久化回退，而不是直接放弃鉴权头
+    token = null
   }
+
+  // F-005: store 尚未就绪（Pinia 未安装或 initialize() 未执行）时回退到持久化登录态。
+  // 原实现直接返回空 header，会把"初始化竞态"变成一次匿名请求，
+  // 后端按 AUTH_REQUIRED 拒绝后又被前端显示成"登录已过期"，既误导用户也误导排查。
+  if (!token) {
+    token = getAuthData().token
+  }
+
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export interface RequestConfig {
@@ -179,12 +187,13 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
       throw new ApiError(401, 'INVALID_CREDENTIALS', errMsg || '账号或密码错误')
     }
 
-    // 其余 401（AUTH_REQUIRED / AUTH_FAILED）才是会话问题：登出并提示重新登录
+    // 其余 401 才是会话问题：AUTH_REQUIRED（完全没带令牌）与 AUTH_FAILED（令牌无效/过期）语义不同（F-005）
     const authStore = useAuthStore()
     if (authStore.isLoggedIn) {
       authStore.logout()
     }
-    throw new ApiError(401, 'AUTH_EXPIRED', '登录已过期，请重新登录')
+    const sessionMessage = errCode === 'AUTH_REQUIRED' ? '需要登录' : '登录已过期，请重新登录'
+    throw new ApiError(401, 'AUTH_EXPIRED', sessionMessage)
   }
 
   if (!response.ok) {
