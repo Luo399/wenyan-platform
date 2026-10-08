@@ -191,21 +191,22 @@ export const useAuthStore = defineStore('auth', () => {
       debugLog('[AuthStore] 令牌已刷新')
     } catch (err) {
       debugError('[AuthStore] 刷新令牌失败:', err)
-      logout()
+      // F-004: 刷新失败不再直接登出——否则一次网络抖动就会把仍有效的会话踢掉。
+      // 由调用方决定策略；token 真正过期时由 isTokenExpired + 路由守卫兜底登出。
       throw err
     }
   }
 
   /**
-   * 验证 token 是否过期
-   * R35: 全路径 try/catch，payload.exp 缺失时视为已过期
+   * 解析 token 的过期时间（毫秒时间戳）
+   * R35: 全路径 try/catch，payload.exp 缺失或解码失败返回 null（调用方保守处理）
    */
-  function isTokenExpired(): boolean {
-    if (!token.value) return true
+  function getTokenExpiryMs(): number | null {
+    if (!token.value) return null
 
     try {
       const tokenParts = token.value.split('.')
-      if (tokenParts.length < 2) return true
+      if (tokenParts.length < 2) return null
 
       let payloadStr = tokenParts[1] || ''
       // URL-safe base64 → 标准 base64
@@ -216,14 +217,39 @@ export const useAuthStore = defineStore('auth', () => {
 
       const decoded = atob(payloadStr)
       const payload = JSON.parse(decoded) as { exp?: number }
-      if (typeof payload.exp !== 'number') return true
+      if (typeof payload.exp !== 'number') return null
 
-      const expiry = payload.exp * 1000
-      return Date.now() > expiry
+      return payload.exp * 1000
     } catch {
-      // 任一环节失败 → 保守认为已过期
-      return true
+      return null
     }
+  }
+
+  /**
+   * 验证 token 是否过期
+   * R35: 全路径 try/catch，payload.exp 缺失时视为已过期
+   */
+  function isTokenExpired(): boolean {
+    const expiry = getTokenExpiryMs()
+    if (expiry === null) return true
+    return Date.now() > expiry
+  }
+
+  /**
+   * 令牌是否即将过期（F-004）
+   *
+   * 供路由守卫在过期前主动续期，避免用户"用着用着突然被登出"。
+   * 已过期或无法解析返回 false（交给 isTokenExpired 兜底），
+   * 只有"仍有效但剩余寿命不足阈值"才返回 true。
+   *
+   * @param thresholdMs 剩余寿命阈值，默认 5 分钟
+   */
+  function isTokenExpiringSoon(thresholdMs = 5 * 60 * 1000): boolean {
+    const expiry = getTokenExpiryMs()
+    if (expiry === null) return false
+
+    const remaining = expiry - Date.now()
+    return remaining > 0 && remaining <= thresholdMs
   }
 
   /**
@@ -270,6 +296,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refreshToken,
     isTokenExpired,
+    isTokenExpiringSoon,
     clearError,
     setUser,
     // 对外暴露：内部实现是同一个，但 export 名字与之前保持兼容（不叫 clearAuthDataInternal）
