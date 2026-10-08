@@ -14,6 +14,32 @@
 
 ---
 
+## [ ] 登录过期与会话中断修复 (auth-session-expiry)
+
+- 目标：修复「登录已过期，请重新登录」相关的会话缺陷（详见 `docs/网页故障说明清单.md` F-001 ~ F-005）。
+- 关联文件：`backend/src/config/app.js`、`backend/src/controllers/authController.js`、`backend/src/middleware/authMiddleware.js`、`src/utils/api.ts`、`src/stores/auth.ts`、`src/router/guards.ts`
+- 红线：鉴权改动不得放宽后端校验；学生身份走 `useStudentStore` / `useAuthStore`；后端新增 controller 方法必须同步加入 `module.exports`。
+
+### [ ] 登录401语义分流与提示修正 (auth-error-mapping)
+
+- 目标：修正 F-002 —— 前端把**所有** 401 一律当作「登录已过期」而丢弃后端真实消息；改为 `INVALID_CREDENTIALS` 原样透传，仅 `AUTH_REQUIRED` / `AUTH_FAILED` 判定为会话问题。
+- 验收：输错密码提示「学号或密码错误」；令牌过期仍提示「登录已过期，请重新登录」；补 `tests/utils/api.spec.ts` 覆盖两类 401。
+- 关联文件：`src/utils/api.ts`、`src/stores/auth.ts`
+
+### [ ] 令牌有效期与自动续期 (token-refresh-lifecycle)
+
+- 目标：修复 F-001 / F-003 / F-004 —— 令牌有效期写死 3600s、`JWT_EXPIRES_IN=7d` 被 `toNumber()` 静默吞掉、`refreshToken()` 无调用方。
+- 验收：支持秒数与单位写法（或在解析失败时启动即报错）；在 `src/router/guards.ts` 或请求层接入过期前自动续期；补单测覆盖续期与解析失败分支。
+- 关联文件：`backend/src/config/app.js`、`src/stores/auth.ts`、`src/router/guards.ts`、`backend/.env.example`
+
+### [ ] 初始化竞态鉴权头兜底 (auth-header-race)
+
+- 目标：修复 F-005 —— `getAuthHeaders()` 在 Pinia 未就绪时静默返回空头，导致无令牌请求被判为「登录已过期」。
+- 验收：区分「未登录」与「初始化竞态」，初始化完成前不发鉴权请求或对 `AUTH_REQUIRED` 重试而非直接登出；补单测。
+- 关联文件：`src/utils/api.ts`、`src/main.ts`
+
+---
+
 ## [ ] 继续按钮点击延迟优化 (continue-button-latency)
 
 - 目标：统计不同浏览器环境下点击「继续」按钮的响应延迟，并把响应时间优化到 0.5 秒以内。
