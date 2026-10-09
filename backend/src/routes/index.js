@@ -32,15 +32,25 @@ function registerRoutes(app) {
         'POST   /api/teacher/students': '教师添加单个学生（校验前6位班级权限）',
         'POST   /api/teacher/students/batch': '教师批量添加学生（Excel后调用）',
         'PUT    /api/teacher/students/:studentId': '教师更新学生姓名',
+        'DELETE /api/teacher/students/:studentId': '教师删除本班学生账号',
         'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为123456',
+        'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况（框架）',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
+        'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
+        'PUT    /api/admin/teachers/:phone': '管理员更新教师（姓名/学校/班级/状态）',
+        'DELETE /api/admin/teachers/:phone': '管理员删除教师账号',
         'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码',
         'POST   /api/admin/teachers/:phone/status': '管理员启用/禁用教师',
         'GET    /api/admin/students': '管理员查所有学生',
+        'GET    /api/admin/students/:studentId': '管理员查单个学生',
+        'POST   /api/admin/students': '管理员新增学生账号（初始密码 123456）',
+        'PUT    /api/admin/students/:studentId': '管理员更新学生信息',
+        'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
         'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为123456',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
         // 遗留学生管理（S04：已加 teacher/admin 鉴权，待前端迁移后下线）
+        'GET  /api/students/:studentId/name': '公开：按学号查询学生姓名（登录页回显）',
         'POST /api/students': '[鉴权] 学生注册',
         'POST /api/submit': '提交答案',
         'GET /api/students': '[鉴权] 查询所有学生',
@@ -87,15 +97,21 @@ function registerRoutes(app) {
   app.post('/api/teacher/students', ...teacherAuth, teacherController.createStudent)
   app.post('/api/teacher/students/batch', ...teacherAuth, teacherController.batchCreateStudents)
   app.put('/api/teacher/students/:studentId', ...teacherAuth, teacherController.updateStudent)
+  app.delete('/api/teacher/students/:studentId', ...teacherAuth, teacherController.deleteStudent)
   app.post(
     '/api/teacher/students/:studentId/reset-password',
     ...teacherAuth,
     teacherController.resetStudent,
   )
+  // 教师查看所教班级学生完成情况（框架版，统计逻辑后续接入）
+  app.get('/api/teacher/completion/students', ...teacherAuth, teacherController.getStudentsCompletion)
 
   // ============ 管理员：教师/学生/重置审计 ============
   const adminAuth = [requireAuthMiddleware, requireRole(['admin', 'super_admin'])]
   app.get('/api/admin/teachers', ...adminAuth, adminController.listTeachers)
+  app.get('/api/admin/teachers/:phone', ...adminAuth, adminController.getTeacher)
+  app.put('/api/admin/teachers/:phone', ...adminAuth, adminController.updateTeacher)
+  app.delete('/api/admin/teachers/:phone', ...adminAuth, adminController.deleteTeacher)
   app.post(
     '/api/admin/teachers/:phone/reset-password',
     ...adminAuth,
@@ -103,6 +119,10 @@ function registerRoutes(app) {
   )
   app.post('/api/admin/teachers/:phone/status', ...adminAuth, adminController.setTeacherStatus)
   app.get('/api/admin/students', ...adminAuth, adminController.listStudents)
+  app.get('/api/admin/students/:studentId', ...adminAuth, adminController.getStudent)
+  app.post('/api/admin/students', ...adminAuth, adminController.createStudent)
+  app.put('/api/admin/students/:studentId', ...adminAuth, adminController.updateStudent)
+  app.delete('/api/admin/students/:studentId', ...adminAuth, adminController.deleteStudent)
   app.post(
     '/api/admin/students/:studentId/reset-password',
     ...adminAuth,
@@ -114,6 +134,8 @@ function registerRoutes(app) {
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
   // 前端 AnswerQueryView 迁移完成后在 Phase 2 物理删除
+  // 公开查询：登录页回显学生姓名（仅返回学号+姓名，无需鉴权）
+  app.get('/api/students/:studentId/name', studentController.getStudentPublicName)
   const legacyStudentAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin'])]
   app.get('/api/students', ...legacyStudentAuth, studentController.getStudentList)
   app.get('/api/students/:studentId', ...legacyStudentAuth, studentController.getStudent)

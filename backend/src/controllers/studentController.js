@@ -43,9 +43,51 @@ function getStudent(req, res) {
 
     res.status(200).json({
       success: true,
-      data: row,
+      data: {
+        ...row,
+        // 兼容前端读取 data.name 的写法（历史接口仅返回 student_name）
+        name: row.student_name,
+      },
     });
   });
+}
+
+/**
+ * 公开接口：按学号查询学生姓名（供登录页回显）
+ * 只返回学号与姓名，不暴露班级/密码等敏感字段，因此不需要登录态
+ */
+function getStudentPublicName(req, res) {
+  const { studentId } = req.params;
+
+  db.get(
+    'SELECT student_id, student_name FROM students WHERE student_id = ?',
+    [studentId],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '查询失败: ' + err.message,
+        });
+      }
+
+      if (!row) {
+        return res.status(404).json({
+          success: false,
+          error: 'NOT_FOUND',
+          message: '学生不存在',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          student_id: row.student_id,
+          name: row.student_name,
+        },
+      });
+    },
+  );
 }
 
 function createStudent(req, res) {
@@ -133,6 +175,7 @@ function deleteStudent(req, res) {
 module.exports = {
   getStudentList,
   getStudent,
+  getStudentPublicName,
   createStudent,
   updateStudent,
   deleteStudent,
