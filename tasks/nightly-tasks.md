@@ -45,6 +45,22 @@
 
 ---
 
+## [x] 文化卡片多类型媒体 (culture-card-media)
+
+- 目标：文化卡片支持视频/图片/文字多种媒体；视频带全屏键且默认仅在固定尺寸内播放；卡片尺寸按 Figma 数据配置。
+- 关联文件：`src/components/CultureCards.vue`、`src/config/cultureCards.ts`、`src/components/VideoPlayer.vue`
+- 红线：只做逻辑嵌入，不做页面视觉；尺寸由 Figma 方裁定，统一在 `src/config/cultureCards.ts` 接入；组件名 ≥ 2 个单词；生产构建禁止 `console.log`。
+- 分支 / commit / CI：父分支 `feature/culture-card-media/main`（子分支合并 `947c40a`）；并入 `feature-1` 的合并提交 `2539278`。
+
+### [x] 卡内视频播放与Figma尺寸配置 (video-inline-player)
+
+- 目标：视频从「新窗口打开」改为卡内固定尺寸播放（复用 `VideoPlayer`，自带全屏键）；卡片/视频区尺寸按 `cultureCardSize` 配置生效（Figma 数值待填，`null` 回退自适应）。
+- 验收：`npm run type-check` 通过；eslint 对改动文件无报错；封面/播放器按 `playingCards` 状态切换。
+- 关联文件：`src/components/CultureCards.vue`、`src/config/cultureCards.ts`
+- 分支 / commit / CI：`feature/culture-card-media/video-inline-player` @ `de43f00`；type-check + eslint 通过；CI 见 feature-1 推送后的 `CI Checks`。
+
+---
+
 ## [ ] 继续按钮点击延迟优化 (continue-button-latency)
 
 - 目标：统计不同浏览器环境下点击「继续」按钮的响应延迟，并把响应时间优化到 0.5 秒以内。
