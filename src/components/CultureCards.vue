@@ -48,6 +48,7 @@
             'has-background': !!card.background_image,
           }"
           :style="{
+            ...cardSizeStyle(),
             backgroundImage: card.background_image
               ? `url(${getCardBackgroundUrl(card)})`
               : undefined,
@@ -98,9 +99,15 @@
                   @error="handleImageError"
                 />
               </div>
-              <!-- 视频类型 -->
-              <div v-else-if="cardMediaType(card) === 'video'" class="video-container">
-                <div class="video-thumbnail" @click.stop="handleVideoClick(card)">
+              <!-- 视频类型：默认封面，点击后在卡内固定尺寸播放（播放器自带全屏键） -->
+              <div v-else-if="cardMediaType(card) === 'video'" class="video-container" :style="videoSizeStyle()">
+                <VideoPlayer
+                  v-if="playingCards.has(card.card_id)"
+                  class="card-video-player"
+                  :src="getCardVideoUrl(card)"
+                  :poster="card.poster_file ? getCardImageUrl({ ...card, image_file: card.poster_file }) : ''"
+                />
+                <div v-else class="video-thumbnail" @click.stop="handleVideoClick(card)">
                   <img
                     v-if="card.poster_file"
                     :src="getCardImageUrl({ ...card, image_file: card.poster_file })"
@@ -147,7 +154,9 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
+import VideoPlayer from '@/components/VideoPlayer.vue'
 import { ossBase, getDataUrlWithVersion } from '@/utils/asset'
+import { cultureCardSize } from '@/config/cultureCards'
 
 interface CultureCard {
   text_id: string
@@ -224,6 +233,31 @@ const {
 // 翻牌状态（stack 模式下记录已翻开的卡片）
 const flippedCards = reactive(new Set<number | string>())
 const flipCardIndex = ref(0)
+
+// 已进入卡内播放的视频卡片：点击封面后切换为内嵌播放器
+const playingCards = reactive(new Set<number>())
+
+/**
+ * 卡片尺寸：来自 Figma 标注的统一配置（src/config/cultureCards.ts）
+ * 未配置（null）时不注入内联尺寸，沿用现有响应式布局
+ */
+const cardSizeStyle = (): Record<string, string> => {
+  const style: Record<string, string> = {}
+  if (cultureCardSize.cardWidth != null) style.width = `${cultureCardSize.cardWidth}px`
+  if (cultureCardSize.cardHeight != null) style.height = `${cultureCardSize.cardHeight}px`
+  return style
+}
+
+/**
+ * 视频播放区尺寸：来自 Figma 标注（cultureCards.ts 的 videoWidth / videoHeight）
+ * 未配置时不注入内联尺寸，沿用 16:9 响应式缩放
+ */
+const videoSizeStyle = (): Record<string, string> => {
+  const style: Record<string, string> = {}
+  if (cultureCardSize.videoWidth != null) style.width = `${cultureCardSize.videoWidth}px`
+  if (cultureCardSize.videoHeight != null) style.height = `${cultureCardSize.videoHeight}px`
+  return style
+}
 
 /**
  * 判断卡片媒体类型
@@ -306,6 +340,7 @@ function getPlaceholderSvg(text: string): string {
 
 // 解锁状态判断
 // 当前恒 true 为占位实现；接入用户进度数据后再按 card.unlock_condition 判断
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数保留给后续解锁逻辑使用
 function isUnlocked(_card: CultureCard): boolean {
   return true
 }
@@ -317,10 +352,8 @@ function handleCardClick(card: CultureCard) {
 
 function handleVideoClick(card: CultureCard) {
   if (!isUnlocked(card)) return
-  const videoUrl = getCardVideoUrl(card)
-  if (videoUrl) {
-    window.open(videoUrl, '_blank')
-  }
+  // 切换为卡内固定尺寸播放（VideoPlayer 自带全屏键）
+  playingCards.add(card.card_id)
   emit('video-click', card)
 }
 
@@ -687,6 +720,24 @@ function flipNextCard() {
 
 .video-thumbnail:hover::after {
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* 卡内播放器：填满视频区固定尺寸（Figma 配置），视频区域拉伸填充、控件固定底部 */
+.card-video-player {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-video-player :deep(.video-wrapper) {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+
+.card-video-player :deep(.controls-bar) {
+  flex-shrink: 0;
 }
 
 /* ============================================================
