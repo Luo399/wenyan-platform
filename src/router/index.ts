@@ -99,6 +99,18 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/AdminLoginView.vue'),
   },
   {
+    path: '/admin-console',
+    name: 'admin-console',
+    component: () => import('@/views/AdminConsoleView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/teacher-completion',
+    name: 'teacher-completion',
+    component: () => import('@/views/TeacherCompletionView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/resource-upload',
     name: 'resource-upload',
     component: () => import('@/views/ResourceUploadTool.vue'),

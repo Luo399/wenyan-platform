@@ -1,5 +1,6 @@
 const path = require('path')
 const dotenv = require('dotenv')
+const { parseDuration } = require('../utils/duration')
 
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
 
@@ -9,6 +10,21 @@ dotenv.config({ path: path.join(__dirname, '../../', envFile) })
 const jwtSecret = process.env.JWT_SECRET
 if (!jwtSecret && process.env.NODE_ENV === 'production') {
   throw new Error('JWT_SECRET must be set in production')
+}
+
+// F-003: JWT_EXPIRES_IN 支持秒数（3600）与单位写法（60s/30m/12h/7d）。
+// 非法值直接启动失败，禁止静默回退：原实现 Number('7d') → NaN → 回退默认值，
+// 运维以为配置已生效，实际仍是默认有效期。
+const DEFAULT_JWT_EXPIRES_IN = 3600
+const rawJwtExpiresIn = process.env.JWT_EXPIRES_IN
+const jwtExpiresIn =
+  rawJwtExpiresIn === undefined || String(rawJwtExpiresIn).trim() === ''
+    ? DEFAULT_JWT_EXPIRES_IN
+    : parseDuration(rawJwtExpiresIn)
+if (jwtExpiresIn === null) {
+  throw new Error(
+    `JWT_EXPIRES_IN 配置非法: "${rawJwtExpiresIn}"（支持秒数或 60s/30m/12h/7d）`,
+  )
 }
 
 // S10: 环境变量读取的数值统一转 number，避免字符串传入 express-rate-limit 等数值型配置
@@ -48,7 +64,7 @@ const config = {
   jwt: {
     // 开发/测试环境使用显式 dev 密钥；生产环境无 JWT_SECRET 时已在上方抛错
     secret: jwtSecret || 'wenyan_platform_dev_secret_do_not_use_in_production',
-    expiresIn: toNumber(process.env.JWT_EXPIRES_IN, 3600),
+    expiresIn: jwtExpiresIn,
   },
 
   data: {

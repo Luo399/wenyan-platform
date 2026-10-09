@@ -2,22 +2,34 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useNavigation } from '@/composables/useNavigation'
 
-// Mock router
+// Mock router（push/replace 需返回 Promise，否则 .then/.catch 会抛错）
 const mockRouter = {
-  push: vi.fn(),
+  push: vi.fn(() => Promise.resolve()),
+  replace: vi.fn(() => Promise.resolve()),
   back: vi.fn(),
 }
 
 vi.mock('vue-router', () => ({
   useRouter: () => mockRouter,
+  isNavigationFailure: () => false,
 }))
 
-// Mock debug 模块，便于断言 warn/error
+// Mock debug 模块，便于断言 warn/error/log
 const mockDebugWarn = vi.fn()
 const mockDebugError = vi.fn()
+const mockDebugLog = vi.fn()
 vi.mock('@/utils/debug', () => ({
+  debugLog: (...args: unknown[]) => mockDebugLog(...args),
   debugWarn: (...args: unknown[]) => mockDebugWarn(...args),
   debugError: (...args: unknown[]) => mockDebugError(...args),
+}))
+
+// Mock tracking 模块，隔离埋点网络依赖，同时便于断言延迟上报
+const mockTrack = vi.fn()
+vi.mock('@/utils/tracking', () => ({
+  markNextEnterFromBackButton: vi.fn(),
+  setPendingExitType: vi.fn(),
+  track: (...args: unknown[]) => mockTrack(...args),
 }))
 
 describe('useNavigation', () => {
@@ -214,6 +226,38 @@ describe('useNavigation', () => {
       const navDetail = useNavigation('detail', '1')
       expect(navDetail.hasNext.value).toBe(false)
       expect(navDetail.hasPrev.value).toBe(true)
+    })
+  })
+
+  describe('「继续」按钮延迟统计（跨浏览器）', () => {
+    it('goNext 完成后应上报导航耗时埋点', async () => {
+      const navigation = useNavigation('rules', '1')
+      navigation.goNext()
+      // 等待 router.push 的 then 回调执行
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(mockTrack).toHaveBeenCalledTimes(1)
+      const call = mockTrack.mock.calls[0] as unknown[]
+      expect(call[0]).toBe('interaction')
+      expect(call[1]).toBe('rules')
+
+      const properties = call[2] as Record<string, unknown>
+      expect(properties.action).toBe('go_next')
+      expect(properties.target_path).toBe('/stepone/1')
+      expect(typeof properties.cost_time).toBe('number')
+      expect(typeof properties.sync_cost).toBe('number')
+      expect(typeof properties.user_agent).toBe('string')
+    })
+
+    it('已是最后一页时不上报耗时埋点，仅告警', async () => {
+      const navigation = useNavigation('detail', '1')
+      navigation.goNext()
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(mockTrack).not.toHaveBeenCalled()
+      expect(mockDebugWarn).toHaveBeenCalled()
     })
   })
 })
