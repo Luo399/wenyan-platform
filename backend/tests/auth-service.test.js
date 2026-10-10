@@ -6,7 +6,7 @@
  *  2. extractClassCode：从学号截取前 6 位班级编码
  *  3. generateTemporaryPassword：生成指定长度的随机密码
  *  4. hashPassword + verifyPassword：bcrypt 哈希与校验正确性
- *  5. 默认密码 "123456" 经哈希后能通过 verifyPassword
+ *  5. 默认密码 "99999999" 经哈希后能通过 verifyPassword
  */
 
 // 必须在 require database 之前设置，使用内存数据库避免污染工作区
@@ -24,8 +24,12 @@ const {
 } = require('../src/services/authService')
 
 describe('authService 常量', () => {
-  test('默认学生初始密码应为 123456', () => {
-    expect(DEFAULT_STUDENT_PASSWORD).toBe('123456')
+  test('默认学生初始密码应为 99999999', () => {
+    expect(DEFAULT_STUDENT_PASSWORD).toBe('99999999')
+  })
+  test('默认教师初始密码应为 99999999', () => {
+    const { DEFAULT_TEACHER_PASSWORD } = require('../src/services/authService')
+    expect(DEFAULT_TEACHER_PASSWORD).toBe('99999999')
   })
   test('BCRYPT_ROUNDS 为合法整数', () => {
     expect(Number.isInteger(BCRYPT_ROUNDS)).toBe(true)
@@ -99,9 +103,9 @@ describe('bcrypt 密码哈希与校验', () => {
     await expect(verifyPassword(null, null)).resolves.toBe(false)
   })
 
-  test('默认学生密码 123456 经哈希后能正确校验', async () => {
+  test('默认学生密码 99999999 经哈希后能正确校验', async () => {
     const h = await getDefaultPasswordHash()
-    await expect(verifyPassword('123456', h)).resolves.toBe(true)
+    await expect(verifyPassword('99999999', h)).resolves.toBe(true)
     await expect(verifyPassword('12345', h)).resolves.toBe(false)
   })
 })
