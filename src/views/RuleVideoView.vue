@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import VideoPlayer from '@/components/VideoPlayer.vue'
 import BackContinue from '@/components/BackContinue.vue'
@@ -40,6 +40,46 @@ import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
 import { getAssetUrl } from '@/utils/asset'
+
+/**
+ * 预加载后续步骤的懒加载组件 chunk + stepone 的数据 JSON。
+ * RuleVideoView 只有 VideoPlayer，极轻量，用户进入后有充足时间让浏览器
+ * 在后台加载后续 StepOneView / StepTwoView / StepThreeView / DetailView 的 JS。
+ *
+ * 数据预取：
+ *   WordList 会拉 text_basic_info + word_list 两个 JSON
+ *   MultiRoleReading 会拉 multi_role_reading 一个 JSON
+ *   用与后续组件完全相同的 URL（含版本戳）fetch，让浏览器 disk cache 命中
+ */
+import { getDataUrlWithVersion } from '@/utils/asset'
+
+const _preloadStarted = new Set<string>()
+async function preloadUpstream(navKey: string, poemId: string) {
+  if (_preloadStarted.has(navKey)) return
+  _preloadStarted.add(navKey)
+
+  // 1. 预加载组件 chunk
+  import('@/views/StepOneView.vue')
+  import('@/views/StepTwoView.vue')
+  import('@/views/StepThreeView.vue')
+  import('@/views/DetailView.vue')
+
+  // 2. 静默预取 stepone 数据（3 个 JSON），利用视频播放时间填 HTTP cache
+  try {
+    const wenId = getWenId(poemId)
+    const urls = await Promise.all([
+      getDataUrlWithVersion('text_basic_info', `${wenId}.json`),
+      getDataUrlWithVersion('word_list', `${wenId}.json`),
+      getDataUrlWithVersion('multi_role_reading', `${wenId}.json`),
+    ])
+    // 用 no-cache 预取（触发服务器返回但仍填 disk cache）
+    urls.forEach((url) => {
+      fetch(url, { cache: 'force-cache' }).catch(() => { /* 静默忽略 */ })
+    })
+  } catch {
+    // 网络失败静默忽略，不影响主流程
+  }
+}
 
 // Props: 参数化 4 个原文件的差异点
 interface Props {
@@ -91,6 +131,11 @@ const currentPoem = computed(() => {
     title,
     videoUrl,
   }
+})
+
+// 页面挂载后静默预加载后续步骤的 chunk + 数据
+onMounted(() => {
+  preloadUpstream(props.navKey, poemId)
 })
 </script>
 

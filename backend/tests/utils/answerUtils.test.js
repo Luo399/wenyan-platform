@@ -75,7 +75,7 @@ describe('answerUtils.compareAnswers', () => {
       expect(result).toEqual({ score: 0, isCorrect: 0 })
     })
 
-    it('空数组 vs 空数组 -> 错误（先过空值判定？空数组不 === \"\"，进入数组分支，长度 0=0，every 返回 true -> 判为 1？）', () => {
+    it('空数组 vs 空数组 -> 错误（先过空值判定？空数组不 === ""，进入数组分支，长度 0=0，every 返回 true -> 判为 1？）', () => {
       // 这是当前实现的实际行为：两边都是 []，长度相等，every 空集合返回 true，结果是 score=100
       // 测试锁定此行为，若修改需同步变更测试
       const result = compareAnswers([], [])
@@ -143,23 +143,23 @@ describe('answerUtils.compareAnswers', () => {
   // ========== 类型转换：数字 / 布尔 ==========
 
   describe('类型转换：Number / Boolean 通过 String() 转字符串比较', () => {
-    it('数字 1 与字符串 \"1\" -> 相等 -> 正确', () => {
+    it('数字 1 与字符串 "1" -> 相等 -> 正确', () => {
       expect(compareAnswers(1, '1')).toEqual({ score: 100, isCorrect: 1 })
     })
 
-    it('字符串 \"0\" 与数字 0 -> 相等 -> 正确', () => {
+    it('字符串 "0" 与数字 0 -> 相等 -> 正确', () => {
       expect(compareAnswers('0', 0)).toEqual({ score: 100, isCorrect: 1 })
     })
 
-    it('布尔 true 与字符串 \"true\" -> 相等 -> 正确', () => {
+    it('布尔 true 与字符串 "true" -> 相等 -> 正确', () => {
       expect(compareAnswers(true, 'true')).toEqual({ score: 100, isCorrect: 1 })
     })
 
-    it('布尔 false 与字符串 \"false\" -> 相等 -> 正确', () => {
+    it('布尔 false 与字符串 "false" -> 相等 -> 正确', () => {
       expect(compareAnswers('false', false)).toEqual({ score: 100, isCorrect: 1 })
     })
 
-    it('布尔 true 与字符串 \"True\"（注意大小写） -> 不相等 -> 错误', () => {
+    it('布尔 true 与字符串 "True"（注意大小写） -> 不相等 -> 错误', () => {
       // 锁定当前行为：String(true) = 'true' !== 'True'
       expect(compareAnswers(true, 'True')).toEqual({ score: 0, isCorrect: 0 })
     })
