@@ -75,9 +75,9 @@ describe('公开姓名查询接口', () => {
   })
 })
 
-describe('遗留学生接口鉴权', () => {
-  it('无 token 访问 /api/students/:id 应返回 401', async () => {
-    const res = await request(app).get('/api/students/99999999')
+describe('管理员接口鉴权', () => {
+  it('无 token 访问 /api/admin/students/:id 应返回 401', async () => {
+    const res = await request(app).get('/api/admin/students/99999999')
 
     expect(res.status).toBe(401)
     expect(res.body.success).toBe(false)

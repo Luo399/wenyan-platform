@@ -321,7 +321,7 @@ async function submitTeacher(): Promise<void> {
           name: teacherForm.name,
           school_id: teacherForm.schoolId,
           class_codes: classCodes,
-          status: teacherForm.status,
+          ...(teacherForm.status !== 'pending' ? { status: teacherForm.status } : {}),
         })
       : await createTeacher({
           phone: teacherForm.phone,
