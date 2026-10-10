@@ -119,6 +119,16 @@ export const useAuthStore = defineStore('auth', () => {
       resetFirstEnterSet()
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
+      // ACCOUNT_PENDING：教师账号待管理员审批，给出专门提示
+      if (err && typeof err === 'object' && 'response' in err) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const code = (err as any)?.response?.data?.error
+        if (code === 'ACCOUNT_PENDING') {
+          error.value = '账号待管理员审批，请联系学校管理员'
+          clearAuthDataInternal()
+          throw err
+        }
+      }
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
       clearAuthDataInternal()
       throw err

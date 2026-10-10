@@ -83,7 +83,15 @@
       <div class="table-wrap">
         <div class="table-head-row">
           <h2>教师列表（{{ teachers.length }}）</h2>
-          <button type="button" class="plain-btn" @click="loadTeachers">刷新</button>
+          <div class="filter-row">
+            <select v-model="teacherFilter" @change="loadTeachers">
+              <option value="">全部状态</option>
+              <option value="pending">待审批</option>
+              <option value="active">已激活</option>
+              <option value="disabled">已禁用</option>
+            </select>
+            <button type="button" class="plain-btn" @click="loadTeachers">刷新</button>
+          </div>
         </div>
         <table class="data-table">
           <thead>
@@ -102,8 +110,9 @@
               <td>{{ t.name }}</td>
               <td>{{ t.school_name || t.school_id || '-' }}</td>
               <td>{{ (t.class_codes || []).join(', ') || '-' }}</td>
-              <td>{{ t.status === 'active' ? '启用' : '禁用' }}</td>
+              <td>{{ t.status === 'pending' ? '待审批' : t.status === 'active' ? '启用' : '禁用' }}</td>
               <td class="op-cell">
+                <button v-if="t.status === 'pending'" type="button" class="link-btn" @click="approveTeacherFn(t)">审批通过</button>
                 <button type="button" class="link-btn" @click="editTeacher(t)">修改</button>
                 <button type="button" class="link-btn" @click="resetTeacherPwd(t)">重置密码</button>
                 <button type="button" class="link-btn danger" @click="removeTeacher(t)">删除</button>
@@ -124,7 +133,7 @@
         <div class="form-grid">
           <label class="field">
             <span>学号</span>
-            <input v-model.trim="studentForm.studentId" type="text" :disabled="!!editingStudentId" placeholder="至少 6 位数字" />
+            <input v-model.trim="studentForm.studentId" type="text" :disabled="!!editingStudentId" placeholder="8 位学号（格式 YYYYNNNN）" />
           </label>
           <label class="field">
             <span>姓名</span>
@@ -196,6 +205,7 @@ import {
   createTeacher,
   updateTeacher,
   deleteTeacher,
+  approveTeacher,
   resetTeacherPassword,
   listStudents,
   createStudent,
@@ -213,6 +223,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const teachers = ref<AdminTeacher[]>([])
 const students = ref<AdminStudent[]>([])
+const teacherFilter = ref<'pending' | 'active' | 'disabled' | ''>('')
 const studentFilter = ref('')
 
 const editingTeacherPhone = ref('')
@@ -257,7 +268,7 @@ function parseClassCodes(text: string): string[] {
 
 async function loadTeachers(): Promise<void> {
   try {
-    teachers.value = await listTeachers()
+    teachers.value = await listTeachers(teacherFilter.value || undefined)
   } catch (err) {
     debugError('[AdminConsole] 加载教师列表失败:', err)
     showToast(err instanceof Error ? err.message : '加载教师列表失败', 'error')
@@ -365,6 +376,12 @@ async function resetTeacherPwd(t: AdminTeacher): Promise<void> {
     ? `${result.message}：${result.data.temporary_password}`
     : result.message
   showToast(tip, result.success ? 'success' : 'error')
+}
+
+async function approveTeacherFn(t: AdminTeacher): Promise<void> {
+  const result = await approveTeacher(t.phone)
+  showToast(result.message, result.success ? 'success' : 'error')
+  if (result.success) await loadTeachers()
 }
 
 /** 新增或更新学生 */
@@ -536,7 +553,8 @@ onMounted(async () => {
 
 .field input,
 .field select,
-.filter-row input {
+.filter-row input,
+.filter-row select {
   padding: var(--spacing-xs) var(--spacing-sm);
   border: var(--border-width-hairline) solid var(--color-placeholder);
   border-radius: var(--radius-small);

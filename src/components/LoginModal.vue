@@ -151,7 +151,7 @@
             <p>测试账号：</p>
             <p class="test-accounts">{{ testAccountsText }}</p>
             <p class="format-hint">学号格式：数字（如：1、2024001）</p>
-            <p class="format-hint">默认密码：123456（教师重置后同此值）</p>
+            <p class="format-hint">默认密码：99999999（教师重置后同此值）</p>
           </div>
         </div>
       </div>

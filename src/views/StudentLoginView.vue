@@ -86,6 +86,7 @@
         <!-- 忘记密码 -->
         <div class="links-row">
           <button type="button" class="text-link" @click="handleForgotPassword">忘记密码</button>
+          <button type="button" class="text-link" @click="router.push('/admin-login')">管理员入口 →</button>
         </div>
       </form>
 
@@ -94,7 +95,7 @@
         <p>测试账号：</p>
         <p class="test-accounts">{{ testAccountsText }}</p>
         <p class="format-hint">学号格式：数字（如：1、2024001）</p>
-        <p class="format-hint">默认密码：123456</p>
+        <p class="format-hint">默认密码：99999999</p>
       </div>
     </div>
   </div>
