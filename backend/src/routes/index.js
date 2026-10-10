@@ -40,23 +40,20 @@ function registerRoutes(app) {
         'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
         'PUT    /api/admin/teachers/:phone': '管理员更新教师（姓名/学校/班级/状态）',
         'DELETE /api/admin/teachers/:phone': '管理员删除教师账号',
-        'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码',
+        'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码为99999999',
         'POST   /api/admin/teachers/:phone/status': '管理员启用/禁用教师',
+        'POST   /api/admin/teachers/:phone/approve': '管理员审批待注册教师（pending→active）',
         'GET    /api/admin/students': '管理员查所有学生',
         'GET    /api/admin/students/:studentId': '管理员查单个学生',
         'POST   /api/admin/students': '管理员新增学生账号（初始密码 123456）',
         'PUT    /api/admin/students/:studentId': '管理员更新学生信息',
         'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
-        'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为123456',
+        'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为99999999',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
-        // 遗留学生管理（S04：已加 teacher/admin 鉴权，待前端迁移后下线）
+        // 遗留学生管理路由（已废弃，迁移目标：/api/teacher/students/* 和 /api/admin/students/*）
         'GET  /api/students/:studentId/name': '公开：按学号查询学生姓名（登录页回显）',
-        'POST /api/students': '[鉴权] 学生注册',
+        // 已废弃：GET/POST/PUT/DELETE /api/students*（原 teacher/admin 鉴权）— 已物理移除
         'POST /api/submit': '提交答案',
-        'GET /api/students': '[鉴权] 查询所有学生',
-        'GET /api/students/:studentId': '[鉴权] 按学生ID查询',
-        'PUT /api/students/:studentId': '[鉴权] 修改学生信息',
-        'DELETE /api/students/:studentId': '[鉴权] 删除学生',
         'GET /api/answers/wen/:wenId': '按文言文ID查询答题',
         'GET /api/answers/student/:studentId': '按学生ID查询答题',
         'GET /api/texts/:textId/basic-info': '文本基础信息',
@@ -130,18 +127,16 @@ function registerRoutes(app) {
   )
   app.get('/api/admin/password-resets', ...adminAuth, adminController.listPasswordResets)
   app.post('/api/admin/teachers', ...adminAuth, adminController.createTeacher)
+  // 教师审批
+  app.post('/api/admin/teachers/:phone/approve', ...adminAuth, adminController.approveTeacher)
 
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
   // 前端 AnswerQueryView 迁移完成后在 Phase 2 物理删除
   // 公开查询：登录页回显学生姓名（仅返回学号+姓名，无需鉴权）
   app.get('/api/students/:studentId/name', studentController.getStudentPublicName)
-  const legacyStudentAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin'])]
-  app.get('/api/students', ...legacyStudentAuth, studentController.getStudentList)
-  app.get('/api/students/:studentId', ...legacyStudentAuth, studentController.getStudent)
-  app.post('/api/students', ...legacyStudentAuth, studentController.createStudent)
-  app.put('/api/students/:studentId', ...legacyStudentAuth, studentController.updateStudent)
-  app.delete('/api/students/:studentId', ...legacyStudentAuth, studentController.deleteStudent)
+  // 已废弃：旧的 teacher/admin 鉴权学生 CRUD 路由（原 /api/students*）
+  // 迁移目标：教师侧用 /api/teacher/students/*，管理员侧用 /api/admin/students/*
 
   // ============ 文本 ============
   app.get('/api/texts', textsController.getTextList)

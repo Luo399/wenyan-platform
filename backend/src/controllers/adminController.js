@@ -25,11 +25,22 @@ const STUDENT_SAFE_COLUMNS =
  */
 async function listTeachers(req, res) {
   try {
-    const teachers = await dbAll(db, `SELECT t.id, t.phone, t.name, t.school_id, t.status,
+    const { status } = req.query
+    const conditions = []
+    const params = []
+    if (status && ['pending', 'active', 'disabled'].includes(status)) {
+      conditions.push('t.status = ?')
+      params.push(status)
+    }
+    let sql = `SELECT t.id, t.phone, t.name, t.school_id, t.status,
       t.created_at, s.name AS school_name
       FROM teachers t
-      LEFT JOIN schools s ON s.id = t.school_id
-      ORDER BY t.created_at DESC`)
+      LEFT JOIN schools s ON s.id = t.school_id`
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ')
+    }
+    sql += ' ORDER BY t.created_at DESC'
+    const teachers = await dbAll(db, sql, params)
     // 附带班级信息
     for (const t of teachers) {
       const classes = await dbAll(
@@ -122,12 +133,36 @@ async function resetTeacher(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '教师密码已重置，请将临时密码告知教师，首次登录后可自助改密',
+      message: '教师密码已重置为 99999999',
       data: { temporary_password: r.temporaryPassword },
     })
   } catch (err) {
     logger.error('[admin] 重置教师密码失败:', err)
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '重置失败' })
+  }
+}
+
+/**
+ * 管理员：审批待注册教师（将 pending → active，强制首次登录改密）
+ * POST /api/admin/teachers/:phone/approve
+ */
+async function approveTeacher(req, res) {
+  try {
+    const { phone } = req.params
+    const teacher = await dbGet(db, `SELECT id, status FROM teachers WHERE phone = ?`, [phone])
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '教师不存在' })
+    }
+    if (teacher.status === 'active') {
+      return res.status(400).json({ success: false, error: 'ALREADY_ACTIVE', message: '该教师已激活' })
+    }
+    await dbRun(db,
+      `UPDATE teachers SET status = 'active', must_reset_password = 1, updated_at = ? WHERE phone = ?`,
+      [new Date().toISOString(), phone])
+    res.status(200).json({ success: true, message: '教师已审批通过，请告知教师首次登录后修改密码' })
+  } catch (err) {
+    logger.error('[admin] 审批教师失败:', err)
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '审批失败' })
   }
 }
 
@@ -521,6 +556,7 @@ module.exports = {
   resetStudent,
   resetTeacher,
   setTeacherStatus,
+  approveTeacher,
   listPasswordResets,
   createTeacher,
 }

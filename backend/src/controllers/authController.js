@@ -136,8 +136,8 @@ async function teacherRegister(req, res) {
 
     await dbTransaction(db, async ({ dbRun }) => {
       const result = await dbRun(
-        `INSERT INTO teachers (phone, name, school_id, password_hash, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'active', ?, ?)`,
+        `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)`,
         [body.phone, body.name, body.school_id, passwordHash, now, now],
       )
       const teacherId = result.lastID
@@ -159,23 +159,10 @@ async function teacherRegister(req, res) {
       )
     })
 
-    // 注册成功直接给 token，让教师进入工作台
-    const token = signToken({ role: 'teacher', phone: body.phone })
     res.status(201).json({
       success: true,
-      message: '注册成功',
-      data: {
-        token,
-        user: {
-          id: body.phone,
-          username: body.phone,
-          phone: body.phone,
-          name: body.name,
-          school_id: body.school_id,
-          class_codes: body.class_codes,
-          role: 'teacher',
-        },
-      },
+      message: '注册成功，等待管理员审批',
+      data: { pending: true },
     })
   } catch (err) {
     return handleAuthError(res, err, '教师注册失败')
@@ -191,6 +178,13 @@ async function teacherLogin(req, res) {
         success: false,
         error: 'INVALID_CREDENTIALS',
         message: '手机号或密码错误',
+      })
+    }
+    if (teacher.status === 'pending') {
+      return res.status(403).json({
+        success: false,
+        error: 'ACCOUNT_PENDING',
+        message: '账号待管理员审批，请联系学校管理员',
       })
     }
     if (teacher.status !== 'active') {
