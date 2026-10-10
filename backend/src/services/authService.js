@@ -8,7 +8,10 @@ function get(sql, params = []) { return dbGet(db, sql, params) }
 function all(sql, params = []) { return dbAll(db, sql, params) }
 
 // 学生初始默认密码（所有新建/重置统一用此值）
-const DEFAULT_STUDENT_PASSWORD = '123456'
+const DEFAULT_STUDENT_PASSWORD = '99999999'
+
+// 教师初始默认密码（管理员重置教师密码统一用此值）
+const DEFAULT_TEACHER_PASSWORD = '99999999'
 
 // bcrypt cost factor
 const BCRYPT_ROUNDS = 10
@@ -104,14 +107,13 @@ async function resetStudentPassword(studentId, resetByType, resetById) {
 }
 
 /**
- * 重置教师密码为随机 10 位 + 强制首次改密，并记录审计（管理员操作）
+ * 重置教师密码为默认密码 + 强制首次改密，并记录审计（管理员操作）
  * @param {string} phone 教师手机号
  * @param {string} resetByAdmin 管理员用户名
- * @returns {Promise<{success:boolean, reason?:string, temporaryPassword?:string}>}
+ * @returns {Promise<{success:boolean, reason?:string, temporary_password?:string}>}
  */
 async function resetTeacherPasswordByAdmin(phone, resetByAdmin) {
-  const temporaryPassword = generateTemporaryPassword(10)
-  const newHash = await hashPassword(temporaryPassword)
+  const newHash = await hashPassword(DEFAULT_TEACHER_PASSWORD)
   const now = new Date().toISOString()
   const info = await run(
     `UPDATE teachers
@@ -124,7 +126,7 @@ async function resetTeacherPasswordByAdmin(phone, resetByAdmin) {
     return { success: false, reason: 'TEACHER_NOT_FOUND' }
   }
   await recordPasswordReset('teacher', phone, 'admin', resetByAdmin)
-  return { success: true, temporaryPassword }
+  return { success: true, temporary_password: DEFAULT_TEACHER_PASSWORD }
 }
 
 /**
@@ -141,6 +143,7 @@ function generateTemporaryPassword(length = 10) {
 
 module.exports = {
   DEFAULT_STUDENT_PASSWORD,
+  DEFAULT_TEACHER_PASSWORD,
   BCRYPT_ROUNDS,
   hashPassword,
   verifyPassword,

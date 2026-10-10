@@ -7,6 +7,8 @@ import NewHomeView from '@/views/NewHomeView.vue'
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
+    /** 可选：限定访问角色，如 'admin' / 'teacher' / 'student' */
+    role?: 'admin' | 'teacher' | 'student'
   }
 }
 
@@ -102,7 +104,7 @@ export const routes: RouteRecordRaw[] = [
     path: '/admin-console',
     name: 'admin-console',
     component: () => import('@/views/AdminConsoleView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, role: 'admin' },
   },
   {
     path: '/teacher-completion',

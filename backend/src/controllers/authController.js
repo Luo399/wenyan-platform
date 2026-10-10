@@ -11,6 +11,13 @@ const {
   extractClassCode,
 } = require('../services/authService')
 
+// 统一格式正则
+// 学号：严格 8 位纯数字
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+// 班级编码：4 位年级 + 2 位班级序号（01-31）
+const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
+
 /**
  * 生成统一格式的 JWT
  * @param {object} payload  自定义字段，必须包含 role
@@ -23,8 +30,7 @@ function signToken(payload) {
 const studentLoginSchema = z.object({
   student_id: z
     .string()
-    .regex(/^\d+$/, '学号必须为纯数字')
-    .min(4, '学号长度不能少于 4 位'),
+    .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
   password: z.string().min(1, '密码必填'),
 })
 
@@ -34,7 +40,7 @@ const teacherRegisterSchema = z.object({
   school_id: z.number().int().positive('请选择学校'),
   password: z.string().min(6, '密码长度不能少于 6 位'),
   class_codes: z
-    .array(z.string().regex(/^\d{6}$/, '班级编码必须为 6 位数字'))
+    .array(z.string().regex(CLASS_CODE_REGEX, '班级编码必须为 6 位数字（格式 YYYYCC，CC 范围 01-31）'))
     .min(1, '至少选择一个所教班级'),
 })
 
@@ -130,8 +136,8 @@ async function teacherRegister(req, res) {
 
     await dbTransaction(db, async ({ dbRun }) => {
       const result = await dbRun(
-        `INSERT INTO teachers (phone, name, school_id, password_hash, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'active', ?, ?)`,
+        `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)`,
         [body.phone, body.name, body.school_id, passwordHash, now, now],
       )
       const teacherId = result.lastID
@@ -153,23 +159,10 @@ async function teacherRegister(req, res) {
       )
     })
 
-    // 注册成功直接给 token，让教师进入工作台
-    const token = signToken({ role: 'teacher', phone: body.phone })
     res.status(201).json({
       success: true,
-      message: '注册成功',
-      data: {
-        token,
-        user: {
-          id: body.phone,
-          username: body.phone,
-          phone: body.phone,
-          name: body.name,
-          school_id: body.school_id,
-          class_codes: body.class_codes,
-          role: 'teacher',
-        },
-      },
+      message: '注册成功，等待管理员审批',
+      data: { pending: true },
     })
   } catch (err) {
     return handleAuthError(res, err, '教师注册失败')
@@ -185,6 +178,13 @@ async function teacherLogin(req, res) {
         success: false,
         error: 'INVALID_CREDENTIALS',
         message: '手机号或密码错误',
+      })
+    }
+    if (teacher.status === 'pending') {
+      return res.status(403).json({
+        success: false,
+        error: 'ACCOUNT_PENDING',
+        message: '账号待管理员审批，请联系学校管理员',
       })
     }
     if (teacher.status !== 'active') {

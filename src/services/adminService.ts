@@ -13,7 +13,7 @@ export interface AdminTeacher {
   name: string
   school_id: number | null
   school_name?: string
-  status: 'active' | 'disabled'
+  status: 'pending' | 'active' | 'disabled'
   class_codes: string[]
   created_at?: string
   updated_at?: string
@@ -78,9 +78,12 @@ function toResult<T>(err: unknown, fallback: string): AdminActionResult<T> {
 
 // ===== 教师 =====
 
-/** 查询全部教师 */
-export async function listTeachers(): Promise<AdminTeacher[]> {
-  const res = await get<AdminTeacher[]>('/api/admin/teachers')
+/** 查询全部教师（可按状态筛选） */
+export async function listTeachers(
+  status?: 'pending' | 'active' | 'disabled',
+): Promise<AdminTeacher[]> {
+  const params = status ? { status } : undefined
+  const res = await get<AdminTeacher[]>('/api/admin/teachers', params)
   return res.data || []
 }
 
@@ -122,6 +125,16 @@ export async function deleteTeacher(phone: string): Promise<AdminActionResult> {
     return { success: true, message: res.message || '教师账号已删除' }
   } catch (err) {
     return toResult(err, '删除教师失败')
+  }
+}
+
+/** 审批 pending 教师为 active */
+export async function approveTeacher(phone: string): Promise<AdminActionResult> {
+  try {
+    const res = await post(`/api/admin/teachers/${encodeURIComponent(phone)}/approve`)
+    return { success: true, message: res.message || '教师已审批通过' }
+  } catch (err) {
+    return toResult(err, '审批教师失败')
   }
 }
 
@@ -175,13 +188,13 @@ export async function deleteStudent(studentId: string): Promise<AdminActionResul
   }
 }
 
-/** 重置学生密码为 123456 */
+/** 重置学生密码为 99999999 */
 export async function resetStudentPassword(studentId: string): Promise<AdminActionResult> {
   try {
     const res = await post(
       `/api/admin/students/${encodeURIComponent(studentId)}/reset-password`,
     )
-    return { success: true, message: res.message || '密码已重置为 123456' }
+    return { success: true, message: res.message || '密码已重置为 99999999' }
   } catch (err) {
     return toResult(err, '重置学生密码失败')
   }

@@ -6,7 +6,16 @@ const {
   resetTeacherPasswordByAdmin,
   hashPassword,
   getDefaultPasswordHash,
+  DEFAULT_STUDENT_PASSWORD,
+  DEFAULT_TEACHER_PASSWORD,
 } = require('../services/authService')
+
+// 统一格式正则
+// 学号：严格 8 位纯数字
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+// 班级编码：4 位年级 + 2 位班级序号（01-31）
+const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
 
 // 安全：查询学生时剔除 password_hash（哈希不应暴露给前端）
 const STUDENT_SAFE_COLUMNS =
@@ -18,11 +27,22 @@ const STUDENT_SAFE_COLUMNS =
  */
 async function listTeachers(req, res) {
   try {
-    const teachers = await dbAll(db, `SELECT t.id, t.phone, t.name, t.school_id, t.status,
+    const { status } = req.query
+    const conditions = []
+    const params = []
+    if (status && ['pending', 'active', 'disabled'].includes(status)) {
+      conditions.push('t.status = ?')
+      params.push(status)
+    }
+    let sql = `SELECT t.id, t.phone, t.name, t.school_id, t.status,
       t.created_at, s.name AS school_name
       FROM teachers t
-      LEFT JOIN schools s ON s.id = t.school_id
-      ORDER BY t.created_at DESC`)
+      LEFT JOIN schools s ON s.id = t.school_id`
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ')
+    }
+    sql += ' ORDER BY t.created_at DESC'
+    const teachers = await dbAll(db, sql, params)
     // 附带班级信息
     for (const t of teachers) {
       const classes = await dbAll(
@@ -73,7 +93,7 @@ async function listStudents(req, res) {
 }
 
 /**
- * 管理员重置学生密码 → 123456
+ * 管理员重置学生密码 → DEFAULT_STUDENT_PASSWORD (99999999)
  * POST /api/admin/students/:studentId/reset-password
  */
 async function resetStudent(req, res) {
@@ -91,8 +111,8 @@ async function resetStudent(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '密码已重置为 123456',
-      data: { temporary_password: '123456' },
+      message: `密码已重置为 ${DEFAULT_STUDENT_PASSWORD}`,
+      data: { temporary_password: DEFAULT_STUDENT_PASSWORD },
     })
   } catch (err) {
     logger.error('[admin] 重置学生密码失败:', err)
@@ -115,12 +135,36 @@ async function resetTeacher(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '教师密码已重置，请将临时密码告知教师，首次登录后可自助改密',
-      data: { temporary_password: r.temporaryPassword },
+      message: '教师密码已重置为 99999999',
+      data: { temporary_password: r.temporary_password },
     })
   } catch (err) {
     logger.error('[admin] 重置教师密码失败:', err)
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '重置失败' })
+  }
+}
+
+/**
+ * 管理员：审批待注册教师（将 pending → active，强制首次登录改密）
+ * POST /api/admin/teachers/:phone/approve
+ */
+async function approveTeacher(req, res) {
+  try {
+    const { phone } = req.params
+    const teacher = await dbGet(db, `SELECT id, status FROM teachers WHERE phone = ?`, [phone])
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '教师不存在' })
+    }
+    if (teacher.status === 'active') {
+      return res.status(400).json({ success: false, error: 'ALREADY_ACTIVE', message: '该教师已激活' })
+    }
+    await dbRun(db,
+      `UPDATE teachers SET status = 'active', must_reset_password = 1, updated_at = ? WHERE phone = ?`,
+      [new Date().toISOString(), phone])
+    res.status(200).json({ success: true, message: '教师已审批通过，请告知教师首次登录后修改密码' })
+  } catch (err) {
+    logger.error('[admin] 审批教师失败:', err)
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '审批失败' })
   }
 }
 
@@ -210,8 +254,8 @@ async function createTeacher(req, res) {
       return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
     }
     for (const cc of class_codes) {
-      if (!/^\d{6}$/.test(cc)) {
-        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是 6 位数字` })
+      if (!CLASS_CODE_REGEX.test(cc)) {
+        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
       }
     }
 
@@ -318,8 +362,8 @@ async function updateTeacher(req, res) {
         return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
       }
       for (const cc of class_codes) {
-        if (!/^\d{6}$/.test(cc)) {
-          return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是 6 位数字` })
+        if (!CLASS_CODE_REGEX.test(cc)) {
+          return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
         }
       }
     }
@@ -397,21 +441,21 @@ async function getStudent(req, res) {
 }
 
 /**
- * 管理员：新增学生账号（初始密码 123456）
+ * 管理员：新增学生账号（初始密码 DEFAULT_STUDENT_PASSWORD = 99999999）
  * POST /api/admin/students  { student_id, student_name, class_code }
  */
 async function createStudent(req, res) {
   try {
     const { student_id, student_name, class_code } = req.body
-    if (!student_id || typeof student_id !== 'string' || !/^\d+$/.test(student_id) || student_id.length < 6) {
-      return res.status(400).json({ success: false, error: 'INVALID_STUDENT_ID', message: '学号必须为至少 6 位纯数字' })
+    if (!student_id || typeof student_id !== 'string' || !STUDENT_ID_REGEX.test(student_id)) {
+      return res.status(400).json({ success: false, error: 'INVALID_STUDENT_ID', message: '学号必须为 8 位纯数字（格式 YYYYNNNN）' })
     }
     if (!student_name || typeof student_name !== 'string' || student_name.length > 20) {
       return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '姓名必填，最长 20 字符' })
     }
     const finalClassCode = class_code || student_id.slice(0, 6)
-    if (!/^\d{6}$/.test(String(finalClassCode))) {
-      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为 6 位数字' })
+    if (!CLASS_CODE_REGEX.test(String(finalClassCode))) {
+      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）' })
     }
 
     const exists = await dbGet(db, 'SELECT 1 FROM students WHERE student_id = ? LIMIT 1', [student_id])
@@ -432,8 +476,8 @@ async function createStudent(req, res) {
 
     res.status(201).json({
       success: true,
-      message: '学生账号创建成功，初始密码 123456',
-      data: { student_id, class_code: String(finalClassCode), initial_password: '123456' },
+      message: `学生账号创建成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}`,
+      data: { student_id, class_code: String(finalClassCode), initial_password: DEFAULT_STUDENT_PASSWORD },
     })
   } catch (err) {
     logger.error('[admin] 创建学生失败:', err)
@@ -457,8 +501,8 @@ async function updateStudent(req, res) {
     if (student_name !== undefined && (typeof student_name !== 'string' || !student_name.trim() || student_name.length > 20)) {
       return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '姓名必填，最长 20 字符' })
     }
-    if (class_code !== undefined && !/^\d{6}$/.test(String(class_code))) {
-      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为 6 位数字' })
+    if (class_code !== undefined && !CLASS_CODE_REGEX.test(String(class_code))) {
+      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）' })
     }
     if (school_id !== undefined && school_id !== null) {
       const school = await dbGet(db, 'SELECT id FROM schools WHERE id = ?', [school_id])
@@ -514,6 +558,7 @@ module.exports = {
   resetStudent,
   resetTeacher,
   setTeacherStatus,
+  approveTeacher,
   listPasswordResets,
   createTeacher,
 }

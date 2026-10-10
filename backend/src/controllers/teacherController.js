@@ -8,7 +8,15 @@ const {
   teacherCanManageClass,
   getTeacherClassCodes,
   resetStudentPassword,
+  DEFAULT_STUDENT_PASSWORD,
 } = require('../services/authService')
+
+// 统一格式正则
+// 学号：严格 8 位纯数字
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+// 班级编码：4 位年级 + 2 位班级序号（01-31）
+const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
 
 // 安全：查询学生时剔除 password_hash（哈希不应暴露给前端）
 const STUDENT_SAFE_COLUMNS =
@@ -18,8 +26,7 @@ const STUDENT_SAFE_COLUMNS =
 const createStudentSchema = z.object({
   student_id: z
     .string()
-    .regex(/^\d+$/, '学号必须为纯数字')
-    .min(6, '学号长度至少为 6 位'),
+    .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
   student_name: z.string().min(1, '姓名必填').max(20, '姓名不能超过 20 字符'),
 })
 
@@ -31,8 +38,7 @@ const batchCreateSchema = z.array(
   z.object({
     student_id: z
       .string()
-      .regex(/^\d+$/, '学号必须为纯数字')
-      .min(6, '学号长度至少为 6 位'),
+      .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
     student_name: z.string().min(1, '姓名必填').max(20, '姓名不能超过 20 字符'),
   }),
 )
@@ -124,6 +130,7 @@ async function getStudent(req, res) {
 async function _enforceClassPermission(teacherId, studentId) {
   const classCode = extractClassCode(studentId)
   if (!classCode) return { ok: false, code: 'INVALID_STUDENT_ID', msg: '学号格式不正确，至少 6 位' }
+  if (!CLASS_CODE_REGEX.test(classCode)) return { ok: false, code: 'INVALID_CLASS_CODE', msg: '班级编码格式不正确（需 6 位 YYYYCC，CC 范围 01-31）' }
   const can = await teacherCanManageClass(teacherId, classCode)
   if (!can) {
     return { ok: false, code: 'CLASS_NOT_ALLOWED', msg: '只能添加所教班级的学生（学号前 6 位必须是自己的班级）' }
@@ -176,7 +183,7 @@ async function createStudent(req, res) {
       }
       throw insertErr
     }
-    res.status(201).json({ success: true, message: '学生添加成功，初始密码 123456' })
+    res.status(201).json({ success: true, message: `学生添加成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}` })
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({
@@ -245,7 +252,7 @@ async function batchCreateStudents(req, res) {
         total: list.length,
         success_count: successCount,
         fail_count: list.length - successCount,
-        initial_password: '123456',
+        initial_password: DEFAULT_STUDENT_PASSWORD,
         details: results,
       },
     })
@@ -300,7 +307,7 @@ async function updateStudent(req, res) {
 }
 
 /**
- * 教师重置学生密码为 123456
+ * 教师重置学生密码为 DEFAULT_STUDENT_PASSWORD (99999999)
  */
 async function resetStudent(req, res) {
   try {
@@ -330,8 +337,8 @@ async function resetStudent(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '密码已重置为 123456',
-      data: { temporary_password: '123456' },
+      message: `密码已重置为 ${DEFAULT_STUDENT_PASSWORD}`,
+      data: { temporary_password: DEFAULT_STUDENT_PASSWORD },
     })
   } catch (err) {
     logger.error('[teacher] 重置学生密码失败:', err)

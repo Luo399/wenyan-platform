@@ -66,41 +66,41 @@ afterAll((done) => {
 describe('教师删除本班学生账号', () => {
   it('教师可删除本班学生，删除后查询返回 404', async () => {
     await asAdmin(request(app).post('/api/admin/students')).send({
-      student_id: '2025010001',
+      student_id: '20250101',
       student_name: '待删除学生',
       class_code: '202501',
     })
 
-    const del = await asTeacher(request(app).delete('/api/teacher/students/2025010001'))
+    const del = await asTeacher(request(app).delete('/api/teacher/students/20250101'))
     expect(del.status).toBe(200)
     expect(del.body.success).toBe(true)
 
-    const after = await asTeacher(request(app).get('/api/teacher/students/2025010001'))
+    const after = await asTeacher(request(app).get('/api/teacher/students/20250101'))
     expect(after.status).toBe(404)
   })
 
   it('教师删除非本班学生应返回 403', async () => {
     await asAdmin(request(app).post('/api/admin/students')).send({
-      student_id: '2025990001',
+      student_id: '20250201',
       student_name: '他班学生',
-      class_code: '202599',
+      class_code: '202502',
     })
 
-    const res = await asTeacher(request(app).delete('/api/teacher/students/2025990001'))
+    const res = await asTeacher(request(app).delete('/api/teacher/students/20250201'))
     expect(res.status).toBe(403)
 
     // 越权删除失败后学生仍然存在
-    const still = await asAdmin(request(app).get('/api/admin/students/2025990001'))
+    const still = await asAdmin(request(app).get('/api/admin/students/20250201'))
     expect(still.status).toBe(200)
   })
 
   it('教师删除不存在的学生应返回 404', async () => {
-    const res = await asTeacher(request(app).delete('/api/teacher/students/2099010001'))
+    const res = await asTeacher(request(app).delete('/api/teacher/students/20250199'))
     expect(res.status).toBe(404)
   })
 
   it('未登录访问教师删除接口应返回 401', async () => {
-    const res = await request(app).delete('/api/teacher/students/2025010001')
+    const res = await request(app).delete('/api/teacher/students/20250101')
     expect(res.status).toBe(401)
   })
 })

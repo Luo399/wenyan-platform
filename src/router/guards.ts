@@ -64,6 +64,16 @@ export function setupAuthGuard(router: Router): void {
         return
       }
 
+      // 角色检查（可选）：路由 meta 上声明 role 时校验 authStore.user.role
+      const requiredRole = to.meta.role as string | undefined
+      if (requiresAuth(to) && requiredRole && authStore.user?.role !== requiredRole) {
+        debugLog('[AuthGuard] 角色不匹配：需要', requiredRole, '当前', authStore.user?.role)
+        // 用 sessionStorage 暂存一个小提示，home 页或全局可读取
+        try { sessionStorage.setItem('__role_guard_warn', '无权访问该页面') } catch { /* ignore */ }
+        next({ path: '/' })
+        return
+      }
+
       debugLog('[AuthGuard] Navigation allowed to:', to.fullPath)
       next()
     },
