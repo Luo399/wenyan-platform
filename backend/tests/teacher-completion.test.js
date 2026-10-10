@@ -57,20 +57,20 @@ beforeAll(async () => {
 
   // 本班学生 2 名
   await asAdmin(request(app).post('/api/admin/students')).send({
-    student_id: '2026010001',
+    student_id: '20260101',
     student_name: '框架学生甲',
     class_code: '202601',
   })
   await asAdmin(request(app).post('/api/admin/students')).send({
-    student_id: '2026010002',
+    student_id: '20260102',
     student_name: '框架学生乙',
     class_code: '202601',
   })
   // 他班学生 1 名（用于越权过滤断言）
   await asAdmin(request(app).post('/api/admin/students')).send({
-    student_id: '2026990001',
+    student_id: '20260201',
     student_name: '他班学生',
-    class_code: '202699',
+    class_code: '202602',
   })
 })
 
@@ -86,7 +86,7 @@ describe('教师查看学生完成情况（框架）', () => {
     expect(res.body.data.summary.student_count).toBe(2)
 
     const ids = res.body.data.students.map((s) => s.student_id).sort()
-    expect(ids).toEqual(['2026010001', '2026010002'])
+    expect(ids).toEqual(['20260101', '20260102'])
     // 统计字段占位且结构稳定
     expect(res.body.data.students[0]).toHaveProperty('answered_questions', 0)
     expect(res.body.data.students[0]).toHaveProperty('accuracy', 0)
@@ -105,7 +105,7 @@ describe('教师查看学生完成情况（框架）', () => {
 
   it('按非本班 class_code 过滤应 403', async () => {
     const res = await asTeacher(
-      request(app).get('/api/teacher/completion/students?class_code=202699'),
+      request(app).get('/api/teacher/completion/students?class_code=202602'),
     )
     expect(res.status).toBe(403)
   })

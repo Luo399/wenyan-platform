@@ -112,8 +112,11 @@ describe('bcrypt 密码哈希与校验', () => {
 
 // 顺带测 authController 内定义的 Zod schema：直接重新声明与 controller 中一致
 describe('Zod schema 输入校验（与 authController 中声明保持一致）', () => {
+  const STUDENT_ID_REGEX = /^\d{8}$/
+  const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
+
   const studentLoginSchema = z.object({
-    student_id: z.string().regex(/^\d+$/, '学号必须为纯数字').min(4, '学号长度不能少于 4 位'),
+    student_id: z.string().regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
     password: z.string().min(1, '密码必填'),
   })
 
@@ -123,7 +126,7 @@ describe('Zod schema 输入校验（与 authController 中声明保持一致）'
     school_id: z.number().int().positive('请选择学校'),
     password: z.string().min(6, '密码长度不能少于 6 位'),
     class_codes: z
-      .array(z.string().regex(/^\d{6}$/, '班级编码必须为 6 位数字'))
+      .array(z.string().regex(CLASS_CODE_REGEX, '班级编码必须为 6 位数字（格式 YYYYCC，CC 范围 01-31）'))
       .min(1, '至少选择一个所教班级'),
   })
 
@@ -136,9 +139,9 @@ describe('Zod schema 输入校验（与 authController 中声明保持一致）'
       studentLoginSchema.parse({ student_id: '202409ab', password: '123456' }),
     ).toThrow(z.ZodError)
   })
-  test('学生登录：学号长度 <4 => 失败', () => {
+  test('学生登录：学号长度 <8 => 失败', () => {
     expect(() =>
-      studentLoginSchema.parse({ student_id: '123', password: '123456' }),
+      studentLoginSchema.parse({ student_id: '1234567', password: '123456' }),
     ).toThrow(z.ZodError)
   })
 
@@ -153,14 +156,14 @@ describe('Zod schema 输入校验（与 authController 中声明保持一致）'
     expect(v.phone).toBe('13812345678')
     expect(v.class_codes).toEqual(['202409', '202410'])
   })
-  test('教师注册：班级编码 5 位 => 失败', () => {
+  test('教师注册：班级编码 CC=32 超范围 => 失败', () => {
     expect(() =>
       teacherRegisterSchema.parse({
         phone: '13812345678',
         name: '张老师',
         school_id: 1,
         password: 'teacher@123',
-        class_codes: ['20240'],
+        class_codes: ['202432'],
       }),
     ).toThrow(z.ZodError)
   })

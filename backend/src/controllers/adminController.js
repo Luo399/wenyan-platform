@@ -8,6 +8,13 @@ const {
   getDefaultPasswordHash,
 } = require('../services/authService')
 
+// 统一格式正则
+// 学号：严格 8 位纯数字
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+// 班级编码：4 位年级 + 2 位班级序号（01-31）
+const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
+
 // 安全：查询学生时剔除 password_hash（哈希不应暴露给前端）
 const STUDENT_SAFE_COLUMNS =
   'id, student_id, student_name, class_code, school_id, must_reset_password, created_by, created_at, updated_at'
@@ -210,8 +217,8 @@ async function createTeacher(req, res) {
       return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
     }
     for (const cc of class_codes) {
-      if (!/^\d{6}$/.test(cc)) {
-        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是 6 位数字` })
+      if (!CLASS_CODE_REGEX.test(cc)) {
+        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
       }
     }
 
@@ -318,8 +325,8 @@ async function updateTeacher(req, res) {
         return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
       }
       for (const cc of class_codes) {
-        if (!/^\d{6}$/.test(cc)) {
-          return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是 6 位数字` })
+        if (!CLASS_CODE_REGEX.test(cc)) {
+          return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
         }
       }
     }
@@ -403,15 +410,15 @@ async function getStudent(req, res) {
 async function createStudent(req, res) {
   try {
     const { student_id, student_name, class_code } = req.body
-    if (!student_id || typeof student_id !== 'string' || !/^\d+$/.test(student_id) || student_id.length < 6) {
-      return res.status(400).json({ success: false, error: 'INVALID_STUDENT_ID', message: '学号必须为至少 6 位纯数字' })
+    if (!student_id || typeof student_id !== 'string' || !STUDENT_ID_REGEX.test(student_id)) {
+      return res.status(400).json({ success: false, error: 'INVALID_STUDENT_ID', message: '学号必须为 8 位纯数字（格式 YYYYNNNN）' })
     }
     if (!student_name || typeof student_name !== 'string' || student_name.length > 20) {
       return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '姓名必填，最长 20 字符' })
     }
     const finalClassCode = class_code || student_id.slice(0, 6)
-    if (!/^\d{6}$/.test(String(finalClassCode))) {
-      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为 6 位数字' })
+    if (!CLASS_CODE_REGEX.test(String(finalClassCode))) {
+      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）' })
     }
 
     const exists = await dbGet(db, 'SELECT 1 FROM students WHERE student_id = ? LIMIT 1', [student_id])
@@ -457,8 +464,8 @@ async function updateStudent(req, res) {
     if (student_name !== undefined && (typeof student_name !== 'string' || !student_name.trim() || student_name.length > 20)) {
       return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '姓名必填，最长 20 字符' })
     }
-    if (class_code !== undefined && !/^\d{6}$/.test(String(class_code))) {
-      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为 6 位数字' })
+    if (class_code !== undefined && !CLASS_CODE_REGEX.test(String(class_code))) {
+      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: '班级编码必须为合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）' })
     }
     if (school_id !== undefined && school_id !== null) {
       const school = await dbGet(db, 'SELECT id FROM schools WHERE id = ?', [school_id])

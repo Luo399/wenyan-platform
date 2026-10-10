@@ -92,7 +92,7 @@ describe('管理员：教师账号 CRUD', () => {
 describe('管理员：学生账号 CRUD', () => {
   it('新增学生账号', async () => {
     const res = await asAdmin(request(app).post('/api/admin/students')).send({
-      student_id: '2024010001',
+      student_id: '20240101',
       student_name: '测试学生甲',
       class_code: '202401',
     })
@@ -101,27 +101,27 @@ describe('管理员：学生账号 CRUD', () => {
   })
 
   it('查询单个学生应不返回密码哈希', async () => {
-    const res = await asAdmin(request(app).get('/api/admin/students/2024010001'))
+    const res = await asAdmin(request(app).get('/api/admin/students/20240101'))
     expect(res.status).toBe(200)
     expect(res.body.data.student_name).toBe('测试学生甲')
     expect(res.body.data.password_hash).toBeUndefined()
   })
 
   it('更新学生信息', async () => {
-    const res = await asAdmin(request(app).put('/api/admin/students/2024010001')).send({
+    const res = await asAdmin(request(app).put('/api/admin/students/20240101')).send({
       student_name: '测试学生乙',
     })
     expect(res.status).toBe(200)
 
-    const after = await asAdmin(request(app).get('/api/admin/students/2024010001'))
+    const after = await asAdmin(request(app).get('/api/admin/students/20240101'))
     expect(after.body.data.student_name).toBe('测试学生乙')
   })
 
   it('删除学生账号后查询应返回 404', async () => {
-    const res = await asAdmin(request(app).delete('/api/admin/students/2024010001'))
+    const res = await asAdmin(request(app).delete('/api/admin/students/20240101'))
     expect(res.status).toBe(200)
 
-    const after = await asAdmin(request(app).get('/api/admin/students/2024010001'))
+    const after = await asAdmin(request(app).get('/api/admin/students/20240101'))
     expect(after.status).toBe(404)
   })
 })

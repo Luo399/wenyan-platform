@@ -11,6 +11,13 @@ const {
   extractClassCode,
 } = require('../services/authService')
 
+// 统一格式正则
+// 学号：严格 8 位纯数字
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+// 班级编码：4 位年级 + 2 位班级序号（01-31）
+const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
+
 /**
  * 生成统一格式的 JWT
  * @param {object} payload  自定义字段，必须包含 role
@@ -23,8 +30,7 @@ function signToken(payload) {
 const studentLoginSchema = z.object({
   student_id: z
     .string()
-    .regex(/^\d+$/, '学号必须为纯数字')
-    .min(4, '学号长度不能少于 4 位'),
+    .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
   password: z.string().min(1, '密码必填'),
 })
 
@@ -34,7 +40,7 @@ const teacherRegisterSchema = z.object({
   school_id: z.number().int().positive('请选择学校'),
   password: z.string().min(6, '密码长度不能少于 6 位'),
   class_codes: z
-    .array(z.string().regex(/^\d{6}$/, '班级编码必须为 6 位数字'))
+    .array(z.string().regex(CLASS_CODE_REGEX, '班级编码必须为 6 位数字（格式 YYYYCC，CC 范围 01-31）'))
     .min(1, '至少选择一个所教班级'),
 })
 
