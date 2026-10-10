@@ -243,11 +243,10 @@ describe('教师密码重置（管理员操作）+ 审计落库', () => {
 
     const r = await resetTeacherPasswordByAdmin(phone, 'admin')
     expect(r.success).toBe(true)
-    expect(typeof r.temporaryPassword).toBe('string')
-    expect(r.temporaryPassword.length).toBeGreaterThanOrEqual(8)
+    expect(r.temporary_password).toBe('99999999')
 
     const row = await dbGet(db, 'SELECT password_hash FROM teachers WHERE phone = ?', [phone])
-    await expect(verifyPassword(r.temporaryPassword, row.password_hash)).resolves.toBe(true)
+    await expect(verifyPassword(r.temporary_password, row.password_hash)).resolves.toBe(true)
     await expect(verifyPassword('oldTeacherPwd', row.password_hash)).resolves.toBe(false)
 
     const after = await dbGet(

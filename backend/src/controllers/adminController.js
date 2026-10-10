@@ -136,7 +136,7 @@ async function resetTeacher(req, res) {
     res.status(200).json({
       success: true,
       message: '教师密码已重置为 99999999',
-      data: { temporary_password: r.temporaryPassword },
+      data: { temporary_password: r.temporary_password },
     })
   } catch (err) {
     logger.error('[admin] 重置教师密码失败:', err)
