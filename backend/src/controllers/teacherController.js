@@ -8,6 +8,7 @@ const {
   teacherCanManageClass,
   getTeacherClassCodes,
   resetStudentPassword,
+  DEFAULT_STUDENT_PASSWORD,
 } = require('../services/authService')
 
 // 统一格式正则
@@ -182,7 +183,7 @@ async function createStudent(req, res) {
       }
       throw insertErr
     }
-    res.status(201).json({ success: true, message: '学生添加成功，初始密码 123456' })
+    res.status(201).json({ success: true, message: `学生添加成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}` })
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({
@@ -251,7 +252,7 @@ async function batchCreateStudents(req, res) {
         total: list.length,
         success_count: successCount,
         fail_count: list.length - successCount,
-        initial_password: '123456',
+        initial_password: DEFAULT_STUDENT_PASSWORD,
         details: results,
       },
     })
@@ -306,7 +307,7 @@ async function updateStudent(req, res) {
 }
 
 /**
- * 教师重置学生密码为 123456
+ * 教师重置学生密码为 DEFAULT_STUDENT_PASSWORD (99999999)
  */
 async function resetStudent(req, res) {
   try {
@@ -336,8 +337,8 @@ async function resetStudent(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '密码已重置为 123456',
-      data: { temporary_password: '123456' },
+      message: `密码已重置为 ${DEFAULT_STUDENT_PASSWORD}`,
+      data: { temporary_password: DEFAULT_STUDENT_PASSWORD },
     })
   } catch (err) {
     logger.error('[teacher] 重置学生密码失败:', err)

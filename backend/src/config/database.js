@@ -295,7 +295,7 @@ function buildInitChain() {
       .then(() => seedDefaultSchool())
       // 10. 种子数据：默认管理员 admin/admin123（若 admins 为空）
       .then(() => seedDefaultAdmin())
-      // 11. 种子数据：测试学生 99999999 / 123456（非生产环境）
+      // 11. 种子数据：测试学生 99999999 / 99999999（非生产环境）
       .then(() => seedTestStudent())
       .then(() => {
         logger.info('[database] 所有表初始化/升级完成')
@@ -440,7 +440,7 @@ function seedDefaultAdmin() {
 }
 
 /**
- * 种子数据：测试学生 99999999 / 123456（仅开发/测试环境）
+ * 种子数据：测试学生 99999999 / 99999999（仅开发/测试环境）
  * 判断条件：当前不是生产环境，且该学号尚未存在
  */
 function seedTestStudent() {
@@ -461,7 +461,7 @@ function seedTestStudent() {
         if (err2) return reject(err2)
         const schoolId = school ? school.id : 1
         const now = new Date().toISOString()
-        bcrypt.hash('123456', 10, (hashErr, hash) => {
+        bcrypt.hash('99999999', 10, (hashErr, hash) => {
           if (hashErr) return reject(hashErr)
           db.run(
             `INSERT INTO students
@@ -471,7 +471,7 @@ function seedTestStudent() {
             ['99999999', '测试学生', '999999', schoolId, hash, 'system', now, now],
             (insertErr) => {
               if (insertErr) return reject(insertErr)
-              logger.info('[database] 已插入测试学生  student_id=99999999  password=123456')
+              logger.info('[database] 已插入测试学生  student_id=99999999  password=99999999')
               resolve()
             },
           )

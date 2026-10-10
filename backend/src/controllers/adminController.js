@@ -6,6 +6,8 @@ const {
   resetTeacherPasswordByAdmin,
   hashPassword,
   getDefaultPasswordHash,
+  DEFAULT_STUDENT_PASSWORD,
+  DEFAULT_TEACHER_PASSWORD,
 } = require('../services/authService')
 
 // 统一格式正则
@@ -91,7 +93,7 @@ async function listStudents(req, res) {
 }
 
 /**
- * 管理员重置学生密码 → 123456
+ * 管理员重置学生密码 → DEFAULT_STUDENT_PASSWORD (99999999)
  * POST /api/admin/students/:studentId/reset-password
  */
 async function resetStudent(req, res) {
@@ -109,8 +111,8 @@ async function resetStudent(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '密码已重置为 123456',
-      data: { temporary_password: '123456' },
+      message: `密码已重置为 ${DEFAULT_STUDENT_PASSWORD}`,
+      data: { temporary_password: DEFAULT_STUDENT_PASSWORD },
     })
   } catch (err) {
     logger.error('[admin] 重置学生密码失败:', err)
@@ -439,7 +441,7 @@ async function getStudent(req, res) {
 }
 
 /**
- * 管理员：新增学生账号（初始密码 123456）
+ * 管理员：新增学生账号（初始密码 DEFAULT_STUDENT_PASSWORD = 99999999）
  * POST /api/admin/students  { student_id, student_name, class_code }
  */
 async function createStudent(req, res) {
@@ -474,8 +476,8 @@ async function createStudent(req, res) {
 
     res.status(201).json({
       success: true,
-      message: '学生账号创建成功，初始密码 123456',
-      data: { student_id, class_code: String(finalClassCode), initial_password: '123456' },
+      message: `学生账号创建成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}`,
+      data: { student_id, class_code: String(finalClassCode), initial_password: DEFAULT_STUDENT_PASSWORD },
     })
   } catch (err) {
     logger.error('[admin] 创建学生失败:', err)

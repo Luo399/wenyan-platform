@@ -33,7 +33,7 @@ function registerRoutes(app) {
         'POST   /api/teacher/students/batch': '教师批量添加学生（Excel后调用）',
         'PUT    /api/teacher/students/:studentId': '教师更新学生姓名',
         'DELETE /api/teacher/students/:studentId': '教师删除本班学生账号',
-        'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为123456',
+        'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为 99999999',
         'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况（框架）',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
@@ -45,7 +45,7 @@ function registerRoutes(app) {
         'POST   /api/admin/teachers/:phone/approve': '管理员审批待注册教师（pending→active）',
         'GET    /api/admin/students': '管理员查所有学生',
         'GET    /api/admin/students/:studentId': '管理员查单个学生',
-        'POST   /api/admin/students': '管理员新增学生账号（初始密码 123456）',
+        'POST   /api/admin/students': '管理员新增学生账号（初始密码 99999999）',
         'PUT    /api/admin/students/:studentId': '管理员更新学生信息',
         'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
         'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为99999999',
