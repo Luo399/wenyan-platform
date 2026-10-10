@@ -49,7 +49,7 @@ beforeAll(async () => {
 
   // 提前登录并复用 token，避免触发 loginRateLimit（5 次/分钟/IP）
   studentToken = await loginToken(
-    { student_id: '99999999', password: '123456' },
+    { student_id: '99999999', password: '99999999' },
     '/api/auth/student/login',
   )
   adminToken = await loginToken(

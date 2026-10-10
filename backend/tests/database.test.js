@@ -181,7 +181,7 @@ describe('教师注册 + teacher_classes 关系 + 班级权限校验', () => {
 })
 
 describe('学生密码重置 + 审计落库', () => {
-  test('resetStudentPassword：重置后密码为 123456 且 must_reset_password=1，password_resets 增一条', async () => {
+  test('resetStudentPassword：重置后密码为 99999999 且 must_reset_password=1，password_resets 增一条', async () => {
     const sid = '20240977'
     const oldHash = await hashPassword('oldPwd888')
     const now = new Date().toISOString()
@@ -204,7 +204,7 @@ describe('学生密码重置 + 审计落库', () => {
 
     const row = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [sid])
     expect(row.must_reset_password).toBe(1)
-    await expect(verifyPassword('123456', row.password_hash)).resolves.toBe(true)
+    await expect(verifyPassword('99999999', row.password_hash)).resolves.toBe(true)
     await expect(verifyPassword('oldPwd888', row.password_hash)).resolves.toBe(false)
 
     const after = await dbGet(

@@ -30,10 +30,10 @@ beforeAll(async () => {
 })
 
 describe('学生登录', () => {
-  it('测试账号 99999999 / 123456 应登录成功', async () => {
+  it('测试账号 99999999 / 99999999 应登录成功', async () => {
     const res = await request(app)
       .post('/api/auth/student/login')
-      .send({ student_id: '99999999', password: '123456' })
+      .send({ student_id: '99999999', password: '99999999' })
 
     expect(res.status).toBe(200)
     expect(res.body.success).toBe(true)

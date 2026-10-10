@@ -97,7 +97,7 @@ describe('管理员：学生账号 CRUD', () => {
       class_code: '202401',
     })
     expect(res.status).toBe(201)
-    expect(res.body.data.initial_password).toBe('123456')
+    expect(res.body.data.initial_password).toBe('99999999')
   })
 
   it('查询单个学生应不返回密码哈希', async () => {
