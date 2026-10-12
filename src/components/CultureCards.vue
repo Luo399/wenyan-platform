@@ -306,10 +306,12 @@ function getCardBackgroundUrl(card: CultureCard): string {
 }
 
 /**
- * 获取卡片视频 URL（与 getCardImageUrl 同路径，语义化区分）
+ * 获取卡片视频 URL
+ * 视频统一扁平放在 {ossBase}/video/ 根目录（与 rule 视频同级）
+ * 文件名即 card.image_file（如 WEN_01_card_uprising.mp4）
  */
 function getCardVideoUrl(card: CultureCard): string {
-  return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
+  return `${ossBase}/video/${card.image_file}`
 }
 
 /**
