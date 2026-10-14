@@ -44,7 +44,7 @@ import { getAssetUrl } from '@/utils/asset'
 /**
  * 预加载后续步骤的懒加载组件 chunk + stepone 的数据 JSON。
  * RuleVideoView 只有 VideoPlayer，极轻量，用户进入后有充足时间让浏览器
- * 在后台加载后续 StepOneView / StepTwoView / StepThreeView / DetailView 的 JS。
+ * 在后台加载后续 StepView / DetailView 的 JS。
  *
  * 数据预取：
  *   WordList 会拉 text_basic_info + word_list 两个 JSON
@@ -59,9 +59,7 @@ async function preloadUpstream(navKey: string, poemId: string) {
   _preloadStarted.add(navKey)
 
   // 1. 预加载组件 chunk
-  import('@/views/StepOneView.vue')
-  import('@/views/StepTwoView.vue')
-  import('@/views/StepThreeView.vue')
+  import('@/views/StepView.vue')
   import('@/views/DetailView.vue')
 
   // 2. 静默预取 stepone 数据（3 个 JSON），利用视频播放时间填 HTTP cache
