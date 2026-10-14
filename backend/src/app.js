@@ -76,6 +76,14 @@ function createApp() {
   // 移除 express.static：backend/public 下的 admin.html 无鉴权裸奔（已下线），
   // 后端仅提供 JSON API，静态资源统一由前端 OSS 承载
 
+  // R7: /v1 版本前缀代理 —— 所有已注册 /api/* 路由自动获得 /v1/api/* 别名
+  // 实现方式：在 registerRoutes 之前拦截 /v1/*，把 req.url 改写为 /api/* 再放行
+  // 这样 routes/index.js 零改动、新旧两套路径完全等价，便于灰度切换
+  app.use('/v1', (req, res, next) => {
+    req.url = '/api' + req.url
+    next()
+  })
+
   registerRoutes(app)
 
   app.use('/api/health', (req, res) => {
