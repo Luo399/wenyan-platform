@@ -15,9 +15,8 @@ declare module 'vue-router' {
 // 非首屏组件懒加载
 const DetailView = () => import('@/views/DetailView.vue')
 const RuleVideoView = () => import('@/views/RuleVideoView.vue')
-const StepOneView = () => import('@/views/StepOneView.vue')
-const StepTwoView = () => import('@/views/StepTwoView.vue')
-const StepThreeView = () => import('@/views/StepThreeView.vue')
+// R1: 三个步骤路由合并为同一个 StepView 组件，靠 route.name 区分行为
+const StepView = () => import('@/views/StepView.vue')
 const AnswerQueryView = () => import('@/views/AnswerQueryView.vue')
 
 // R114: 标注 RouteRecordRaw 类型，保证 meta 字段有类型检查
@@ -47,7 +46,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/stepone/:id',
     name: 'stepone',
-    component: StepOneView,
+    component: StepView,
     meta: { requiresAuth: true },
   },
   {
@@ -74,13 +73,13 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/stepthree/:id',
     name: 'stepthree',
-    component: StepThreeView,
+    component: StepView,
     meta: { requiresAuth: true },
   },
   {
     path: '/steptwo/:id',
     name: 'steptwo',
-    component: StepTwoView,
+    component: StepView,
     meta: { requiresAuth: true },
   },
   {
