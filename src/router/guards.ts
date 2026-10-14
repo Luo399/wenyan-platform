@@ -57,10 +57,11 @@ export function setupAuthGuard(router: Router): void {
         isLoggedIn.value,
       )
 
-      // 需要登录但未登录：重定向到首页并携带 redirect 参数
+      // 需要登录但未登录：重定向到学生登录页并携带 redirect 参数
+      // 这样登录成功后能直接跳回原目标页，不再浪费 redirect 信息
       if (requiresAuth(to) && !isLoggedIn.value) {
-        debugLog('[AuthGuard] 需要登录，重定向到首页并携带 redirect:', to.fullPath)
-        next({ name: 'home', query: { redirect: to.fullPath } })
+        debugLog('[AuthGuard] 需要登录，重定向到学生登录页并携带 redirect:', to.fullPath)
+        next({ name: 'student-login', query: { redirect: to.fullPath } })
         return
       }
 
