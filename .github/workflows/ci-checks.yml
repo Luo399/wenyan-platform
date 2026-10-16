@@ -96,11 +96,11 @@ jobs:
         run: npm install circular-dependency-scanner@3.0.1 --no-save
 
       - name: Circular dependency scan
+        # circular-dependency-scanner 默认发现循环时 exit code 非零
+        # 原生支持 .vue + .ts + <script setup>
         run: |
-          npx circular-dependency-scanner \
-            src/ \
-            --max-depth 100 \
-            --fail-on 1 || { echo "::error::检测到循环依赖，请修复后再提交"; exit 1; }
+          npx circular-dependency-scanner src/ || \
+            { echo "::error::检测到循环依赖，请修复后再提交"; exit 1; }
 
   pipeline-test:
     # 数据管道（data-pipeline/python）Python 单元测试

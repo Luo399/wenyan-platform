@@ -6,11 +6,7 @@ import skipFormatting from 'eslint-config-prettier/flat'
 
 // ======= 禁止 barrel 自引用规则 =======
 // 对外桶、对内直、禁自引、CI 强检
-// 注意：flat config 的 defineConfigWithVueTs 要求严格类型，
-// 所以这里用 satisfies 显式标注，避免 TS 报错
-import type { FlatESLintConfig } from 'eslint-define-config'
-
-const selfBarrelRules: FlatESLintConfig[] = [
+const selfBarrelRules = [
   {
     files: ['src/composables/**/*.ts'],
     rules: {
