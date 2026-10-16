@@ -60,13 +60,13 @@
     <PageScaffold
       :title="meta?.title || '情景测验'"
       subtitle="完成以下测验，检验你的学习成果"
-      :loading="loading"
-      :error="error"
+      :loading="pageLoading"
+      :error="pageError"
       :is-empty="!pageData"
       empty-text="暂无测验数据"
       :show-navigation="true"
       :show-continue="step3Flow.isCompleted.value"
-      @retry="retry"
+      @retry="retryPage"
       @back="handleGoPrev"
       @continue="handleGoNext"
     >
@@ -199,7 +199,8 @@ interface PageData {
 const { data: pageConfig, loading, error, retry } = useDataLoader<PageConfig>(
   () => (stepNumber.value === 2 ? pageUrl.value : ''),
 )
-const { data: pageData } = useDataLoader<PageData>(
+// StepThree 独立的 loading/error（不能共用 StepTwo 的，否则 stepNumber 切换时空 URL 会污染 error 显示）
+const { data: pageData, loading: pageLoading, error: pageError, retry: retryPage } = useDataLoader<PageData>(
   () => (stepNumber.value === 3 ? pageUrl.value : ''),
 )
 
