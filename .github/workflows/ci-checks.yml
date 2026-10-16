@@ -91,14 +91,13 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install circular-dep scanner
+        # 独立安装，不污染 package.json
+        run: npm install circular-dependency-scanner@3.0.1 --no-save
 
       - name: Circular dependency scan
-        # circular-dependency-scanner 原生支持 .vue + .ts + <script setup>
-        # --max-depth 100 防极长链，--fail-on 任一命中即 exit 1
         run: |
-          npx --no-install circular-dependency-scanner \
+          npx circular-dependency-scanner \
             src/ \
             --max-depth 100 \
             --fail-on 1 || { echo "::error::检测到循环依赖，请修复后再提交"; exit 1; }
