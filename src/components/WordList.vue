@@ -96,9 +96,6 @@ const props = withDefaults(defineProps<Props>(), {
   basicInfoBaseUrl: '/data/text_basic_info/',
 })
 
-// TEMP DEBUG: 排查生产白屏
-console.log('[DEBUG WordList] setup called, wenId=', props.wenId, 'baseUrls:', props.wordListBaseUrl, props.basicInfoBaseUrl)
-
 // R107: 数据地址走版本戳 OSS 地址（外部显式传入自定义 baseUrl 时沿用，兼容旧用法）
 const wordListUrl = (): string | Promise<string> =>
   props.wordListBaseUrl !== '/data/word_list/'
@@ -109,10 +106,6 @@ const basicInfoUrl = (): string | Promise<string> =>
   props.basicInfoBaseUrl !== '/data/text_basic_info/'
     ? `${props.basicInfoBaseUrl}${props.wenId}.json`
     : getDataUrlWithVersion('text_basic_info', `${props.wenId}.json`)
-
-// TEMP DEBUG
-console.log('[DEBUG WordList] wordListUrl=', typeof wordListUrl)
-console.log('[DEBUG WordList] basicInfoUrl=', typeof basicInfoUrl)
 
 // 加载词汇列表
 const {
