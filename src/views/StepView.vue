@@ -133,6 +133,15 @@ import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { resolveQuestionId } from '@/utils/questionId'
 import { debugLog, debugError } from '@/utils/debug'
 
+// ======== 模板里用到的组件（必须显式 import，Vue script setup 不会自动扫描） ========
+import WordList from '@/components/WordList.vue'
+import MultiRoleReading from '@/components/MultiRoleReading.vue'
+import BackContinue from '@/components/BackContinue.vue'
+import PageScaffold from '@/components/PageScaffold.vue'
+import BlockRenderer from '@/components/BlockRenderer.vue'
+import QuizCard from '@/components/QuizCard.vue'
+import CultureCards from '@/components/CultureCards.vue'
+
 // ======== 共用骨架（所有 step case） ========
 const route = useRoute()
 const stepMap: Record<string, 1 | 2 | 3> = { stepone: 1, steptwo: 2, stepthree: 3 }
