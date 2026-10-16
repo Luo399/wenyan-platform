@@ -18,6 +18,7 @@ import type { RouteName } from '@/config/navigation'
 
 /** 页面渲染模式 */
 export type FigmaRenderMode =
+  | 'static' // 纯静态组件（无 Figma 数据）
   | 'blocks' // BlockRenderer 块流（BlockQuiz/DialogueCard/WordList 等按块渲染）
   | 'quiz-list' // 逐题卡片列表（QuizCard 逐题作答）
 
@@ -50,6 +51,15 @@ export interface FigmaPageMeta {
  *   },
  */
 export const figmaPageRegistry: Record<string, FigmaPageMeta> = {
+  /** 一级学习页：字词注释 + 多角色朗读（纯静态，无 Figma 数据） */
+  stepone: {
+    key: 'stepone',
+    dataDir: '',
+    renderMode: 'static',
+    title: '字词学习',
+    navKey: 'stepone',
+    requiresAuth: true,
+  },
   /** 二级学习页：对话 + 测验块（Block 流式渲染） */
   steptwo: {
     key: 'steptwo',
