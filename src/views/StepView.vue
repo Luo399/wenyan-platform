@@ -94,7 +94,7 @@
               <span class="quiz-number">第 {{ index + 1 }} 题</span>
             </div>
             <QuizCard
-              :data="item.quiz"
+              :data="item.quiz as any"
               :submitted="isQuestionSubmitted(index)"
               @submit="(option: number | null) => option !== null && handleStep3Submit(index, option)"
             />
@@ -170,9 +170,10 @@ const pageUrl = computed(() => {
 })
 
 // Step 2 的 PageConfig 类型（从 pageRegistry 读取 blocks 渲染）
+// 用宽松 any 以匹配 BlockRenderer 的 union type 要求
 interface PageConfig {
   title?: string
-  blocks: Array<{ type: string; [key: string]: unknown }>
+  blocks: any[]
 }
 
 // Step 3 的数据类型
