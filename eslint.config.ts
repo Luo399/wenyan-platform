@@ -6,6 +6,8 @@ import skipFormatting from 'eslint-config-prettier/flat'
 
 // ======= 禁止 barrel 自引用规则 =======
 // 对外桶、对内直、禁自引、CI 强检
+// 注意：ESLint flat config 的 RuleLevelAndOptions 不接受 readonly tuple，
+// 所以不能加 as const；直接写裸对象即可。
 const selfBarrelRules = [
   {
     files: ['src/composables/**/*.ts'],
@@ -15,7 +17,7 @@ const selfBarrelRules = [
           name: '@/composables',
           message: '禁止在 @/composables 内部引用自身 barrel，请改用直接文件路径（如 @/composables/useNavigation）。',
         }],
-      }] as const,
+      }],
     },
   },
   {
@@ -23,7 +25,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/composables/navigation', message: '禁自引，改用 ../useNavigation' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -31,7 +33,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/composables/quiz', message: '禁自引，改用 ../useQuizFlow' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -39,7 +41,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/composables/data', message: '禁自引，改用 ../useDataLoader' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -47,7 +49,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/composables/playback', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -55,7 +57,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/composables/tracking', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -63,7 +65,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/composables/student', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -71,7 +73,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/components/features/step', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -79,7 +81,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/components/features/quiz', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -87,7 +89,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/components/features/culture', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
   {
@@ -95,7 +97,7 @@ const selfBarrelRules = [
     rules: {
       'no-restricted-imports': ['error', {
         paths: [{ name: '@/components/features/auth', message: '禁自引' }],
-      }] as const,
+      }],
     },
   },
 ]
