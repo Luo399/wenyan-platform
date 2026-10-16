@@ -16,6 +16,8 @@ on:
       - 'backend/**'
       - 'figma-plugin/**'
       - 'package.json'
+      - 'eslint.config.ts'
+      - '.oxlintrc.json'
       - '.github/workflows/ci-checks.yml'
 
 jobs:
@@ -75,6 +77,32 @@ jobs:
           DB_PATH: ':memory:'
           JWT_SECRET: ci-test-secret
           AUTH_SECRET: ''
+
+  circular-check:
+    # 循环依赖检测：防止 barrel 文件导致的模块循环初始化
+    # Vue SFC + TypeScript 均支持；发现循环依赖时 CI 失败
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install circular-dep scanner
+        # 独立安装，不污染 package.json
+        run: npm install circular-dependency-scanner@3.0.1 --no-save
+
+      - name: Circular dependency scan
+        # circular-dependency-scanner 默认发现循环时 exit code 非零
+        # 原生支持 .vue + .ts + <script setup>
+        run: |
+          npx circular-dependency-scanner src/ || \
+            { echo "::error::检测到循环依赖，请修复后再提交"; exit 1; }
 
   pipeline-test:
     # 数据管道（data-pipeline/python）Python 单元测试
