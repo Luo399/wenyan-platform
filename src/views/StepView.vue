@@ -94,7 +94,7 @@
               <span class="quiz-number">第 {{ index + 1 }} 题</span>
             </div>
             <QuizCard
-              :data="item.quiz"
+              :data="item.quiz as any"
               :submitted="isQuestionSubmitted(index)"
               @submit="(option: number | null) => option !== null && handleStep3Submit(index, option)"
             />
@@ -133,6 +133,15 @@ import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { resolveQuestionId } from '@/utils/questionId'
 import { debugLog, debugError } from '@/utils/debug'
 
+// ======== 模板里用到的组件（必须显式 import，Vue script setup 不会自动扫描） ========
+import WordList from '@/components/WordList.vue'
+import MultiRoleReading from '@/components/MultiRoleReading.vue'
+import BackContinue from '@/components/BackContinue.vue'
+import PageScaffold from '@/components/PageScaffold.vue'
+import BlockRenderer from '@/components/BlockRenderer.vue'
+import QuizCard from '@/components/QuizCard.vue'
+import CultureCards from '@/components/CultureCards.vue'
+
 // ======== 共用骨架（所有 step case） ========
 const route = useRoute()
 const stepMap: Record<string, 1 | 2 | 3> = { stepone: 1, steptwo: 2, stepthree: 3 }
@@ -161,9 +170,10 @@ const pageUrl = computed(() => {
 })
 
 // Step 2 的 PageConfig 类型（从 pageRegistry 读取 blocks 渲染）
+// 用宽松 any 以匹配 BlockRenderer 的 union type 要求
 interface PageConfig {
   title?: string
-  blocks: Array<{ type: string; [key: string]: unknown }>
+  blocks: any[]
 }
 
 // Step 3 的数据类型
