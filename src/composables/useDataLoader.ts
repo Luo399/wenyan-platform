@@ -317,10 +317,11 @@ export function useDataLoader<T>(
    */
   function prepareLoadWithEarlyReturn(url: string): boolean {
     if (!url) {
-      error.value = '请提供有效的URL'
+      // 当调用方（如 StepThree 切换到非激活状态）传入空 URL 时，
+      // 静默跳过而不是设置 error，避免污染 PageScaffold 的 error prop
+      // （父组件共用 error 变量，子组件切换时会看到前一个页面的"请提供有效的URL"）
+      debugLog('[useDataLoader] URL 为空，静默跳过（非激活态）')
       loading.value = false
-      debugLog('[useDataLoader] URL 为空')
-      onLoadError?.(error.value)
       return false
     }
 
