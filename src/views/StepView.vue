@@ -118,14 +118,16 @@
 </template>
 
 <script setup lang="ts">
+// 注意：所有 import 直接指向源文件，不经过 barrel (quiz/index.ts, composables/index.ts)
+// 避免 barrel 循环初始化链导致运行时 TDZ (Temporal Dead Zone) 错误
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import type { RouteName } from '@/config/navigation'
 import { getWenId } from '@/utils/wenUtils'
-import { useNavigation } from '@/composables/navigation'
-import { useTracking } from '@/composables/tracking'
-import { useDataLoader } from '@/composables/data'
-import { useQuizFlow } from '@/composables/quiz'
+import { useNavigation } from '@/composables/useNavigation'
+import { useTracking } from '@/composables/useTracking'
+import { useDataLoader } from '@/composables/useDataLoader'
+import { useQuizFlow } from '@/composables/quiz/useQuizFlow'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { resolveQuestionId } from '@/utils/questionId'
@@ -138,10 +140,10 @@ const stepNumber = computed(() => stepMap[route.name as string] ?? 1)
 
 const poemId = computed(() => route.params.id as string)
 const wenId = computed(() => getWenId(poemId.value))
-const routeName = route.name as RouteName
 
-const { goNext, goPrev } = useNavigation(routeName, poemId.value)
-const trackModule = useTracking(routeName, poemId.value)
+// useNavigation 接收原始值（不是 .value），内部自动 unwrap
+const { goNext, goPrev } = useNavigation(route.name as RouteName, route.params.id as string)
+const trackModule = useTracking(route.name as RouteName, route.params.id as string)
 
 function handleGoPrev() {
   markNextEnterFromBackButton()
