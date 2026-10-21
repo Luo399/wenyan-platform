@@ -10,7 +10,7 @@ const trackingAnalysisController = require('../controllers/trackingAnalysisContr
 const exportController = require('../controllers/exportController')
 const { requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
-const { submitRateLimit, queryRateLimit, loginRateLimit } = require('../middleware/rateLimitMiddleware')
+const { submitRateLimit, queryRateLimit, loginRateLimit, aiChatRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
   app.get('/', (req, res) => {
@@ -67,6 +67,9 @@ function registerRoutes(app) {
         'GET /api/texts/:textId/level3-adaptive-quiz': '三级自适应测验',
         'GET /api/texts': '文本列表',
         'POST /api/texts/batch': '批量获取文本数据',
+        // AI 对话（学生鉴权）
+        'POST /api/ai/chat': 'AI 对话（学生）',
+        'GET  /api/ai/quota': '查询 AI 配额（学生）',
       },
     })
   })
@@ -216,6 +219,12 @@ function registerRoutes(app) {
   const resourceController = require('../controllers/resourceController')
   const singleUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } }).single('file')
   app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin']), singleUpload, resourceController.uploadResource)
+
+  // ============ AI 对话（仅学生） ============
+  const aiController = require('../controllers/aiController')
+  const aiAuth = [requireAuthMiddleware, requireRole('student')]
+  app.post('/api/ai/chat', aiAuth, aiChatRateLimit, aiController.chat)
+  app.get('/api/ai/quota', aiAuth, aiController.getQuota)
 }
 
 module.exports = {
