@@ -458,10 +458,11 @@ function handleAuthError(res, err, defaultMsg) {
     })
   }
   logger.error(defaultMsg + ':', err)
+  // TODO: production 恢复通用 message
   return res.status(500).json({
     success: false,
     error: 'INTERNAL_ERROR',
-    message: '服务器内部错误',
+    message: defaultMsg + ': ' + (err?.message ?? '未知错误'),
   })
 }
 
