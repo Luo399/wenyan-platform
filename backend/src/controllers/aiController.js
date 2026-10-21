@@ -64,6 +64,14 @@ async function chat(req, res) {
     if (!msg || typeof msg !== 'object') {
       return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 每一项必须是对象' })
     }
+    // system role 禁止在客户端传入（后端注入）—— 必须先于 role 合法性检查返回专属错误码
+    if (msg.role === 'system') {
+      return res.status(400).json({
+        success: false,
+        error: 'SYSTEM_ROLE_FORBIDDEN',
+        message: '禁止在 messages 中指定 system 角色',
+      })
+    }
     if (msg.role !== 'user' && msg.role !== 'assistant') {
       return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: '仅允许 role 为 user 或 assistant' })
     }
@@ -75,16 +83,7 @@ async function chat(req, res) {
     }
   }
 
-  // 3. 禁止 system role（后端注入）
-  if (messages.some((m) => m.role === 'system')) {
-    return res.status(400).json({
-      success: false,
-      error: 'SYSTEM_ROLE_FORBIDDEN',
-      message: '禁止在 messages 中指定 system 角色',
-    })
-  }
-
-  // 4. Prompt injection 检测
+  // 3. Prompt injection 检测
   if (detectInjection(messages)) {
     logger.warn('[aiController] Prompt injection 拦截', { studentId })
     return res.status(400).json({
@@ -124,9 +123,11 @@ async function chat(req, res) {
     const preQuota = await aiService.checkQuotaOnly(studentId)
     // 粗略估算：每条 message content 按 0.5 token/字算
     const estimatedTokens = messages.reduce((sum, m) => sum + Math.ceil(String(m.content).length / 2), 0)
-    const maxLimit = Math.min(preQuota.daily.limit - preQuota.daily.used || Infinity,
-                              preQuota.weekly.limit - preQuota.weekly.used || Infinity,
-                              preQuota.monthly.limit - preQuota.monthly.used || Infinity)
+    // 关键修复：`limit - used` 可能为 0（完全用完），直接用它，不要用 || Infinity
+    const dailyRemaining = preQuota.daily.limit - preQuota.daily.used
+    const weeklyRemaining = preQuota.weekly.limit - preQuota.weekly.used
+    const monthlyRemaining = preQuota.monthly.limit - preQuota.monthly.used
+    const maxLimit = Math.min(dailyRemaining, weeklyRemaining, monthlyRemaining)
     if (estimatedTokens > maxLimit) {
       aiService.leaveConcurrent(studentId)
       return res.status(429).json({

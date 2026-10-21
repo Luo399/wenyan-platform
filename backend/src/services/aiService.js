@@ -311,7 +311,7 @@ async function checkQuotaOnly(studentId) {
  * ============================================================ */
 
 function logAiUsage({ studentId, wenId, promptTokens, completionTokens, totalTokens }) {
-  dbRun(
+  void dbRun(
     db,
     `INSERT INTO ai_usage(student_id, wen_id, prompt_tokens, completion_tokens, total_tokens)
      VALUES (?, ?, ?, ?, ?)`,
