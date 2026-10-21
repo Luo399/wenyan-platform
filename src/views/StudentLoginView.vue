@@ -34,7 +34,7 @@
         <div class="form-group">
           <label :for="primaryFieldId" class="form-label">{{ primaryLabel }}</label>
           <input
-            :ref="primaryInputRef"
+            ref="primaryInputRef"
             :id="primaryFieldId"
             v-model="primaryField"
             :type="primaryFieldType"
