@@ -135,21 +135,21 @@ function mockServiceDownstream(opts = {}) {
     weekly: { used: 0, limit: 40000 },
     monthly: { used: 0, limit: 120000 },
   }
-  const callDeepSeek = opts.callDeepSeek ?? Promise.resolve({
+  const callDeepSeekFn = opts.callDeepSeek ?? (() => Promise.resolve({
     choices: [{ message: { content: 'mock reply' } }],
     usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
-  })
-  const checkAndConsumeQuota = opts.checkAndConsumeQuota ?? Promise.resolve({
+  }))
+  const checkAndConsumeQuotaFn = opts.checkAndConsumeQuota ?? (() => Promise.resolve({
     ok: true,
     daily: { used: 150, limit: 8000 },
     weekly: { used: 150, limit: 40000 },
     monthly: { used: 150, limit: 120000 },
-  })
+  }))
 
   aiService.buildSystemPrompt.mockReturnValue(buildSystemPrompt)
   aiService.checkQuotaOnly.mockResolvedValue(checkQuotaOnly)
-  aiService.callDeepSeek.mockImplementation(() => callDeepSeek)
-  aiService.checkAndConsumeQuota.mockImplementation(() => checkAndConsumeQuota)
+  aiService.callDeepSeek.mockImplementation(callDeepSeekFn)
+  aiService.checkAndConsumeQuota.mockImplementation(checkAndConsumeQuotaFn)
   aiService.enterConcurrent.mockReturnValue(true)
   aiService.leaveConcurrent.mockReturnValue(undefined)
   aiService.logAiUsage.mockImplementation(() => {})
@@ -333,7 +333,7 @@ describe('AI chat 并发限制', () => {
 describe('AI chat 下游异常处理', () => {
   it('DeepSeek 抛 DEEPSINK_TIMEOUT → 502 且 checkAndConsumeQuota 未被调用', async () => {
     mockServiceDownstream({
-      callDeepSeek: Promise.reject(new Error('DEEPSEEK_TIMEOUT')),
+      callDeepSeek: () => Promise.reject(new Error('DEEPSEEK_TIMEOUT')),
     })
 
     const res = await asStudent(request(app).post('/api/ai/chat')).send(validBody())
@@ -348,7 +348,7 @@ describe('AI chat 下游异常处理', () => {
 
   it('DeepSeek 抛普通下游错误 → 502 且 checkAndConsumeQuota 未被调用', async () => {
     mockServiceDownstream({
-      callDeepSeek: Promise.reject(new Error('DEEPSEEK_DOWNSTREAM_ERROR')),
+      callDeepSeek: () => Promise.reject(new Error('DEEPSEEK_DOWNSTREAM_ERROR')),
     })
 
     const res = await asStudent(request(app).post('/api/ai/chat')).send(validBody())
