@@ -9,6 +9,8 @@ const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../
 const { info, warn, logOperation } = require('../utils/logger')
 // B04: 答案比较逻辑统一到 utils/answerUtils，消除 controller/service 双份实现
 const { compareAnswers } = require('../utils/answerUtils')
+// R170: 教师后台同步（异步，失败不阻塞主流程）
+const { syncToTeacherBackend } = require('./teacherSync')
 
 /**
  * 获取学生姓名（从学生数据库）
@@ -149,6 +151,27 @@ async function submitAnswers(data) {
     wrongCount: results.length - correctCount,
     totalScore,
     avgScore,
+  })
+
+  // R170: 异步推送完整答题记录到教师后台（Fire-and-forget）
+  // - SQLite INSERT 已在事务中成功；这里失败只影响同步，不影响学生本地成绩
+  // - 未配置 TEACHER_BACKEND_URL 时 syncToTeacherBackend 内部静默跳过，零开销
+  void syncToTeacherBackend({
+    studentId,
+    studentName,
+    wenId,
+    submittedAt,
+    questions: results.map((r) => ({
+      questionId: r.questionId,
+      userAnswer: answers[r.questionId] ?? null,
+      correctAnswer: questions.find((q) => q.id === r.questionId)?.correctAnswer ?? null,
+      isCorrect: r.isCorrect === 1,
+      score: r.score,
+      attemptNumber: r.attemptNumber,
+    })),
+    totalScore,
+    correctCount,
+    wrongCount: results.length - correctCount,
   })
 
   return { success: true, data: resultData }
