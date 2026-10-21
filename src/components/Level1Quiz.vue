@@ -344,7 +344,9 @@ async function submitToBackend(answers: Record<number, number>) {
   }
 
   const name = await getStudentName()
-  const localReport = saveToLocal(answers, id, name)
+  // R170: 停用前端 localStorage 本地保存，统一走后端 /api/submit
+  // 函数定义保留作为历史参考
+  // const localReport = saveToLocal(answers, id, name)
 
   try {
     const questions = quizList.value.map((quiz, index) => ({

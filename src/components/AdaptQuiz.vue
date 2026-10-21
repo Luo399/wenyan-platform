@@ -387,7 +387,10 @@ async function persistLocalRecord() {
   if (!id) return
   const name = await getStudentName()
   if (!currentQuiz.value) return
-  saveToLocal(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer, id, name)
+  // R170: 停用前端 localStorage 本地保存（saveToLocal），
+  // 改为后端 /api/submit 统一处理并同步到教师后台。
+  // 函数定义保留作为历史参考，调用已注释掉。
+  // saveToLocal(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer, id, name)
 }
 
 function handleNext() {
