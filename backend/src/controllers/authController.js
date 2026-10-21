@@ -121,13 +121,17 @@ async function teacherRegister(req, res) {
     const passwordHash = await hashPassword(body.password)
     const now = new Date().toISOString()
 
-    // 简化注册：只写 teachers 表，school_id / class_codes 留空
-    // 后续由个人中心补充
+    // 简化注册：只写 teachers 表，school_id / class_codes 后续由个人中心补充
+    // teachers.school_id 列定义为 NOT NULL + FOREIGN KEY，这里塞 schools 表第一个 id 占位
+    // （SQLite 不支持 ALTER COLUMN，待个人中心支持后再让用户自行修改）
+    const defaultSchool = await dbGet(db, 'SELECT id FROM schools LIMIT 1')
+    const schoolId = defaultSchool?.id ?? 1
+
     const result = await dbRun(
       db,
       `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, created_at, updated_at)
-       VALUES (?, ?, NULL, ?, 'pending', 0, ?, ?)`,
-      [body.phone, body.name, passwordHash, now, now],
+       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)`,
+      [body.phone, body.name, schoolId, passwordHash, now, now],
     )
 
     res.status(201).json({
