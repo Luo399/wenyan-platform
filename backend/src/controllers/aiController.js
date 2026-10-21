@@ -144,6 +144,13 @@ async function chat(req, res) {
     } catch (err) {
       aiService.leaveConcurrent(studentId)
       logger.error('[aiController] DeepSeek 调用失败', { error: err.message })
+      if (err.message === 'AI_UNAVAILABLE') {
+        return res.status(503).json({
+          success: false,
+          error: 'AI_UNAVAILABLE',
+          message: 'AI 服务未配置，请联系管理员',
+        })
+      }
       return res.status(502).json({
         success: false,
         error: err.message === 'DEEPSEEK_TIMEOUT' ? 'DEEPSEEK_TIMEOUT' : 'DEEPSEEK_DOWNSTREAM_ERROR',

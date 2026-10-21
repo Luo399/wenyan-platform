@@ -75,6 +75,11 @@ function setTimeoutReject(ms) {
  * @param {object} [options] { temperature, max_tokens }
  */
 async function callDeepSeek(messages, options = {}) {
+  // 兜底：apiKey 未配置时直接返回不可用错误
+  if (!config.deepseek.apiKey) {
+    throw new Error('AI_UNAVAILABLE')
+  }
+
   const url = `${config.deepseek.baseUrl.replace(/\/$/, '')}/v1/chat/completions`
   const body = {
     model: config.deepseek.model,

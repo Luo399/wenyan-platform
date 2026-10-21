@@ -109,9 +109,11 @@ const config = {
   },
 }
 
-// 生产环境缺少 DEEPSEEK_API_KEY 时直接启动失败
+// DEEPSEEK_API_KEY 缺失时不硬阻断启动（AI 是可选功能），但在生产环境打 warn
+// 实际调用时 aiService 会检查 apiKey 并返回 AI_UNAVAILABLE
 if (process.env.NODE_ENV === 'production' && !config.deepseek.apiKey) {
-  throw new Error('DEEPSEEK_API_KEY must be set in production')
+  // eslint-disable-next-line no-console
+  console.warn('[config] DEEPSEEK_API_KEY 未设置，AI 对话功能将返回 503')
 }
 
 module.exports = config
