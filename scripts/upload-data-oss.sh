@@ -41,9 +41,13 @@ case "$ENV_ARG" in
 esac
 
 REGION="${OSS_REGION:-oss-cn-guangzhou}"
-ENDPOINT="${OSS_ENDPOINT:-oss-${REGION}.aliyuncs.com}"
+# endpoint 格式：oss-cn-guangzhou.aliyuncs.com
+ENDPOINT="${OSS_ENDPOINT:-${REGION}.aliyuncs.com}"
 
-# ===== 加载凭证 =====
+# ===== 加载凭证（实际运行才校验）=====
+DRY_RUN=0
+[[ "$DRY" == "--dry" ]] && DRY_RUN=1
+
 CREDS_FILE="$HOME/.wenyan-oss-credentials"
 if [[ -f "$CREDS_FILE" ]]; then
   # shellcheck disable=SC1090
@@ -52,18 +56,6 @@ fi
 AK="${OSS_ACCESS_KEY_ID:-}"
 SK="${OSS_ACCESS_KEY_SECRET:-}"
 
-if [[ -z "$AK" || -z "$SK" ]]; then
-  echo "❌ 缺少 OSS AK/SK"
-  echo ""
-  echo "两种方式二选一："
-  echo "  a) 写文件 $CREDS_FILE，内容："
-  echo "     export OSS_ACCESS_KEY_ID=LTAIxxx"
-  echo "     export OSS_ACCESS_KEY_SECRET=yyy"
-  echo ""
-  echo "  b) 先 export OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET 再跑脚本"
-  exit 1
-fi
-
 # ===== 扫描文件 =====
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PUBLIC="$ROOT/public"
@@ -71,34 +63,12 @@ PUBLIC="$ROOT/public"
 ALL_SUBDIRS="data images video audio"
 [[ "$ONLY" == "all" ]] && TARGETS="$ALL_SUBDIRS" || TARGETS="$ONLY"
 
-# 检查 ossutil 是否可用
-if ! command -v ossutil >/dev/null 2>&1; then
-  echo "📥 ossutil 未安装，下载中..."
-  OS_NAME="$(uname -s)"
-  case "$OS_NAME" in
-    MINGW*|MSYS*|CYGWIN*)
-      curl -fsSL -o /usr/local/bin/ossutil64 https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
-      chmod +x /usr/local/bin/ossutil64
-      ln -sf /usr/local/bin/ossutil64 /usr/local/bin/ossutil 2>/dev/null || true
-      ;;
-    Linux*)
-      curl -fsSL -o /usr/local/bin/ossutil https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
-      chmod +x /usr/local/bin/ossutil
-      ;;
-    *)
-      echo "❌ 无法自动下载 ossutil，请手动安装："
-      echo "   https://help.aliyun.com/document_detail/120075.html"
-      exit 1
-      ;;
-  esac
-fi
-
 echo "========================================"
 echo "OSS 数据上传 --env $ENV_ARG"
 echo "========================================"
 echo "Bucket:   $BUCKET ($ENDPOINT)"
 echo "目录:     $TARGETS"
-echo "模式:     $([[ "$DRY" == "--dry" ]] && echo 'DRY-RUN 预览' || echo '实际上传')"
+echo "模式:     $DRY_RUN==1 && echo 'DRY-RUN 预览（不上传）' || echo '实际上传'"
 echo "========================================"
 
 COUNT=0
@@ -117,20 +87,78 @@ for sub in $TARGETS; do
     continue
   fi
   echo "📂 public/$sub/  ($FILES 个文件)"
+  COUNT=$((COUNT + FILES))
+done
 
-  if [[ "$DRY" == "--dry" ]]; then
-    echo "   （DRY-RUN：不上传）"
-    COUNT=$((COUNT + FILES))
-    continue
-  fi
+if [[ "$COUNT" -eq 0 ]]; then
+  echo "⚠️  没有可上传的文件，退出。"
+  exit 0
+fi
 
-  # ossutil cp -r 递归 + --acl public-read
-  echo "   上传中..."
-  if ossutil64 cp -r "$LOCAL" "oss://$BUCKET/$sub/" \
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  echo ""
+  echo "✅ DRY-RUN 完成：共 $COUNT 个文件将上传到 oss://$BUCKET/"
+  echo "   去掉 --dry 执行实际上传。"
+  exit 0
+fi
+
+# ===== 以下为实际运行才需要的校验 =====
+
+# 检查凭证
+if [[ -z "$AK" || -z "$SK" ]]; then
+  echo "❌ 缺少 OSS AK/SK"
+  echo ""
+  echo "两种方式二选一："
+  echo "  a) 写文件 $CREDS_FILE，内容："
+  echo "     export OSS_ACCESS_KEY_ID=LTAIxxx"
+  echo "     export OSS_ACCESS_KEY_SECRET=yyy"
+  echo ""
+  echo "  b) 先 export OSS_ACCESS_KEY_ID / OSS_ACCESS_KEY_SECRET 再跑脚本"
+  exit 1
+fi
+
+# 检查 ossutil 是否可用，没有就下载
+if ! command -v ossutil64 >/dev/null 2>&1 && ! command -v ossutil >/dev/null 2>&1; then
+  echo "📥 ossutil 未安装，下载中..."
+  OS_NAME="$(uname -s)"
+  case "$OS_NAME" in
+    MINGW*|MSYS*|CYGWIN*)
+      mkdir -p /usr/local/bin
+      curl -fsSL -o /usr/local/bin/ossutil64 https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
+      chmod +x /usr/local/bin/ossutil64
+      ;;
+    Linux*)
+      mkdir -p /usr/local/bin
+      curl -fsSL -o /usr/local/bin/ossutil https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
+      chmod +x /usr/local/bin/ossutil
+      ;;
+    *)
+      echo "❌ 无法自动下载 ossutil，请手动安装："
+      echo "   https://help.aliyun.com/document_detail/120075.html"
+      exit 1
+      ;;
+  esac
+fi
+
+OSSUTIL="$(command -v ossutil64 2>/dev/null || command -v ossutil 2>/dev/null)"
+
+echo ""
+COUNT=0
+FAIL=0
+
+for sub in $TARGETS; do
+  LOCAL="$PUBLIC/$sub"
+  [[ ! -d "$LOCAL" ]] && continue
+  FILES="$(find "$LOCAL" -type f | wc -l | tr -d ' ')"
+  [[ "$FILES" -eq 0 ]] && continue
+
+  echo "📂 上传 public/$sub/ ($FILES 个文件)..."
+  if "$OSSUTIL" cp -r "$LOCAL" "oss://$BUCKET/$sub/" \
       -i "$AK" -k "$SK" -e "$ENDPOINT" \
       --acl public-read --force \
       >/dev/null 2>&1; then
     COUNT=$((COUNT + FILES))
+    echo "   ✅ 成功"
   else
     FAIL=$((FAIL + 1))
     echo "   ❌ 失败：public/$sub/"
@@ -138,11 +166,6 @@ for sub in $TARGETS; do
 done
 
 echo "========================================"
-if [[ "$DRY" == "--dry" ]]; then
-  echo "✅ DRY-RUN：共 $COUNT 个文件将上传到 oss://$BUCKET/"
-  echo "   去掉 --dry 执行实际上传"
-else
-  echo "✅ 上传完成：成功 $COUNT | 目录失败 $FAIL"
-  echo "   目标 URL: https://${ENV_ARG}.classicalab.cn"
-fi
+echo "✅ 上传完成：成功 $COUNT | 目录失败 $FAIL"
+echo "   目标 URL: https://${ENV_ARG}.classicalab.cn"
 echo "========================================"
