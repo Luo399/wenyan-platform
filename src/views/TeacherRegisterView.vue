@@ -9,7 +9,7 @@
       <!-- 标题 -->
       <div class="card-header">
         <h1 class="card-title">教师注册</h1>
-        <p class="card-subtitle">请填写信息申请教师账号（审批后激活）</p>
+        <p class="card-subtitle">填写姓名、手机号和密码（审批后激活）</p>
       </div>
 
       <!-- 成功提示 -->
@@ -20,9 +20,31 @@
 
       <!-- 表单 -->
       <form v-else class="register-form" @submit.prevent="handleSubmit" novalidate>
+        <!-- 姓名 -->
+        <div class="form-group">
+          <label for="name" class="form-label">教师姓名</label>
+          <input
+            id="name"
+            v-model="name"
+            type="text"
+            autocomplete="name"
+            class="form-input"
+            :class="{ error: (touched.name && nameError) }"
+            :aria-invalid="Boolean(touched.name && nameError)"
+            placeholder="请输入真实姓名"
+            :disabled="isSubmitting"
+            maxlength="20"
+            @blur="touched.name = true"
+            @input="clearValidation"
+          />
+          <span v-if="touched.name && nameError" role="alert" class="error-message">
+            {{ nameError }}
+          </span>
+        </div>
+
         <!-- 手机号 -->
         <div class="form-group">
-          <label for="phone" class="form-label">手机号（账号）</label>
+          <label for="phone" class="form-label">手机号</label>
           <input
             ref="phoneInput"
             id="phone"
@@ -33,7 +55,7 @@
             class="form-input"
             :class="{ error: (touched.phone && phoneError) }"
             :aria-invalid="Boolean(touched.phone && phoneError)"
-            placeholder="请输入 11 位手机号"
+            placeholder="11 位手机号"
             :disabled="isSubmitting"
             maxlength="11"
             @blur="touched.phone = true"
@@ -145,6 +167,9 @@
           <span v-if="isSubmitting" class="loading-spinner" aria-hidden="true"></span>
           <span>{{ isSubmitting ? '提交中...' : '提交注册' }}</span>
         </button>
+
+        <!-- 登录入口提示 -->
+        <p class="back-login-hint">已有教师账号？<button type="button" class="back-login-btn" @click="goBack">返回教师登录</button></p>
       </form>
     </div>
   </div>
@@ -174,6 +199,7 @@ onUnmounted(() => {
 
 // 表单状态
 const phoneInput = ref<HTMLInputElement | null>(null)
+const name = ref('')
 const phone = ref('')
 const password = ref('')
 const confirmPassword = ref('')
@@ -184,12 +210,19 @@ const success = ref(false)
 const serverError = ref('')
 
 const touched = reactive({
+  name: false,
   phone: false,
   password: false,
   confirmPassword: false,
 })
 
 // 字段级校验
+const nameError = computed(() => {
+  if (!name.value.trim()) return '请输入姓名'
+  if (name.value.trim().length > 20) return '姓名不能超过 20 个字符'
+  return ''
+})
+
 const phoneError = computed(() => {
   if (!phone.value.trim()) return '请输入手机号'
   if (!PHONE_REGEX.test(phone.value.trim())) return '手机号格式不正确（应为 11 位 1 开头）'
@@ -209,7 +242,7 @@ const confirmError = computed(() => {
 })
 
 const canSubmit = computed(() => {
-  return !phoneError.value && !passwordError.value && !confirmError.value
+  return !nameError.value && !phoneError.value && !passwordError.value && !confirmError.value
 })
 
 function clearValidation(): void {
@@ -218,7 +251,6 @@ function clearValidation(): void {
 
 function onPasswordInput(): void {
   clearValidation()
-  // 密码改变后，重新校验确认密码
   if (confirmPassword.value && confirmPassword.value !== password.value) {
     touched.confirmPassword = true
   }
@@ -230,6 +262,7 @@ function onConfirmInput(): void {
 
 async function handleSubmit(): Promise<void> {
   // 触发所有 blur 校验
+  touched.name = true
   touched.phone = true
   touched.password = true
   touched.confirmPassword = true
@@ -244,11 +277,8 @@ async function handleSubmit(): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        name: name.value.trim(),
         phone: phone.value.trim(),
-        // TODO: 注册表单后续补充姓名/学校/班级编码字段，这里暂填占位
-        name: '待审核',
-        school_id: 1,
-        class_codes: ['0001'],
         password: password.value,
       }),
     })
@@ -256,7 +286,6 @@ async function handleSubmit(): Promise<void> {
     const data = await response.json()
     if (response.ok && data.success) {
       success.value = true
-      // 2 秒后自动跳转回教师登录页
       setTimeout(() => {
         router.push('/teacher-login')
       }, 2000)
@@ -499,6 +528,7 @@ onMounted(() => {
   align-items: center;
   gap: var(--spacing-xs);
   font-family: var(--font-family-serif);
+  margin-top: var(--spacing-sm);
 }
 
 .submit-btn:hover:not(:disabled) {
@@ -512,6 +542,31 @@ onMounted(() => {
 .submit-btn:disabled {
   background-color: var(--color-placeholder);
   cursor: not-allowed;
+}
+
+.back-login-hint {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin: var(--spacing-sm) 0 0;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.back-login-btn {
+  background: none;
+  border: none;
+  font-family: var(--font-family-serif);
+  font-size: 0.85rem;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.25rem;
+}
+
+.back-login-btn:hover {
+  color: var(--color-primary-hover);
 }
 
 .loading-spinner {

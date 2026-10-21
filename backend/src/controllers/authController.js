@@ -37,11 +37,7 @@ const studentLoginSchema = z.object({
 const teacherRegisterSchema = z.object({
   phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确'),
   name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20'),
-  school_id: z.number().int().positive('请选择学校'),
   password: z.string().min(6, '密码长度不能少于 6 位'),
-  class_codes: z
-    .array(z.string().regex(CLASS_CODE_REGEX, '班级编码必须为 6 位数字（格式 YYYYCC，CC 范围 01-31）'))
-    .min(1, '至少选择一个所教班级'),
 })
 
 const teacherLoginSchema = z.object({
@@ -110,15 +106,6 @@ async function teacherRegister(req, res) {
   try {
     const body = teacherRegisterSchema.parse(req.body)
 
-    // 学校是否存在
-    const school = await dbGet(db, 'SELECT id FROM schools WHERE id = ?', [body.school_id])
-    if (!school) {
-      return res.status(400).json({
-        success: false,
-        error: 'SCHOOL_NOT_FOUND',
-        message: '所选学校不存在',
-      })
-    }
     // 手机号是否已被占用
     const exists = await dbGet(db, 'SELECT 1 FROM teachers WHERE phone = ? LIMIT 1', [
       body.phone,
@@ -134,35 +121,19 @@ async function teacherRegister(req, res) {
     const passwordHash = await hashPassword(body.password)
     const now = new Date().toISOString()
 
-    await dbTransaction(db, async ({ dbRun }) => {
-      const result = await dbRun(
-        `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)`,
-        [body.phone, body.name, body.school_id, passwordHash, now, now],
-      )
-      const teacherId = result.lastID
-      // 批量写 teacher_classes（UNIQUE 冲突由表约束防护，但这里按幂等处理）
-      const classStmt = await new Promise((resolve, reject) => {
-        const s = db.prepare(
-          `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code, created_at)
-           VALUES (?, ?, ?)`,
-          (e) => (e ? reject(e) : resolve(s)),
-        )
-      })
-      for (const cc of body.class_codes) {
-        await new Promise((resolve, reject) =>
-          classStmt.run([teacherId, cc, now], (e) => (e ? reject(e) : resolve())),
-        )
-      }
-      await new Promise((resolve, reject) =>
-        classStmt.finalize((e) => (e ? reject(e) : resolve())),
-      )
-    })
+    // 简化注册：只写 teachers 表，school_id / class_codes 留空
+    // 后续由个人中心补充
+    const result = await dbRun(
+      db,
+      `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, created_at, updated_at)
+       VALUES (?, ?, NULL, ?, 'pending', 0, ?, ?)`,
+      [body.phone, body.name, passwordHash, now, now],
+    )
 
     res.status(201).json({
       success: true,
       message: '注册成功，等待管理员审批',
-      data: { pending: true },
+      data: { pending: true, teacher_id: result.lastID },
     })
   } catch (err) {
     return handleAuthError(res, err, '教师注册失败')
