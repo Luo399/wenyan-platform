@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BackContinue from '@/components/BackContinue.vue'
+import AiChatPanel from '@/components/AiChatPanel.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
@@ -95,6 +96,9 @@ const paragraphs = computed(() => {
           {{ para }}
         </p>
       </div>
+
+      <!-- AI 讲解面板 -->
+      <AiChatPanel :wen-id="wenId" :article="article" />
     </template>
 
     <!-- 底部导航按钮 -->
@@ -107,8 +111,8 @@ const paragraphs = computed(() => {
   padding: var(--spacing-xl);
   max-width: 800px;
   margin: 0 auto;
-  /* R15: 5rem → spacing-2xl (3rem) 过大；取 spacing-xl + spacing-lg 用 padding-bottom 叠加 */
-  padding-bottom: var(--spacing-2xl);
+  /* 底部安全留白：避开固定定位的 BackContinue 按钮 + AI 面板自身底部间距 */
+  padding-bottom: var(--spacing-bottom-safe);
 }
 
 /* R15: loading/error 状态样式全部走 design token */

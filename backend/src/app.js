@@ -5,6 +5,7 @@ const helmet = require('helmet')
 const config = require('./config/app')
 const logger = require('./utils/logger')
 const { initAllTables } = require('./config/database')
+const { migrateAiTables } = require('../scripts/migrate_ai')
 const { registerRoutes } = require('./routes')
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler')
 const { globalLimiter } = require('./middleware/rateLimitMiddleware')
@@ -104,6 +105,7 @@ function createApp() {
 async function startServer() {
   try {
     await initAllTables()
+    await migrateAiTables()
 
     const app = createApp()
     const { port, host } = config.server

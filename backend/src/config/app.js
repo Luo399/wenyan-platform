@@ -90,6 +90,28 @@ const config = {
   },
 
   testMode: process.env.TEST_MODE === 'true',
+
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+    baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+  },
+
+  quota: {
+    daily: toNumber(process.env.AI_QUOTA_DAILY, 8000),
+    weekly: toNumber(process.env.AI_QUOTA_WEEKLY, 40000),
+    monthly: toNumber(process.env.AI_QUOTA_MONTHLY, 120000),
+  },
+
+  ai: {
+    maxConcurrent: toNumber(process.env.AI_MAX_CONCURRENT, 10),
+    timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 30000),
+  },
+}
+
+// 生产环境缺少 DEEPSEEK_API_KEY 时直接启动失败
+if (process.env.NODE_ENV === 'production' && !config.deepseek.apiKey) {
+  throw new Error('DEEPSEEK_API_KEY must be set in production')
 }
 
 module.exports = config
