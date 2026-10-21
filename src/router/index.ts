@@ -37,6 +37,11 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/TeacherLoginView.vue'),
   },
   {
+    path: '/teacher-register',
+    name: 'teacher-register',
+    component: () => import('@/views/TeacherRegisterView.vue'),
+  },
+  {
     path: '/rules/:id',
     name: 'rules',
     component: RuleVideoView,

@@ -209,6 +209,8 @@ function buildInitChain() {
           )`,
         ),
       )
+      // 3.1 教师表 schema 升级（补 must_reset_password 等后续新增列）
+      .then(() => checkAndUpgradeTeachersTable())
       // 4. 学生表
       .then(() => checkAndUpgradeStudentsTable())
       // 5. 教师-班级关系
@@ -329,6 +331,35 @@ function initAllTables() {
     })
 
   return _initPromise
+}
+
+/**
+ * 教师表 schema 轻量升级：用 ALTER ADD COLUMN 补后续新增的列
+ * （新库 CREATE TABLE 已包含所有列，旧库缺 must_reset_password 等）
+ */
+function checkAndUpgradeTeachersTable() {
+  const REQUIRED_COLUMNS = [
+    { name: 'must_reset_password', ddl: "ALTER TABLE teachers ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0" },
+  ]
+
+  return new Promise((resolve, reject) => {
+    db.all("PRAGMA table_info(teachers)", (err, columns) => {
+      if (err) return reject(err)
+      if (!columns || columns.length === 0) return resolve()
+
+      const existing = new Set((columns || []).map((c) => c.name))
+      const missing = REQUIRED_COLUMNS.filter((col) => !existing.has(col.name))
+      if (missing.length === 0) return resolve()
+
+      missing
+        .reduce((p, col) => {
+          logger.info(`[database] teachers 表补列: ${col.name}`)
+          return p.then(() => runSql(col.ddl))
+        }, Promise.resolve())
+        .then(() => resolve())
+        .catch(reject)
+    })
+  })
 }
 
 /**
