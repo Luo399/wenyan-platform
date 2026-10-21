@@ -31,7 +31,7 @@ const studentLoginSchema = z.object({
   student_id: z
     .string()
     .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
-  password: z.string().min(1, '密码必填'),
+  password: z.string().min(6, '密码长度不能少于 6 位'),
 })
 
 const teacherRegisterSchema = z.object({
@@ -46,12 +46,12 @@ const teacherRegisterSchema = z.object({
 
 const teacherLoginSchema = z.object({
   phone: z.string().min(1, '手机号/用户名必填'),
-  password: z.string().min(1, '密码必填'),
+  password: z.string().min(6, '密码长度不能少于 6 位'),
 })
 
 const adminLoginSchema = z.object({
   username: z.string().min(1, '用户名必填'),
-  password: z.string().min(1, '密码必填'),
+  password: z.string().min(6, '密码长度不能少于 6 位'),
 })
 
 const changePasswordSchema = z.object({

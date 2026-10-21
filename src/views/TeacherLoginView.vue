@@ -34,21 +34,43 @@
           <span v-if="hasError && !phone" role="alert" class="error-message"> 请输入手机号 </span>
         </div>
 
-        <!-- 密码输入 -->
-        <div class="form-group">
+        <!-- 密码输入（带眼睛图标） -->
+        <div class="form-group password-group">
           <label for="password" class="form-label">密码</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            class="form-input"
-            :class="{ error: hasError && !password }"
-            :aria-invalid="Boolean(hasError && !password)"
-            placeholder="请输入密码"
-            :disabled="isLoading"
-            autocomplete="current-password"
-            @input="clearValidation"
-          />
+          <div class="password-input-wrapper">
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              class="form-input"
+              :class="{ error: hasError && !password }"
+              :aria-invalid="Boolean(hasError && !password)"
+              placeholder="请输入密码（不少于 6 位）"
+              :disabled="isLoading"
+              autocomplete="current-password"
+              @input="clearValidation"
+            />
+            <button
+              type="button"
+              class="toggle-password-btn"
+              :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+              :aria-pressed="showPassword"
+              @click="showPassword = !showPassword"
+            >
+              <span v-if="showPassword" aria-hidden="true">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </span>
+              <span v-else aria-hidden="true">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              </span>
+            </button>
+          </div>
           <span v-if="hasError && !password" role="alert" class="error-message"> 请输入密码 </span>
         </div>
 
@@ -72,16 +94,18 @@
         </div>
 
         <!-- 登录按钮 -->
-        <button type="submit" class="login-btn" :disabled="isLoading || !phone || !password">
+        <button type="submit" class="login-btn" :disabled="isLoading || !phone || password.length < 6">
           <span v-if="isLoading" class="loading-spinner" aria-hidden="true"></span>
           <span>{{ isLoading ? '登录中...' : '登录' }}</span>
         </button>
 
-        <!-- 底部链接 -->
-        <div class="links-row">
-          <button type="button" class="text-link" @click="handleForgotPassword">忘记密码</button>
-          <span class="link-separator">|</span>
-          <button type="button" class="text-link" @click="handleRegister">注册入口</button>
+        <!-- 忘记密码：纯文本提示 -->
+        <p class="forgot-hint">忘记密码：请联系管理员重置密码</p>
+
+        <!-- 教师注册入口 -->
+        <div class="register-entry">
+          <span class="register-text">还没有教师账号？</span>
+          <button type="button" class="register-btn" @click="router.push('/teacher-register')">教师注册</button>
         </div>
       </form>
     </div>
@@ -115,6 +139,7 @@ onUnmounted(() => {
 // 表单状态
 const phone = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const rememberMe = ref(true)
 const hasError = ref(false)
 const isSubmitting = ref(false)
@@ -170,10 +195,6 @@ async function handleSubmit(): Promise<void> {
 
 function handleForgotPassword(): void {
   alert('请联系管理员重置密码')
-}
-
-function handleRegister(): void {
-  alert('请联系管理员申请教师账号')
 }
 
 function goHome(): void {
@@ -367,33 +388,85 @@ function goHome(): void {
   cursor: not-allowed;
 }
 
-.links-row {
+/* ===== 密码眼睛图标 ===== */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 2.75rem;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-small);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+  color: var(--color-primary);
+  background-color: var(--color-placeholder);
+}
+
+.eye-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: block;
+}
+
+/* ===== 忘记密码纯文本提示 ===== */
+.forgot-hint {
+  text-align: center;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin: var(--spacing-sm) 0 0;
+  line-height: 1.5;
+}
+
+/* ===== 教师注册入口 ===== */
+.register-entry {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
 }
 
-.text-link {
+.register-text {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.register-btn {
   background: none;
   border: none;
   font-family: var(--font-family-serif);
-  font-size: var(--font-size-small);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-primary);
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
-  line-height: 1;
+  transition: color 0.2s ease;
 }
 
-.text-link:hover {
+.register-btn:hover {
   color: var(--color-primary-hover);
-}
-
-.link-separator {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
 }
 
 .loading-spinner {
