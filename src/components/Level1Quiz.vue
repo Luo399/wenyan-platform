@@ -382,8 +382,8 @@ async function submitToBackend(answers: Record<number, number>) {
 
     debugLog('[Level1Quiz] 答题数据已成功提交到后端:', result)
   } catch (err) {
-    debugError('[Level1Quiz] 后端提交失败，但本地已保存:', err)
-    debugLog('[Level1Quiz] 本地保存的报告:', localReport)
+    debugError('[Level1Quiz] 后端提交失败:', err)
+    // R170: localReport 已停用，不再输出本地报告
   }
 }
 
