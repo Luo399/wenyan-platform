@@ -6,6 +6,7 @@
 
 const logger = require('../utils/logger')
 const aiService = require('../services/aiService')
+const aiAlerts = require('../services/aiAlerts')
 
 const INJECTION_KEYWORDS = [
   '忽略之前的提示',
@@ -121,6 +122,8 @@ async function chat(req, res) {
 
     // 7. 配额预检
     const preQuota = await aiService.checkQuotaOnly(studentId)
+    // 任一 bucket 使用率 >80% 触发配额预警（每自然日每学生只告警一次）
+    aiAlerts.checkQuotaAlert(studentId, preQuota)
     // 粗略估算：每条 message content 按 0.5 token/字算
     const estimatedTokens = messages.reduce((sum, m) => sum + Math.ceil(String(m.content).length / 2), 0)
     // 关键修复：`limit - used` 可能为 0（完全用完），直接用它，不要用 || Infinity
@@ -142,7 +145,12 @@ async function chat(req, res) {
     let resp
     try {
       resp = await aiService.callDeepSeek(finalMessages)
+      aiAlerts.resetDownstreamErrorCount()
     } catch (err) {
+      // 仅下游/网络/超时错误计入连续异常计数；AI_UNAVAILABLE 是配置问题，不计
+      if (err.message !== 'AI_UNAVAILABLE') {
+        aiAlerts.trackDownstreamError()
+      }
       aiService.leaveConcurrent(studentId)
       logger.error('[aiController] DeepSeek 调用失败', { error: err.message })
       if (err.message === 'AI_UNAVAILABLE') {
@@ -185,12 +193,20 @@ async function chat(req, res) {
     const rawReply = resp.choices?.[0]?.message?.content || ''
     const sanitizedReply = aiService.sanitizeAiReply(rawReply)
 
+    // AI 输出二次审核
+    const moderation = aiService.checkModeration(rawReply)
+    let finalReply = sanitizedReply
+    if (!moderation.passed) {
+      logger.warn('[aiController] AI 回复触发二次审核', { studentId, matched: moderation.matched })
+      finalReply = 'AI 回复包含不适当内容，已被过滤。请换一种方式提问。'
+    }
+
     aiService.leaveConcurrent(studentId)
 
     return res.json({
       success: true,
       data: {
-        reply: sanitizedReply,
+        reply: finalReply,
         usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens },
         quota: { daily: quotaResult.daily, weekly: quotaResult.weekly, monthly: quotaResult.monthly },
         streaming: false,
