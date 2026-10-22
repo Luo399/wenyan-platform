@@ -98,7 +98,7 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
-                <p v-if="card.knowledge_text" class="knowledge-text">{{ card.knowledge_text }}</p>
+                <p v-if="card.knowledge_text" class="card-caption">{{ card.knowledge_text }}</p>
               </div>
               <!-- 视频类型：默认封面，点击后在卡内固定尺寸播放（播放器自带全屏键） -->
               <div v-else-if="cardMediaType(card) === 'video'" class="video-container" :style="videoSizeStyle()">
@@ -122,7 +122,7 @@
                     <span class="video-play-text">点击播放</span>
                   </div>
                 </div>
-                <p v-if="card.knowledge_text" class="knowledge-text">{{ card.knowledge_text }}</p>
+                <p v-if="card.knowledge_text" class="card-caption">{{ card.knowledge_text }}</p>
               </div>
             </div>
 
@@ -609,14 +609,33 @@ function flipNextCard() {
   font-style: italic;
 }
 
-/* 图片/视频卡片里的说明文字：紧接媒体下方 */
-.image-container .knowledge-text,
-.video-container .knowledge-text {
+/* 图片/视频卡片的说明文字（独立类，与纯文字 .knowledge-text 不混淆） */
+.card-caption {
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-bg-highlight);
   border-radius: 0 0 var(--radius-small) var(--radius-small);
   font-size: 13px;
   line-height: 1.7;
+  color: var(--color-text-secondary);
+  font-style: normal;
+  margin: 0;
+}
+
+.image-container .card-caption,
+.video-container .card-caption {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+/* 有背景图时，说明文字全宽贴合 */
+.card-item.has-background .card-caption {
+  margin: calc(-1 * var(--spacing-sm));
+  margin-top: var(--spacing-xs);
+  border-radius: 0;
 }
 
 /* ============================================================
