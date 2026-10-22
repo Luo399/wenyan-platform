@@ -242,7 +242,7 @@ const teacherForm = reactive({
   password: '',
   schoolId: 1,
   classCodesText: '',
-  status: 'active' as 'pending' | 'active' | 'disabled',
+  status: 'active' as 'pending' | 'active' | 'disabled' | 'rejected',
 })
 
 const studentForm = reactive({

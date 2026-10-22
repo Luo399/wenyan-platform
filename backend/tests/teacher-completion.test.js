@@ -1,10 +1,11 @@
 /**
- * 教师查看学生完成情况（框架版）集成测试（R106）
+ * 教师查看学生完成情况集成测试
  *
  * 覆盖 teacherController.getStudentsCompletion：
- * - 返回所教班级学生名单与统一统计字段（metrics_ready=false 占位）
+ * - 返回所教班级学生名单与真实统计字段（metrics_ready=true，answers 聚合口径）
  * - 班级过滤：非本班 class_code → 403
  * - 无 token → 401
+ * - 无答题记录时统计字段为 0
  *
  * 运行方式：npm test（已纳入 CI backend-check）
  */
@@ -78,16 +79,16 @@ afterAll((done) => {
   db.close(() => done())
 })
 
-describe('教师查看学生完成情况（框架）', () => {
-  it('应返回本班学生名单与统一统计字段', async () => {
+describe('教师查看学生完成情况', () => {
+  it('应返回本班学生名单与真实统计字段（metrics_ready=true）', async () => {
     const res = await asTeacher(request(app).get('/api/teacher/completion/students'))
     expect(res.status).toBe(200)
-    expect(res.body.data.metrics_ready).toBe(false)
+    expect(res.body.data.metrics_ready).toBe(true)
     expect(res.body.data.summary.student_count).toBe(2)
 
     const ids = res.body.data.students.map((s) => s.student_id).sort()
     expect(ids).toEqual(['20260101', '20260102'])
-    // 统计字段占位且结构稳定
+    // 无答题记录时，已答题数/正确率/最近提交均为初始值
     expect(res.body.data.students[0]).toHaveProperty('answered_questions', 0)
     expect(res.body.data.students[0]).toHaveProperty('accuracy', 0)
     expect(res.body.data.students[0]).toHaveProperty('last_submitted_at', null)
