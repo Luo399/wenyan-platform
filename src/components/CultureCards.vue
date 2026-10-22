@@ -124,11 +124,6 @@
               </div>
             </div>
 
-            <!-- 解锁条件提示 -->
-            <div v-if="card.unlock_condition" class="unlock-tip">
-              <span class="unlock-label">解锁条件：</span>
-              <span class="unlock-text">{{ card.unlock_condition }}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -740,26 +735,6 @@ function flipNextCard() {
 
 .card-video-player :deep(.controls-bar) {
   flex-shrink: 0;
-}
-
-/* ============================================================
-   解锁条件提示
-   ============================================================ */
-.unlock-tip {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--color-bg-highlight);
-  border-radius: 6px;
-  font-size: 12px;
-  margin-top: var(--spacing-sm);
-}
-
-.unlock-label {
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-.unlock-text {
-  color: var(--color-text-secondary);
 }
 
 /* ============================================================
