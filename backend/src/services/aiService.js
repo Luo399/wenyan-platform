@@ -31,6 +31,12 @@ function getWeeklyPeriod(date) {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
 }
 
+/* ⚠️ 单进程假设：concurrentMap 和 globalConcurrent 是内存级变量。
+ * 当前宝塔部署用 PM2 单实例（cluster=1），限流 + 并发控制有效。
+ * 如果未来开 PM2 cluster 多实例，必须升级为 Redis 存储（shared store），
+ * 否则每个进程独立计数，全局 10 的上限会被突破 N 倍。
+ * 同理 aiChatRateLimit（express-rate-limit 默认 MemoryStore）在多实例时各自计数 15 次/分钟。
+ */
 /* ============================================================
  * 2.6 并发信号量（模块级状态）
  * ============================================================ */
@@ -85,8 +91,8 @@ async function callDeepSeek(messages, options = {}) {
     model: config.deepseek.model,
     messages,
     temperature: options.temperature ?? 0.7,
+    max_tokens: config.ai.maxOutputTokens,
   }
-  if (options.max_tokens) body.max_tokens = options.max_tokens
 
   const attempt = async () => {
     const fetchPromise = global.fetch(url, {
@@ -330,6 +336,35 @@ function sanitizeAiReply(text) {
   return text.replace(/https?:\/\/[^\s)"'<>]+/g, (url) => `<code>${url}</code>`)
 }
 
+/* ============================================================
+ * 2.8 AI 输出二次审核（敏感词后处理）
+ * ============================================================ */
+
+const MODERATION_KEYWORDS = [
+  // 暴力
+  '自杀', '自残', '自残方法', '谋杀', '杀人', '砍人',
+  // 色情
+  '色情', '黄色', '性交', '做爱',
+  // 政治敏感（通用词，非项目特定）
+  '法轮功', '反党', '推翻政府',
+  // 违法
+  '毒品', '吸毒', '贩毒', '枪支', '走私',
+  // 自残/自杀相关变体覆盖
+  '轻生', '不想活', '想死',
+]
+
+/**
+ * 对 AI 输出做关键词后处理（v1：简单 case-insensitive includes）。
+ * @param {string} text
+ * @returns {{ passed: boolean, matched: string[] }}
+ */
+function checkModeration(text) {
+  if (typeof text !== 'string' || !text) return { passed: true, matched: [] }
+  const lower = text.toLowerCase()
+  const matched = MODERATION_KEYWORDS.filter((kw) => lower.includes(kw.toLowerCase()))
+  return { passed: matched.length === 0, matched }
+}
+
 module.exports = {
   callDeepSeek,
   buildSystemPrompt,
@@ -339,4 +374,5 @@ module.exports = {
   enterConcurrent,
   leaveConcurrent,
   sanitizeAiReply,
+  checkModeration,
 }
