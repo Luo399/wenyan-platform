@@ -106,6 +106,7 @@ const config = {
   ai: {
     maxConcurrent: toNumber(process.env.AI_MAX_CONCURRENT, 10),
     timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 30000),
+    maxOutputTokens: toNumber(process.env.AI_MAX_OUTPUT_TOKENS, 1500),
   },
 }
 

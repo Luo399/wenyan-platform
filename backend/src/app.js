@@ -9,6 +9,7 @@ const { migrateAiTables } = require('../scripts/migrate_ai')
 const { registerRoutes } = require('./routes')
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler')
 const { globalLimiter } = require('./middleware/rateLimitMiddleware')
+const aiAlerts = require('./services/aiAlerts')
 
 // S11: 进程级错误兜底——未捕获的 Promise rejection 记录日志；
 // uncaughtException 记录后退出，由 PM2 自动重启，避免进程处于未知状态
@@ -106,6 +107,7 @@ async function startServer() {
   try {
     await initAllTables()
     await migrateAiTables()
+    aiAlerts.checkApiKeyStartup()
 
     const app = createApp()
     const { port, host } = config.server

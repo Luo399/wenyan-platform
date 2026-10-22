@@ -52,6 +52,11 @@ const loginRateLimit = rateLimit({
   }
 });
 
+/* ⚠️ 单进程假设：express-rate-limit 默认 MemoryStore 是进程内的。
+ * 当前宝塔部署用 PM2 单实例（cluster=1），每学生 15 次/分钟 的限流有效。
+ * 如果未来开 PM2 cluster 多实例，每个进程各自计数 15，全局上限会被突破 N 倍，
+ * 必须换为 RedisStore（shared store）。
+ */
 // AI 对话专用限流（每分钟 15 次）
 // keyGenerator 绑定 student_id，而非纯 IP，防同一机器多学生共享限流桶（S5）
 const aiChatRateLimit = rateLimit({
