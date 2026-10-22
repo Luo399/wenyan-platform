@@ -52,9 +52,31 @@ const loginRateLimit = rateLimit({
   }
 });
 
+// AI 对话专用限流（每分钟 15 次）
+// keyGenerator 绑定 student_id，而非纯 IP，防同一机器多学生共享限流桶（S5）
+const aiChatRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const sid = req.user?.student_id
+    if (sid) return `ai_student:${sid}`
+    // 兜底：无 student_id（异常链路）时退回 IP
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown'
+    return `ai_ip:${ip}`
+  },
+  message: {
+    success: false,
+    error: 'RATE_LIMIT_EXCEEDED',
+    message: 'AI 对话请求过于频繁（每分钟上限 15 次）'
+  }
+});
+
 module.exports = {
   globalLimiter,
   submitRateLimit,
   queryRateLimit,
   loginRateLimit,
+  aiChatRateLimit,
 };

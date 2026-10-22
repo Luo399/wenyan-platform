@@ -90,6 +90,30 @@ const config = {
   },
 
   testMode: process.env.TEST_MODE === 'true',
+
+  deepseek: {
+    apiKey: process.env.DEEPSEEK_API_KEY || '',
+    model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+    baseUrl: process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+  },
+
+  quota: {
+    daily: toNumber(process.env.AI_QUOTA_DAILY, 8000),
+    weekly: toNumber(process.env.AI_QUOTA_WEEKLY, 40000),
+    monthly: toNumber(process.env.AI_QUOTA_MONTHLY, 120000),
+  },
+
+  ai: {
+    maxConcurrent: toNumber(process.env.AI_MAX_CONCURRENT, 10),
+    timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 30000),
+  },
+}
+
+// DEEPSEEK_API_KEY 缺失时不硬阻断启动（AI 是可选功能），但在生产环境打 warn
+// 实际调用时 aiService 会检查 apiKey 并返回 AI_UNAVAILABLE
+if (process.env.NODE_ENV === 'production' && !config.deepseek.apiKey) {
+  // eslint-disable-next-line no-console
+  console.warn('[config] DEEPSEEK_API_KEY 未设置，AI 对话功能将返回 503')
 }
 
 module.exports = config

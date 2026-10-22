@@ -81,7 +81,7 @@ function createLogEntry(level, message, data = {}) {
     timestampMs: getTimestamp(),
     level: level,
     message: message,
-    ...data,
+    ...sanitizeBody(data),
   };
 }
 
@@ -299,21 +299,29 @@ function logError(error, context = {}) {
 /**
  * 清理敏感信息
  */
+const SENSITIVE_PATTERNS = [/key$/i, /token$/i, /secret$/i, /authorization/i]
+
+function isSensitiveKey(key) {
+  if (typeof key !== 'string') return false
+  return SENSITIVE_PATTERNS.some((re) => re.test(key))
+}
+
 function sanitizeBody(body) {
-  if (typeof body !== 'object') {
-    return body;
-  }
-  
-  const sensitiveFields = ['password', 'token', 'secret', 'authorization'];
-  const sanitized = { ...body };
-  
-  for (const field of sensitiveFields) {
-    if (field in sanitized) {
-      sanitized[field] = '[REDACTED]';
+  if (body === null || body === undefined) return body
+  if (typeof body !== 'object') return body
+  if (Array.isArray(body)) return body.map(sanitizeBody)
+
+  const sanitized = {}
+  for (const [key, value] of Object.entries(body)) {
+    if (isSensitiveKey(key)) {
+      sanitized[key] = '[REDACTED]'
+    } else if (value && typeof value === 'object') {
+      sanitized[key] = sanitizeBody(value)
+    } else {
+      sanitized[key] = value
     }
   }
-  
-  return sanitized;
+  return sanitized
 }
 
 module.exports = {

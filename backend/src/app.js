@@ -5,13 +5,14 @@ const helmet = require('helmet')
 const config = require('./config/app')
 const logger = require('./utils/logger')
 const { initAllTables } = require('./config/database')
+const { migrateAiTables } = require('../scripts/migrate_ai')
 const { registerRoutes } = require('./routes')
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler')
 const { globalLimiter } = require('./middleware/rateLimitMiddleware')
 
 // S11: 进程级错误兜底——未捕获的 Promise rejection 记录日志；
 // uncaughtException 记录后退出，由 PM2 自动重启，避免进程处于未知状态
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   logger.error('Unhandled Rejection:', {
     reason: reason instanceof Error ? reason.message : String(reason),
     stack: reason instanceof Error ? reason.stack : undefined,
@@ -104,6 +105,7 @@ function createApp() {
 async function startServer() {
   try {
     await initAllTables()
+    await migrateAiTables()
 
     const app = createApp()
     const { port, host } = config.server

@@ -361,7 +361,7 @@ function loadWenTitles(dataBasePath) {
           titles[wenId] = parsed.title
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // 单篇读取失败不影响整体，回退到内置表
     }
   }
