@@ -162,7 +162,7 @@
               <span class="checkbox-text">全年级权限（可查看所有学生答题记录）</span>
             </label>
 
-            <template v-if="!canViewAll">
+            <div v-if="!canViewAll" class="class-picker-body">
               <!-- 年级多选 -->
               <div class="picker-row">
                 <span class="picker-label">年级：</span>
@@ -224,7 +224,7 @@
                   </span>
                 </span>
               </div>
-            </template>
+            </div>
           </div>
         </div>
 
