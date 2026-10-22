@@ -115,4 +115,63 @@ describe('教师查看学生完成情况', () => {
     const res = await request(app).get('/api/teacher/completion/students')
     expect(res.status).toBe(401)
   })
+
+  it('学生提交答题后 completion 统计应真实反映（metrics_ready=true）', async () => {
+    // 先查一次，应 0
+    const before = await asTeacher(request(app).get('/api/teacher/completion/students'))
+    expect(before.body.data.students[0].answered_questions).toBe(0)
+
+    // 提交两道题（一道对一道错）
+    await request(app).post('/api/submit/single').send({
+      studentId: '20260101',
+      wenId: 'WEN_COMPLETE_1',
+      questionId: 'q1',
+      userAnswer: 3,
+      correctAnswer: 3,
+      submittedAt: new Date().toISOString(),
+    })
+    await request(app).post('/api/submit/single').send({
+      studentId: '20260101',
+      wenId: 'WEN_COMPLETE_1',
+      questionId: 'q2',
+      userAnswer: 1,
+      correctAnswer: 2,
+      submittedAt: new Date().toISOString(),
+    })
+
+    const after = await asTeacher(request(app).get('/api/teacher/completion/students'))
+    const s = after.body.data.students.find((x) => x.student_id === '20260101')
+    expect(s).toBeTruthy()
+    expect(s.answered_questions).toBe(2)
+    expect(s.correct_count).toBe(1)
+    expect(s.accuracy).toBeCloseTo(50.0, 0)
+    expect(s.last_submitted_at).not.toBeNull()
+  })
+
+  it('多次 attempt 同一道题应取最后一次结果判定（attempt_number 最大）', async () => {
+    // q1 先答对错，再答对
+    await request(app).post('/api/submit/single').send({
+      studentId: '20260102',
+      wenId: 'WEN_COMPLETE_2',
+      questionId: 'qX',
+      userAnswer: 1,
+      correctAnswer: 2,
+      submittedAt: new Date().toISOString(),
+    })
+    await request(app).post('/api/submit/single').send({
+      studentId: '20260102',
+      wenId: 'WEN_COMPLETE_2',
+      questionId: 'qX',
+      userAnswer: 2,
+      correctAnswer: 2,
+      submittedAt: new Date().toISOString(),
+    })
+
+    const res = await asTeacher(request(app).get('/api/teacher/completion/students'))
+    const s = res.body.data.students.find((x) => x.student_id === '20260102')
+    expect(s).toBeTruthy()
+    // 只有 1 道唯一题（qX），但最终 is_correct=1
+    expect(s.answered_questions).toBe(1)
+    expect(s.correct_count).toBe(1)
+  })
 })
