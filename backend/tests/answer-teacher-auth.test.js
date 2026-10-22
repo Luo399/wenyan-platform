@@ -48,7 +48,7 @@ beforeAll(async () => {
 
   // 创建一个 teacher（所教班级 202401）
   const teacherCreate = await asAdmin(request(app).post('/api/admin/teachers')).send({
-    phone: 'teacherA',
+    phone: '13800000010',
     name: 'A 老师',
     password: '12345678',
     school_id: 1,
@@ -57,7 +57,7 @@ beforeAll(async () => {
   expect(teacherCreate.status).toBe(201)
   const teacherLogin = await request(app)
     .post('/api/auth/teacher/login')
-    .send({ phone: 'teacherA', password: '12345678' })
+    .send({ phone: '13800000010', password: '12345678' })
   teacherToken = teacherLogin.body.data.token
 
   // 创建两个学生：本班 202401 + 他班 202402
@@ -108,14 +108,15 @@ describe('teacher 角色：GET /api/answers/student/:studentId 班级权限隔�
 describe('teacher 角色：GET /api/answers/wen/:wenId 他班学生被过滤', () => {
   it('teacher 应看不到他班学生的答题记录', async () => {
     // 先让学生提交一条答题（往 answers 表写数据）
-    const submit = await asStudent(request(app).post('/api/submit')).send({
+    const submitRes = await asStudent(request(app).post('/api/submit/single')).send({
       studentId: '20240101',
       wenId: 'WEN_AA',
+      questionId: 'q1',
+      userAnswer: 3,
+      correctAnswer: 3,
       submittedAt: new Date().toISOString(),
-      answers: { q1: 1 },
-      questions: [{ id: 'q1', correctAnswer: 1 }],
     })
-    expect(submit.status).toBe(200)
+    expect(submitRes.status).toBe(200)
 
     // teacher 查 WEN_AA，应该能看到本班学生的答题
     const teacherRes = await asTeacher(request(app).get('/api/answers/wen/WEN_AA'))
@@ -138,9 +139,9 @@ describe('teacher 角色：无关联班级时查询应返回空列表而非崩�
   it('没有所教班级的 teacher 查 wen 应返回空 students 列表', async () => {
     const school = (await asAdmin(request(app).get('/api/admin/teachers'))).body.data.find((t) => t.phone === 'teacherA')
     // 先删原 teacher，再新建一个没有 class_codes 的
-    await asAdmin(request(app).delete('/api/admin/teachers/teacherA'))
+    await asAdmin(request(app).delete('/api/admin/teachers/13800000010'))
     const create = await asAdmin(request(app).post('/api/admin/teachers')).send({
-      phone: 'orphanT',
+      phone: '13800000099',
       name: '无班级教师',
       password: '12345678',
       school_id: 1,
@@ -149,10 +150,10 @@ describe('teacher 角色：无关联班级时查询应返回空列表而非崩�
     expect(create.status).toBe(201)
 
     // 登录后把 class_codes 清空
-    await asAdmin(request(app).put('/api/admin/teachers/orphanT')).send({ class_codes: [] })
+    await asAdmin(request(app).put('/api/admin/teachers/13800000099')).send({ class_codes: [] })
     const loginRes = await request(app)
       .post('/api/auth/teacher/login')
-      .send({ phone: 'orphanT', password: '12345678' })
+      .send({ phone: '13800000099', password: '12345678' })
     orphanTeacherToken = loginRes.body.data.token
 
     const res = await request(app)

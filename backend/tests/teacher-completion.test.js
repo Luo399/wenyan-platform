@@ -21,6 +21,8 @@ const { dbGet } = require('../src/utils/dbPromise')
 let app
 let adminToken
 let teacherToken
+let student2601Token
+let student2602Token
 
 function asAdmin(agent) {
   return agent.set('Authorization', `Bearer ${adminToken}`)
@@ -28,6 +30,14 @@ function asAdmin(agent) {
 
 function asTeacher(agent) {
   return agent.set('Authorization', `Bearer ${teacherToken}`)
+}
+
+function asStudent2601(agent) {
+  return agent.set('Authorization', `Bearer ${student2601Token}`)
+}
+
+function asStudent2602(agent) {
+  return agent.set('Authorization', `Bearer ${student2602Token}`)
 }
 
 beforeAll(async () => {
@@ -73,6 +83,16 @@ beforeAll(async () => {
     student_name: '他班学生',
     class_code: '202602',
   })
+
+  // 本班学生登录，拿到 token 用于 submit
+  const s1 = await request(app)
+    .post('/api/auth/student/login')
+    .send({ student_id: '20260101', password: '99999999' })
+  student2601Token = s1.body.data.token
+  const s2 = await request(app)
+    .post('/api/auth/student/login')
+    .send({ student_id: '20260102', password: '99999999' })
+  student2602Token = s2.body.data.token
 })
 
 afterAll((done) => {
@@ -122,7 +142,7 @@ describe('教师查看学生完成情况', () => {
     expect(before.body.data.students[0].answered_questions).toBe(0)
 
     // 提交两道题（一道对一道错）
-    await request(app).post('/api/submit/single').send({
+    await asStudent2601(request(app).post('/api/submit/single')).send({
       studentId: '20260101',
       wenId: 'WEN_COMPLETE_1',
       questionId: 'q1',
@@ -130,7 +150,7 @@ describe('教师查看学生完成情况', () => {
       correctAnswer: 3,
       submittedAt: new Date().toISOString(),
     })
-    await request(app).post('/api/submit/single').send({
+    await asStudent2601(request(app).post('/api/submit/single')).send({
       studentId: '20260101',
       wenId: 'WEN_COMPLETE_1',
       questionId: 'q2',
@@ -150,7 +170,7 @@ describe('教师查看学生完成情况', () => {
 
   it('多次 attempt 同一道题应取最后一次结果判定（attempt_number 最大）', async () => {
     // q1 先答对错，再答对
-    await request(app).post('/api/submit/single').send({
+    await asStudent2602(request(app).post('/api/submit/single')).send({
       studentId: '20260102',
       wenId: 'WEN_COMPLETE_2',
       questionId: 'qX',
@@ -158,7 +178,7 @@ describe('教师查看学生完成情况', () => {
       correctAnswer: 2,
       submittedAt: new Date().toISOString(),
     })
-    await request(app).post('/api/submit/single').send({
+    await asStudent2602(request(app).post('/api/submit/single')).send({
       studentId: '20260102',
       wenId: 'WEN_COMPLETE_2',
       questionId: 'qX',
