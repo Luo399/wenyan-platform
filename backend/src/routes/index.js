@@ -43,6 +43,7 @@ function registerRoutes(app) {
         'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码为99999999',
         'POST   /api/admin/teachers/:phone/status': '管理员启用/禁用教师',
         'POST   /api/admin/teachers/:phone/approve': '管理员审批待注册教师（pending→active）',
+        'POST   /api/admin/teachers/:phone/reject': '管理员驳回待注册教师（pending→rejected）',
         'GET    /api/admin/students': '管理员查所有学生',
         'GET    /api/admin/students/:studentId': '管理员查单个学生',
         'POST   /api/admin/students': '管理员新增学生账号（初始密码 99999999）',
@@ -132,6 +133,8 @@ function registerRoutes(app) {
   app.post('/api/admin/teachers', ...adminAuth, adminController.createTeacher)
   // 教师审批
   app.post('/api/admin/teachers/:phone/approve', ...adminAuth, adminController.approveTeacher)
+  // 教师驳回（保留 rejected 状态用于审计）
+  app.post('/api/admin/teachers/:phone/reject', ...adminAuth, adminController.rejectTeacher)
 
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；

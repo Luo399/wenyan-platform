@@ -387,12 +387,12 @@ async function deleteStudent(req, res) {
 }
 
 /**
- * 教师查看所教班级学生的完成情况（框架版）
+ * 教师查看所教班级学生的完成情况
  * GET /api/teacher/completion/students?class_code=202501
  *
- * 说明：本接口先搭建数据框架——返回教师所教班级的学生名单与统一的统计字段，
- * 统计口径（答题数 / 正确数 / 完成率 / 最近提交时间）留待后续接入 answers 聚合，
- * 当前统一返回占位值并通过 metrics_ready=false 标记，便于前端先行联调。
+ * 说明：先拉取教师所教班级学生名单，再 LEFT JOIN answers 聚合真实统计。
+ *   统计口径：每个学生在 answers 表里的总行数 = 已答题数；
+ *   同一道题多次答题取 attempt_number 最大的那一行判定正误，避免"做对了又做错"被算两次。
  */
 async function getStudentsCompletion(req, res) {
   try {
@@ -401,11 +401,10 @@ async function getStudentsCompletion(req, res) {
       return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
     }
     const classCodes = await getMyClassCodes(teacherId)
-    // 未关联任何班级 → 返回空框架，避免前端报错
     if (classCodes.length === 0) {
       return res.status(200).json({
         success: true,
-        data: { metrics_ready: false, summary: { student_count: 0, avg_accuracy: 0 }, students: [] },
+        data: { metrics_ready: true, summary: { student_count: 0, avg_accuracy: 0 }, students: [] },
       })
     }
 
@@ -414,32 +413,105 @@ async function getStudentsCompletion(req, res) {
       return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该班级学生' })
     }
 
-    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE class_code IN (${classCodes
+    const effectiveClasses = class_code ? [class_code] : classCodes
+
+    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE class_code IN (${effectiveClasses
       .map(() => '?')
       .join(',')})`
-    const params = [...classCodes]
-    if (class_code) {
-      sql += ` AND class_code = ?`
-      params.push(class_code)
-    }
     sql += ` ORDER BY class_code ASC, student_id ASC`
-    const rows = await dbAll(db, sql, params)
+    const rows = await dbAll(db, sql, effectiveClasses)
 
-    // 统一补全统计字段（占位），保证前端表格列结构稳定
-    const students = rows.map((row) => ({
-      ...row,
-      total_questions: 0,
-      answered_questions: 0,
-      correct_count: 0,
-      accuracy: 0,
-      last_submitted_at: null,
-    }))
+    // 收集所有 student_id，用子查询去重算每道题 attempt_number 最大的那一行
+    const studentIds = rows.map((r) => r.student_id)
+    const statsMap = {}
+    if (studentIds.length > 0) {
+      const aggRows = await dbAll(
+        db,
+        `SELECT a.student_id,
+          COUNT(*) AS answered_questions,
+          SUM(a.is_correct) AS correct_count,
+          ROUND(AVG(a.is_correct) * 100, 1) AS accuracy,
+          MAX(a.submitted_at) AS last_submitted_at
+         FROM answers a
+         INNER JOIN (
+           SELECT student_id, question_id, MAX(attempt_number) AS max_attempt
+           FROM answers
+           WHERE student_id IN (${studentIds.map(() => '?').join(',')})
+           GROUP BY student_id, question_id
+         ) top ON a.student_id = top.student_id AND a.question_id = top.question_id
+              AND a.attempt_number = top.max_attempt
+         WHERE a.student_id IN (${studentIds.map(() => '?').join(',')})
+         GROUP BY a.student_id`,
+        [...studentIds, ...studentIds],
+      )
+      for (const r of aggRows) {
+        statsMap[r.student_id] = r
+      }
+    }
+
+    const students = rows.map((row) => {
+      const stat = statsMap[row.student_id]
+      return {
+        ...row,
+        total_questions: 0,
+        answered_questions: stat?.answered_questions ?? 0,
+        correct_count: stat?.correct_count ?? 0,
+        accuracy: stat?.accuracy ?? 0,
+        last_submitted_at: stat?.last_submitted_at ?? null,
+      }
+    })
+
+    // summary: 覆盖所有教师所教班级（未指定 class_code 时）
+    let summary
+    if (class_code) {
+      summary = {
+        student_count: students.length,
+        avg_accuracy: students.length === 0 ? 0
+          : Math.round(students.reduce((s, x) => s + (x.accuracy || 0), 0) / students.length * 10) / 10,
+      }
+    } else {
+      const allRows = await dbAll(
+        db,
+        `SELECT student_id FROM students WHERE class_code IN (${classCodes.map(() => '?').join(',')})`,
+        classCodes,
+      )
+      const allStatsMap = {}
+      const allStudentIds = allRows.map((r) => r.student_id)
+      if (allStudentIds.length > 0) {
+        const allAgg = await dbAll(
+          db,
+          `SELECT a.student_id,
+            COUNT(*) AS answered_questions,
+            SUM(a.is_correct) AS correct_count,
+            ROUND(AVG(a.is_correct) * 100, 1) AS accuracy
+           FROM answers a
+           INNER JOIN (
+             SELECT student_id, question_id, MAX(attempt_number) AS max_attempt
+             FROM answers
+             WHERE student_id IN (${allStudentIds.map(() => '?').join(',')})
+             GROUP BY student_id, question_id
+           ) top ON a.student_id = top.student_id AND a.question_id = top.question_id
+                AND a.attempt_number = top.max_attempt
+           WHERE a.student_id IN (${allStudentIds.map(() => '?').join(',')})
+           GROUP BY a.student_id`,
+          [...allStudentIds, ...allStudentIds],
+        )
+        for (const r of allAgg) allStatsMap[r.student_id] = r
+      }
+      summary = {
+        student_count: allRows.length,
+        avg_accuracy: allRows.length === 0 ? 0
+          : Math.round(
+              allRows.reduce((s, x) => s + (allStatsMap[x.student_id]?.accuracy || 0), 0) / allRows.length * 10,
+            ) / 10,
+      }
+    }
 
     res.status(200).json({
       success: true,
       data: {
-        metrics_ready: false,
-        summary: { student_count: students.length, avg_accuracy: 0 },
+        metrics_ready: true,
+        summary,
         class_codes: classCodes,
         students,
       },

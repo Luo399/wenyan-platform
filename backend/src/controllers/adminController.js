@@ -30,7 +30,7 @@ async function listTeachers(req, res) {
     const { status } = req.query
     const conditions = []
     const params = []
-    if (status && ['pending', 'active', 'disabled'].includes(status)) {
+    if (status && ['pending', 'active', 'disabled', 'rejected'].includes(status)) {
       conditions.push('t.status = ?')
       params.push(status)
     }
@@ -158,6 +158,9 @@ async function approveTeacher(req, res) {
     if (teacher.status === 'active') {
       return res.status(400).json({ success: false, error: 'ALREADY_ACTIVE', message: '该教师已激活' })
     }
+    if (teacher.status !== 'pending') {
+      return res.status(400).json({ success: false, error: 'NOT_PENDING', message: '该教师当前状态不可审批，仅待审批状态可操作' })
+    }
     await dbRun(db,
       `UPDATE teachers SET status = 'active', must_reset_password = 1, updated_at = ? WHERE phone = ?`,
       [new Date().toISOString(), phone])
@@ -165,6 +168,35 @@ async function approveTeacher(req, res) {
   } catch (err) {
     logger.error('[admin] 审批教师失败:', err)
     res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '审批失败' })
+  }
+}
+
+/**
+ * 管理员：驳回待注册教师（将 pending → rejected，保留记录用于审计）
+ * POST /api/admin/teachers/:phone/reject  { "reason"?: string }
+ */
+async function rejectTeacher(req, res) {
+  try {
+    const { phone } = req.params
+    const teacher = await dbGet(db, `SELECT id, status FROM teachers WHERE phone = ?`, [phone])
+    if (!teacher) {
+      return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '教师不存在' })
+    }
+    if (teacher.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        error: 'NOT_PENDING',
+        message: `该教师当前状态为 ${teacher.status}，仅待审批状态可驳回`,
+      })
+    }
+    await dbRun(db,
+      `UPDATE teachers SET status = 'rejected', updated_at = ? WHERE phone = ?`,
+      [new Date().toISOString(), phone])
+    logger.info('[admin] 驳回教师注册', { phone, reason: req.body?.reason || '' })
+    res.status(200).json({ success: true, message: '教师注册已驳回' })
+  } catch (err) {
+    logger.error('[admin] 驳回教师失败:', err)
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '驳回失败' })
   }
 }
 
@@ -559,6 +591,7 @@ module.exports = {
   resetTeacher,
   setTeacherStatus,
   approveTeacher,
+  rejectTeacher,
   listPasswordResets,
   createTeacher,
 }
