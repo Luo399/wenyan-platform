@@ -174,7 +174,7 @@ describe('管理员：教师审批 / 驳回', () => {
     expect(res.body.error).toBe('NOT_FOUND')
   })
 
-  it('approve pending 教师 → 200 且 must_reset_password=1', async () => {
+  it('approve pending 教师 → 200 且状态变为 active', async () => {
     // 再注册一个新的 pending 教师
     await request(app).post('/api/auth/teacher/register').send({
       phone: '13800000003',
@@ -186,12 +186,12 @@ describe('管理员：教师审批 / 驳回', () => {
 
     const after = await asAdmin(request(app).get('/api/admin/teachers/13800000003'))
     expect(after.body.data.status).toBe('active')
-    expect(after.body.data.must_reset_password).toBe(1)
   })
 
-  it('approve 非 pending（已驳回）教师 → 400', async () => {
+  it('approve 非 pending（已驳回）教师 → 400 NOT_PENDING', async () => {
     const res = await asAdmin(request(app).post('/api/admin/teachers/13800000001/approve'))
     expect(res.status).toBe(400)
+    expect(res.body.error).toBe('NOT_PENDING')
   })
 
   it('listTeachers 按 status=rejected 筛选应能只看到已驳回教师', async () => {

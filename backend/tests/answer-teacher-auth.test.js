@@ -137,20 +137,22 @@ describe('teacher 角色：无关联班级时查询应返回空列表而非崩�
   let orphanTeacherToken
 
   it('没有所教班级的 teacher 查 wen 应返回空 students 列表', async () => {
-    const school = (await asAdmin(request(app).get('/api/admin/teachers'))).body.data.find((t) => t.phone === 'teacherA')
-    // 先删原 teacher，再新建一个没有 class_codes 的
-    await asAdmin(request(app).delete('/api/admin/teachers/13800000010'))
-    const create = await asAdmin(request(app).post('/api/admin/teachers')).send({
+    // 注意：createTeacher / updateTeacher 都要求 class_codes 非空
+    // 这里改为用 updateTeacher 让 class_codes 仅剩 1 个值，模拟"单班教师"
+    // （真正 0 班教师需要绕过后端校验通过 SQL 或 register+approve 再 UPDATE）
+    // 我们直接通过 register → approve 路径，然后用 SQL 绕过后端校验清空 teacher_classes
+    await request(app).post('/api/auth/teacher/register').send({
       phone: '13800000099',
       name: '无班级教师',
       password: '12345678',
-      school_id: 1,
-      class_codes: ['202499'], // 占个位，让 teacher 能登录
     })
-    expect(create.status).toBe(201)
+    await asAdmin(request(app).post('/api/admin/teachers/13800000099/approve'))
 
-    // 登录后把 class_codes 清空
-    await asAdmin(request(app).put('/api/admin/teachers/13800000099')).send({ class_codes: [] })
+    const { db } = require('../src/config/database')
+    await new Promise((resolve) => {
+      db.run(`DELETE FROM teacher_classes WHERE teacher_id = (SELECT id FROM teachers WHERE phone = '13800000099')`, () => resolve())
+    })
+
     const loginRes = await request(app)
       .post('/api/auth/teacher/login')
       .send({ phone: '13800000099', password: '12345678' })

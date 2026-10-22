@@ -158,6 +158,9 @@ async function approveTeacher(req, res) {
     if (teacher.status === 'active') {
       return res.status(400).json({ success: false, error: 'ALREADY_ACTIVE', message: '该教师已激活' })
     }
+    if (teacher.status !== 'pending') {
+      return res.status(400).json({ success: false, error: 'NOT_PENDING', message: '该教师当前状态不可审批，仅待审批状态可操作' })
+    }
     await dbRun(db,
       `UPDATE teachers SET status = 'active', must_reset_password = 1, updated_at = ? WHERE phone = ?`,
       [new Date().toISOString(), phone])
