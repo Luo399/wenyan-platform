@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="teacher-register-page" :style="{ backgroundImage: `url(${bgUrl})` }">
     <div class="register-card">
       <!-- 返回上一页 -->
@@ -18,6 +18,7 @@
         <span class="success-text">注册成功！等待管理员审批后即可登录</span>
       </div>
 
+      <!-- 表单 -->
       <form v-else class="register-form" @submit.prevent="handleSubmit" novalidate>
         <!-- 姓名 -->
         <div class="form-group">
@@ -151,22 +152,23 @@
           </span>
         </div>
 
-        <!-- 所教班级（可选，逗号分隔 6 位编码） -->
+        <!-- 所教班级（可选） -->
         <div class="form-group">
-          <label class="form-label">所教班级 <span class="optional-hint">（可选，逗号分隔 6 位编码，如 202401,202402）</span></label>
-          <div class="class-picker">
-            <label class="checkbox-label">
-              <input v-model="canViewAll" type="checkbox" />
-              <span class="checkbox-text">全年级权限（可查看所有学生答题记录）</span>
-            </label>
-            <input
-              v-if="!canViewAll"
-              v-model="classCodesText"
-              type="text"
-              class="form-input"
-              placeholder="如 202401,202402"
-            />
-          </div>
+          <label class="form-label">
+            所教班级
+            <span class="optional-hint">（可选，逗号分隔 6 位编码如 202401,202402）</span>
+          </label>
+          <label class="checkbox-label">
+            <input v-model="canViewAll" type="checkbox" />
+            <span>全年级权限</span>
+          </label>
+          <input
+            :disabled="canViewAll"
+            v-model="classCodesText"
+            type="text"
+            class="form-input"
+            placeholder="如 202401,202402"
+          />
         </div>
 
         <!-- 后端错误 -->
@@ -206,6 +208,9 @@ const bgUrl = getAssetUrl('images', 'login_bg.png')
 
 // 埋点
 const enterTime = Date.now()
+onMounted(() => {
+  track('step_enter', 'teacher-register', {})
+})
 onUnmounted(() => {
   const duration = Date.now() - enterTime
   track('step_exit', 'teacher-register', { duration })
@@ -222,17 +227,12 @@ const showConfirmPassword = ref(false)
 const isSubmitting = ref(false)
 const success = ref(false)
 const serverError = ref('')
-
-// 班级选择器状态
 const canViewAll = ref(false)
 const classCodesText = ref('')
 
-/** 解析逗号分隔的 class_codes */
+/** 解析逗号/空格分隔的班级编码 */
 function parseClassCodes(text: string): string[] {
-  return text
-    .split(/[,，\s]+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && /^\d{6}$/.test(s))
+  return text.split(/[,，\s]+/).map((s) => s.trim()).filter((s) => /^\d{6}$/.test(s))
 }
 
 const touched = reactive({
@@ -333,7 +333,6 @@ function goBack(): void {
 }
 
 onMounted(() => {
-  track('step_enter', 'teacher-register', {})
   nextTick(() => {
     phoneInput.value?.focus()
   })
@@ -619,144 +618,4 @@ onMounted(() => {
     border-radius: var(--radius-small);
   }
 }
-
-/* ===== 班级选择器 ===== */
-.optional-hint {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary, #888);
-  font-weight: normal;
-}
-
-.class-picker {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm, 8px);
-  padding: var(--spacing-sm, 8px) 0;
-}
-
-.full-access-label {
-  font-size: 0.875rem;
-  padding: 8px 12px;
-  background: var(--color-bg-highlight, #f5f5f5);
-  border-radius: var(--radius-small, 6px);
-  cursor: pointer;
-}
-
-.picker-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.picker-label {
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary, #666);
-  min-width: 48px;
-  padding-top: 4px;
-}
-
-.multi-select {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
-}
-
-.chip-label {
-  position: relative;
-  cursor: pointer;
-  user-select: none;
-}
-
-.chip-checkbox {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.chip {
-  display: inline-block;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border, #ddd);
-  border-radius: 999px;
-  font-size: 0.8125rem;
-  color: var(--color-text, #333);
-  background: #fff;
-  transition: all 0.15s ease;
-}
-
-.chip-checkbox:checked + .chip {
-  background: var(--color-primary, #4a6cf7);
-  border-color: var(--color-primary, #4a6cf7);
-  color: #fff;
-}
-
-.chip-label:hover .chip {
-  border-color: var(--color-primary-hover, #3a5ce5);
-}
-
-.empty-hint {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary, #999);
-  padding: 4px 0;
-}
-
-.manual-row {
-  gap: 6px;
-}
-
-.manual-input {
-  flex: 1;
-  max-width: 180px;
-  font-size: 0.875rem;
-  padding: 6px 10px;
-}
-
-.add-class-btn {
-  padding: 6px 14px;
-  font-size: 0.8125rem;
-  font-family: var(--font-family-serif, inherit);
-  background: var(--color-primary, #4a6cf7);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-small, 6px);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.add-class-btn:hover:not(:disabled) { background: var(--color-primary-hover, #3a5ce5); }
-.add-class-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.selected-classes {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.selected-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.selected-code {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  background: var(--color-bg-highlight, #eef2ff);
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  color: var(--color-primary, #4a6cf7);
-}
-
-.remove-btn {
-  background: none;
-  border: none;
-  color: var(--color-primary, #4a6cf7);
-  cursor: pointer;
-  font-size: 0.875rem;
-  line-height: 1;
-  padding: 0 2px;
-}
-.remove-btn:hover { color: #d33; }
+</style>
