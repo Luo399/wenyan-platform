@@ -18,7 +18,6 @@
         <span class="success-text">注册成功！等待管理员审批后即可登录</span>
       </div>
 
-      <!-- 表单 -->
       <form v-else class="register-form" @submit.prevent="handleSubmit" novalidate>
         <!-- 姓名 -->
         <div class="form-group">
