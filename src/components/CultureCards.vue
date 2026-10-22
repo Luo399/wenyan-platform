@@ -98,6 +98,7 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
+                <p v-if="card.knowledge_text" class="knowledge-text">{{ card.knowledge_text }}</p>
               </div>
               <!-- 视频类型：默认封面，点击后在卡内固定尺寸播放（播放器自带全屏键） -->
               <div v-else-if="cardMediaType(card) === 'video'" class="video-container" :style="videoSizeStyle()">
@@ -121,6 +122,7 @@
                     <span class="video-play-text">点击播放</span>
                   </div>
                 </div>
+                <p v-if="card.knowledge_text" class="knowledge-text">{{ card.knowledge_text }}</p>
               </div>
             </div>
 
@@ -601,9 +603,20 @@ function flipNextCard() {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* 文字卡片专用：italic + 左竖条底色 */
 .text-container .knowledge-text {
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+/* 图片/视频卡片里的说明文字：紧接媒体下方 */
+.image-container .knowledge-text,
+.video-container .knowledge-text {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 /* ============================================================
