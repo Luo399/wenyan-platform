@@ -5,6 +5,12 @@ const {
   getAnswersByWenId: serviceGetByWenId,
   getAnswersByStudentId: serviceGetByStudentId,
 } = require('../services/answerService')
+const { db } = require('../config/database')
+const { dbGet, dbAll } = require('../utils/dbPromise')
+const {
+  teacherCanManageClass,
+  getTeacherClassCodes,
+} = require('../services/authService')
 const logger = require('../utils/logger')
 
 // ===== P0 安全修复：提交请求体 zod 白名单校验 =====
@@ -160,7 +166,34 @@ async function submitSingleAnswer(req, res) {
 async function getAnswersByWenId(req, res) {
   try {
     const { wenId } = req.params
-    const data = await serviceGetByWenId(wenId)
+    let data = await serviceGetByWenId(wenId)
+
+    // P1: teacher 角色只能看到自己所教班级学生的答题
+    if (req.user?.role === 'teacher') {
+      const t = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [req.user.phone])
+      if (!t) {
+        return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
+      }
+      const classCodes = await getTeacherClassCodes(t.id)
+      if (classCodes.length === 0) {
+        return res.status(200).json({ success: true, data: { ...data, studentCount: 0, students: [] } })
+      }
+      // 把 teacher 无权查看的学生过滤掉
+      const teacherClassSet = new Set(classCodes)
+      const studentIds = (data.students || []).map((s) => s.studentId)
+      const studentClassMap = {}
+      if (studentIds.length > 0) {
+        const rows = await dbAll(
+          db,
+          `SELECT student_id, class_code FROM students WHERE student_id IN (${studentIds.map(() => '?').join(',')})`,
+          studentIds,
+        )
+        for (const r of rows) studentClassMap[r.student_id] = r.class_code
+      }
+      data.students = (data.students || []).filter((s) => teacherClassSet.has(studentClassMap[s.studentId]))
+      data.studentCount = data.students.length
+    }
+
     res.status(200).json({ success: true, data })
   } catch (err) {
     logger.error('按文言文ID查询答题记录失败', {
@@ -179,6 +212,23 @@ async function getAnswersByWenId(req, res) {
 async function getAnswersByStudentId(req, res) {
   try {
     const { studentId } = req.params
+
+    // P1: teacher 角色先校验该学生属于自己班级
+    if (req.user?.role === 'teacher') {
+      const t = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [req.user.phone])
+      if (!t) {
+        return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
+      }
+      const student = await dbGet(db, 'SELECT class_code FROM students WHERE student_id = ?', [studentId])
+      if (!student) {
+        return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
+      }
+      const ok = await teacherCanManageClass(t.id, student.class_code)
+      if (!ok) {
+        return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该学生答题记录' })
+      }
+    }
+
     const data = await serviceGetByStudentId(studentId)
     res.status(200).json({ success: true, data })
   } catch (err) {

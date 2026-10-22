@@ -13,7 +13,7 @@ export interface AdminTeacher {
   name: string
   school_id: number | null
   school_name?: string
-  status: 'pending' | 'active' | 'disabled'
+  status: 'pending' | 'active' | 'disabled' | 'rejected'
   class_codes: string[]
   created_at?: string
   updated_at?: string
@@ -135,6 +135,16 @@ export async function approveTeacher(phone: string): Promise<AdminActionResult> 
     return { success: true, message: res.message || '教师已审批通过' }
   } catch (err) {
     return toResult(err, '审批教师失败')
+  }
+}
+
+/** 驳回 pending 教师注册（status: pending → rejected） */
+export async function rejectTeacher(phone: string, reason?: string): Promise<AdminActionResult> {
+  try {
+    const res = await post(`/api/admin/teachers/${encodeURIComponent(phone)}/reject`, reason ? { reason } : {})
+    return { success: true, message: res.message || '教师注册已驳回' }
+  } catch (err) {
+    return toResult(err, '驳回教师失败')
   }
 }
 

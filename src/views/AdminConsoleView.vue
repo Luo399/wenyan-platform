@@ -89,6 +89,7 @@
               <option value="pending">待审批</option>
               <option value="active">已激活</option>
               <option value="disabled">已禁用</option>
+              <option value="rejected">已驳回</option>
             </select>
             <button type="button" class="plain-btn" @click="loadTeachers">刷新</button>
           </div>
@@ -110,12 +111,17 @@
               <td>{{ t.name }}</td>
               <td>{{ t.school_name || t.school_id || '-' }}</td>
               <td>{{ (t.class_codes || []).join(', ') || '-' }}</td>
-              <td>{{ t.status === 'pending' ? '待审批' : t.status === 'active' ? '启用' : '禁用' }}</td>
+              <td>{{ t.status === 'pending' ? '待审批' : t.status === 'active' ? '启用' : t.status === 'rejected' ? '已驳回' : '禁用' }}</td>
               <td class="op-cell">
-                <button v-if="t.status === 'pending'" type="button" class="link-btn" @click="approveTeacherFn(t)">审批通过</button>
-                <button type="button" class="link-btn" @click="editTeacher(t)">修改</button>
-                <button type="button" class="link-btn" @click="resetTeacherPwd(t)">重置密码</button>
-                <button type="button" class="link-btn danger" @click="removeTeacher(t)">删除</button>
+                <template v-if="t.status === 'pending'">
+                  <button type="button" class="link-btn primary" @click="approveTeacherFn(t)">审批通过</button>
+                  <button type="button" class="link-btn danger" @click="rejectTeacherFn(t)">驳回</button>
+                </template>
+                <template v-else>
+                  <button type="button" class="link-btn" @click="editTeacher(t)">修改</button>
+                  <button type="button" class="link-btn" @click="resetTeacherPwd(t)">重置密码</button>
+                  <button type="button" class="link-btn danger" @click="removeTeacher(t)">删除</button>
+                </template>
               </td>
             </tr>
             <tr v-if="teachers.length === 0">
@@ -206,6 +212,7 @@ import {
   updateTeacher,
   deleteTeacher,
   approveTeacher,
+  rejectTeacher,
   resetTeacherPassword,
   listStudents,
   createStudent,
@@ -380,6 +387,13 @@ async function resetTeacherPwd(t: AdminTeacher): Promise<void> {
 
 async function approveTeacherFn(t: AdminTeacher): Promise<void> {
   const result = await approveTeacher(t.phone)
+  showToast(result.message, result.success ? 'success' : 'error')
+  if (result.success) await loadTeachers()
+}
+
+async function rejectTeacherFn(t: AdminTeacher): Promise<void> {
+  if (!window.confirm(`确认驳回 ${t.name}（${t.phone}）的教师注册申请？驳回后状态为「已驳回」，不影响教师再次提交注册。`)) return
+  const result = await rejectTeacher(t.phone)
   showToast(result.message, result.success ? 'success' : 'error')
   if (result.success) await loadTeachers()
 }
