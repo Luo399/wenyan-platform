@@ -135,6 +135,8 @@ function registerRoutes(app) {
   app.post('/api/admin/teachers/:phone/approve', ...adminAuth, adminController.approveTeacher)
   // 教师驳回（保留 rejected 状态用于审计）
   app.post('/api/admin/teachers/:phone/reject', ...adminAuth, adminController.rejectTeacher)
+  // 年级/班级选项（公开给注册/编辑下拉用，不需 adminAuth — 只返回编码集合）
+  app.get('/api/admin/options/grades-classes', adminController.getGradesAndClasses)
 
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；

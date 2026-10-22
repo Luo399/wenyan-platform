@@ -60,7 +60,16 @@
           </label>
           <label class="field">
             <span>所教班级（逗号分隔 6 位编码）</span>
-            <input v-model.trim="teacherForm.classCodesText" type="text" placeholder="如 202401,202402" />
+            <input
+              v-model.trim="teacherForm.classCodesText"
+              type="text"
+              :disabled="teacherForm.canViewAll"
+              :placeholder="teacherForm.canViewAll ? '全权限，跳过具体班级' : '如 202401,202402'"
+            />
+          </label>
+          <label class="field-inline">
+            <input v-model="teacherForm.canViewAll" type="checkbox" />
+            <span>全年级权限（可查看所有学生答题记录）</span>
           </label>
           <label v-if="editingTeacherPhone" class="field">
             <span>状态</span>
@@ -110,7 +119,14 @@
               <td>{{ t.phone }}</td>
               <td>{{ t.name }}</td>
               <td>{{ t.school_name || t.school_id || '-' }}</td>
-              <td>{{ (t.class_codes || []).join(', ') || '-' }}</td>
+              <td>
+                <template v-if="(t as any).can_view_all">
+                  <span class="full-badge">全年级</span>
+                </template>
+                <template v-else>
+                  {{ (t.class_codes || []).join(', ') || '-' }}
+                </template>
+              </td>
               <td>{{ t.status === 'pending' ? '待审批' : t.status === 'active' ? '启用' : t.status === 'rejected' ? '已驳回' : '禁用' }}</td>
               <td class="op-cell">
                 <template v-if="t.status === 'pending'">
@@ -243,6 +259,7 @@ const teacherForm = reactive({
   schoolId: 1,
   classCodesText: '',
   status: 'active' as 'pending' | 'active' | 'disabled' | 'rejected',
+  canViewAll: false,
 })
 
 const studentForm = reactive({
@@ -312,8 +329,8 @@ async function submitTeacher(): Promise<void> {
     return
   }
   const classCodes = parseClassCodes(teacherForm.classCodesText)
-  if (classCodes.length === 0) {
-    showToast('请至少填写一个所教班级（6 位编码）', 'error')
+  if (!teacherForm.canViewAll && classCodes.length === 0) {
+    showToast('请至少填写一个所教班级，或勾选"全年级权限"', 'error')
     return
   }
   if (!editingTeacherPhone.value && (!teacherForm.password || teacherForm.password.length < 6)) {
@@ -327,7 +344,8 @@ async function submitTeacher(): Promise<void> {
       ? await updateTeacher(editingTeacherPhone.value, {
           name: teacherForm.name,
           school_id: teacherForm.schoolId,
-          class_codes: classCodes,
+          class_codes: teacherForm.canViewAll ? [] : classCodes,
+          can_view_all: teacherForm.canViewAll,
           ...(teacherForm.status !== 'pending' ? { status: teacherForm.status } : {}),
         })
       : await createTeacher({
@@ -335,7 +353,8 @@ async function submitTeacher(): Promise<void> {
           name: teacherForm.name,
           password: teacherForm.password,
           school_id: teacherForm.schoolId,
-          class_codes: classCodes,
+          class_codes: teacherForm.canViewAll ? [] : classCodes,
+          can_view_all: teacherForm.canViewAll,
         })
 
     if (!result.success) {
@@ -356,7 +375,8 @@ function editTeacher(t: AdminTeacher): void {
   teacherForm.name = t.name
   teacherForm.password = ''
   teacherForm.schoolId = t.school_id || 1
-  teacherForm.classCodesText = (t.class_codes || []).join(',')
+  teacherForm.canViewAll = Boolean((t as any).can_view_all)
+  teacherForm.classCodesText = teacherForm.canViewAll ? '' : (t.class_codes || []).join(',')
   teacherForm.status = t.status
 }
 
@@ -368,6 +388,7 @@ function cancelTeacherEdit(): void {
   teacherForm.schoolId = 1
   teacherForm.classCodesText = ''
   teacherForm.status = 'active'
+  teacherForm.canViewAll = false
 }
 
 async function removeTeacher(t: AdminTeacher): Promise<void> {
@@ -688,5 +709,31 @@ onMounted(async () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--color-text, #333);
+  cursor: pointer;
+}
+
+.field-inline input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.full-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #4a6cf7, #6a3cf7);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 </style>

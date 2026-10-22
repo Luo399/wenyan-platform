@@ -38,6 +38,9 @@ const teacherRegisterSchema = z.object({
   phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确'),
   name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20'),
   password: z.string().min(6, '密码长度不能少于 6 位'),
+  // 可选：注册时同时提交所教班级（简化填写，管理员审批时保留/可修改）
+  class_codes: z.array(z.string().regex(/^\d{6}$/, '班级编码应为 6 位数字')).max(50).optional(),
+  can_view_all: z.boolean().optional(),
 })
 
 const teacherLoginSchema = z.object({
@@ -129,10 +132,21 @@ async function teacherRegister(req, res) {
 
     const result = await dbRun(
       db,
-      `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)`,
-      [body.phone, body.name, schoolId, passwordHash, now, now],
+      `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, can_view_all, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
+      [body.phone, body.name, schoolId, passwordHash, body.can_view_all ? 1 : 0, now, now],
     )
+
+    // 注册时可选写 teacher_classes（若用户填了所教班级）
+    if (body.class_codes && body.class_codes.length > 0) {
+      const values = body.class_codes.map((code) => [result.lastID, code])
+      const placeholders = values.map(() => '(?, ?)').join(', ')
+      await dbRun(
+        db,
+        `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code) VALUES ${placeholders}`,
+        values.flat(),
+      )
+    }
 
     res.status(201).json({
       success: true,

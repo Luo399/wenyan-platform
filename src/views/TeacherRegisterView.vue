@@ -152,6 +152,82 @@
           </span>
         </div>
 
+        <!-- 所教班级（可选） -->
+        <div class="form-group">
+          <label class="form-label">所教班级 <span class="optional-hint">（可选，注册后也可由管理员设置）</span></label>
+          <div class="class-picker">
+            <!-- 全年级开关 -->
+            <label class="checkbox-label full-access-label">
+              <input v-model="canViewAll" type="checkbox" class="checkbox-input" />
+              <span class="checkbox-text">全年级权限（可查看所有学生答题记录）</span>
+            </label>
+
+            <template v-if="!canViewAll">
+              <!-- 年级多选 -->
+              <div class="picker-row">
+                <span class="picker-label">年级：</span>
+                <div class="multi-select">
+                  <label v-for="g in grades" :key="g" class="chip-label">
+                    <input
+                      type="checkbox"
+                      :value="g"
+                      v-model="selectedGrades"
+                      class="chip-checkbox"
+                    />
+                    <span class="chip">{{ g }}级</span>
+                  </label>
+                  <span v-if="grades.length === 0" class="empty-hint">暂无数据，可直接输入班级编码</span>
+                </div>
+              </div>
+
+              <!-- 班级多选（按所选年级动态显示） -->
+              <div v-if="selectedGrades.length > 0" class="picker-row">
+                <span class="picker-label">班级：</span>
+                <div class="multi-select">
+                  <label
+                    v-for="code in availableClassCodes"
+                    :key="code"
+                    class="chip-label"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="code"
+                      v-model="classCodes"
+                      class="chip-checkbox"
+                    />
+                    <span class="chip">{{ code.slice(4) }}班</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 手动输入 class_code -->
+              <div class="picker-row manual-row">
+                <span class="picker-label">手动添加：</span>
+                <input
+                  v-model="manualClassCode"
+                  type="text"
+                  class="form-input manual-input"
+                  placeholder="6 位班级编码，如 202401"
+                  maxlength="6"
+                  @keyup.enter="addManualClass"
+                />
+                <button type="button" class="add-class-btn" @click="addManualClass" :disabled="!manualClassCode">添加</button>
+              </div>
+
+              <!-- 已选班级展示 -->
+              <div v-if="classCodes.length > 0" class="selected-classes">
+                <span class="picker-label">已选 {{ classCodes.length }} 个班级：</span>
+                <span class="selected-list">
+                  <span v-for="code in classCodes" :key="code" class="selected-code">
+                    {{ code }}
+                    <button type="button" class="remove-btn" @click="removeClass(code)" aria-label="移除">×</button>
+                  </span>
+                </span>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <!-- 后端错误 -->
         <div v-if="serverError" class="error-box" role="alert" aria-live="assertive">
           <span class="error-icon" aria-hidden="true">⚠</span>
@@ -191,6 +267,7 @@ const bgUrl = getAssetUrl('images', 'login_bg.png')
 const enterTime = Date.now()
 onMounted(() => {
   track('step_enter', 'teacher-register', {})
+  fetchGrades()
 })
 onUnmounted(() => {
   const duration = Date.now() - enterTime
@@ -208,6 +285,57 @@ const showConfirmPassword = ref(false)
 const isSubmitting = ref(false)
 const success = ref(false)
 const serverError = ref('')
+
+// 班级选择器状态
+const canViewAll = ref(false)
+const grades = ref<string[]>([])
+const gradeMap = ref<Record<string, string[]>>({})
+const selectedGrades = ref<string[]>([])
+const classCodes = ref<string[]>([])
+const manualClassCode = ref('')
+
+/** 所选年级对应的所有班级编码（去重） */
+const availableClassCodes = computed(() => {
+  const set = new Set<string>()
+  for (const g of selectedGrades.value) {
+    for (const code of gradeMap.value[g] || []) set.add(code)
+  }
+  return Array.from(set).sort()
+})
+
+/** 拉取年级/班级选项 */
+async function fetchGrades(): Promise<void> {
+  try {
+    const res = await fetch('/api/admin/options/grades-classes')
+    if (res.ok) {
+      const data = await res.json()
+      grades.value = data.data?.grades || []
+      gradeMap.value = data.data?.gradeMap || {}
+    }
+  } catch { /* 忽略：下拉失败不影响注册主流程 */ }
+}
+
+/** 手动添加班级编码 */
+function addManualClass(): void {
+  const code = manualClassCode.value.trim()
+  if (!/^\d{6}$/.test(code)) {
+    serverError.value = '班级编码应为 6 位数字（格式 YYYYCC）'
+    return
+  }
+  if (!classCodes.value.includes(code)) {
+    classCodes.value.push(code)
+  }
+  manualClassCode.value = ''
+  serverError.value = ''
+}
+
+/** 移除一个已选班级 */
+function removeClass(code: string): void {
+  classCodes.value = classCodes.value.filter((c) => c !== code)
+  // 同步清理 selectedGrades（如果移除导致年级下无班级）
+  const leftGrades = new Set(classCodes.value.map((c) => c.slice(0, 4)))
+  selectedGrades.value = selectedGrades.value.filter((g) => leftGrades.has(g))
+}
 
 const touched = reactive({
   name: false,
@@ -280,6 +408,8 @@ async function handleSubmit(): Promise<void> {
         name: name.value.trim(),
         phone: phone.value.trim(),
         password: password.value,
+        class_codes: canViewAll.value ? undefined : classCodes.value,
+        can_view_all: canViewAll.value,
       }),
     })
 
@@ -590,4 +720,144 @@ onMounted(() => {
     border-radius: var(--radius-small);
   }
 }
-</style>
+
+/* ===== 班级选择器 ===== */
+.optional-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #888);
+  font-weight: normal;
+}
+
+.class-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+  padding: var(--spacing-sm, 8px) 0;
+}
+
+.full-access-label {
+  font-size: 0.875rem;
+  padding: 8px 12px;
+  background: var(--color-bg-highlight, #f5f5f5);
+  border-radius: var(--radius-small, 6px);
+  cursor: pointer;
+}
+
+.picker-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.picker-label {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #666);
+  min-width: 48px;
+  padding-top: 4px;
+}
+
+.multi-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.chip-label {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--color-text, #333);
+  background: #fff;
+  transition: all 0.15s ease;
+}
+
+.chip-checkbox:checked + .chip {
+  background: var(--color-primary, #4a6cf7);
+  border-color: var(--color-primary, #4a6cf7);
+  color: #fff;
+}
+
+.chip-label:hover .chip {
+  border-color: var(--color-primary-hover, #3a5ce5);
+}
+
+.empty-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #999);
+  padding: 4px 0;
+}
+
+.manual-row {
+  gap: 6px;
+}
+
+.manual-input {
+  flex: 1;
+  max-width: 180px;
+  font-size: 0.875rem;
+  padding: 6px 10px;
+}
+
+.add-class-btn {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-family: var(--font-family-serif, inherit);
+  background: var(--color-primary, #4a6cf7);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-small, 6px);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.add-class-btn:hover:not(:disabled) { background: var(--color-primary-hover, #3a5ce5); }
+.add-class-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.selected-classes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.selected-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--color-bg-highlight, #eef2ff);
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: var(--color-primary, #4a6cf7);
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary, #4a6cf7);
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+.remove-btn:hover { color: #d33; }
