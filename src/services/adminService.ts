@@ -46,7 +46,7 @@ export interface CreateTeacherParams {
 export interface UpdateTeacherParams {
   name?: string
   school_id?: number
-  status?: 'active' | 'disabled'
+  status?: 'active' | 'disabled' | 'rejected'
   class_codes?: string[]
 }
 
