@@ -4,103 +4,69 @@
  * GET  /api/ai/quota —— 查询当前配额
  */
 
+const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const logger = require('../utils/logger')
 const aiService = require('../services/aiService')
 const aiAlerts = require('../services/aiAlerts')
 
 const INJECTION_KEYWORDS = [
-  '忽略之前的提示',
-  'ignore previous',
-  '你现在是',
-  '现在你是',
-  'system prompt',
-  '忽略所有',
-  '你是管理员',
-  '请忘记之前',
-  'disregard all',
-  'jailbreak',
-  '绕过',
+  '忽略之前的提示', 'ignore previous', '你现在是', '现在你是', 'system prompt',
+  '忽略所有', '你是管理员', '请忘记之前', 'disregard all', 'jailbreak', '绕过',
 ]
+
+const aiChatSchema = z.object({
+  wenId: z.string().min(1, 'wenId 必填').max(100, 'wenId 长度不能超过 100'),
+  messages: z.array(
+    z.object({
+      role: z.enum(['user', 'assistant'], { errorMap: () => ({ message: '仅允许 role 为 user 或 assistant' }) }),
+      content: z.string().min(1, 'content 不能为空字符串').max(2000, '单条 content 最长 2000 字符'),
+    }),
+  ).min(1, 'messages 必须是非空数组').max(20, 'messages 最多 20 条'),
+})
 
 function detectInjection(messages) {
   const lowerKeywords = INJECTION_KEYWORDS.map((k) => k.toLowerCase())
   for (const msg of messages) {
     const content = String(msg.content || '').toLowerCase()
-    if (lowerKeywords.some((kw) => content.includes(kw))) {
-      return true
-    }
+    if (lowerKeywords.some((kw) => content.includes(kw))) return true
   }
   return false
 }
 
-/**
- * POST /api/ai/chat
- * 请求体：{ wenId: string, messages: Array<{role, content}> }
- */
 async function chat(req, res) {
   // 1. 角色二次断言
   if (!req.user || req.user.role !== 'student') {
     return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '仅学生可使用 AI 对话' })
   }
-
   const studentId = req.user.student_id
 
-  // 2. 请求体校验
-  const body = req.body || {}
+  // 2. 请求体 zod 校验
+  let body
+  try {
+    body = aiChatSchema.parse(req.body || {})
+  } catch (err) {
+    return handleZodError(res, err, 'AI 聊天参数校验失败')
+  }
   const { wenId, messages } = body
 
-  if (typeof wenId !== 'string' || wenId.trim().length === 0) {
-    return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'wenId 不能为空字符串' })
-  }
-
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 必须是非空数组' })
-  }
-
-  if (messages.length > 20) {
-    return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 最多 20 条' })
-  }
-
+  // 2.5 system role 专属拦截（zod 只允许 user/assistant，system 由服务端注入，需专属错误码）
+  // 注：zod enum 已排除 system，此处仅保留为防御性检查 + 兼容历史错误码
   for (const msg of messages) {
-    if (!msg || typeof msg !== 'object') {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 每一项必须是对象' })
-    }
-    // system role 禁止在客户端传入（后端注入）—— 必须先于 role 合法性检查返回专属错误码
     if (msg.role === 'system') {
-      return res.status(400).json({
-        success: false,
-        error: 'SYSTEM_ROLE_FORBIDDEN',
-        message: '禁止在 messages 中指定 system 角色',
-      })
-    }
-    if (msg.role !== 'user' && msg.role !== 'assistant') {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: '仅允许 role 为 user 或 assistant' })
-    }
-    if (typeof msg.content !== 'string' || msg.content.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'content 不能为空字符串' })
-    }
-    if (msg.content.length > 2000) {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: '单条 content 最长 2000 字符' })
+      return res.status(400).json({ success: false, error: 'SYSTEM_ROLE_FORBIDDEN', message: '禁止在 messages 中指定 system 角色' })
     }
   }
 
   // 3. Prompt injection 检测
   if (detectInjection(messages)) {
     logger.warn('[aiController] Prompt injection 拦截', { studentId })
-    return res.status(400).json({
-      success: false,
-      error: 'INJECTION_BLOCKED',
-      message: '检测到可疑指令，已拒绝请求',
-    })
+    return res.status(400).json({ success: false, error: 'INJECTION_BLOCKED', message: '检测到可疑指令，已拒绝请求' })
   }
 
   // 5. 并发控制
   if (!aiService.enterConcurrent(studentId)) {
-    return res.status(503).json({
-      success: false,
-      error: 'CONCURRENCY_LIMITED',
-      message: '并发请求过多，请稍后重试',
-    })
+    return res.status(503).json({ success: false, error: 'CONCURRENCY_LIMITED', message: '并发请求过多，请稍后重试' })
   }
 
   try {
@@ -111,9 +77,7 @@ async function chat(req, res) {
       systemMessages = [{ role: 'system', content: systemPrompt }]
     } catch (err) {
       aiService.leaveConcurrent(studentId)
-      if (err.message === 'TEXT_NOT_FOUND') {
-        return res.status(404).json({ success: false, error: 'TEXT_NOT_FOUND', message: '课文不存在' })
-      }
+      if (err.message === 'TEXT_NOT_FOUND') return res.status(404).json({ success: false, error: 'TEXT_NOT_FOUND', message: '课文不存在' })
       logger.error('[aiController] buildSystemPrompt 异常', { error: err.message })
       return res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '构造 prompt 失败' })
     }
@@ -122,23 +86,15 @@ async function chat(req, res) {
 
     // 7. 配额预检
     const preQuota = await aiService.checkQuotaOnly(studentId)
-    // 任一 bucket 使用率 >80% 触发配额预警（每自然日每学生只告警一次）
     aiAlerts.checkQuotaAlert(studentId, preQuota)
-    // 粗略估算：每条 message content 按 0.5 token/字算
     const estimatedTokens = messages.reduce((sum, m) => sum + Math.ceil(String(m.content).length / 2), 0)
-    // 关键修复：`limit - used` 可能为 0（完全用完），直接用它，不要用 || Infinity
     const dailyRemaining = preQuota.daily.limit - preQuota.daily.used
     const weeklyRemaining = preQuota.weekly.limit - preQuota.weekly.used
     const monthlyRemaining = preQuota.monthly.limit - preQuota.monthly.used
     const maxLimit = Math.min(dailyRemaining, weeklyRemaining, monthlyRemaining)
     if (estimatedTokens > maxLimit) {
       aiService.leaveConcurrent(studentId)
-      return res.status(429).json({
-        success: false,
-        error: 'QUOTA_EXCEEDED',
-        message: '配额不足，请稍后再试',
-        quota: preQuota,
-      })
+      return res.status(429).json({ success: false, error: 'QUOTA_EXCEEDED', message: '配额不足，请稍后再试', quota: preQuota })
     }
 
     // 8. 调用 DeepSeek
@@ -147,24 +103,11 @@ async function chat(req, res) {
       resp = await aiService.callDeepSeek(finalMessages)
       aiAlerts.resetDownstreamErrorCount()
     } catch (err) {
-      // 仅下游/网络/超时错误计入连续异常计数；AI_UNAVAILABLE 是配置问题，不计
-      if (err.message !== 'AI_UNAVAILABLE') {
-        aiAlerts.trackDownstreamError()
-      }
+      if (err.message !== 'AI_UNAVAILABLE') aiAlerts.trackDownstreamError()
       aiService.leaveConcurrent(studentId)
       logger.error('[aiController] DeepSeek 调用失败', { error: err.message })
-      if (err.message === 'AI_UNAVAILABLE') {
-        return res.status(503).json({
-          success: false,
-          error: 'AI_UNAVAILABLE',
-          message: 'AI 服务未配置，请联系管理员',
-        })
-      }
-      return res.status(502).json({
-        success: false,
-        error: err.message === 'DEEPSEEK_TIMEOUT' ? 'DEEPSEEK_TIMEOUT' : 'DEEPSEEK_DOWNSTREAM_ERROR',
-        message: 'AI 服务暂时不可用，请稍后重试',
-      })
+      if (err.message === 'AI_UNAVAILABLE') return res.status(503).json({ success: false, error: 'AI_UNAVAILABLE', message: 'AI 服务未配置，请联系管理员' })
+      return res.status(502).json({ success: false, error: err.message === 'DEEPSEEK_TIMEOUT' ? 'DEEPSEEK_TIMEOUT' : 'DEEPSEEK_DOWNSTREAM_ERROR', message: 'AI 服务暂时不可用，请稍后重试' })
     }
 
     // 9. 取 usage
@@ -176,14 +119,8 @@ async function chat(req, res) {
     // 10. 扣配额
     const quotaResult = await aiService.checkAndConsumeQuota(studentId, totalTokens)
     if (!quotaResult.ok) {
-      // 这里理论上不会触发（预检已通过），但保护下
       aiService.leaveConcurrent(studentId)
-      return res.status(429).json({
-        success: false,
-        error: 'QUOTA_EXCEEDED',
-        message: '配额不足，请稍后再试',
-        quota: { daily: quotaResult.daily, weekly: quotaResult.weekly, monthly: quotaResult.monthly },
-      })
+      return res.status(429).json({ success: false, error: 'QUOTA_EXCEEDED', message: '配额不足，请稍后再试', quota: { daily: quotaResult.daily, weekly: quotaResult.weekly, monthly: quotaResult.monthly } })
     }
 
     // 11. 记录 usage（fire-and-forget）
@@ -192,8 +129,6 @@ async function chat(req, res) {
     // 12. 处理回复
     const rawReply = resp.choices?.[0]?.message?.content || ''
     const sanitizedReply = aiService.sanitizeAiReply(rawReply)
-
-    // AI 输出二次审核
     const moderation = aiService.checkModeration(rawReply)
     let finalReply = sanitizedReply
     if (!moderation.passed) {
@@ -202,16 +137,7 @@ async function chat(req, res) {
     }
 
     aiService.leaveConcurrent(studentId)
-
-    return res.json({
-      success: true,
-      data: {
-        reply: finalReply,
-        usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens },
-        quota: { daily: quotaResult.daily, weekly: quotaResult.weekly, monthly: quotaResult.monthly },
-        streaming: false,
-      },
-    })
+    return res.json({ success: true, data: { reply: finalReply, usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens }, quota: { daily: quotaResult.daily, weekly: quotaResult.weekly, monthly: quotaResult.monthly }, streaming: false } })
   } catch (err) {
     aiService.leaveConcurrent(studentId)
     logger.error('[aiController] chat 异常', { error: err.message, stack: err.stack })
@@ -219,9 +145,6 @@ async function chat(req, res) {
   }
 }
 
-/**
- * GET /api/ai/quota
- */
 async function getQuota(req, res) {
   if (!req.user || req.user.role !== 'student') {
     return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '仅学生可查询配额' })
@@ -235,7 +158,4 @@ async function getQuota(req, res) {
   }
 }
 
-module.exports = {
-  chat,
-  getQuota,
-}
+module.exports = { chat, getQuota }
