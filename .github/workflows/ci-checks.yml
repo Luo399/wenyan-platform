@@ -18,6 +18,8 @@ on:
       - 'package.json'
       - 'eslint.config.ts'
       - '.oxlintrc.json'
+      - 'vitest.config.ts'
+      - 'vite.config.ts'
       - '.github/workflows/ci-checks.yml'
 
 jobs:
