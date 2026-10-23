@@ -12,7 +12,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    include: ['tests/**/*.spec.ts'],
+    // threads 比 forks 稳：forks 模式下 jsdom 30 + Node 20 会触发 webidl.markAsUncloneable 序列化崩溃
+    pool: 'threads',
+    include: [
+      'tests/**/*.spec.ts',
+      'src/**/*.test.ts',
+    ],
     exclude: ['**/node_modules/**', '**/backend/tests/**'],
   },
 })
