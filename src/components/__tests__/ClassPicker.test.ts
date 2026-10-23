@@ -21,10 +21,6 @@ function factory(props?: Partial<{ modelValue: string[]; options: ClassOptions }
       options: MOCK_OPTIONS,
       ...props,
     },
-    global: {
-      // 组件里 import 的路径别名需要 resolve
-      stubs: {},
-    },
   }) as VueWrapper<InstanceType<typeof ClassPicker>>
 }
 
@@ -36,20 +32,16 @@ describe('ClassPicker 组件', () => {
       expect(w.get('[data-testid="grade-2023"]').text()).toContain('2023级')
     })
 
-    it('modelValue 初始为空数组 → 全权限 checkbox 不勾选 + 具体班级选择隐藏', () => {
+    it('modelValue 初始为空数组 → 全权限 checkbox 不勾选 + 具体班级选择显示', () => {
       const w = factory({ modelValue: [] })
       expect(w.find('[data-testid="full-access-checkbox"]').element.checked).toBe(false)
-      expect(w.find('[data-testid="specific-picker"]').exists()).toBe(true) // v-if="!isFullAccess"
+      expect(w.find('[data-testid="specific-picker"]').exists()).toBe(true)
     })
 
-    it('onMounted 不调 fetch（因为传了 options prop）', async () => {
-      vi.doUnmock('@/services/classOptions')
-      // 不传 options 才会触发 fetch
-      const { fetchGradesAndClasses } = await import('@/services/classOptions')
-      const spy = vi.fn(fetchGradesAndClasses)
-      vi.doMock('@/services/classOptions', () => ({ fetchGradesAndClasses: spy }))
-      // 这个 case 其实没意义——factory 永远传 options，所以 spy 不会被调用
-      // 真正要测 fetch 被调用需要 mount 时不传 options
+    it('modelValue 初始有值 → 全权限 checkbox 不勾选 + 具体班级选择显示', () => {
+      const w = factory({ modelValue: ['202401'] })
+      expect(w.find('[data-testid="full-access-checkbox"]').element.checked).toBe(false)
+      expect(w.find('[data-testid="specific-picker"]').exists()).toBe(true)
     })
   })
 
@@ -80,7 +72,7 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="specific-picker"]').exists()).toBe(false)
     })
 
-    it('取消全权限 → emit fullAccess=false，但 modelValue 仍为空（用户需要重新选）', async () => {
+    it('取消全权限 → emit fullAccess=false，specific-picker 重新显示', async () => {
       const w = factory({ modelValue: ['202401'] })
       const cb = w.get('[data-testid="full-access-checkbox"]')
       await cb.setChecked(true) // 先开
@@ -95,7 +87,7 @@ describe('ClassPicker 组件', () => {
   describe('年级 + 班级 chip 选择（动态联动）', () => {
     it('选 2024 级 → 班级 chip 动态显示 202401/202402/202403', async () => {
       const w = factory()
-      // 选 2024
+      // 选 2024（chip 的 input 是隐藏的，直接 setChecked）
       await w.get('[data-testid="grade-2024"]').find('input').setChecked(true)
       // 班级行出现，且有 3 个班级
       expect(w.find('[data-testid="class-row"]').exists()).toBe(true)
@@ -157,10 +149,10 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="selected-202501"]').exists()).toBe(true)
     })
 
-    it('非法编码（非 6 位 / 字母 / 前导空格）→ 不添加、不清空', async () => {
+    it('非法编码（非 6 位 / 字母 / 前导空格）→ 不添加', async () => {
       const cases = ['', 'abc', '123', '20250', ' 202501', '2025011']
-      for (const input of cases) {
-        await w.get('[data-testid="manual-input"]').setValue(input)
+      for (const val of cases) {
+        await w.get('[data-testid="manual-input"]').setValue(val)
         await w.get('[data-testid="add-btn"]').trigger('click')
       }
       // 全部无效，所以 selected-row 不应出现
@@ -197,7 +189,7 @@ describe('ClassPicker 组件', () => {
       expect(emitted[emitted.length - 1][0]).toEqual(['202402'])
     })
 
-    it('移除后若该年级下已无班级 → selectedGrades 反推清空对应年级', async () => {
+    it('移除后若该年级下已无班级 → 年级 chip 自动反推清空', async () => {
       const w = factory()
       await w.get('[data-testid="grade-2024"]').find('input').setChecked(true)
       await w.get('[data-testid="class-202401"]').find('input').setChecked(true)
@@ -213,17 +205,29 @@ describe('ClassPicker 组件', () => {
     })
   })
 
-  describe('props.options 未传时的 onMounted fetch', () => {
-    it('mount 时不传 options → 调 fetchGradesAndClasses', async () => {
-      const { fetchGradesAndClasses } = await import('@/services/classOptions')
-      const spy = vi.fn().mockResolvedValue({ grades: ['2022'], gradeMap: { '2022': ['202201'] } })
-      vi.doMock('@/services/classOptions', () => ({ fetchGradesAndClasses: spy }))
+  describe('fetch 调用（不传 options 时 onMounted 触发）', () => {
+    it('mount 不传 options → fetchGradesAndClasses 被调用一次', async () => {
+      // 用 vi.doMock + dynamic import 替换模块
+      const spy = vi.fn().mockResolvedValue({
+        grades: ['2022'],
+        gradeMap: { '2022': ['202201'] },
+      })
+      vi.doMock('@/services/classOptions', () => ({
+        fetchGradesAndClasses: spy,
+      }))
 
-      // 重新动态 import 触发 mock（vitest 的 mock 需要在文件顶层或用 await import）
-      // 简化处理：直接验证 factory 不传 options 时 mount 后 spy 被调用
-      await import('../ClassPicker.vue') // 清缓存
+      // 重新 mount（dynamic import 让 mock 生效）
+      const { default: FreshClassPicker } = await import('../ClassPicker.vue?fresh=1')
+      const w = mount(FreshClassPicker as any, {
+        props: { modelValue: [] },
+      })
 
-      // 实际上 vitest 的 vi.doMock 对动态 import 可能不生效，这里用 spyOn 直接 mock
+      // 等 onMounted 的 async fetch 完成
+      await vi.waitFor(() => {
+        expect(spy).toHaveBeenCalledTimes(1)
+      })
+      expect(w.findAll('[data-testid^="grade-2022"]').length).toBe(1)
+      vi.doUnmock('@/services/classOptions')
     })
   })
 })
