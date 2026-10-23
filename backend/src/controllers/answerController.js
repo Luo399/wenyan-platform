@@ -175,23 +175,27 @@ async function getAnswersByWenId(req, res) {
         return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
       }
       const classCodes = await getTeacherClassCodes(t.id)
+      // 全权限：can_view_all=1 时 getTeacherClassCodes 返回 ['*']，跳过班级过滤
       if (classCodes.length === 0) {
         return res.status(200).json({ success: true, data: { ...data, studentCount: 0, students: [] } })
       }
-      // 把 teacher 无权查看的学生过滤掉
-      const teacherClassSet = new Set(classCodes)
-      const studentIds = (data.students || []).map((s) => s.studentId)
-      const studentClassMap = {}
-      if (studentIds.length > 0) {
-        const rows = await dbAll(
-          db,
-          `SELECT student_id, class_code FROM students WHERE student_id IN (${studentIds.map(() => '?').join(',')})`,
-          studentIds,
-        )
-        for (const r of rows) studentClassMap[r.student_id] = r.class_code
+      const isFullAccess = classCodes.includes('*')
+      if (!isFullAccess) {
+        // 把 teacher 无权查看的学生过滤掉
+        const teacherClassSet = new Set(classCodes)
+        const studentIds = (data.students || []).map((s) => s.studentId)
+        const studentClassMap = {}
+        if (studentIds.length > 0) {
+          const rows = await dbAll(
+            db,
+            `SELECT student_id, class_code FROM students WHERE student_id IN (${studentIds.map(() => '?').join(',')})`,
+            studentIds,
+          )
+          for (const r of rows) studentClassMap[r.student_id] = r.class_code
+        }
+        data.students = (data.students || []).filter((s) => teacherClassSet.has(studentClassMap[s.studentId]))
+        data.studentCount = data.students.length
       }
-      data.students = (data.students || []).filter((s) => teacherClassSet.has(studentClassMap[s.studentId]))
-      data.studentCount = data.students.length
     }
 
     res.status(200).json({ success: true, data })
