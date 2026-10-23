@@ -11,7 +11,9 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    // happy-dom 比 jsdom 稳：jsdom 30 + Node 20 内置 undici 在 CacheStorage 初始化时
+    // 触发 webidl.util.markAsUncloneable 不存在；happy-dom 无此问题
+    environment: 'happy-dom',
     // threads 比 forks 稳：forks 模式下 jsdom 30 + Node 20 会触发 webidl.markAsUncloneable 序列化崩溃
     pool: 'threads',
     // 只跑 src 下的新测试；tests/**/*.spec.ts 那批老测试用了过期的 @vue/test-utils 1.x 写法
