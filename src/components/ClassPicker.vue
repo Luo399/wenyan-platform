@@ -112,6 +112,12 @@ export interface ClassPickerProps {
   /** 当前选中的 class_code 数组（v-model） */
   modelValue?: string[]
   /**
+   * 可选：父组件传入的全年级权限状态。
+   * 不传时组件内部自管 fullAccess（内部状态 + emit 通知父组件）。
+   * 传了则双向同步（v-model:fullAccess 语义）。
+   */
+  fullAccess?: boolean
+  /**
    * 直接传入年级/班级选项 —— 有值时跳过 fetch（测试友好、SSR 友好）
    * 不传则在 onMounted 从后端拉取
    */
@@ -135,10 +141,31 @@ const gradeMap = ref<Record<string, string[]>>(props.options?.gradeMap ?? {})
 const innerClassCodes = ref<string[]>([...props.modelValue])
 const selectedGrades = ref<string[]>([])
 const manualCode = ref('')
+/** 内部 fullAccess 状态（仅当 props.fullAccess 未传时使用） */
+const innerFullAccess = ref(false)
 
 // ===== 派生 =====
-/** 当前是否处于"全年级权限"状态（两种等价条件：外部 fullAccess=true，或内部 classCodes=[]） */
-const isFullAccess = computed(() => innerClassCodes.value.length === 0)
+/**
+ * 当前是否处于"全年级权限"状态。
+ * 优先使用父组件传入的 props.fullAccess；未传时用内部状态。
+ * 与 classCodes 解耦：fullAccess=true 时父组件应清空 classCodes，
+ * 但组件本身不强制两者等价。
+ */
+const isFullAccess = computed({
+  get: () => props.fullAccess ?? innerFullAccess.value,
+  set: (v: boolean) => {
+    if (props.fullAccess === undefined) {
+      innerFullAccess.value = v
+    }
+    emit('update:fullAccess', v)
+    // 打开全权限时清空已选班级（同步 modelValue）；关闭时保持 classCodes 原样
+    if (v) {
+      innerClassCodes.value = []
+      selectedGrades.value = []
+      emit('update:modelValue', [])
+    }
+  },
+})
 
 /** 所选年级对应的所有可选班级（去重排序） */
 const availableCodes = computed(() => {
@@ -155,6 +182,19 @@ watch(
   (val) => { innerClassCodes.value = [...val] },
 )
 watch(
+  () => props.fullAccess,
+  (val) => {
+    if (val !== undefined) {
+      innerFullAccess.value = val
+      // 外部强制打开全权限时清空 classCodes
+      if (val) {
+        innerClassCodes.value = []
+        selectedGrades.value = []
+      }
+    }
+  },
+)
+watch(
   () => props.options,
   (val) => {
     if (val) {
@@ -167,18 +207,19 @@ watch(
 // ===== 事件处理 =====
 /** 全年级开关切换 */
 function onFullToggle(e: Event) {
-  const checked = (e.target as HTMLInputElement).checked
-  if (checked) {
-    innerClassCodes.value = []
-    selectedGrades.value = []
-  }
-  emitChange()
+  isFullAccess.value = (e.target as HTMLInputElement).checked
 }
 
-/** 同步内部选择到父组件（v-model + fullAccess） */
+/** 同步内部选择到父组件（v-model + fullAccess 保持不变） */
 function emitChange() {
   emit('update:modelValue', [...innerClassCodes.value])
-  emit('update:fullAccess', innerClassCodes.value.length === 0)
+  // 仅当 classCodes 非空时，强制 fullAccess=false（因为有具体班级选中了）
+  if (innerClassCodes.value.length > 0) {
+    if (props.fullAccess === undefined) {
+      innerFullAccess.value = false
+    }
+    emit('update:fullAccess', false)
+  }
   // 根据当前选中的班级反推保留有效的年级（避免已选的年级在移除对应班级后残留）
   const gSet = new Set(innerClassCodes.value.map((c) => c.slice(0, 4)))
   selectedGrades.value = selectedGrades.value.filter((g) => gSet.has(g))
