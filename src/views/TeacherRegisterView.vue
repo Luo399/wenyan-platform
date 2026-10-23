@@ -152,23 +152,10 @@
           </span>
         </div>
 
-        <!-- 所教班级（可选） -->
+        <!-- 所教班级（可选，独立 ClassPicker 子组件） -->
         <div class="form-group">
-          <label class="form-label">
-            所教班级
-            <span class="optional-hint">（可选，逗号分隔 6 位编码如 202401,202402）</span>
-          </label>
-          <label class="checkbox-label">
-            <input v-model="canViewAll" type="checkbox" />
-            <span>全年级权限</span>
-          </label>
-          <input
-            :disabled="canViewAll"
-            v-model="classCodesText"
-            type="text"
-            class="form-input"
-            placeholder="如 202401,202402"
-          />
+          <label class="form-label">所教班级 <span class="optional-hint">（可选）</span></label>
+          <ClassPicker v-model="classCodes" @update:full-access="onFullAccessChange" />
         </div>
 
         <!-- 后端错误 -->
@@ -197,6 +184,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import ClassPicker from '@/components/ClassPicker.vue'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 import { track } from '@/utils/tracking'
@@ -227,12 +215,13 @@ const showConfirmPassword = ref(false)
 const isSubmitting = ref(false)
 const success = ref(false)
 const serverError = ref('')
+// 班级选择器状态（由独立 ClassPicker 子组件驱动）
+const classCodes = ref<string[]>([])
 const canViewAll = ref(false)
-const classCodesText = ref('')
 
-/** 解析逗号/空格分隔的班级编码 */
-function parseClassCodes(text: string): string[] {
-  return text.split(/[,，\s]+/).map((s) => s.trim()).filter((s) => /^\d{6}$/.test(s))
+/** ClassPicker 全权限开关回调 */
+function onFullAccessChange(v: boolean): void {
+  canViewAll.value = v
 }
 
 const touched = reactive({
@@ -306,7 +295,7 @@ async function handleSubmit(): Promise<void> {
         name: name.value.trim(),
         phone: phone.value.trim(),
         password: password.value,
-        class_codes: canViewAll.value ? undefined : parseClassCodes(classCodesText.value),
+        class_codes: canViewAll.value ? undefined : classCodes.value,
         can_view_all: canViewAll.value,
       }),
     })
