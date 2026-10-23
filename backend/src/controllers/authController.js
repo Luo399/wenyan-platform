@@ -1,489 +1,85 @@
-const jwt = require('jsonwebtoken')
+/** Auth Controller — zod 统一校验 + handleZodError 收敛 */
+
 const { z } = require('zod')
-const config = require('../config/app')
-const { db } = require('../config/database')
-const { dbGet, dbRun, dbAll, dbTransaction } = require('../utils/dbPromise')
+const { handleZodError } = require('../middleware/validate')
+const { loginStudent, registerTeacher, loginTeacher, loginAdmin, refreshAccessToken, changePassword, teacherChangePassword } = require('../services/authService')
 const logger = require('../utils/logger')
-const {
-  hashPassword,
-  verifyPassword,
-  getDefaultPasswordHash,
-  extractClassCode,
-} = require('../services/authService')
 
-// 统一格式正则
-// 学号：严格 8 位纯数字
-const STUDENT_ID_REGEX = /^\d{8}$/
+const studentLoginSchema = z.object({ studentId: z.string().regex(/^\d{8}$/, '学号必须为 8 位数字'), password: z.string().min(1, '密码必填').max(100) })
+const teacherRegisterSchema = z.object({ email: z.string().email('邮箱格式不正确'), password: z.string().min(6, '密码至少 6 位').max(100), name: z.string().min(1).max(50), can_view_all: z.boolean().optional(), class_codes: z.array(z.string().regex(/^\d{6}$/, '班级编码格式不正确（应为 4 位年级 + 2 位班级序号）')).optional() })
+const teacherLoginSchema = z.object({ email: z.string().email('邮箱格式不正确'), password: z.string().min(1).max(100) })
+const adminLoginSchema = z.object({ email: z.string().email('邮箱格式不正确'), password: z.string().min(1).max(100) })
+const refreshTokenSchema = z.object({ refreshToken: z.string().min(1, 'refreshToken 必填').max(1000) })
+const changePasswordSchema = z.object({ oldPassword: z.string().min(1).max(100), newPassword: z.string().min(6, '新密码至少 6 位').max(100) })
+const teacherChangePasswordSchema = z.object({ oldPassword: z.string().min(1).max(100), newPassword: z.string().min(6, '新密码至少 6 位').max(100) })
 
-// 班级编码：4 位年级 + 2 位班级序号（01-31）
-const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
-
-/**
- * 生成统一格式的 JWT
- * @param {object} payload  自定义字段，必须包含 role
- */
-function signToken(payload) {
-  return jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiresIn })
+function tryParse(schema, body) {
+  return schema.parse(body || {})
 }
-
-// ===== Zod 参数校验 Schema =====
-const studentLoginSchema = z.object({
-  student_id: z
-    .string()
-    .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
-  password: z.string().min(6, '密码长度不能少于 6 位'),
-})
-
-const teacherRegisterSchema = z.object({
-  phone: z.string().regex(/^1[3-9]\d{9}$/, '手机号格式不正确'),
-  name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20'),
-  password: z.string().min(6, '密码长度不能少于 6 位'),
-  // 可选：注册时同时提交所教班级（简化填写，管理员审批时保留/可修改）
-  class_codes: z.array(z.string().regex(/^\d{6}$/, '班级编码应为 6 位数字')).max(50).optional(),
-  can_view_all: z.boolean().optional(),
-})
-
-const teacherLoginSchema = z.object({
-  phone: z.string().min(1, '手机号/用户名必填'),
-  password: z.string().min(6, '密码长度不能少于 6 位'),
-})
-
-const adminLoginSchema = z.object({
-  username: z.string().min(1, '用户名必填'),
-  password: z.string().min(6, '密码长度不能少于 6 位'),
-})
-
-const changePasswordSchema = z.object({
-  old_password: z.string().min(1, '原密码必填'),
-  new_password: z.string().min(6, '新密码长度不能少于 6 位'),
-})
-
-// ===== 各角色登录 =====
 
 async function studentLogin(req, res) {
   try {
-    const body = studentLoginSchema.parse(req.body)
-    const student = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [
-      body.student_id,
-    ])
-    if (!student) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '学号或密码错误',
-      })
-    }
-    const ok = await verifyPassword(body.password, student.password_hash)
-    if (!ok) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '学号或密码错误',
-      })
-    }
-    const token = signToken({
-      role: 'student',
-      student_id: student.student_id,
-    })
-    res.status(200).json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: student.student_id,
-          username: student.student_id,
-          student_id: student.student_id,
-          student_name: student.student_name,
-          class_code: student.class_code,
-          must_reset_password: !!student.must_reset_password,
-          role: 'student',
-        },
-      },
-    })
-  } catch (err) {
-    return handleAuthError(res, err, '学生登录失败')
-  }
+    const body = tryParse(studentLoginSchema, req.body)
+    const result = await loginStudent(body.studentId, body.password)
+    if (result.token) return res.status(200).json({ success: true, message: '登录成功', data: result })
+    return res.status(401).json({ success: false, message: result.error || '登录失败' })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('学生登录失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
 
 async function teacherRegister(req, res) {
   try {
-    const body = teacherRegisterSchema.parse(req.body)
-
-    // 手机号是否已被占用
-    const exists = await dbGet(db, 'SELECT 1 FROM teachers WHERE phone = ? LIMIT 1', [
-      body.phone,
-    ])
-    if (exists) {
-      return res.status(409).json({
-        success: false,
-        error: 'PHONE_ALREADY_REGISTERED',
-        message: '该手机号已注册',
-      })
-    }
-
-    const passwordHash = await hashPassword(body.password)
-    const now = new Date().toISOString()
-
-    // 简化注册：只写 teachers 表，school_id / class_codes 后续由个人中心补充
-    // teachers.school_id 列定义为 NOT NULL + FOREIGN KEY，这里塞 schools 表第一个 id 占位
-    // （SQLite 不支持 ALTER COLUMN，待个人中心支持后再让用户自行修改）
-    const defaultSchool = await dbGet(db, 'SELECT id FROM schools LIMIT 1')
-    const schoolId = defaultSchool?.id ?? 1
-
-    const result = await dbRun(
-      db,
-      `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, can_view_all, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
-      [body.phone, body.name, schoolId, passwordHash, body.can_view_all ? 1 : 0, now, now],
-    )
-
-    // 注册时可选写 teacher_classes（若用户填了所教班级）
-    if (body.class_codes && body.class_codes.length > 0) {
-      const values = body.class_codes.map((code) => [result.lastID, code])
-      const placeholders = values.map(() => '(?, ?)').join(', ')
-      await dbRun(
-        db,
-        `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code) VALUES ${placeholders}`,
-        values.flat(),
-      )
-    }
-
-    res.status(201).json({
-      success: true,
-      message: '注册成功，等待管理员审批',
-      data: { pending: true, teacher_id: result.lastID },
-    })
-  } catch (err) {
-    return handleAuthError(res, err, '教师注册失败')
-  }
+    const body = tryParse(teacherRegisterSchema, req.body)
+    const result = await registerTeacher(body.email, body.password, body.name, { can_view_all: body.can_view_all, class_codes: body.class_codes })
+    if (result.success) return res.status(201).json({ success: true, message: result.message })
+    return res.status(400).json({ success: false, message: result.error })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('教师注册失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
 
 async function teacherLogin(req, res) {
   try {
-    const body = teacherLoginSchema.parse(req.body)
-    const teacher = await dbGet(db, 'SELECT * FROM teachers WHERE phone = ?', [body.phone])
-    if (!teacher) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '手机号或密码错误',
-      })
-    }
-    if (teacher.status === 'pending') {
-      return res.status(403).json({
-        success: false,
-        error: 'ACCOUNT_PENDING',
-        message: '账号待管理员审批，请联系学校管理员',
-      })
-    }
-    if (teacher.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        error: 'ACCOUNT_DISABLED',
-        message: '账号已被禁用',
-      })
-    }
-    const ok = await verifyPassword(body.password, teacher.password_hash)
-    if (!ok) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '手机号或密码错误',
-      })
-    }
-    // 记录最后登录时间
-    await dbRun(db, `UPDATE teachers SET updated_at = ? WHERE id = ?`, [
-      new Date().toISOString(),
-      teacher.id,
-    ])
-    const classCodes = await dbAll(
-      db,
-      `SELECT class_code FROM teacher_classes WHERE teacher_id = ?`,
-      [teacher.id],
-    ).then((rows) => rows.map((r) => r.class_code))
-
-    const token = signToken({
-      role: 'teacher',
-      phone: teacher.phone,
-    })
-    res.status(200).json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: teacher.phone,
-          username: teacher.phone,
-          phone: teacher.phone,
-          name: teacher.name,
-          school_id: teacher.school_id,
-          class_codes: classCodes,
-          role: 'teacher',
-        },
-      },
-    })
-  } catch (err) {
-    return handleAuthError(res, err, '教师登录失败')
-  }
+    const body = tryParse(teacherLoginSchema, req.body)
+    const result = await loginTeacher(body.email, body.password)
+    if (result.token) return res.status(200).json({ success: true, message: '登录成功', data: result })
+    return res.status(401).json({ success: false, message: result.error || '登录失败' })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('教师登录失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
 
 async function adminLogin(req, res) {
   try {
-    const body = adminLoginSchema.parse(req.body)
-    const admin = await dbGet(db, 'SELECT * FROM admins WHERE username = ?', [body.username])
-    if (!admin) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '用户名或密码错误',
-      })
-    }
-    const ok = await verifyPassword(body.password, admin.password_hash)
-    if (!ok) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '用户名或密码错误',
-      })
-    }
-    await dbRun(db, `UPDATE admins SET last_login_at = ? WHERE id = ?`, [
-      new Date().toISOString(),
-      admin.id,
-    ])
-    const token = signToken({
-      role: admin.role || 'admin',
-      username: admin.username,
-    })
-    res.status(200).json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: admin.username,
-          username: admin.username,
-          name: admin.name,
-          role: admin.role || 'admin',
-        },
-      },
-    })
-  } catch (err) {
-    return handleAuthError(res, err, '管理员登录失败')
-  }
+    const body = tryParse(adminLoginSchema, req.body)
+    const result = await loginAdmin(body.email, body.password)
+    if (result.token) return res.status(200).json({ success: true, message: '登录成功', data: result })
+    return res.status(401).json({ success: false, message: result.error || '登录失败' })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('管理员登录失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
 
-// ===== 自助改密 =====
-
-/**
- * 登录态自己修改自己密码
- * 支持 student / teacher / admin 三个角色
- */
-async function changePassword(req, res) {
-  try {
-    const body = changePasswordSchema.parse(req.body)
-    const user = req.user
-    if (!user || !user.role) {
-      return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
-    }
-
-    let row = null
-    let idKey = null
-    let idValue = null
-    let tableName = null
-
-    switch (user.role) {
-      case 'student':
-        row = await dbGet(db, `SELECT * FROM students WHERE student_id = ?`, [user.student_id])
-        idKey = 'student_id'
-        idValue = user.student_id
-        tableName = 'students'
-        break
-      case 'teacher':
-        row = await dbGet(db, `SELECT * FROM teachers WHERE phone = ?`, [user.phone])
-        idKey = 'phone'
-        idValue = user.phone
-        tableName = 'teachers'
-        break
-      case 'admin':
-      case 'super_admin':
-        row = await dbGet(db, `SELECT * FROM admins WHERE username = ?`, [user.username])
-        idKey = 'username'
-        idValue = user.username
-        tableName = 'admins'
-        break
-      default:
-        return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '未知角色' })
-    }
-
-    if (!row) {
-      return res.status(404).json({
-        success: false,
-        error: 'USER_NOT_FOUND',
-        message: '账号不存在',
-      })
-    }
-
-    const match = await verifyPassword(body.old_password, row.password_hash)
-    if (!match) {
-      return res.status(400).json({
-        success: false,
-        error: 'OLD_PASSWORD_WRONG',
-        message: '原密码错误',
-      })
-    }
-
-    const newHash = await hashPassword(body.new_password)
-    const now = new Date().toISOString()
-
-    // 学生改密后，解除首次登录强制改密标记
-    if (user.role === 'student') {
-      await dbRun(
-        db,
-        `UPDATE students SET password_hash = ?, must_reset_password = 0, updated_at = ? WHERE student_id = ?`,
-        [newHash, now, idValue],
-      )
-    } else {
-      await dbRun(
-        db,
-        `UPDATE ${tableName} SET password_hash = ?, updated_at = ? WHERE ${idKey} = ?`,
-        [newHash, now, idValue],
-      )
-    }
-
-    res.status(200).json({ success: true, message: '密码修改成功' })
-  } catch (err) {
-    return handleAuthError(res, err, '密码修改失败')
-  }
-}
-
-// ===== 令牌刷新（F-004）=====
-
-/**
- * 刷新当前登录态令牌。
- *
- * 背景：前端 stores/auth.ts 早已实现 refreshToken()，但后端从未提供
- * /api/auth/refresh，导致该函数是死代码、会话无法续期（F-004），
- * 用户每到有效期就被强制登出（F-001）。
- *
- * 安全：必须携带有效 token（路由层 requireAuthMiddleware），
- * 并重新校验账号仍存在、教师仍启用；禁止仅凭旧 token 字段原样重签。
- */
 async function refreshToken(req, res) {
   try {
-    const user = req.user
-    if (!user || !user.role) {
-      return res.status(401).json({
-        success: false,
-        error: 'AUTH_REQUIRED',
-        message: '需要登录',
-      })
-    }
-
-    let payload
-    let profile
-
-    if (user.role === 'student') {
-      const student = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [
-        user.student_id,
-      ])
-      if (!student) {
-        return res.status(401).json({
-          success: false,
-          error: 'AUTH_FAILED',
-          message: '账号不存在，请重新登录',
-        })
-      }
-      payload = { role: 'student', student_id: student.student_id }
-      profile = {
-        id: student.student_id,
-        username: student.student_id,
-        student_id: student.student_id,
-        student_name: student.student_name,
-        class_code: student.class_code,
-        must_reset_password: !!student.must_reset_password,
-        role: 'student',
-      }
-    } else if (user.role === 'teacher') {
-      const teacher = await dbGet(db, 'SELECT * FROM teachers WHERE phone = ?', [user.phone])
-      if (!teacher) {
-        return res.status(401).json({
-          success: false,
-          error: 'AUTH_FAILED',
-          message: '账号不存在，请重新登录',
-        })
-      }
-      if (teacher.status !== 'active') {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCOUNT_DISABLED',
-          message: '账号已被禁用',
-        })
-      }
-      const classCodes = await dbAll(
-        db,
-        `SELECT class_code FROM teacher_classes WHERE teacher_id = ?`,
-        [teacher.id],
-      ).then((rows) => rows.map((r) => r.class_code))
-      payload = { role: 'teacher', phone: teacher.phone }
-      profile = {
-        id: teacher.phone,
-        username: teacher.phone,
-        phone: teacher.phone,
-        name: teacher.name,
-        school_id: teacher.school_id,
-        class_codes: classCodes,
-        role: 'teacher',
-      }
-    } else if (user.role === 'admin' || user.role === 'super_admin') {
-      const admin = await dbGet(db, 'SELECT * FROM admins WHERE username = ?', [user.username])
-      if (!admin) {
-        return res.status(401).json({
-          success: false,
-          error: 'AUTH_FAILED',
-          message: '账号不存在，请重新登录',
-        })
-      }
-      payload = { role: admin.role || 'admin', username: admin.username }
-      profile = {
-        id: admin.username,
-        username: admin.username,
-        name: admin.name,
-        role: admin.role || 'admin',
-      }
-    } else {
-      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '未知角色' })
-    }
-
-    const token = signToken(payload)
-    res.status(200).json({
-      success: true,
-      data: { token, user: profile },
-    })
-  } catch (err) {
-    return handleAuthError(res, err, '刷新令牌失败')
-  }
+    const body = tryParse(refreshTokenSchema, req.body)
+    const result = await refreshAccessToken(body.refreshToken)
+    if (result.success) return res.json({ success: true, data: result.data })
+    return res.status(401).json({ success: false, message: result.error })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('刷新 token 失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
 
-// ===== 工具：统一错误处理 =====
-function handleAuthError(res, err, defaultMsg) {
-  if (err && err instanceof z.ZodError) {
-    return res.status(400).json({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      message: err.issues.map((i) => i.message).join('；'),
-    })
-  }
-  logger.error(defaultMsg + ':', err)
-  return res.status(500).json({
-    success: false,
-    error: 'INTERNAL_ERROR',
-    message: '服务器内部错误',
-  })
+async function changePassword(req, res) {
+  try {
+    const body = tryParse(changePasswordSchema, req.body)
+    const { student_id } = req.user
+    const result = await changePassword(student_id, body.oldPassword, body.newPassword)
+    if (result.success) return res.json({ success: true, message: '密码修改成功' })
+    return res.status(400).json({ success: false, message: result.error })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('修改密码失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
 
-module.exports = {
-  studentLogin,
-  teacherRegister,
-  teacherLogin,
-  adminLogin,
-  refreshToken,
-  changePassword,
+async function teacherChangePassword(req, res) {
+  try {
+    const body = tryParse(teacherChangePasswordSchema, req.body)
+    const { teacher_id } = req.user
+    const result = await teacherChangePassword(teacher_id, body.oldPassword, body.newPassword)
+    if (result.success) return res.json({ success: true, message: '密码修改成功' })
+    return res.status(400).json({ success: false, message: result.error })
+  } catch (err) { if (err instanceof z.ZodError) return handleZodError(res, err); logger.error('教师修改密码失败:', err); res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '服务器内部错误' }) }
 }
+
+module.exports = { studentLogin, teacherRegister, teacherLogin, adminLogin, refreshToken, changePassword, teacherChangePassword }
