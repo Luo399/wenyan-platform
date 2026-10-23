@@ -44,6 +44,9 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      - name: Run frontend unit tests (vitest)
+        run: npm run test
+
   secret-scan:
     runs-on: ubuntu-latest
 
