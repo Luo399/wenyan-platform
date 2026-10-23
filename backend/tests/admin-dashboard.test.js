@@ -7,6 +7,9 @@
  * - 趋势：按日序列长度 = days、空日补 0、新增学生计入窗口
  * - 分布：class / grade / school 三种维度与 usage_rate 口径、非法维度 400
  *
+ * 管理员看板是平台级口径，先摘掉 initAllTables 播种的测试学生 99999999
+ * （见 removeSeededTestStudent），否则结构类断言要凭空多算一条无关名册。
+ *
  * 运行方式：cd backend && npm test
  */
 
@@ -35,9 +38,22 @@ function insertAnswer({ studentId, wenId, questionId, correct, submittedAt = iso
   )
 }
 
+/**
+ * 摘掉 initAllTables 播种的「测试学生 99999999 / 班级 999999」。
+ *
+ * 管理员看板是平台级口径，非生产环境必播的这条种子数据会一起进统计：
+ * student_total 变 4、class_count 变 3、多出一个「9999 级」分组、未覆盖班级
+ * 多出 999999。删掉之后断言才只反映本文件插入的名册。
+ */
+async function removeSeededTestStudent() {
+  await dbRun(db, `DELETE FROM answers WHERE student_id = '99999999'`)
+  await dbRun(db, `DELETE FROM students WHERE student_id = '99999999'`)
+}
+
 beforeAll(async () => {
   process.env.TEST_MODE = 'true'
   await initAllTables()
+  await removeSeededTestStudent()
 
   const { createApp } = require('../src/app')
   app = createApp()
@@ -123,7 +139,8 @@ describe('管理员看板：运营概览', () => {
     expect(usage.untouched_student_count).toBe(1)
     expect(usage.activation_rate).toBeCloseTo(66.7, 1)
     expect(usage.total_questions_per_student).toBe(inventory.getPlatformTotals().total)
-    expect(usage.avg_accuracy).toBeCloseTo((2 / 3) * 100, 1)
+    // 按题次汇总：3 个去重题次里 2 次答对（甲 A1 对 / 甲 A2 错 / 乙 B1 对）
+    expect(usage.overall_accuracy).toBeCloseTo((2 / 3) * 100, 1)
 
     expect(submissions.total).toBe(3)
     expect(submissions.last_7_days).toBe(2)

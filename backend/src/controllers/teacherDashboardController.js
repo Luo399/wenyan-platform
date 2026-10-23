@@ -12,6 +12,9 @@
  * - 事实行 = 每个学生每道一道题的「最后一次作答」（attempt_number 最大，其次 submitted_at 最新），
  *   代表该生该题的最终掌握情况；总提交量另按 answers 原始行数统计。
  * - 已答题数 answered = 该生作答过的不同题数；正确率 accuracy = 最终答对数 / 已答题数。
+ * - 班级/汇总里的 avg_accuracy = 「答过题的学生」正确率的平均（不含从未开学的学生，
+ *   否则新班会把正确率算成 0，班级行与顶部卡片对不上）；avg_completion_rate 则按全部学生算，
+ *   未开始的学生记 0 进度，这样完成率才反映「班级整体推进了多少」。
  * - 完成率 completion_rate = 已答题数 / 应答题数（题量分母来自 utils/questionInventory）。
  * - 掌握 mastered = 最后一次作答 is_correct = 1。
  * - 关卡归属由题号后缀判定（WEN_01_B2 → B 关）；旧数据/测试数据无后缀时归入 other，
@@ -48,10 +51,16 @@ function clampedPercent(part, whole) {
   return Math.min(100, dq.percent(part, whole))
 }
 
-/** 班级编码：空串视为「全部所教班级」 */
-const classCodeSchema = z
-  .preprocess((v) => (v === '' || v === undefined ? undefined : v), z.string().regex(CLASS_CODE_REGEX, '班级编码格式应为 4 位年级 + 2 位序号'))
-  .optional()
+/**
+ * 班级编码：空串/纯空白视为「全部所教班级」
+ *
+ * optional() 必须加在内层 schema 上：z.preprocess(...).optional() 不会把可选性
+ * 传导给内层，前端带 `?class_code=`（选「全部班级」时很常见）会被判成 Required。
+ */
+const classCodeSchema = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z.string().regex(CLASS_CODE_REGEX, '班级编码格式应为 4 位年级 + 2 位序号').optional(),
+)
 
 const overviewSchema = z.object({ class_code: classCodeSchema })
 
@@ -101,6 +110,9 @@ async function resolveScope(req) {
 
 /**
  * 校验并收窄班级范围
+ *
+ * 不变量：scope.classCodes 为空数组 ==「不加班级过滤」。
+ * 全权限教师未指定班级时走这条路径，指定了就只剩那一个班（见 scopeWhere）。
  * @returns {{scope:object}|{error:{code:string,message:string}}}
  */
 function narrowScope(resolvedScope, classCode) {
@@ -122,8 +134,17 @@ function narrowScope(resolvedScope, classCode) {
   }
 }
 
+/**
+ * 班级范围 → SQL 片段
+ *
+ * 判据只看 classCodes 是否为空，不能写成 `scope.allAccess` 短路：
+ * narrowScope() 已保证「全权限且不指定班级」时 codes 为空数组，
+ * 而「全权限 + ?class_code=202601」时 codes 是那一个班级。若这里用
+ * allAccess 提前返回，全权限教师永远无法按单个班级收窄，接口会把
+ * 整个平台的数据算进单个班级。
+ */
 function scopeWhere(scope, alias = 's') {
-  if (scope.allAccess || scope.classCodes.length === 0) return { sql: '', params: [] }
+  if (scope.classCodes.length === 0) return { sql: '', params: [] }
   return {
     sql: ` AND ${alias}.class_code IN (${dq.placeholders(scope.classCodes)})`,
     params: [...scope.classCodes],
@@ -149,13 +170,16 @@ function scopeDescription(scope) {
 
 /**
  * 学生名册（不含 password_hash）
+ *
+ * 表必须起别名 s：scopeWhere() 生成的是 `AND s.class_code IN (...)`，
+ * 没有别名时 SQLite 直接报 no such column: s.class_code。
  */
 async function loadRoster(scope) {
   if (isEmptyScope(scope)) return []
   const where = scopeWhere(scope)
-  const sql = `SELECT student_id, student_name, class_code FROM students
+  const sql = `SELECT s.student_id, s.student_name, s.class_code FROM students s
                 WHERE 1=1${where.sql}
-                ORDER BY class_code ASC, student_id ASC`
+                ORDER BY s.class_code ASC, s.student_id ASC`
   return dbAll(db, sql, where.params)
 }
 
@@ -383,15 +407,18 @@ function foldTextMatrix(roster, facts) {
     studentsByClass.set(code, roster.filter((s) => s.class_code === code).length)
   }
 
-  // 班内人均该篇完成比例（分母 = 该篇应答题数），供热力图色深使用
-  const progressSumByClass = new Map()
+  // 班内人均「该篇完成比例」（分母 = 该篇应答题数），供热力图色深使用
+  // 必须按 班级×篇目 累计：只按班级累计会让同一班级每篇的 avg_progress 都长一样，
+  // 没人答过的篇目也会显示有进度。
+  const progressSumByClassWen = new Map()
   for (const [sKey, count] of perStudentWen) {
     const [studentId, wenId] = sKey.split('||')
     const classCode = studentClass.get(studentId)
     const wenTotal = getWenTotals(wenId).total
     if (classCode === undefined || wenTotal <= 0) continue
     const ratio = Math.min(1, count / wenTotal)
-    progressSumByClass.set(classCode, (progressSumByClass.get(classCode) || 0) + ratio)
+    const key = `${classCode}||${wenId}`
+    progressSumByClassWen.set(key, (progressSumByClassWen.get(key) || 0) + ratio)
   }
 
   const rows = inventory.texts.map((text) => ({
@@ -417,7 +444,9 @@ function foldTextMatrix(roster, facts) {
         accuracy: dq.percent(raw.correct, raw.answered),
         /** 班内人均该篇完成比例（0-100），作为热力图色深 */
         avg_progress:
-          classSize === 0 ? 0 : dq.round1(((progressSumByClass.get(classCode) || 0) / classSize) * 100),
+          classSize === 0
+            ? 0
+            : dq.round1(((progressSumByClassWen.get(`${classCode}||${text.wen_id}`) || 0) / classSize) * 100),
         started_rate: dq.percent(raw.answered_students, classSize),
         completed_rate: dq.percent(raw.completed_students, classSize),
       }
@@ -496,9 +525,13 @@ function foldClassSummary(roster, students) {
       let completionSum = 0
       let activeCount = 0
       for (const m of members) {
-        accuracySum += m.accuracy
         completionSum += m.completion_rate
         if (m.is_active_7d) activeCount += 1
+      }
+      // 正确率只在「答过题」的学生里取平均（与 foldOverview 同口径），
+      // 否则从未开学的班会把平均正确率算成 0，班级行和顶部卡片对不上。
+      for (const m of answeredMembers) {
+        accuracySum += m.accuracy
       }
       return {
         class_code: classCode,
@@ -506,7 +539,7 @@ function foldClassSummary(roster, students) {
         answered_student_count: answeredMembers.length,
         untouched_student_count: members.length - answeredMembers.length,
         active_students_7d: activeCount,
-        avg_accuracy: members.length ? dq.round1(accuracySum / members.length) : 0,
+        avg_accuracy: answeredMembers.length ? dq.round1(accuracySum / answeredMembers.length) : 0,
         avg_completion_rate: members.length ? dq.round1(completionSum / members.length) : 0,
       }
     })
@@ -542,6 +575,16 @@ function fail(res, error) {
     return res.status(403).json({ success: false, error: 'FORBIDDEN', message: error.message })
   }
   return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
+}
+
+/**
+ * 看板接口统一失败日志
+ *
+ * Error.message 不是可枚举属性，只把 err 交给结构化日志会被 JSON 序列化吞掉，
+ * 排查 SQL 缺陷时日志里只剩一个 SQLITE_ERROR；这里把报错文本显式拼进消息。
+ */
+function logDatabaseFailure(endpoint, err) {
+  logger.error(`[teacherDashboard] ${endpoint} 失败: ${err.message}`, err)
 }
 
 // ---------------------------------------------------------------------------
@@ -583,7 +626,7 @@ async function getOverview(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[teacherDashboard] getOverview 失败:', err)
+    logDatabaseFailure('getOverview', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -614,7 +657,7 @@ async function getTextMatrix(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[teacherDashboard] getTextMatrix 失败:', err)
+    logDatabaseFailure('getTextMatrix', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -684,7 +727,7 @@ async function listStudentMetrics(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[teacherDashboard] listStudentMetrics 失败:', err)
+    logDatabaseFailure('listStudentMetrics', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -718,7 +761,7 @@ async function listWeakQuestions(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[teacherDashboard] listWeakQuestions 失败:', err)
+    logDatabaseFailure('listWeakQuestions', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -759,7 +802,7 @@ async function getActivity(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[teacherDashboard] getActivity 失败:', err)
+    logDatabaseFailure('getActivity', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }

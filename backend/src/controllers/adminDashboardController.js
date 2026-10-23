@@ -11,8 +11,13 @@
  * - 活跃学生 DAU/WAU/MAU = 最近 1/7/30 天内有提交过的去重学生数（以 answers 为准，
  *   不依赖埋点表，因此「活跃」的定义是「真的答了题」）。
  * - 使用率 usage_rate = 活跃学生数 / 该分组学生数。
+ * - overall_accuracy = 按题次汇总的整体正确率（答对题次 / 已答题次）。
+ *   故意不叫 avg_accuracy：教师看板的 avg_accuracy 是「每个学生正确率的平均」，
+ *   平台侧按题次汇总才不会被只答过一题的学生带偏，两边字段名区分开避免误读。
  * - 年级取班级编码前 4 位（入学年份），见 teacherController 的 CLASS_CODE_REGEX。
  * - 待审批教师 = teachers.status = 'pending'，前端点击直接进审批列表。
+ * - 播种数据：initAllTables 在非生产环境会插入「测试学生 99999999 / 班级 999999」，
+ *   全校口径的 accounts/usage 统计包含它，跨班级断言要按此基线算。
  */
 
 const { z } = require('zod')
@@ -23,15 +28,21 @@ const logger = require('../utils/logger')
 const { getInventory } = require('../utils/questionInventory')
 const dq = require('../utils/dashboardQuery')
 
-/** 每题取最后一次作答的行号集合（与教师看板同口径） */
+/**
+ * 每题只留最后一次作答的行
+ *
+ * 用 MAX(id) 而不是 MAX(attempt_number)：
+ * - attempt_number 允许为 NULL（历史数据/直接写库的测试数据），
+ *   一旦全为 NULL，`a.attempt_number = top.max_attempt` 恒不成立，该生所有记录会被静默丢掉；
+ * - id 自增，每 (student_id, question_id) 恰好命中一行，不会出现同 attempt 号并存的重复计数。
+ * 与教师看板 JS 侧「同题取最后一次作答」是同一个口径。
+ */
 const LAST_ATTEMPT_JOIN = `
   INNER JOIN (
-    SELECT student_id, question_id, MAX(attempt_number) AS max_attempt
+    SELECT MAX(id) AS last_id
     FROM answers
     GROUP BY student_id, question_id
-  ) top ON top.student_id = a.student_id
-       AND top.question_id = a.question_id
-       AND top.attempt_number = a.max_attempt
+  ) top ON top.last_id = a.id
 `
 
 const trendsSchema = z.object({
@@ -56,7 +67,8 @@ async function loadAccountStats() {
     dbAll(db, `SELECT status, COUNT(*) AS count FROM teachers GROUP BY status`),
     dbGet(db, `SELECT COUNT(*) AS count FROM students`),
     dbGet(db, `SELECT COUNT(*) AS count FROM schools`),
-    dbAll(db, `SELECT COUNT(DISTINCT class_code) AS count FROM students`),
+    // 单行聚合必须用 dbGet：dbAll 返回数组，classes.count 恒为 undefined → 班级数显示 0
+    dbGet(db, `SELECT COUNT(DISTINCT class_code) AS count FROM students`),
     dbGet(db, `SELECT COUNT(*) AS count FROM admins`),
   ])
 
@@ -144,6 +156,16 @@ function labelOfSchool(schoolMap, schoolId) {
   return hit.name || hit.code || `学校#${schoolId}`
 }
 
+/**
+ * 看板接口统一失败日志
+ *
+ * Error.message 不是可枚举属性，只把 err 交给结构化日志会被 JSON 序列化吞掉，
+ * 排查 SQL 缺陷时日志里只剩一个 SQLITE_ERROR；这里把报错文本显式拼进消息。
+ */
+function logDatabaseFailure(endpoint, err) {
+  logger.error(`[adminDashboard] ${endpoint} 失败: ${err.message}`, err)
+}
+
 // ---------------------------------------------------------------------------
 // 路由处理函数
 // ---------------------------------------------------------------------------
@@ -194,7 +216,8 @@ async function getOverview(req, res) {
           answered_student_count: answeredStudents.length,
           untouched_student_count: roster.length - answeredStudents.length,
           activation_rate: dq.percent(answeredStudents.length, roster.length),
-          avg_accuracy: dq.percent(accuracySum, answeredSum),
+          // 按题次汇总的整体正确率（不是「学生平均正确率的平均」，后者会被裸答一两题的学生拉偏）
+          overall_accuracy: dq.percent(accuracySum, answeredSum),
           avg_completion_rate: roster.length ? dq.round1(completionSum / roster.length) : 0,
           total_questions_per_student: inventory.totals.total,
           text_count: inventory.texts.length,
@@ -213,7 +236,7 @@ async function getOverview(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[adminDashboard] getOverview 失败:', err)
+    logDatabaseFailure('getOverview', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -286,7 +309,7 @@ async function getTrends(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[adminDashboard] getTrends 失败:', err)
+    logDatabaseFailure('getTrends', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }
@@ -360,7 +383,7 @@ async function getDistribution(req, res) {
         active_student_count: group.active_student_count,
         usage_rate: dq.percent(group.active_student_count, group.student_count),
         activation_rate: dq.percent(group.answered_student_count, group.student_count),
-        avg_accuracy: dq.percent(group.correct, group.submissions),
+        overall_accuracy: dq.percent(group.correct, group.submissions),
         avg_completion_rate: group.student_count ? dq.round1(group.completionSum / group.student_count) : 0,
         submissions: group.submissions,
         window_days: windowDays,
@@ -378,7 +401,7 @@ async function getDistribution(req, res) {
       timestamp: new Date().toISOString(),
     })
   } catch (err) {
-    logger.error('[adminDashboard] getDistribution 失败:', err)
+    logDatabaseFailure('getDistribution', err)
     return res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
   }
 }

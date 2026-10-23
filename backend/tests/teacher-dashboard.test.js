@@ -4,7 +4,10 @@
  * 覆盖 /api/teacher/dashboard/* 的权限口径与统计口径：
  * - 班级范围来自 token，前端 class_code 只能收窄，越权 403，非法格式 400
  * - 概览/明细/篇目矩阵/薄弱题/活跃趋势的数值与手工插入的答题事实一致
- * - 全权限教师（can_view_all=1）走「不加班级过滤」分支
+ * - 全权限教师（can_view_all=1）走「不加班级过滤」分支，且仍能用 class_code 收窄
+ *
+ * 平台级统计前会先摘掉 initAllTables 播种的测试学生 99999999（见 removeSeededTestStudent），
+ * 否则 student_count / class_count 里会混进一条与本用例无关的数据。
  *
  * 答题数据直接写库（可控 submitted_at，且绕开 submitRateLimit），
  * 但学生名册与账号仍通过真实接口创建，保持与生产链路一致。
@@ -49,6 +52,18 @@ function insertAnswer({ studentId, wenId, questionId, correct, submittedAt = iso
   )
 }
 
+/**
+ * 摘掉 initAllTables 播种的「测试学生 99999999 / 班级 999999」。
+ *
+ * 非生产环境总会插这条种子数据，它会混进「全权限教师」的平台级统计里，
+ * 让 student_count / class_count 变成 4 / 3 这种和本用例无关的数。
+ * 删掉之后断言才只描述本文件自己插入的名册。
+ */
+async function removeSeededTestStudent() {
+  await dbRun(db, `DELETE FROM answers WHERE student_id = '99999999'`)
+  await dbRun(db, `DELETE FROM students WHERE student_id = '99999999'`)
+}
+
 async function createTeacher(phone, name, classCodes) {
   const school = await dbGet(db, 'SELECT id FROM schools LIMIT 1')
   await dbRun(
@@ -69,6 +84,7 @@ async function createTeacher(phone, name, classCodes) {
 beforeAll(async () => {
   process.env.TEST_MODE = 'true'
   await initAllTables()
+  await removeSeededTestStudent()
 
   const { createApp } = require('../src/app')
   app = createApp()
@@ -211,7 +227,11 @@ describe('教师看板：概览', () => {
       .set('Authorization', `Bearer ${fullAccessTeacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.data.summary.student_count).toBe(1)
+    expect(res.body.data.scope.all_access).toBe(false)
     expect(res.body.data.scope.requested_class_code).toBe('202602')
+    // 收窄后只剩这一个班：丙 1 条提交（20260201_C1），甲的 4 条不进来了
+    expect(res.body.data.classes.map((c) => c.class_code)).toEqual(['202602'])
+    expect(res.body.data.summary.submissions_total).toBe(1)
   })
 })
 
