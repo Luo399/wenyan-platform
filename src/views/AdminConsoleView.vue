@@ -59,17 +59,11 @@
             <input v-model.number="teacherForm.schoolId" type="number" min="1" />
           </label>
           <label class="field">
-            <span>所教班级（逗号分隔 6 位编码）</span>
-            <input
-              v-model.trim="teacherForm.classCodesText"
-              type="text"
-              :disabled="teacherForm.canViewAll"
-              :placeholder="teacherForm.canViewAll ? '全权限，跳过具体班级' : '如 202401,202402'"
+            <span>所教班级</span>
+            <ClassPicker
+              v-model="teacherForm.classCodes"
+              @update:full-access="teacherForm.canViewAll = $event"
             />
-          </label>
-          <label class="field-inline">
-            <input v-model="teacherForm.canViewAll" type="checkbox" />
-            <span>全年级权限（可查看所有学生答题记录）</span>
           </label>
           <label v-if="editingTeacherPhone" class="field">
             <span>状态</span>
@@ -221,6 +215,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import ClassPicker from '@/components/ClassPicker.vue'
 import { debugError } from '@/utils/debug'
 import {
   listTeachers,
@@ -257,7 +252,7 @@ const teacherForm = reactive({
   name: '',
   password: '',
   schoolId: 1,
-  classCodesText: '',
+  classCodes: [] as string[],
   status: 'active' as 'pending' | 'active' | 'disabled' | 'rejected',
   canViewAll: false,
 })
@@ -328,9 +323,8 @@ async function submitTeacher(): Promise<void> {
     showToast('请填写手机号与姓名', 'error')
     return
   }
-  const classCodes = parseClassCodes(teacherForm.classCodesText)
-  if (!teacherForm.canViewAll && classCodes.length === 0) {
-    showToast('请至少填写一个所教班级，或勾选"全年级权限"', 'error')
+  if (!teacherForm.canViewAll && teacherForm.classCodes.length === 0) {
+    showToast('请至少选择一个所教班级，或开启"全年级权限"', 'error')
     return
   }
   if (!editingTeacherPhone.value && (!teacherForm.password || teacherForm.password.length < 6)) {
@@ -344,7 +338,7 @@ async function submitTeacher(): Promise<void> {
       ? await updateTeacher(editingTeacherPhone.value, {
           name: teacherForm.name,
           school_id: teacherForm.schoolId,
-          class_codes: teacherForm.canViewAll ? [] : classCodes,
+          class_codes: teacherForm.canViewAll ? [] : teacherForm.classCodes,
           can_view_all: teacherForm.canViewAll,
           ...(teacherForm.status !== 'pending' ? { status: teacherForm.status } : {}),
         })
@@ -353,7 +347,7 @@ async function submitTeacher(): Promise<void> {
           name: teacherForm.name,
           password: teacherForm.password,
           school_id: teacherForm.schoolId,
-          class_codes: teacherForm.canViewAll ? [] : classCodes,
+          class_codes: teacherForm.canViewAll ? [] : teacherForm.classCodes,
           can_view_all: teacherForm.canViewAll,
         })
 
@@ -376,7 +370,7 @@ function editTeacher(t: AdminTeacher): void {
   teacherForm.password = ''
   teacherForm.schoolId = t.school_id || 1
   teacherForm.canViewAll = Boolean((t as any).can_view_all)
-  teacherForm.classCodesText = teacherForm.canViewAll ? '' : (t.class_codes || []).join(',')
+  teacherForm.classCodes = teacherForm.canViewAll ? [] : [...(t.class_codes || [])]
   teacherForm.status = t.status
 }
 
@@ -386,7 +380,7 @@ function cancelTeacherEdit(): void {
   teacherForm.name = ''
   teacherForm.password = ''
   teacherForm.schoolId = 1
-  teacherForm.classCodesText = ''
+  teacherForm.classCodes = []
   teacherForm.status = 'active'
   teacherForm.canViewAll = false
 }
