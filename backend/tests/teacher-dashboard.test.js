@@ -88,10 +88,15 @@ beforeAll(async () => {
   await dbRun(db, `UPDATE teachers SET password_hash = ? WHERE phone = 't9301'`, [hash])
 
   // 学生名册走真实接口（管理员创建，初始密码 99999999）
-  const admin = () => request(app).set('Authorization', `Bearer ${adminToken}`)
-  await admin().post('/api/admin/students').send({ student_id: '20260101', student_name: '甲', class_code: '202601' })
-  await admin().post('/api/admin/students').send({ student_id: '20260102', student_name: '乙', class_code: '202601' })
-  await admin().post('/api/admin/students').send({ student_id: '20260201', student_name: '丙', class_code: '202602' })
+  // 注意 supertest 的 .set() 只能挂在动词之后：request(app).post(url).set(...)
+  const createStudent = (studentId, name, classCode) =>
+    request(app)
+      .post('/api/admin/students')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ student_id: studentId, student_name: name, class_code: classCode })
+  await createStudent('20260101', '甲', '202601')
+  await createStudent('20260102', '乙', '202601')
+  await createStudent('20260201', '丙', '202602')
 
   const teacherLogin = await request(app)
     .post('/api/auth/teacher/login')
@@ -235,6 +240,10 @@ describe('教师看板：学生明细', () => {
     expect(first.levels.B.answered).toBe(1)
     expect(first.levels.B.correct).toBe(1)
     expect(first.levels.C.answered).toBe(0)
+    // 三关分母是平台级题量（与 overall 的 total_questions 同一口径）
+    expect(first.levels.A.total).toBe(inventory.getPlatformTotals().A)
+    expect(first.levels.A.completion_rate).toBeCloseTo((2 / inventory.getPlatformTotals().A) * 100, 1)
+    expect(first.completion_rate).toBeCloseTo((3 / inventory.getPlatformTotals().total) * 100, 1)
 
     const untouched = students.find((s) => s.student_id === '20260102')
     expect(untouched.never_started).toBe(true)

@@ -51,10 +51,15 @@ beforeAll(async () => {
   const bcrypt = require('bcryptjs')
   const teacherHash = await bcrypt.hash('pw12345678', 10)
 
-  const admin = () => request(app).set('Authorization', `Bearer ${adminToken}`)
-  await admin().post('/api/admin/students').send({ student_id: '20260101', student_name: '甲', class_code: '202601' })
-  await admin().post('/api/admin/students').send({ student_id: '20260102', student_name: '乙', class_code: '202601' })
-  await admin().post('/api/admin/students').send({ student_id: '20260301', student_name: '丁', class_code: '202603' })
+  // supertest 的 .set() 只能挂在动词之后：request(app).post(url).set(...)
+  const createStudent = (studentId, name, classCode) =>
+    request(app)
+      .post('/api/admin/students')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ student_id: studentId, student_name: name, class_code: classCode })
+  await createStudent('20260101', '甲', '202601')
+  await createStudent('20260102', '乙', '202601')
+  await createStudent('20260301', '丁', '202603')
 
   // 一名待审批教师 + 一名正常教师
   await dbRun(
@@ -109,7 +114,8 @@ describe('管理员看板：运营概览', () => {
     expect(accounts.teacher_status.active).toBe(1)
     expect(accounts.pending_teacher_count).toBe(1)
     expect(accounts.student_total).toBe(3)
-    expect(accounts.class_count).toBe(3)
+    // 去重班级：202601、202603
+    expect(accounts.class_count).toBe(2)
     expect(accounts.school_count).toBeGreaterThanOrEqual(1)
 
     expect(usage.student_total).toBe(3)

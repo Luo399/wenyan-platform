@@ -38,6 +38,16 @@ const dq = require('../utils/dashboardQuery')
 const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
 const ACTIVE_WINDOW_DAYS = 7
 
+/**
+ * 完成率封顶 100%
+ *
+ * 库里可能存在题库已删掉的旧题号（内容侧改题、测试数据），
+ * 不封顶的话学生会出现 200% 这种不可能的进度。
+ */
+function clampedPercent(part, whole) {
+  return Math.min(100, dq.percent(part, whole))
+}
+
 /** 班级编码：空串视为「全部所教班级」 */
 const classCodeSchema = z
   .preprocess((v) => (v === '' || v === undefined ? undefined : v), z.string().regex(CLASS_CODE_REGEX, '班级编码格式应为 4 位年级 + 2 位序号'))
@@ -317,13 +327,13 @@ function foldStudents(roster, facts) {
   const students = [...byStudent.values()]
   for (const student of students) {
     student.accuracy = dq.percent(student.correct_questions, student.answered_questions)
-    student.completion_rate = dq.percent(student.answered_questions, student.total_questions)
+    student.completion_rate = clampedPercent(student.answered_questions, student.total_questions)
     student.stalled_days = dq.daysSince(student.last_submitted_at)
     /** 近 7 个自然日（含今天）内有提交即视为活跃 */
     student.is_active_7d = dq.isWithinWindow(student.last_submitted_at, ACTIVE_WINDOW_DAYS)
     for (const stat of Object.values(student.levels)) {
       stat.accuracy = dq.percent(stat.correct, stat.answered)
-      stat.completion_rate = dq.percent(stat.answered, stat.total)
+      stat.completion_rate = clampedPercent(stat.answered, stat.total)
     }
     delete student._wen
   }

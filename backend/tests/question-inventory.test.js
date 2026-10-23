@@ -25,6 +25,9 @@ describe('题量清单', () => {
     expect(snap.texts.length).toBeGreaterThan(0)
     expect(snap.totals.total).toBeGreaterThan(0)
     expect(snap.totals.A).toBeGreaterThan(0)
+    expect(snap.totals.B).toBeGreaterThan(0)
+    // C 关文件用的是 items[].quiz 形状，按 blocks/type=quiz 数会整列漏计成 0
+    expect(snap.totals.C).toBeGreaterThan(0)
     expect(snap.totals.total).toBe(snap.totals.A + snap.totals.B + snap.totals.C)
 
     for (const text of snap.texts) {

@@ -8,9 +8,10 @@
  *
  * 口径对齐（见 src/adapters/levelQuizAdapter.ts 与 quizAdapter.ts）：
  *   - A 关（第一关）：level1_quiz/{wen}.json 数组，计入 text_id 存在且 question_text 非空的条目
- *   - B 关（第二关）：pages_level2_dialog_quiz/{wen}.json 的 blocks 中 type === 'quiz' 的块数
- *   - C 关（第三关）：pages_level3_adaptive_quiz/{wen}.json 同上
- *   - pages_* 缺失时回退 level2_quiz / level3_quiz（旧的扁平数组格式，与 A 关同口径计数）
+ *     （该文件没有题号字段，题号由前端 adapter 合成为 `${textId}_A${n}`）
+ *   - B 关（第二关）：pages_level2_dialog_quiz/{wen}.json 里的去重题号数
+ *   - C 关（第三关）：pages_level3_adaptive_quiz/{wen}.json 里的去重题号数
+ *   - pages_* 缺失或无数出题目时回退 level2_quiz / level3_quiz（旧的扁平数组格式，与 A 关同口径）
  *
  * 结果按 TTL 缓存，避免每次看板请求都读十几个 JSON 文件。
  */
@@ -54,9 +55,37 @@ function countFlatQuiz(raw) {
 }
 
 /**
- * pages_* 分块格式题库（B、C 关现行格式）的计数口径：统计 quiz 块
+ * 递归收集 JSON 里出现的所有题号（question_id / questionId）
+ *
+ * 为什么不用固定路径数块：题库有两种分块形状，且还在演进——
+ *   pages_level2_dialog_quiz: { blocks: [{ type:'quiz', data:{ question_id } }] }
+ *   pages_level3_adaptive_quiz: { items: [{ text, quiz:{ question_id } }] }
+ * 按路径硬编码会把 C 关整个数成 0，完成率的分母就虚低了。
+ * 题号本身就是「这道题存在」的权威信号，去重后计数对两种形状都成立。
  */
-function countBlockQuiz(raw) {
+function collectQuestionIds(node, out = new Set(), depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 12) return out
+  if (Array.isArray(node)) {
+    for (const item of node) collectQuestionIds(item, out, depth + 1)
+    return out
+  }
+  for (const key of ['question_id', 'questionId']) {
+    const value = node[key]
+    if (typeof value === 'string' && value) out.add(value)
+  }
+  for (const value of Object.values(node)) {
+    if (value && typeof value === 'object') collectQuestionIds(value, out, depth + 1)
+  }
+  return out
+}
+
+/**
+ * 分块/条目格式题库（B、C 关）的计数口径
+ */
+function countPageQuiz(raw) {
+  const ids = collectQuestionIds(raw)
+  if (ids.size > 0) return ids.size
+  // 兜底：极少数文件里的 quiz 块没有题号，仍按 quiz 块数计
   if (!raw || !Array.isArray(raw.blocks)) return 0
   return raw.blocks.filter((block) => block && block.type === 'quiz' && block.data).length
 }
@@ -109,10 +138,10 @@ function buildInventory(force = false) {
 
     const a = countFlatQuiz(readJson(dataFilePath('level1_quiz', `${wenId}.json`)))
 
-    const bPages = countBlockQuiz(readJson(dataFilePath('pages_level2_dialog_quiz', `${wenId}.json`)))
+    const bPages = countPageQuiz(readJson(dataFilePath('pages_level2_dialog_quiz', `${wenId}.json`)))
     const b = bPages || countFlatQuiz(readJson(dataFilePath('level2_quiz', `${wenId}.json`)))
 
-    const cPages = countBlockQuiz(readJson(dataFilePath('pages_level3_adaptive_quiz', `${wenId}.json`)))
+    const cPages = countPageQuiz(readJson(dataFilePath('pages_level3_adaptive_quiz', `${wenId}.json`)))
     const c = cPages || countFlatQuiz(readJson(dataFilePath('level3_quiz', `${wenId}.json`)))
 
     const total = a + b + c
