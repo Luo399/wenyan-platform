@@ -28,7 +28,10 @@ function factory(props?: Partial<{ modelValue: string[]; fullAccess?: boolean; o
 async function checkCheckbox(wrapper: VueWrapper, selector: string, checked: boolean) {
   const el = wrapper.get(selector).element as HTMLInputElement
   el.checked = checked
+  // Vue 3 checkbox v-model 监听 change 事件；click 事件帮助触发 happy-dom 内部更新
+  el.dispatchEvent(new Event('click', { bubbles: true }))
   el.dispatchEvent(new Event('change', { bubbles: true }))
+  el.dispatchEvent(new Event('input', { bubbles: true }))
   await wrapper.vm.$nextTick()
 }
 

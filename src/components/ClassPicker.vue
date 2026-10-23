@@ -1,5 +1,5 @@
 <template>
-  <div class="class-picker" data-testid="class-picker">
+  <div class="class-picker" data-testid="class-picker-root">
     <!-- 全年级权限开关 -->
     <label class="full-access-label" data-testid="full-access-label">
       <input
