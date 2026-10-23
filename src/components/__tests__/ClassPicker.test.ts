@@ -207,7 +207,7 @@ describe('ClassPicker 组件', () => {
 
   describe('fetch 调用（不传 options 时 onMounted 触发）', () => {
     it('mount 不传 options → fetchGradesAndClasses 被调用一次', async () => {
-      // 用 vi.doMock + dynamic import 替换模块
+      vi.resetModules()
       const spy = vi.fn().mockResolvedValue({
         grades: ['2022'],
         gradeMap: { '2022': ['202201'] },
@@ -216,16 +216,13 @@ describe('ClassPicker 组件', () => {
         fetchGradesAndClasses: spy,
       }))
 
-      // 重新 mount（dynamic import 让 mock 生效）
-      const { default: FreshClassPicker } = await import('../ClassPicker.vue?fresh=1')
+      // dynamic import 让 doMock 生效
+      const { default: FreshClassPicker } = await import('../ClassPicker.vue')
       const w = mount(FreshClassPicker as any, {
         props: { modelValue: [] },
       })
 
-      // 等 onMounted 的 async fetch 完成
-      await vi.waitFor(() => {
-        expect(spy).toHaveBeenCalledTimes(1)
-      })
+      await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
       expect(w.findAll('[data-testid^="grade-2022"]').length).toBe(1)
       vi.doUnmock('@/services/classOptions')
     })
