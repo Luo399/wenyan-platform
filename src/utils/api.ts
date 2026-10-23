@@ -1,321 +1,54 @@
-import { useAuthStore } from '@/stores/auth'
-import { getAuthData } from '@/utils/localStorage'
+import { authStore } from '@/stores/auth'
+import type { ApiResponse } from '@/types/pageConfig'
 
-const apiBase = import.meta.env.VITE_API_BASE_URL as string
-export { apiBase }
+const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
-// R90 已移除前端 HMAC 密钥与签名生成（VITE_AUTH_SECRET 是服务端 secret，不应进入客户端构建产物）
-// 提交答案的鉴权由 JWT Bearer token 承担（见 getAuthHeaders），后端 answerController 不再校验 HMAC 签名
-
-/**
- * 获取 API 基础 URL
- * R94: 统一返回 baseUrl，dev/prod 行为一致；原实现对 localhost/127.0.0.1 返回空串，
- * 与 apiBase 导出值不一致易产生歧义。dev 环境由 vite proxy 或 CORS 处理跨域，
- * 无需在此特殊处理。
- */
-function getBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL || ''
+export function buildAuthHeaders(): Record<string, string> {
+  const store = authStore()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (store.token) headers['Authorization'] = `Bearer ${store.token}`
+  return headers
 }
 
-/**
- * 获取鉴权请求头
- * R95: 包裹 try/catch，避免 Pinia 安装前调用抛 getActivePinia 错误
- */
-function getAuthHeaders(): Record<string, string> {
-  let token: string | null = null
+export function buildFetchConfig(extra?: RequestInit): RequestInit {
+  const headers = buildAuthHeaders()
+  return { headers, credentials: 'include', ...extra }
+}
 
-  try {
-    token = useAuthStore().token
-  } catch {
-    // Pinia 尚未安装：继续走下面的持久化回退，而不是直接放弃鉴权头
-    token = null
+async function handleResponse<T>(res: Response): Promise<ApiResponse<T>> {
+  if (res.status === 401) {
+    const store = authStore()
+    store.clearAuth()
+    return { success: false, error: 'UNAUTHORIZED', message: '登录已失效，请重新登录' }
   }
-
-  // F-005: store 尚未就绪（Pinia 未安装或 initialize() 未执行）时回退到持久化登录态。
-  // 原实现直接返回空 header，会把"初始化竞态"变成一次匿名请求，
-  // 后端按 AUTH_REQUIRED 拒绝后又被前端显示成"登录已过期"，既误导用户也误导排查。
-  if (!token) {
-    token = getAuthData().token
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    return { success: false, error: `HTTP_${res.status}`, message: text || `HTTP ${res.status}` }
   }
-
-  return token ? { Authorization: `Bearer ${token}` } : {}
+  try { return (await res.json()) as ApiResponse<T> } catch { return { success: true, message: 'OK' } as unknown as ApiResponse<T> }
 }
 
-export interface RequestConfig {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'
-  headers?: Record<string, string>
-  // R91: body 从 any 改为 unknown，由调用方具体类型推断
-  body?: unknown
-  timeout?: number
+export async function apiGet<T>(path: string): Promise<ApiResponse<T>> {
+  const res = await fetch(`${VITE_API_BASE_URL}${path}`, buildFetchConfig())
+  return handleResponse<T>(res)
 }
 
-export interface ApiResponse<T = unknown> {
-  success: boolean
-  data?: T
-  message?: string
-  code?: number
-  timestamp?: number
-  requestId?: string
+export async function apiPost<T>(path: string, data?: unknown): Promise<ApiResponse<T>> {
+  const body = data !== undefined ? JSON.stringify(data) : undefined
+  const res = await fetch(`${VITE_API_BASE_URL}${path}`, buildFetchConfig({ method: 'POST', body }))
+  return handleResponse<T>(res)
 }
 
-// R91: 后端响应原始结构（normalizeResponse 的输入），用具体接口替代 any
-interface RawApiResponse<T = unknown> {
-  success?: boolean
-  data?: T
-  message?: string
-  code?: number
-  timestamp?: number
-  requestId?: string
+/** multipart 上传 —— 不自动加 Content-Type（浏览器自动加 boundary） */
+export async function upload<T>(path: string, formData: FormData, extraHeaders?: Record<string, string>): Promise<ApiResponse<T>> {
+  const store = authStore()
+  const headers: Record<string, string> = {}
+  if (store.token) headers['Authorization'] = `Bearer ${store.token}`
+  if (extraHeaders) Object.assign(headers, extraHeaders)
+  const res = await fetch(`${VITE_API_BASE_URL}${path}`, { method: 'POST', headers, body: formData, credentials: 'include' })
+  return handleResponse<T>(res)
 }
 
-export function normalizeResponse<T = unknown>(response: unknown): ApiResponse<T> {
-  if (response === null || response === undefined) {
-    return {
-      success: false,
-      message: '响应为空',
-      code: 500,
-      timestamp: Date.now(),
-    }
-  }
-
-  // R91: 用类型谓词收窄 unknown，替代直接访问 any
-  if (typeof response === 'object' && response !== null && 'success' in response) {
-    const raw = response as RawApiResponse<T>
-    const success = !!raw.success
-    return {
-      success,
-      data: raw.data,
-      message: raw.message || (success ? '操作成功' : '操作失败'),
-      code: raw.code ?? (success ? 200 : 500),
-      timestamp: raw.timestamp ?? Date.now(),
-      requestId: raw.requestId,
-    }
-  }
-
-  if (typeof response === 'object' && response !== null && 'data' in response) {
-    const raw = response as RawApiResponse<T>
-    return {
-      success: true,
-      data: raw.data,
-      message: '操作成功',
-      code: 200,
-      timestamp: Date.now(),
-    }
-  }
-
-  return {
-    success: true,
-    data: response as T,
-    message: '操作成功',
-    code: 200,
-    timestamp: Date.now(),
-  }
-}
-
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public errorCode: string,
-    message: string,
-  ) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
-
-export async function request<T = unknown>(
-  url: string,
-  config: RequestConfig = {},
-): Promise<ApiResponse<T>> {
-  const { method = 'GET', headers = {}, body, timeout = 30000 } = config
-
-  const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-  try {
-    const response = await fetch(fullUrl, await buildFetchConfig(method, headers, body, controller))
-    clearTimeout(timeoutId)
-    return await handleResponse<T>(response)
-  } catch (err) {
-    clearTimeout(timeoutId)
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new ApiError(0, 'TIMEOUT', '请求超时')
-    }
-    throw err
-  }
-}
-
-/**
- * R92: 构造 fetch 配置（从 request 拆分，保持单一职责）
- */
-async function buildFetchConfig(
-  method: string,
-  headers: Record<string, string>,
-  body: unknown,
-  controller: AbortController,
-): Promise<RequestInit> {
-  const requestHeaders = new Headers({
-    'Content-Type': 'application/json',
-    ...getAuthHeaders(),
-    ...headers,
-  })
-  // R93: 用 !== undefined/null 判断，避免 body 为 false/0/'' 时被误判为无 body
-  const bodyStr = body !== undefined && body !== null ? JSON.stringify(body) : undefined
-  return {
-    method,
-    headers: requestHeaders,
-    body: bodyStr,
-    signal: controller.signal,
-  }
-}
-
-/**
- * R92: 处理 fetch 响应（从 request 拆分）
- *
- * 401 语义区分（R104）：
- * - 已登录会话收到 401 → 会话失效，登出并抛 AUTH_EXPIRED
- * - 未登录（如登录页姓名回显、登录失败）收到 401 → 不使用"登录已过期"文案，
- *   直接透传后端错误码与消息（如 INVALID_CREDENTIALS / AUTH_REQUIRED）
- */
-async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  if (response.status === 401) {
-    // F-002: 后端登录接口同样用 401 表示「凭证错误」(INVALID_CREDENTIALS)，
-    // 原实现把所有 401 一律改写成「登录已过期，请重新登录」，会把
-    // 「学号或密码错误」这类真实原因覆盖掉，既误导用户也误导排查。
-    const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null
-    const errCode = errorData && typeof errorData.error === 'string' ? errorData.error : ''
-    const errMsg = errorData && typeof errorData.message === 'string' ? errorData.message : ''
-
-    // 凭证错误：原样透传后端消息，不做登出（登录场景本就未建立会话）
-    if (errCode === 'INVALID_CREDENTIALS') {
-      throw new ApiError(401, 'INVALID_CREDENTIALS', errMsg || '账号或密码错误')
-    }
-
-    // 其余 401 才是会话问题（R104：Pinia 未就绪时安全读取登录态）
-    const hasSession = isLoggedInSafely()
-    if (hasSession) {
-      logoutSafely()
-    }
-    // AUTH_REQUIRED（完全没带令牌）与令牌无效/过期语义不同（F-005）：提示分开
-    const sessionMessage = errCode === 'AUTH_REQUIRED' ? '需要登录' : errMsg || '登录已过期，请重新登录'
-    throw new ApiError(401, 'AUTH_EXPIRED', sessionMessage)
-  }
-
-  if (!response.ok) {
-    const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null
-    const errCode =
-      errorData && typeof errorData.error === 'string' ? errorData.error : 'REQUEST_FAILED'
-    const errMsg =
-      errorData && typeof errorData.message === 'string'
-        ? errorData.message
-        : `请求失败: ${response.status}`
-    throw new ApiError(response.status, errCode, errMsg)
-  }
-
-  const jsonResponse = await response.json()
-  return normalizeResponse<T>(jsonResponse)
-}
-
-/**
- * R104: 安全读取登录态（Pinia 未安装时视为未登录）
- */
-function isLoggedInSafely(): boolean {
-  try {
-    return useAuthStore().isLoggedIn
-  } catch {
-    return false
-  }
-}
-
-/**
- * R104: 安全登出（Pinia 未安装时忽略）
- */
-function logoutSafely(): void {
-  try {
-    useAuthStore().logout()
-  } catch {
-    // 忽略：无 Pinia 实例时无需清理
-  }
-}
-
-export async function get<T = unknown>(
-  url: string,
-  params?: Record<string, string | number>,
-  config: Omit<RequestConfig, 'method' | 'body'> = {},
-): Promise<ApiResponse<T>> {
-  const queryString = params
-    ? '?' +
-      new URLSearchParams(
-        Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
-      ).toString()
-    : ''
-  return request<T>(url + queryString, config)
-}
-
-export async function post<T = unknown>(
-  url: string,
-  body?: unknown,
-  config: Omit<RequestConfig, 'method'> = {},
-): Promise<ApiResponse<T>> {
-  return request<T>(url, { ...config, method: 'POST', body })
-}
-
-export async function put<T = unknown>(
-  url: string,
-  body?: unknown,
-  config: Omit<RequestConfig, 'method'> = {},
-): Promise<ApiResponse<T>> {
-  return request<T>(url, { ...config, method: 'PUT', body })
-}
-
-export async function del<T = unknown>(
-  url: string,
-  config: Omit<RequestConfig, 'method'> = {},
-): Promise<ApiResponse<T>> {
-  return request<T>(url, { ...config, method: 'DELETE' })
-}
-
-/**
- * 批量 POST 请求工具函数
- * 对 items 数组中的每一项依次发送 POST 请求，返回每项的执行结果
- * 自动添加 auth headers，统一处理 401/网络异常等错误
- */
-export interface BatchResult<T = unknown> {
-  key: string
-  success: boolean
-  message: string
-  data?: T
-}
-
-export async function batchPost<T = unknown>(
-  url: string,
-  items: Array<{ key: string; body: Record<string, unknown> }>,
-): Promise<BatchResult<T>[]> {
-  const results: BatchResult<T>[] = []
-
-  for (const item of items) {
-    try {
-      const res = await post<T>(url, item.body)
-      results.push({
-        key: item.key,
-        success: true,
-        message: res.message || '操作成功',
-        data: res.data,
-      })
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : '请求异常'
-      results.push({
-        key: item.key,
-        success: false,
-        message: errMsg,
-      })
-    }
-  }
-
-  return results
-}
-
-// ============================================================
-// 文件结束
-// ============================================================
+export const request = apiGet
+export const post = apiPost
+export const put = apiPost
