@@ -127,14 +127,16 @@ const isValid = computed(() => {
 
 /**
  * 处理点击事件
+ * - 未登录 → 跳独立登录页 /student-login，带 redirect
+ * - 已登录 → 弹修改学号 modal
  */
 function handleClick() {
-  showEditModal.value = true
-  // 如果已登录，显示当前学号
-  if (isLoggedIn.value && studentId.value) {
-    inputId.value = studentId.value
+  if (!isLoggedIn.value) {
+    router.push({ name: 'student-login', query: { redirect: route.fullPath } })
+    return
   }
-  // R103: 打开弹窗时清空密码
+  showEditModal.value = true
+  inputId.value = studentId.value || ''
   inputPassword.value = ''
 }
 

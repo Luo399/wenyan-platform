@@ -18,6 +18,8 @@ on:
       - 'package.json'
       - 'eslint.config.ts'
       - '.oxlintrc.json'
+      - 'vitest.config.ts'
+      - 'vite.config.ts'
       - '.github/workflows/ci-checks.yml'
 
 jobs:
@@ -35,7 +37,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Type check
         run: npm run type-check
@@ -43,6 +45,9 @@ jobs:
       - name: Lint
         run: npm run lint
         continue-on-error: true
+
+      - name: Run frontend unit tests (vitest)
+        run: npm run test
 
   secret-scan:
     runs-on: ubuntu-latest

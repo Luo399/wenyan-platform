@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="teacher-register-page" :style="{ backgroundImage: `url(${bgUrl})` }">
     <div class="register-card">
       <!-- 返回上一页 -->
@@ -152,6 +152,12 @@
           </span>
         </div>
 
+        <!-- 所教班级（可选，独立 ClassPicker 子组件） -->
+        <div class="form-group">
+          <label class="form-label">所教班级 <span class="optional-hint">（可选）</span></label>
+          <ClassPicker v-model="classCodes" @update:full-access="onFullAccessChange" />
+        </div>
+
         <!-- 后端错误 -->
         <div v-if="serverError" class="error-box" role="alert" aria-live="assertive">
           <span class="error-icon" aria-hidden="true">⚠</span>
@@ -178,6 +184,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import ClassPicker from '@/components/ClassPicker.vue'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 import { track } from '@/utils/tracking'
@@ -208,6 +215,14 @@ const showConfirmPassword = ref(false)
 const isSubmitting = ref(false)
 const success = ref(false)
 const serverError = ref('')
+// 班级选择器状态（由独立 ClassPicker 子组件驱动）
+const classCodes = ref<string[]>([])
+const canViewAll = ref(false)
+
+/** ClassPicker 全权限开关回调 */
+function onFullAccessChange(v: boolean): void {
+  canViewAll.value = v
+}
 
 const touched = reactive({
   name: false,
@@ -280,6 +295,8 @@ async function handleSubmit(): Promise<void> {
         name: name.value.trim(),
         phone: phone.value.trim(),
         password: password.value,
+        class_codes: canViewAll.value ? undefined : classCodes.value,
+        can_view_all: canViewAll.value,
       }),
     })
 

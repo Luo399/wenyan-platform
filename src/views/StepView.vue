@@ -122,7 +122,6 @@
 // 避免 barrel 循环初始化链导致运行时 TDZ (Temporal Dead Zone) 错误
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import type { RouteName } from '@/config/navigation'
 import { getWenId } from '@/utils/wenUtils'
 import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
@@ -150,9 +149,11 @@ const stepNumber = computed(() => stepMap[route.name as string] ?? 1)
 const poemId = computed(() => route.params.id as string)
 const wenId = computed(() => getWenId(poemId.value))
 
-// useNavigation 接收原始值（不是 .value），内部自动 unwrap
-const { goNext, goPrev } = useNavigation(route.name as RouteName, route.params.id as string)
-const trackModule = useTracking(route.name as RouteName, route.params.id as string)
+// R140: 不再传快照值 —— useNavigation 内部实时读当前路由。
+// 旧注释写的「内部自动 unwrap」并不成立：useNavigation 当时只是把参数存进闭包，
+// stepone → steptwo 复用实例时冻结在 'stepone'，点继续会跳回上一页。
+const { goNext, goPrev } = useNavigation()
+const trackModule = useTracking(String(route.name ?? ''), String(route.params.id ?? ''))
 
 function handleGoPrev() {
   markNextEnterFromBackButton()

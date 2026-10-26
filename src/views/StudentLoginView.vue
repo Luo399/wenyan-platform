@@ -6,7 +6,7 @@
         ← 返回首页
       </button>
 
-      <!-- 角色 Tab 切换 -->
+      <!-- 角色 Tab 切换：教师/管理员跳转独立页面 -->
       <div class="role-tabs" role="tablist" aria-label="登录角色">
         <button
           v-for="r in roles"
@@ -16,7 +16,7 @@
           :aria-selected="activeRole === r.value"
           class="role-tab"
           :class="{ active: activeRole === r.value }"
-          @click="activeRole = r.value"
+          @click="onRoleClick(r.value)"
         >
           {{ r.label }}
         </button>
@@ -127,7 +127,7 @@
           <span>{{ isLoading ? '登录中...' : `${currentRoleLabel}登录` }}</span>
         </button>
 
-        <!-- 忘记密码：纯文本提示 -->
+        <!-- 忘记密码 -->
         <p class="forgot-hint">忘记密码：请联系教师重置密码</p>
       </form>
 
@@ -199,6 +199,13 @@ const showPassword = ref(false)
 const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
+
+/** 点击角色 tab：教师/管理员跳独立页面，学生留在本页 */
+function onRoleClick(role: Role) {
+  if (role === 'teacher') router.push('/teacher-login')
+  else if (role === 'admin') router.push('/admin-login')
+  else activeRole.value = 'student'
+}
 const isSubmitting = ref(false)
 const primaryInputRef = ref<HTMLInputElement | null>(null)
 

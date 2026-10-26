@@ -34,7 +34,7 @@ async function listTeachers(req, res) {
       conditions.push('t.status = ?')
       params.push(status)
     }
-    let sql = `SELECT t.id, t.phone, t.name, t.school_id, t.status,
+    let sql = `SELECT t.id, t.phone, t.name, t.school_id, t.status, t.can_view_all,
       t.created_at, s.name AS school_name
       FROM teachers t
       LEFT JOIN schools s ON s.id = t.school_id`
@@ -201,6 +201,51 @@ async function rejectTeacher(req, res) {
 }
 
 /**
+ * 管理员/教师：获取年级 + 班级选项（用于注册/编辑表单下拉）
+ * 从 students 表 DISTINCT 提取 class_code → 年级(前4) + 班级(后2)
+ * 也返回 teacher_classes 中已有的编码，避免学生表为空时下拉空
+ *
+ * GET /api/admin/options/grades-classes
+ * （也开放给教师前端，不需要 adminAuth — 只返回年级/班级编码集合）
+ */
+async function getGradesAndClasses(req, res) {
+  try {
+    const fromStudents = await dbAll(
+      db,
+      `SELECT DISTINCT class_code FROM students WHERE class_code IS NOT NULL AND class_code != ''`,
+    )
+    const fromTeacherClasses = await dbAll(
+      db,
+      `SELECT DISTINCT class_code FROM teacher_classes WHERE class_code IS NOT NULL AND class_code != ''`,
+    )
+    const allCodes = new Set([
+      ...fromStudents.map((r) => r.class_code),
+      ...fromTeacherClasses.map((r) => r.class_code),
+    ])
+
+    const gradesSet = new Set()
+    const gradeMap = {} // grade -> [classCode...]
+    for (const code of allCodes) {
+      if (typeof code !== 'string' || code.length < 6) continue
+      const grade = code.slice(0, 4)
+      gradesSet.add(grade)
+      if (!gradeMap[grade]) gradeMap[grade] = []
+      gradeMap[grade].push(code)
+    }
+    const grades = Array.from(gradesSet).sort()
+    for (const g of grades) gradeMap[g].sort()
+
+    res.status(200).json({
+      success: true,
+      data: { grades, gradeMap },
+    })
+  } catch (err) {
+    logger.error('[admin] 获取年级班级选项失败:', err)
+    res.status(500).json({ success: false, error: 'INTERNAL_ERROR', message: '获取选项失败' })
+  }
+}
+
+/**
  * 管理员：启用 / 禁用教师账号
  * POST /api/admin/teachers/:phone/status  { "status": "disabled" | "active" }
  */
@@ -267,7 +312,7 @@ async function listPasswordResets(req, res) {
  */
 async function createTeacher(req, res) {
   try {
-    const { phone, name, password, school_id, class_codes } = req.body
+    const { phone, name, password, school_id, class_codes, can_view_all } = req.body
 
     // 参数校验
     if (!phone || typeof phone !== 'string') {
@@ -282,12 +327,16 @@ async function createTeacher(req, res) {
     if (!school_id || typeof school_id !== 'number') {
       return res.status(400).json({ success: false, error: 'INVALID_SCHOOL', message: '学校 ID 必填且为数字' })
     }
-    if (!Array.isArray(class_codes) || class_codes.length === 0) {
-      return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
-    }
-    for (const cc of class_codes) {
-      if (!CLASS_CODE_REGEX.test(cc)) {
-        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
+    // can_view_all=true 时不需要具体班级；否则至少选一个
+    const isFullAccess = Boolean(can_view_all)
+    if (!isFullAccess) {
+      if (!Array.isArray(class_codes) || class_codes.length === 0) {
+        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
+      }
+      for (const cc of class_codes) {
+        if (!CLASS_CODE_REGEX.test(cc)) {
+          return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
+        }
       }
     }
 
@@ -308,17 +357,19 @@ async function createTeacher(req, res) {
 
     await dbTransaction(db, async ({ dbRun: txRun }) => {
       const result = await txRun(
-        `INSERT INTO teachers (phone, name, school_id, password_hash, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'active', ?, ?)`,
-        [phone, name, school_id, passwordHash, now, now],
+        `INSERT INTO teachers (phone, name, school_id, password_hash, status, can_view_all, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`,
+        [phone, name, school_id, passwordHash, isFullAccess ? 1 : 0, now, now],
       )
       const teacherId = result.lastID
-      // 批量写入 teacher_classes（UNIQUE 约束防护）
-      for (const cc of class_codes) {
-        await txRun(
-          `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code, created_at) VALUES (?, ?, ?)`,
-          [teacherId, cc, now],
-        )
+      // 全权限时跳过具体班级写入；否则批量写
+      if (!isFullAccess && class_codes && class_codes.length > 0) {
+        for (const cc of class_codes) {
+          await txRun(
+            `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code, created_at) VALUES (?, ?, ?)`,
+            [teacherId, cc, now],
+          )
+        }
       }
     })
 
@@ -341,7 +392,7 @@ async function getTeacher(req, res) {
   try {
     const teacher = await dbGet(
       db,
-      `SELECT t.id, t.phone, t.name, t.school_id, t.status, t.created_at, t.updated_at,
+      `SELECT t.id, t.phone, t.name, t.school_id, t.status, t.can_view_all, t.created_at, t.updated_at,
         s.name AS school_name
        FROM teachers t
        LEFT JOIN schools s ON s.id = t.school_id
@@ -371,7 +422,7 @@ async function getTeacher(req, res) {
 async function updateTeacher(req, res) {
   try {
     const { phone } = req.params
-    const { name, school_id, class_codes, status } = req.body
+    const { name, school_id, class_codes, status, can_view_all } = req.body
 
     const teacher = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [phone])
     if (!teacher) {
@@ -389,7 +440,8 @@ async function updateTeacher(req, res) {
         return res.status(400).json({ success: false, error: 'SCHOOL_NOT_FOUND', message: '所选学校不存在' })
       }
     }
-    if (class_codes !== undefined) {
+    const willFullAccess = can_view_all !== undefined ? Boolean(can_view_all) : null
+    if (class_codes !== undefined && !willFullAccess) {
       if (!Array.isArray(class_codes) || class_codes.length === 0) {
         return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
       }
@@ -407,18 +459,27 @@ async function updateTeacher(req, res) {
          SET name = COALESCE(?, name),
              school_id = COALESCE(?, school_id),
              status = COALESCE(?, status),
+             can_view_all = COALESCE(?, can_view_all),
              updated_at = ?
          WHERE phone = ?`,
-        [name ?? null, school_id ?? null, status ?? null, now, phone],
+        [name ?? null, school_id ?? null, status ?? null,
+         can_view_all !== undefined ? (can_view_all ? 1 : 0) : null,
+         now, phone],
       )
       if (class_codes !== undefined) {
         await txRun(`DELETE FROM teacher_classes WHERE teacher_id = ?`, [teacher.id])
-        for (const cc of class_codes) {
-          await txRun(
-            `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code, created_at) VALUES (?, ?, ?)`,
-            [teacher.id, cc, now],
-          )
+        if (class_codes.length > 0 && !willFullAccess) {
+          for (const cc of class_codes) {
+            await txRun(
+              `INSERT OR IGNORE INTO teacher_classes (teacher_id, class_code, created_at) VALUES (?, ?, ?)`,
+              [teacher.id, cc, now],
+            )
+          }
         }
+      }
+      // 开启全权限时清理所有具体班级；关闭全权限但没传 class_codes 时保留原班级
+      if (willFullAccess && class_codes === undefined) {
+        await txRun(`DELETE FROM teacher_classes WHERE teacher_id = ?`, [teacher.id])
       }
     })
 
@@ -594,4 +655,5 @@ module.exports = {
   rejectTeacher,
   listPasswordResets,
   createTeacher,
+  getGradesAndClasses,
 }

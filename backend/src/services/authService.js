@@ -48,10 +48,16 @@ function extractClassCode(studentId) {
 }
 
 /**
- * 查询教师所教班级编码集合
- * @param {number} teacherId teachers.id
+ * 查询教师所教班级编码集合（can_view_all=1 时返回 ['*'] 代表全部）
  */
 async function getTeacherClassCodes(teacherId) {
+  // 先查是否全权限
+  const fullRow = await get(
+    `SELECT can_view_all FROM teachers WHERE id = ?`,
+    [teacherId],
+  )
+  if (fullRow && fullRow.can_view_all === 1) return ['*']
+
   const rows = await all(
     `SELECT class_code FROM teacher_classes WHERE teacher_id = ?`,
     [teacherId],
@@ -61,14 +67,22 @@ async function getTeacherClassCodes(teacherId) {
 
 /**
  * 校验教师是否有权管理指定班级的学生
+ * can_view_all=1 时放行所有班级
  */
 async function teacherCanManageClass(teacherId, classCode) {
   if (!teacherId || !classCode) return false
+  // 全权限快速放行
   const row = await get(
+    `SELECT 1 FROM teachers WHERE id = ? AND can_view_all = 1 LIMIT 1`,
+    [teacherId],
+  )
+  if (row) return true
+  // 具体班级匹配
+  const match = await get(
     `SELECT 1 FROM teacher_classes WHERE teacher_id = ? AND class_code = ? LIMIT 1`,
     [teacherId, classCode],
   )
-  return !!row
+  return !!match
 }
 
 /**

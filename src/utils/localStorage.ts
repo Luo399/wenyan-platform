@@ -107,7 +107,17 @@ export function appendQuizRecord<T>(studentId: string, record: T): T[] {
   if (!studentId) return []
 
   const key = buildQuizStorageKey(studentId)
-  const raw = localStorage.getItem(key)
+  // R140: getItem 本身也可能抛（Safari 私密模式、被禁用的存储、沙箱 iframe 里
+  // 访问 localStorage 会直接 SecurityError）。同文件的 safeReadJson 已经把
+  // getItem 包起来了，只有这里还是裸调用 —— 一旦抛错，答题提交链路会被打断，
+  // 用户表现为「提交后没反应」。存储不可用时按「无法追加」处理，不影响主流程。
+  let raw: string | null
+  try {
+    raw = localStorage.getItem(key)
+  } catch (err) {
+    debugLog('[localStorage] getItem 异常，跳过答题记录追加:', key, err)
+    return []
+  }
 
   let records: T[]
   if (!raw) {

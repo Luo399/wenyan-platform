@@ -340,6 +340,7 @@ function initAllTables() {
 function checkAndUpgradeTeachersTable() {
   const REQUIRED_COLUMNS = [
     { name: 'must_reset_password', ddl: "ALTER TABLE teachers ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0" },
+    { name: 'can_view_all', ddl: "ALTER TABLE teachers ADD COLUMN can_view_all INTEGER NOT NULL DEFAULT 0" },
   ]
 
   return new Promise((resolve, reject) => {

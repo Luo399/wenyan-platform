@@ -15,6 +15,7 @@ export interface AdminTeacher {
   school_name?: string
   status: 'pending' | 'active' | 'disabled' | 'rejected'
   class_codes: string[]
+  can_view_all?: number
   created_at?: string
   updated_at?: string
 }
@@ -40,6 +41,7 @@ export interface CreateTeacherParams {
   password: string
   school_id: number
   class_codes: string[]
+  can_view_all?: boolean
 }
 
 /** 更新教师参数 */
@@ -48,6 +50,7 @@ export interface UpdateTeacherParams {
   school_id?: number
   status?: 'active' | 'disabled' | 'rejected'
   class_codes?: string[]
+  can_view_all?: boolean
 }
 
 /** 新增学生参数 */

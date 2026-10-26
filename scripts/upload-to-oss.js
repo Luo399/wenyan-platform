@@ -27,7 +27,12 @@ const BUCKET_MAP = {
   test: process.env.OSS_BUCKET_TEST || 'wenyan-test-online',
 }
 
-const REGION = process.env.OSS_REGION || 'oss-cn-guangzhou'
+// 兜底 region 必须是桶真实所在区域。
+// 2026-10-26 实测：用 oss-cn-guangzhou 请求 classic-chinese 会得到
+//   <Error><Code>AccessDenied</Code>...<Endpoint>oss-cn-zhongwei.aliyuncs.com</Endpoint>
+// 也就是 OSS 自己告诉我们正确区域；换成 zhongwei 后同一对象直连返回 200。
+// 写错不会在建 client 时报错，而是上传时才失败/绕远路，排查成本高，故这里不留旧值。
+const REGION = process.env.OSS_REGION || 'oss-cn-zhongwei'
 const DRY_RUN = process.argv.includes('--dry-run')
 
 // 只传某一类（data / images / video / audio / dist），默认全传
@@ -97,6 +102,28 @@ function scanDir(dir) {
   return files
 }
 
+/**
+ * 上传前挑出「一看就会让前端 404」的文件名。
+ *
+ * OSS 控制台拖拽上传时 object 名 = 本地文件名，数据 JSON 又按规范名去引用，
+ * 名字多一层扩展名 / 带空格，线上就表现为素材加载失败（本次排查里 5 个卡片视频
+ * 就是这样只有 xxx.mp4.mp4、没有 xxx.mp4）。脚本路径同样会踩，故在这里挡一道。
+ */
+function findSuspiciousNames(files) {
+  const bad = []
+  for (const f of files) {
+    const name = path.basename(f)
+    if (/\.(mp4|png|jpe?g|webp|mp3|json)\.\1$/i.test(name)) {
+      bad.push({ name, reason: '多了一层扩展名' })
+    } else if (/\s/.test(name)) {
+      bad.push({ name, reason: '文件名含空格（URL 里会变成 %20，数据 JSON 很难对上）' })
+    } else if (/[a-z0-9]_[A-Z]/.test(name)) {
+      bad.push({ name, reason: '疑似大小写混排，容易和数据 JSON 的写法不一致' })
+    }
+  }
+  return bad
+}
+
 async function uploadOne(client, localPath, ossPath) {
   try {
     const result = await client.put(ossPath, localPath, {
@@ -132,6 +159,14 @@ async function run() {
   if (total === 0) {
     console.log('\n⚠️  没找到任何文件，退出。')
     process.exit(0)
+  }
+
+  // 先做命名自检，坏名字会在上传后变成前端 404，宁可在本地就报出来
+  const suspicious = DIRS_TO_UPLOAD.flatMap((dir) => findSuspiciousNames(groups[dir]))
+  if (suspicious.length > 0) {
+    console.log(`\n⚠️  发现 ${suspicious.length} 个可疑文件名（建议改名后再传）：`)
+    suspicious.forEach((s) => console.log(`   - ${s.name} —— ${s.reason}`))
+    console.log('   参考 scripts/check-card-references.sh 的「本地待传文件命名自检」。')
   }
 
   if (DRY_RUN) {

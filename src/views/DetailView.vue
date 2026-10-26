@@ -13,14 +13,16 @@ import { getWenId } from '@/utils/wenUtils'
 import { debugWarn } from '@/utils/debug'
 
 const route = useRoute()
-const articleId = route.params.id as string
-const wenId = getWenId(articleId)
+// R140: 用 computed 取路由参数。本组件实例在 /detail/1 → /detail/2 时会被复用，
+// 快照式取值会让正文和 AI 面板停在第一篇。
+const articleId = computed(() => String(route.params.id ?? ''))
+const wenId = computed(() => getWenId(articleId.value))
 
-// 使用导航 composable
-const { goNext, goPrev } = useNavigation('detail', articleId)
+// 使用导航 composable（实时读当前路由；detail 是 pageSequence 末页，没有下一页）
+const { goPrev } = useNavigation()
 
 // 使用埋点 composable
-useTracking('detail', articleId)
+useTracking('detail', articleId.value)
 
 // 包装 goPrev 以标记后退按钮
 function handleGoPrev() {
@@ -31,7 +33,7 @@ function handleGoPrev() {
 // 加载课文基础数据（title / author / original_text 等），走统一 useDataLoader 分层
 // R107: 通过 getDataUrlWithVersion 生成 OSS 地址并携带版本戳，资源更新后自动刷新缓存
 const basicInfoUrl = (): Promise<string> =>
-  getDataUrlWithVersion('text_basic_info', `${wenId}.json`)
+  getDataUrlWithVersion('text_basic_info', `${wenId.value}.json`)
 const {
   loading,
   error,
@@ -102,7 +104,10 @@ const paragraphs = computed(() => {
     </template>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="goNext" />
+    <!-- R140: detail 是 pageSequence 的最后一页，goNext 只会命中「无下一页」直接 return，
+         生产环境 debugWarn 又是空函数，学生看到的就是「点了继续没反应」。
+         这里不再渲染继续按钮，只留返回。 -->
+    <BackContinue back-text="返回" :show-continue="false" @back="handleGoPrev" />
   </div>
 </template>
 

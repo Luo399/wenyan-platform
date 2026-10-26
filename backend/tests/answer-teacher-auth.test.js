@@ -166,3 +166,56 @@ describe('teacher 角色：无关联班级时查询应返回空列表而非崩�
     expect(res.body.data.students).toEqual([])
   })
 })
+
+describe('teacher can_view_all=1 全权限分支', () => {
+  let fullAccessToken
+
+  it('admin 创建 can_view_all=1 的 teacher 可跳过 class_codes', async () => {
+    const res = await asAdmin(request(app).post('/api/admin/teachers')).send({
+      phone: '13800000088',
+      name: '全权限老师',
+      password: '12345678',
+      school_id: 1,
+      can_view_all: true,
+      // 不传 class_codes —— 全权限不需要
+    })
+    expect(res.status).toBe(201)
+    // 验证 teacher 表里 can_view_all = 1
+    const getRes = await asAdmin(request(app).get('/api/admin/teachers/13800000088'))
+    expect(getRes.body.data.can_view_all).toBe(1)
+  })
+
+  it('can_view_all=1 的 teacher 查他班学生 → 200（普通 teacher 会 403）', async () => {
+    const loginRes = await request(app)
+      .post('/api/auth/teacher/login')
+      .send({ phone: '13800000088', password: '12345678' })
+    fullAccessToken = loginRes.body.data.token
+
+    const res = await request(app)
+      .get('/api/answers/student/20240201')
+      .set('Authorization', `Bearer ${fullAccessToken}`)
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+  })
+
+  it('can_view_all=1 的 teacher 查 wen → 所有班级学生可见', async () => {
+    const res = await request(app)
+      .get('/api/answers/wen/WEN_AA')
+      .set('Authorization', `Bearer ${fullAccessToken}`)
+    expect(res.status).toBe(200)
+    // 至少能看到 20240101（之前提交过答题的本班学生）
+    const seenIds = res.body.data.students.map((s) => s.studentId)
+    expect(seenIds).toContain('20240101')
+  })
+
+  it('authService.teacherCanManageClass 对 can_view_all=1 放行任意班级', async () => {
+    const { teacherCanManageClass } = require('../src/services/authService')
+    const { db } = require('../src/config/database')
+    // teacher id 7 = 13800000088（前面刚创建的）
+    const row = await new Promise((resolve) => {
+      db.get("SELECT id FROM teachers WHERE phone = '13800000088'", (_, r) => resolve(r))
+    })
+    const ok = await teacherCanManageClass(row.id, '999999') // 随便一个不存在的班级
+    expect(ok).toBe(true)
+  })
+})
