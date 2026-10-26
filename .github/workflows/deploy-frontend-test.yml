@@ -42,18 +42,56 @@ jobs:
 
       - name: Deploy to Aliyun OSS test bucket
         run: |
-          # 先上传所有资源文件（带 hash 的 JS/CSS 等），设置长缓存
-          ./ossutil64 cp -r ./dist oss://${{ secrets.OSS_TEST_BUCKET }}/ --force \
-            -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
-            -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
-            -e oss-cn-guangzhou.aliyuncs.com \
-            --acl public-read \
-            --meta "Cache-Control:public,max-age=31536000"
-          # 再单独上传 index.html，设置不缓存，确保用户总能获取最新版本
-          ./ossutil64 cp ./dist/index.html oss://${{ secrets.OSS_TEST_BUCKET }}/index.html \
-            -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
-            -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
-            -e oss-cn-guangzhou.aliyuncs.com \
-            --acl public-read \
-            --meta "Cache-Control:no-cache" \
-            --force
+          set -euo pipefail
+          OSS_ARGS=(-i "${{ secrets.OSS_ACCESS_KEY_ID }}" -k "${{ secrets.OSS_ACCESS_KEY_SECRET }}" -e oss-cn-guangzhou.aliyuncs.com --acl public-read --force)
+          BUCKET="oss://${{ secrets.OSS_TEST_BUCKET }}"
+
+          # 与生产同一套缓存契约：长缓存只给带 hash 的 assets/，index.html 单独 no-cache。
+          # 旧写法整个 dist（含 index.html）先打一年缓存再补传修正，顺序一失败就造出永久卡旧版的客户端。
+          ./ossutil64 cp -r ./dist/assets "${BUCKET}/assets/" "${OSS_ARGS[@]}" \
+            --meta "Cache-Control:public,max-age=31536000,immutable"
+
+          ./ossutil64 cp ./dist/index.html "${BUCKET}/index.html" "${OSS_ARGS[@]}" \
+            --meta "Cache-Control:no-cache"
+
+          for entry in ./dist/*; do
+            base="$(basename "${entry}")"
+            case "${base}" in
+              assets|index.html) continue ;;
+            esac
+            ./ossutil64 cp -r "${entry}" "${BUCKET}/${base}" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:public,max-age=3600"
+          done
+
+      - name: Record expected build fingerprint
+        id: fingerprint
+        run: |
+          set -euo pipefail
+          hash="$(grep -o '/assets/index-[A-Za-z0-9_-]*\.js' ./dist/index.html | head -1 || true)"
+          if [ -z "${hash}" ]; then
+            echo "::error::dist/index.html 里找不到 /assets/index-*.js，无法自检"
+            exit 1
+          fi
+          echo "value=${hash}" >> "$GITHUB_OUTPUT"
+          echo "本次构建入口：${hash}"
+
+      - name: Verify test URL serves this build
+        run: |
+          set -euo pipefail
+          expected="${{ steps.fingerprint.outputs.value }}"
+          # 测试域名实测是 OSS 直连（响应头 Server: AliyunOSS，无 Via/X-Cache），不需要 CDN 刷新。
+          # -k 是临时措施：test.classicalab.cn 的证书主机名不匹配（ERR_CERT_COMMON_NAME_INVALID），
+          # 换证书后去掉 -k，见 docs/maintenance/release-freshness-plan.md 的证书待办。
+          url="https://test.classicalab.cn/"
+          got=""
+          for i in $(seq 1 12); do
+            got="$(curl -sSk -m 30 "${url}" | grep -o '/assets/index-[A-Za-z0-9_-]*\.js' | head -1 || true)"
+            echo "[$i] ${url} -> ${got:-<empty>} (期望 ${expected})"
+            if [ "${got}" = "${expected}" ]; then
+              echo "测试入口已指向本次构建。"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${url} 仍返回 ${got:-<empty>}，与本次构建 ${expected} 不符，别把它当成部署成功。"
+          exit 1
