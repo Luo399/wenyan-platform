@@ -4,6 +4,8 @@
  * 提供课文相关的公共工具函数，供多个组件和页面复用
  */
 
+import { hasRuleVideo } from '@/config/poemAssets'
+
 /**
  * 诗文条目类型
  * 用于统一描述一篇诗文的完整标识信息
@@ -15,6 +17,12 @@ export interface PoemEntry {
   poemId: string
   /** 篇目标题（UI 显示用，长标题做简写处理） */
   title: string
+  /**
+   * 素材是否已就绪（rule 视频齐备）。
+   * false 时选篇要置灰标「制作中」，不要让学生点进 404 黑屏，
+   * 判据来自 src/config/poemAssets.ts（按 OSS 实测结果维护）。
+   */
+  ready: boolean
 }
 
 /**
@@ -83,6 +91,7 @@ export function getAllPoems(): PoemEntry[] {
       wenId: `WEN_${poemId.padStart(2, '0')}`,
       // entry 由 Object.keys(poemMap) 枚举，必定存在，使用非空断言
       title: entry!.title,
+      ready: hasRuleVideo(poemId),
     }
   })
 }

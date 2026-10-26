@@ -1,5 +1,5 @@
 import { ref, onUnmounted, watch } from 'vue'
-import { debugLog } from '@/utils/debug'
+import { debugLog, debugWarn, debugError } from '@/utils/debug'
 
 // Worker 超时时间（毫秒）
 const WORKER_TIMEOUT = 5000
@@ -274,7 +274,21 @@ export function useDataLoader<T>(
 
   async function load() {
     // R107: 支持异步 urlGetter（如 getDataUrlWithVersion 需要先取版本戳）
-    const url = await urlGetter()
+    // R140: 这个 await 必须在错误收口之内。它原先裸在 try 外面，
+    // urlGetter 一旦 reject 就直接抛出 load()，既不进 catch 也不重置状态，
+    // 调用方拿到的是一个永远悬空的 Promise；配合 PageScaffold 的
+    // `showNavigation = !loading && !error && data`，结果是
+    // 页面既不报错、也不出「继续」按钮 —— 用户看到的正是"点不动/卡住"。
+    let url: string
+    try {
+      url = await urlGetter()
+    } catch (err) {
+      debugError('[useDataLoader] 生成资源地址失败:', err)
+      loading.value = false
+      error.value = err instanceof Error ? err.message : '资源地址生成失败'
+      onLoadError?.(error.value)
+      return
+    }
     debugLog('[useDataLoader] 开始加载:', url)
 
     // 阶段 1：前置检查（URL 为空、缓存命中）—— 命中则直接 return
@@ -389,8 +403,31 @@ export function useDataLoader<T>(
     const buffer = await response.arrayBuffer()
     const text = new TextDecoder('utf-8').decode(buffer)
 
-    // Worker 解析 JSON（失败抛错，外层 catch 统一处理）
-    return parseJsonWithWorker(text)
+    // Worker 解析 JSON；Worker 不可用或解析失败时回落到主线程 JSON.parse
+    return parseJsonResilient(text)
+  }
+
+  /**
+   * R140: 跨浏览器兜底的 JSON 解析。
+   *
+   * 原先所有页面数据都硬依赖一个 Web Worker（jsonParser.worker.js）：
+   * - 无 Worker 的环境（部分内置浏览器/WebView、被 CSP 拦掉 Worker 的部署）
+   *   直接 `new Worker` 抛 ReferenceError/SecurityError；
+   * - Worker 脚本本身 404、或解析超过 WORKER_TIMEOUT 时也会 reject。
+   * 这些情况下页面只会显示"加载失败"，学生整关都进不去。
+   * Worker 只是"别把主线程解析大 JSON 卡住"的优化，不该是单点故障，
+   * 所以这里降级为同步 JSON.parse —— 我们的数据文件都在几十 KB 量级，可接受。
+   */
+  async function parseJsonResilient(text: string): Promise<unknown> {
+    if (typeof Worker !== 'undefined') {
+      try {
+        return await parseJsonWithWorker(text)
+      } catch (err) {
+        debugWarn('[useDataLoader] Worker 解析未成功，回落到主线程 JSON.parse:', err)
+      }
+    }
+    // 主线程解析：失败照常抛出，交给 handleLoadError 显示错误态 + 重试
+    return JSON.parse(text)
   }
 
   /**
