@@ -276,16 +276,19 @@ export function useNavigation(routeNameHint?: RouteName, idHint?: string) {
         // 端到端耗时统计 + 埋点上报（异步，不阻塞主线程）
         reportNextLatency(routeName, path, syncCost, Math.round(nowMs() - startTime))
         // R136: 检查导航结果，如果是失败类型，记录详细日志
-        if (result && isNavigationFailure(result)) {
-          debugWarn('[useNavigation.goNext] 导航失败:', result)
+        // 走 unknown 再判类型：vue-router 5 的 push 结果本身已含 void，
+        // 直接对它调用类型守卫会被 TS 收窄成 never（type-check 不过）
+        const navResult: unknown = result
+        if (navResult && isNavigationFailure(navResult)) {
+          debugWarn('[useNavigation.goNext] 导航失败:', navResult)
           // 被守卫中止/重定向（例如令牌过期跳登录页）时不做整页跳转，
           // 否则会覆盖守卫给出的目标。
-          if (result.type === NavigationFailureType.cancelled || result.type === NavigationFailureType.aborted) {
+          if (navResult.type === NavigationFailureType.cancelled || navResult.type === NavigationFailureType.aborted) {
             track('interaction', routeName, {
               module_type: 'navigation',
               action: 'go_next_blocked',
               target_path: path,
-              failure_type: result.type,
+              failure_type: navResult.type,
               user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
             })
           }
@@ -297,8 +300,9 @@ export function useNavigation(routeNameHint?: RouteName, idHint?: string) {
         router
           .replace(path)
           .then((result) => {
-            if (result && isNavigationFailure(result)) {
-              debugWarn('[useNavigation.goNext] router.replace 也未生效:', result)
+            const navResult: unknown = result
+            if (navResult && isNavigationFailure(navResult)) {
+              debugWarn('[useNavigation.goNext] router.replace 也未生效:', navResult)
             }
           })
           .catch((err2: unknown) => {
