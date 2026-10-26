@@ -283,7 +283,9 @@ export function useNavigation(routeNameHint?: RouteName, idHint?: string) {
           debugWarn('[useNavigation.goNext] 导航失败:', navResult)
           // 被守卫中止/重定向（例如令牌过期跳登录页）时不做整页跳转，
           // 否则会覆盖守卫给出的目标。
-          if (navResult.type === NavigationFailureType.cancelled || navResult.type === NavigationFailureType.aborted) {
+          // 位或传多种类型是 vue-router 文档给的用法：直接比 failure.type 在
+          // vue-router 5 下过不了类型检查（NavigationFailure.type 是内部 ErrorTypes）
+          if (isNavigationFailure(navResult, NavigationFailureType.aborted | NavigationFailureType.cancelled)) {
             track('interaction', routeName, {
               module_type: 'navigation',
               action: 'go_next_blocked',
