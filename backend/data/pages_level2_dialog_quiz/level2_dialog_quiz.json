@@ -8,7 +8,7 @@
           "text_id": "WEN_01",
           "pre_dialog": "戍卒：二位屯长，冒昧来访，听完你们的话我才知道许多事情不是天意而是人为，我实在佩服你们的计谋。",
           "audio_file": "WEN_01_multi_dialog1",
-          "icon_dialog": "WEN_01_icon_dialog1.png"
+          "icon_dialog": ""
         }
       },
       {
@@ -37,7 +37,7 @@
           "text_id": "WEN_01",
           "pre_dialog": "吴广：答案是B。我们这些戍卒，年年服役，最信鬼神。帛书从鱼肚子里剖出来，狐狸在夜里叫“陈胜王”，谁不怕？谁不信？这不是装神弄鬼，是借人心所畏，聚人心所向。",
           "audio_file": "WEN_01_multi_dialog3",
-          "icon_dialog": "WEN_01_icon_dialog3.png"
+          "icon_dialog": ""
         }
       },
       {
@@ -46,7 +46,7 @@
           "text_id": "WEN_01",
           "pre_dialog": "陈胜：没错，A项“借名号”的真实目的是利用扶苏、项燕在民间的声望号召天下响应，而非吸引官兵注意力；C项吴广扬言逃跑的目的是激怒将尉，使其当众鞭打自己，从而激怒众戍卒，而非让将尉放松警惕；D项“祭以尉首”是筑坛盟誓的仪式，象征起义的庄严与决心，具有凝聚军心的重要战略意义，绝非单纯报复。",
           "audio_file": "WEN_01_multi_dialog4",
-          "icon_dialog": "WEN_01_icon_dialog2.png"
+          "icon_dialog": ""
         }
       },
       {
@@ -75,7 +75,7 @@
           "text_id": "WEN_01",
           "pre_dialog": "陈胜：答案是C。雨下了三十天，期限已误，按律我们全都要斩首。可我偏不信——王侯将相，难道生来就是王侯将相？他们的命是命，我们的命就不是命？",
           "audio_file": "WEN_01_multi_dialog6",
-          "icon_dialog": "WEN_01_icon_dialog2.png"
+          "icon_dialog": ""
         }
       },
       {
@@ -84,7 +84,7 @@
           "text_id": "WEN_01",
           "pre_dialog": "吴广：至于A项则是陈胜少时抒发志向的话语，B项是对天下形势的判断，属于分析层面的智慧，D项是谋划起义时对利害的权衡，体现的是理性的抉择。只有C项在生死关头当众喊出，直接挑战血统尊卑秩序，所以最能体现不甘宿命、敢于反抗的超凡胆识。",
           "audio_file": "WEN_01_multi_dialog7",
-          "icon_dialog": "WEN_01_icon_dialog3.png"
+          "icon_dialog": ""
         }
       }
     ]
@@ -138,7 +138,7 @@
           "text_id": "WEN_04",
           "pre_dialog": "惠子：答案是B。我先主动退一步，承认 \"我不是你，本来就不知道你\"，顺着庄子之前的逻辑承认了 \"不是对方就不知道对方的想法\" 这一前提。然后我立刻调转方向，用这个我们双方都认可的前提反过来攻击庄子：既然你承认 \"不是对方就不知道对方\"，那你本来就不是鱼，所以你不知道鱼的快乐，这个结论是完全成立的。这种先退让一步、再趁机反击的技巧，就是 \"以退为进，反守为攻\"",
           "audio_file": "WEN_04_multi_dialog3",
-          "icon_dialog": "WEN_04_avatar_huizi.png"
+          "icon_dialog": ""
         }
       }
     ]
@@ -151,8 +151,8 @@
         "data": {
           "text_id": "WEN_03",
           "pre_dialog": "书生：先生，您请范公写《岳阳楼记》，可我细读文章，几乎没细致写岳阳楼的楼宇模样，这是为何呀？",
-          "audio_file": "WEN_03_muti_dialog1",
-          "icon_dialog": "WEN_03_icon_dialog1.png"
+          "audio_file": "WEN_03_multi_dialog1",
+          "icon_dialog": ""
         }
       },
       {
@@ -167,7 +167,7 @@
           "option_b": "范仲淹意在借岳阳楼抒发 “先天下之忧而忧，后天下之乐而乐” 的政治抱负，而非介绍建筑",
           "option_c": "范仲淹从未登临岳阳楼，无法描写楼的具体样貌，只能借洞庭湖景色抒情",
           "option_d": "范仲淹将笔墨放在洞庭湖景色与迁客骚人的情感上，为引出“古仁人之心”做铺垫",
-          "audio_file": "WEN_03_muti_dialog2",
+          "audio_file": "WEN_03_multi_dialog2",
           "difficulty": "L2",
           "pre_dialog": "滕子京：此言问到了关键之处，你来分辨一下，以下说法哪一项理解有误？",
           "correct_answer": 2,
@@ -180,8 +180,8 @@
         "data": {
           "text_id": "WEN_03",
           "pre_dialog": "滕子京：答案是C。前人对其形貌描写已然用尽笔墨，再重复前人旧调，毫无新意可言，所以希文兄虽未亲临巴陵，但其所写的，是心中的洞庭湖，心中的岳阳楼，是比楼更为高远的胸怀抱负。",
-          "audio_file": "WEN_03_muti_dialog3",
-          "icon_dialog": "WEN_03_icon_dialog3.png"
+          "audio_file": "WEN_03_multi_dialog3",
+          "icon_dialog": ""
         }
       }
     ]
@@ -215,7 +215,7 @@
           "text_id": "WEN_02",
           "pre_dialog": "千里马：答案是C。我本有日行千里的能力，可喂养我的人不懂我的需求，吃不饱、力气不足，才华自然无法施展。他们驱使我不讲方法，听不懂我的嘶鸣，却张口便说“天下无马”。",
           "audio_file": "WEN_01_multi_dialog2",
-          "icon_dialog": "WEN_01_icon_dialog2"
+          "icon_dialog": ""
         }
       },
       {
@@ -244,7 +244,7 @@
           "text_id": "WEN_02",
           "pre_dialog": "千里马：答案是B。世间从不缺少有才华的人，缺少的是慧眼识才、用心育才、真心惜才的人。没有伯乐的赏识与善待，再出众的才华也可能被埋没、被辜负。韩愈写马，实则写人，感叹的是天下有才之士，难遇知己、难逢良机的无奈。",
           "audio_file": "WEN_01_multi_dialog4",
-          "icon_dialog": "WEN_01_icon_dialog2"
+          "icon_dialog": ""
         }
       }
     ]
