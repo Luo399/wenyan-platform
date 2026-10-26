@@ -132,6 +132,19 @@ export const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+  // R140: 显式声明滚动行为。
+  // 之前没有配置，各浏览器自行决定新页面继承还是保留上一个页面的滚动位置：
+  // 步骤页（StepView / DetailView）内容比一屏长，用户滚到底部点固定在屏底的「继续」后，
+  // 部分环境会把新页面也停在同一个滚动位置（看起来像"点了没跳转"），部分环境才回到顶部。
+  scrollBehavior(to, from, savedPosition) {
+    // 浏览器前进/后退：用它自己存的位置，保持原生手感
+    if (savedPosition) return savedPosition
+    // 锚点跳转优先
+    if (to.hash) return { el: to.hash, behavior: 'smooth' }
+    // 换页面回到顶部；同一路由只换 :id 时保持现状，别打断正在读的内容
+    if (to.name !== from.name) return { top: 0 }
+    return false
+  },
 })
 
 export default router

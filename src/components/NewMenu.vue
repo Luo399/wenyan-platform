@@ -18,12 +18,16 @@
         :key="poem.wenId"
         type="button"
         class="poem-chip"
-        :class="{ 'is-active': poem.wenId === activeWenId }"
+        :class="{ 'is-active': poem.wenId === activeWenId, 'is-disabled': !poem.ready }"
+        :disabled="!poem.ready"
+        :title="poem.ready ? '' : '素材制作中，暂不可进入'"
         :ref="(el) => setChipRef(el, poem.wenId)"
         @click="handleSelect(poem.wenId)"
         role="listitem"
       >
         {{ poem.title }}
+        <!-- OSS 上该编号的 rule 视频还没交付，点进去只会是加载失败，这里明确标出来 -->
+        <span v-if="!poem.ready" class="chip-tag">制作中</span>
       </button>
 
       <!-- 查看更多 / 收起（Figma: btn_text_more.png 样式：朱红重字 + 5px 下划线） -->
@@ -44,9 +48,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAllPoems, getWenId, type PoemEntry } from '@/utils/wenUtils'
+import { isPoemReady } from '@/config/poemAssets'
 import { useNavigation } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
 import { getAssetUrl } from '@/utils/asset'
+import { debugLog } from '@/utils/debug'
 
 // ==== 设计稿资源（Figma 通用组件文件 → OSS images/general/） ====
 const BG_URL = getAssetUrl('images', 'general/article_list_bg.png')
@@ -137,6 +143,13 @@ function getPoemIdFromWenId(wenId: string): string {
 
 /** 点击或键盘选择某项：跳转到规则页 */
 function handleSelect(wenId: string) {
+  // 素材未就绪的编号已经在模板里 disabled，这里再挡一道：
+  // 触屏连点、键盘 Enter、以及未来任何直接调用 handleSelect 的路径都不能放行，
+  // 否则学生进去只会看到一个「视频加载失败」。
+  if (!isPoemReady(wenId)) {
+    debugLog('[NewMenu] 素材未就绪，忽略选篇:', wenId)
+    return
+  }
   if (!authStore.isLoggedIn) {
     // 未登录：跳转到学生登录页，携带 redirect 参数指向目标规则页
     const poemId = getPoemIdFromWenId(wenId)
@@ -227,6 +240,30 @@ const titleUrl = TITLE_URL
     color 0.2s ease,
     background-color 0.2s ease,
     border-color 0.2s ease;
+}
+
+/* 素材未就绪（OSS 上还没有 rule 视频）：置灰 + 不可点，但仍留在列表里，
+   让学生看得到这篇课文存在、只是还没上线 */
+.poem-chip.is-disabled,
+.poem-chip.is-disabled:hover {
+  color: var(--color-text-placeholder, #999);
+  background: none;
+  cursor: not-allowed;
+  opacity: 0.55;
+  border-bottom-color: transparent;
+}
+
+/* 「制作中」小标签 */
+.chip-tag {
+  margin-left: var(--spacing-xs);
+  padding: 0 6px;
+  border-radius: var(--radius-small, 4px);
+  border: 1px solid currentColor;
+  font-size: 0.62em;
+  font-weight: 600;
+  line-height: 1.8;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .poem-chip:hover {

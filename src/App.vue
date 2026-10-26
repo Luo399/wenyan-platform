@@ -5,7 +5,15 @@
       <StudentDisplay />
     </div>
 
-    <router-view />
+    <!--
+      R140: 按 route.name 给路由组件加 key。
+      rules/rule1/rule2/rule3 共用 RuleVideoView、stepone/steptwo/stepthree 共用 StepView，
+      vue-router 的 RouterView 不设 key，同组件跨路由时实例被复用，
+      setup / onMounted 不会重跑，导致导航参数与埋点 step_enter 停在第一次进入的页面。
+      加 key 后每条路由都是干净实例；同一路由内只换 :id 时仍然复用，
+      由各自的 computed 响应参数变化（不会把正在播的视频打断）。
+    -->
+    <router-view :key="route.name ?? route.path" />
 
     <!-- 底部备案号 -->
     <footer class="icp-footer">
@@ -22,7 +30,11 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import StudentDisplay from '@/components/StudentDisplay.vue'
+
+// R140: 供 router-view 的 key 使用（见上方注释）
+const route = useRoute()
 </script>
 
 <style>
