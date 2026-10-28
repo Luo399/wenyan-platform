@@ -64,9 +64,9 @@
 ## [ ] 发布新鲜度：浏览器不再跑旧构建 (release-freshness)
 
 - 目标：让「同一份修复在不同浏览器上新旧不一」这件事可辨识、可自愈、可验证。事实基线与方案见 `docs/maintenance/release-freshness-plan.md`。
-- 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/utils/chunkRecovery.ts`、`src/components/common/BuildStamp.vue`、`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
+- 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/utils/chunkRecovery.ts`、`src/utils/buildVersion.ts`、`src/components/common/BuildStamp.vue`、`src/components/common/UpdatePrompt.vue`、`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
 - 红线：发现新版本**只提示、不自动刷新**（学生答题中途不能被刷掉）；chunk 失败自愈必须带单次限制防死循环；不引入 Service Worker；`deploy-*.yml` 是 CI 盲区，改动的第一次执行就是真跑。
-- 分支 / commit / CI：父分支 `feature/release-freshness/main`（阶段 2 `7599a12` → 阶段 3 `490c06e` → 阶段 1 `7013e55` + 修红 `d452d16`，集成分支 `a25c377`）；经 PR #192 并入 `feature-1`（`3c0a786`）。`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条红，本方案新增的 32 条用例（21 + 8 + 3）全绿；`Deploy Frontend to Test OSS` 用新缓存契约首跑成功，自检第 1 轮命中本次构建入口。
+- 分支 / commit / CI：父分支 `feature/release-freshness/main`（阶段 2 `7599a12` → 阶段 3 `490c06e` → 阶段 1 `7013e55` + 修红 `d452d16` → 阶段 4 `a4f0330` + 修红 `2b2edf0`，集成分支 `ca8c6c96`）；阶段 1–3 经 PR #192 并入 `feature-1`（`3c0a786`），阶段 4 随 PR #199 并入。`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条红，本方案新增的 65 条用例（21 + 8 + 3 + 23 + 10）全绿；`Deploy Frontend to Test OSS` 用新缓存契约首跑成功，自检第 1 轮命中本次构建入口，`index.html` 里已带 `<meta name="build-id" content="4b44b2f">`。
 
 ### [x] 构建号注入与页脚可见 (build-id-visibility)
 
@@ -89,11 +89,12 @@
 - 关联文件：`src/utils/chunkRecovery.ts`、`src/main.ts`
 - 分支 / commit / CI：`feature/release-freshness/chunk-reload-recovery` @ `490c06e`；PR #191；`src/utils/__tests__/chunkRecovery.test.ts` 21 项通过（含与真实 vue-router 的接线用例）。
 
-### [ ] 新版本探测与更新提示 (version-prompt)
+### [x] 新版本探测与更新提示 (version-prompt)
 
-- 目标：页面可见时 + 定时以 `cache: no-store` 拉 `index.html` 比对入口 hash，发现新版本**只提示**，用户自己点刷新。
+- 目标：页面可见时 + 定时以 `cache: no-store` 拉 `index.html` 比对版本指纹，发现新版本**只提示**，用户自己点刷新。
 - 验收：不自动刷新；复用 `chunkRecovery` 已派发的 `wenyan:chunk-reload-failed` 事件与 `wenyan:chunk-reload-hint` 记录；探测逻辑在 `src/utils/` 层，组件不直接 fetch。
-- 关联文件：`src/utils/buildVersion.ts`（待建）、`src/components/common/BuildStamp.vue`
+- 关联文件：`src/utils/buildVersion.ts`、`src/components/common/UpdatePrompt.vue`、`src/App.vue`、`src/main.ts`
+- 分支 / commit / CI：`feature/release-freshness/version-prompt` @ `a4f0330` + 修红 `2b2edf0`；PR #197 / #198；`src/utils/__tests__/buildVersion.test.ts`（23）+ `src/components/__tests__/UpdatePrompt.test.ts`（10）全绿，`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条。修的那条：`onMounted` 里回读 hint 触发的是异步重渲染，挂载那一帧还是隐藏 —— 回读挪进 setup。
 
 ---
 
