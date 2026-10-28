@@ -15,7 +15,7 @@
     -->
     <router-view :key="route.name ?? route.path" />
 
-    <!-- 底部备案号 -->
+    <!-- 底部备案号 + 构建号（发布新鲜度阶段 1，见 src/utils/buildStamp.ts） -->
     <footer class="icp-footer">
       <a
         href="https://beian.miit.gov.cn"
@@ -25,13 +25,19 @@
       >
         粤ICP备2026074888号-1
       </a>
+      <BuildStamp />
     </footer>
+
+    <!-- 新版本 / 加载失败的提示条（发布新鲜度阶段 4，只提示，刷新由用户点击） -->
+    <UpdatePrompt />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import StudentDisplay from '@/components/StudentDisplay.vue'
+import BuildStamp from '@/components/common/BuildStamp.vue'
+import UpdatePrompt from '@/components/common/UpdatePrompt.vue'
 
 // R140: 供 router-view 的 key 使用（见上方注释）
 const route = useRoute()

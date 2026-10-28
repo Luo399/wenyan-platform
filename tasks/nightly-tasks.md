@@ -61,6 +61,43 @@
 
 ---
 
+## [ ] 发布新鲜度：浏览器不再跑旧构建 (release-freshness)
+
+- 目标：让「同一份修复在不同浏览器上新旧不一」这件事可辨识、可自愈、可验证。事实基线与方案见 `docs/maintenance/release-freshness-plan.md`。
+- 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/utils/chunkRecovery.ts`、`src/utils/buildVersion.ts`、`src/components/common/BuildStamp.vue`、`src/components/common/UpdatePrompt.vue`、`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
+- 红线：发现新版本**只提示、不自动刷新**（学生答题中途不能被刷掉）；chunk 失败自愈必须带单次限制防死循环；不引入 Service Worker；`deploy-*.yml` 是 CI 盲区，改动的第一次执行就是真跑。
+- 分支 / commit / CI：父分支 `feature/release-freshness/main`（阶段 2 `7599a12` → 阶段 3 `490c06e` → 阶段 1 `7013e55` + 修红 `d452d16` → 阶段 4 `a4f0330` + 修红 `2b2edf0`，集成分支 `ca8c6c96`）；阶段 1–3 经 PR #192 并入 `feature-1`（`3c0a786`），阶段 4 随 PR #199 并入。`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条红，本方案新增的 65 条用例（21 + 8 + 3 + 23 + 10）全绿；`Deploy Frontend to Test OSS` 用新缓存契约首跑成功，自检第 1 轮命中本次构建入口，`index.html` 里已带 `<meta name="build-id" content="4b44b2f">`。
+
+### [x] 构建号注入与页脚可见 (build-id-visibility)
+
+- 目标：任何人 5 秒内能说出用户跑的是哪次构建（方案 G1）。
+- 验收：页脚显示构建号且与提交短 sha 一致；`index.html` 里有 `<meta name="build-id">` 供 curl / CI 比对；不掺构建时间戳以保住产物字节稳定。
+- 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/components/common/BuildStamp.vue`、`src/App.vue`
+- 分支 / commit / CI：`feature/release-freshness/build-id-visibility` @ `7013e55` + `d452d16`；PR #194 / #195；`src/utils/__tests__/buildStamp.test.ts`（8）+ `src/components/__tests__/BuildStamp.test.ts`（3）通过。坑记在方案第 8 节：模板里的根级注释会让组件变成 fragment，测试拿到的 `wrapper.element` 是挂载容器。
+
+### [x] 部署缓存契约与CDN刷新校验 (deploy-cache-contract)
+
+- 目标：长缓存只给 hash 产物，`index.html` 每次回源；CDN 刷新失败必须让 job 变红；部署后自检线上入口是否等于本次构建（方案 G2）。
+- 验收：`deploy-frontend.yml` 与 `deploy-frontend-test.yml` 分段上传；测试与生产各自有一条比对入口 hash 的自检步骤。
+- 关联文件：`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
+- 分支 / commit / CI：`feature/release-freshness/deploy-cache-contract` @ `7599a12`；PR #188；`Deploy Frontend to Test OSS`（run 40614107402）成功，测试入口 `/assets/index-DiJuirkI.js` 与本次构建一致。生产侧待 `feature-1 → main` 的 PR 合并后由 `Deploy Frontend to Aliyun OSS` 复验。
+
+### [x] 懒加载chunk失败整页重载一次 (chunk-reload-recovery)
+
+- 目标：旧会话点到已下线的 chunk 时自动恢复，不停留在半死页面（方案 G3）。
+- 验收：重载目标是本次导航要去的路由地址；同一地址只自动重载一次；业务接口失败绝不触发刷新；离线 / sessionStorage 不可用时只提示。
+- 关联文件：`src/utils/chunkRecovery.ts`、`src/main.ts`
+- 分支 / commit / CI：`feature/release-freshness/chunk-reload-recovery` @ `490c06e`；PR #191；`src/utils/__tests__/chunkRecovery.test.ts` 21 项通过（含与真实 vue-router 的接线用例）。
+
+### [x] 新版本探测与更新提示 (version-prompt)
+
+- 目标：页面可见时 + 定时以 `cache: no-store` 拉 `index.html` 比对版本指纹，发现新版本**只提示**，用户自己点刷新。
+- 验收：不自动刷新；复用 `chunkRecovery` 已派发的 `wenyan:chunk-reload-failed` 事件与 `wenyan:chunk-reload-hint` 记录；探测逻辑在 `src/utils/` 层，组件不直接 fetch。
+- 关联文件：`src/utils/buildVersion.ts`、`src/components/common/UpdatePrompt.vue`、`src/App.vue`、`src/main.ts`
+- 分支 / commit / CI：`feature/release-freshness/version-prompt` @ `a4f0330` + 修红 `2b2edf0`；PR #197 / #198；`src/utils/__tests__/buildVersion.test.ts`（23）+ `src/components/__tests__/UpdatePrompt.test.ts`（10）全绿，`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条。修的那条：`onMounted` 里回读 hint 触发的是异步重渲染，挂载那一帧还是隐藏 —— 回读挪进 setup。
+
+---
+
 ## [ ] 继续按钮点击延迟优化 (continue-button-latency)
 
 - 目标：统计不同浏览器环境下点击「继续」按钮的响应延迟，并把响应时间优化到 0.5 秒以内。

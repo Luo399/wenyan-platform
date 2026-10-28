@@ -32,6 +32,37 @@ async function checkCheckbox(wrapper: VueWrapper, selector: string, checked: boo
   await wrapper.vm.$nextTick()
 }
 
+/**
+ * 在容器内部按前缀收集 chip 的 testid。
+ *
+ * 不能直接 findAll('[data-testid^="selected-"]')：容器自身 data-testid="selected-row"
+ * 也带这个前缀，会被一起算进去（同理 `[data-testid^="class-"]` 会命中根节点
+ * class-picker 和班级行容器 class-row）。限定在容器后代里查就只剩 chip。
+ * 容器不存在时返回空数组，避免在空 DOMWrapper 上调 findAll 直接抛错。
+ */
+function chipIdsUnder(wrapper: VueWrapper, containerTestId: string, prefix: string): string[] {
+  const container = wrapper.find(`[data-testid="${containerTestId}"]`)
+  if (!container.exists()) return []
+  return container
+    .findAll(`[data-testid^="${prefix}"]`)
+    .map((el) => el.attributes('data-testid') as string)
+}
+
+/** 已选列表里的班级 chip（不含 selected-row 容器本身） */
+function selectedChips(wrapper: VueWrapper): string[] {
+  return chipIdsUnder(wrapper, 'selected-row', 'selected-')
+}
+
+/** 班级行里的班级 chip（不含 class-row 容器与根节点 class-picker） */
+function classChips(wrapper: VueWrapper): string[] {
+  return chipIdsUnder(wrapper, 'class-row', 'class-')
+}
+
+/** 取某个年级 chip 的勾选状态 */
+function gradeChecked(wrapper: VueWrapper, grade: string): boolean {
+  return (wrapper.get(`[data-testid="grade-${grade}"]`).find('input').element as HTMLInputElement).checked
+}
+
 describe('ClassPicker 组件', () => {
   describe('初始化与渲染', () => {
     it('传 options 后 specific-picker 显示', () => {
@@ -75,13 +106,13 @@ describe('ClassPicker 组件', () => {
   describe('v-model 双向同步', () => {
     it('modelValue 初始有值 → 已选列表展示', () => {
       const w = factory({ modelValue: ['202401', '202402'] })
-      expect(w.findAll('[data-testid^="selected-"]').length).toBe(2)
+      expect(selectedChips(w)).toEqual(['selected-202401', 'selected-202402'])
     })
 
     it('更新外部 modelValue → 内部 innerClassCodes 同步', async () => {
       const w = factory({ modelValue: ['202401'] })
       await w.setProps({ modelValue: ['202401', '202402', '202403'] })
-      expect(w.findAll('[data-testid^="selected-"]').length).toBe(3)
+      expect(selectedChips(w)).toHaveLength(3)
     })
   })
 
@@ -100,6 +131,8 @@ describe('ClassPicker 组件', () => {
     it('取消全权限 → emit fullAccess=false + specific-picker 重新显示', async () => {
       const w = factory({ modelValue: [] })
       await checkCheckbox(w, '[data-testid="full-access-checkbox"]', true)
+      expect(w.find('[data-testid="specific-picker"]').exists()).toBe(false)
+
       await checkCheckbox(w, '[data-testid="full-access-checkbox"]', false)
 
       const fullEmitted = w.emitted('update:fullAccess')!
@@ -113,6 +146,16 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="specific-picker"]').exists()).toBe(false)
       expect(w.find('[data-testid="selected-row"]').exists()).toBe(false)
     })
+
+    it('父组件不绑 fullAccess（两个真实调用点的用法）→ 组件自己记住开关状态', async () => {
+      // Vue 会把缺省的 Boolean prop 转成 false，不是 undefined：
+      // 早期实现用 props.fullAccess ?? 内部状态 判断，这里会一直读到 false
+      const w = factory({ modelValue: ['202401'] })
+      await checkCheckbox(w, '[data-testid="full-access-checkbox"]', true)
+      const cb = w.find('[data-testid="full-access-checkbox"]').element as HTMLInputElement
+      expect(cb.checked).toBe(true)
+      expect(selectedChips(w)).toHaveLength(0)
+    })
   })
 
   describe('年级 + 班级 chip 选择（动态联动）', () => {
@@ -120,7 +163,14 @@ describe('ClassPicker 组件', () => {
       const w = factory()
       await checkCheckbox(w, '[data-testid="grade-2024"] input', true)
       expect(w.find('[data-testid="class-row"]').exists()).toBe(true)
-      expect(w.findAll('[data-testid^="class-2024"]').length).toBe(3)
+      expect(classChips(w)).toEqual(['class-202401', 'class-202402', 'class-202403'])
+    })
+
+    it('只勾年级、还没勾班级 → 年级 chip 保持勾选（班级行不会被自己收掉）', async () => {
+      const w = factory()
+      await checkCheckbox(w, '[data-testid="grade-2023"] input', true)
+      expect(gradeChecked(w, '2023')).toBe(true)
+      expect(classChips(w)).toHaveLength(2)
     })
 
     it('同时选 2023+2025 → 班级 chip 组合正确', async () => {
@@ -128,10 +178,8 @@ describe('ClassPicker 组件', () => {
       await checkCheckbox(w, '[data-testid="grade-2023"] input', true)
       await checkCheckbox(w, '[data-testid="grade-2025"] input', true)
 
-      const classIds = w.findAll('[data-testid^="class-"]').map((el) => el.attributes('data-testid'))
-      expect(classIds).toContain('class-202301')
-      expect(classIds).toContain('class-202302')
-      expect(classIds).toContain('class-202501')
+      const classIds = classChips(w)
+      expect(classIds).toEqual(['class-202301', 'class-202302', 'class-202501'])
       expect(classIds).not.toContain('class-202401')
     })
 
@@ -139,7 +187,7 @@ describe('ClassPicker 组件', () => {
       const w = factory()
       await checkCheckbox(w, '[data-testid="grade-2023"] input', true)
       await checkCheckbox(w, '[data-testid="grade-2023"] input', false)
-      expect(w.findAll('[data-testid^="class-2023"]').length).toBe(0)
+      expect(classChips(w)).toHaveLength(0)
     })
 
     it('选班级 chip → emit modelValue + fullAccess=false', async () => {
@@ -176,9 +224,11 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="selected-202501"]').exists()).toBe(true)
     })
 
-    it('非法编码（非 6 位 / 字母 / 空格）→ 不添加', async () => {
+    // 用例一律避开「超过 6 位」的输入：输入框有 maxlength，程序化赋值是否被截断
+    // 取决于环境实现，断言会不稳；长度不足已由 '123' / '20250' 覆盖。
+    it('非 6 位数字 / 含字母 / 含空格 → 不添加', async () => {
       const w = factory()
-      const cases = ['', 'abc', '123', '20250', ' 202501', '2025011', '202a01']
+      const cases = ['', 'abc', '123', '20250', '202a01', '2025 1', '   ']
       for (const val of cases) {
         await w.get('[data-testid="manual-input"]').setValue(val)
         await w.get('[data-testid="add-btn"]').trigger('click')
@@ -187,13 +237,23 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="selected-row"]').exists()).toBe(false)
     })
 
+    it('带首尾空格的合法编码 → 按 trim 后的结果添加（方便从表格粘贴）', async () => {
+      const w = factory()
+      // 用尾随空格：前导空格 + 6 位会超出 maxlength=6，是否被截断取决于测试环境
+      await w.get('[data-testid="manual-input"]').setValue('202501 ')
+      await w.get('[data-testid="add-btn"]').trigger('click')
+      expect(selectedChips(w)).toEqual(['selected-202501'])
+      const modelEmitted = w.emitted('update:modelValue')!
+      expect(modelEmitted[modelEmitted.length - 1][0]).toEqual(['202501'])
+    })
+
     it('重复输入同一编码 → 去重不再次添加', async () => {
       const w = factory()
       await w.get('[data-testid="manual-input"]').setValue('202401')
       await w.get('[data-testid="add-btn"]').trigger('click')
       await w.get('[data-testid="manual-input"]').setValue('202401')
       await w.get('[data-testid="add-btn"]').trigger('click')
-      expect(w.findAll('[data-testid="selected-202401"]').length).toBe(1)
+      expect(selectedChips(w)).toEqual(['selected-202401'])
     })
 
     it('输入框清空时 添加按钮 disabled', async () => {
@@ -224,11 +284,24 @@ describe('ClassPicker 组件', () => {
       await checkCheckbox(w, '[data-testid="class-202402"] input', true)
 
       await w.get('[data-testid="remove-202401"]').trigger('click')
+      // 还剩 202402 → 年级 chip 仍在
+      expect(gradeChecked(w, '2024')).toBe(true)
+
       await w.get('[data-testid="remove-202402"]').trigger('click')
 
       // 2024 没有任何选中班级 → 年级 chip 不应保持选中
-      const grade2024 = w.get('[data-testid="grade-2024"]').find('input').element as HTMLInputElement
-      expect(grade2024.checked).toBe(false)
+      expect(gradeChecked(w, '2024')).toBe(false)
+    })
+
+    it('手动添加的编码不影响年级 chip 的展开状态', async () => {
+      const w = factory()
+      await checkCheckbox(w, '[data-testid="grade-2024"] input', true)
+      await w.get('[data-testid="manual-input"]').setValue('202501')
+      await w.get('[data-testid="add-btn"]').trigger('click')
+
+      // 只勾了 2024 级、选中的却是 2025 的班级 → 2024 级 chip 不该被顺手收掉
+      expect(gradeChecked(w, '2024')).toBe(true)
+      expect(selectedChips(w)).toEqual(['selected-202501'])
     })
   })
 
@@ -246,6 +319,14 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="specific-picker"]').exists()).toBe(true)
       const cb = w.find('[data-testid="full-access-checkbox"]').element as HTMLInputElement
       expect(cb.checked).toBe(false)
+    })
+
+    it('父组件把 fullAccess 从 false 改成 true → 收起并清空班级', async () => {
+      const w = factory({ modelValue: ['202401'] })
+      await w.setProps({ fullAccess: true })
+      expect(w.find('[data-testid="specific-picker"]').exists()).toBe(false)
+      const cb = w.find('[data-testid="full-access-checkbox"]').element as HTMLInputElement
+      expect(cb.checked).toBe(true)
     })
   })
 })
