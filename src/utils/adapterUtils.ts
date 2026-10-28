@@ -65,6 +65,33 @@ function wrapParagraphsWithSlashesRemoved(html: string, removeSlashes: boolean):
 }
 
 /**
+ * 单条注释：词 + 释义 + 追问列表（预留）
+ *
+ * `followUpQuestions` 对应 word_list JSON 的 `follow_up_questions`。
+ * 目前 4 篇课文全为空数组，追问 UI 本轮不做，所以**空即不写属性**，
+ * 保证生成的 HTML 与线上现状逐字节一致；数据一旦填上，DOM 自动带上
+ * `data-follow-up`，渲染层不需要再改。
+ */
+export interface WordAnnotation {
+  word: string
+  meaning: string
+  followUpQuestions?: string[]
+}
+
+/**
+ * 追问列表 → span 上的 data-follow-up 属性片段
+ *
+ * @returns 非空时返回 ` data-follow-up="..."`（JSON 经 escapeHtml），空则返回空串
+ */
+function buildFollowUpAttribute(list: string[] | undefined): string {
+  const items = (list ?? []).filter((q) => typeof q === 'string' && q.trim() !== '')
+  if (items.length === 0) {
+    return ''
+  }
+  return ` data-follow-up="${escapeHtml(JSON.stringify(items))}"`
+}
+
+/**
  * 构建带注释的HTML内容
  *
  * @param content - 原始内容
@@ -76,7 +103,7 @@ function wrapParagraphsWithSlashesRemoved(html: string, removeSlashes: boolean):
  */
 export function buildContentHtmlWithAnnotations(
   content: string,
-  annotations: Array<{ word: string; meaning: string }> | null | undefined,
+  annotations: WordAnnotation[] | null | undefined,
   options: { removeSlashes?: boolean; wrapParagraphs?: boolean } = {},
 ): string {
   const { removeSlashes = false, wrapParagraphs = false } = options
@@ -106,7 +133,7 @@ export function buildContentHtmlWithAnnotations(
   const sortedAnnotations = [...annotations!].sort((a, b) => b.word.length - a.word.length)
 
   // 占位符策略：避免已注入的 span 被后续词汇匹配破坏
-  const placeholderMap = new Map<string, { word: string; meaning: string }>()
+  const placeholderMap = new Map<string, WordAnnotation>()
   for (const item of sortedAnnotations) {
     const placeholder = `__ANNOTATION_${placeholderMap.size}__`
     placeholderMap.set(placeholder, item)
@@ -118,7 +145,8 @@ export function buildContentHtmlWithAnnotations(
   for (const [placeholder, item] of placeholderMap) {
     const escapedWord = escapeHtml(item.word)
     const escapedMeaning = escapeHtml(item.meaning)
-    const replacement = `<span class="annotated-word" data-def="${escapedMeaning}">${escapedWord}</span>`
+    const followUpAttr = buildFollowUpAttribute(item.followUpQuestions)
+    const replacement = `<span class="annotated-word" data-def="${escapedMeaning}"${followUpAttr}>${escapedWord}</span>`
     result = result.split(escapeHtml(placeholder)).join(replacement)
   }
 

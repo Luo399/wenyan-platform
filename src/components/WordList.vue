@@ -31,10 +31,17 @@
       </div>
 
       <!-- 文章内容（直接使用适配器预生成的 HTML） -->
+      <!--
+        监听器必须由模板绑定，不能放在 onMounted 里手动 addEventListener：
+        这个 div 在 v-else 分支内，组件挂载时两份 JSON 还在加载、正文节点并不存在，
+        contentRef 恒为 null，原来的 `if (contentEl)` 会静默跳过绑定，且没有任何 watch 补绑，
+        结果 mousemove 处理器永不执行 —— tooltip 不出现，同一个处理器里的 search_word
+        埋点也从未上报。Vue 在元素创建时才绑 @mousemove，卸载时自动解绑，竞态从根上消失。
+      -->
       <div
-        ref="contentRef"
         class="article-content"
         v-html="adaptedData.basicInfo.contentHtml"
+        @mousemove="onMouseMove"
       ></div>
 
       <!-- Tooltip -->
@@ -47,18 +54,21 @@
         :style="{ left: tooltipPosition.x + 'px', top: tooltipPosition.y + 'px' }"
       >
         {{ currentAnnotation }}
+        <!-- 追问区（本轮不做 UI）：数据已预留到 span[data-follow-up]，
+             上线时在此读取 dataset.followUp 渲染列表，见 handleMouseMove 内注释 -->
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { getDataUrlWithVersion } from '@/utils/asset'
 import { useAuthStore } from '@/stores/auth'
 import { getSessionId } from '@/utils/tracking'
 import { post } from '@/utils/api'
+import { computeTooltipPosition } from '@/utils/tooltipPosition'
 import {
   adaptWordList,
   type RawWordItem,
@@ -69,11 +79,9 @@ import {
 // ============================================================
 // 常量（R23：移除魔法数字）
 // ============================================================
-/** Tooltip 与 CSS 保持一致的估算尺寸（用于边界计算，像素） */
-const TOOLTIP_ESTIMATED_WIDTH = 200 as const
+/** Tooltip 与 CSS 保持一致的估算尺寸（首次显示时的边界计算，像素，宽度对齐 CSS max-width） */
+const TOOLTIP_ESTIMATED_WIDTH = 320 as const
 const TOOLTIP_ESTIMATED_HEIGHT = 60 as const
-/** Tooltip 与鼠标指针的间距（像素） */
-const TOOLTIP_OFFSET = 10 as const
 /** mousemove 节流间隔：16ms ~ 60fps（R22） */
 const MOUSE_MOVE_THROTTLE_MS = 16 as const
 
@@ -81,9 +89,10 @@ const MOUSE_MOVE_THROTTLE_MS = 16 as const
 const showTooltip = ref(false)
 const currentAnnotation = ref('')
 const tooltipPosition = ref({ x: 0, y: 0 })
-const contentRef = ref<HTMLElement | null>(null)
 // 真实 tooltip DOM 引用（用于 R23：必要时用 getBoundingClientRect 校正尺寸）
 const tooltipRef = ref<HTMLElement | null>(null)
+// 最近一次鼠标位置：浮层渲染出真实尺寸后要拿它重新校正一次坐标
+const lastMouse = { x: 0, y: 0 }
 
 interface Props {
   wenId: string
@@ -152,7 +161,7 @@ function retry() {
  * R22: 手写 throttle，避免引入 lodash-es
  * 保证在 trailing 最后一次事件后至少执行一次，避免鼠标停止移动时 tooltip 位置漂移
  */
-function throttle<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
+function throttle<T extends (...args: never[]) => void>(fn: T, waitMs: number) {
   let lastInvokeTime = 0
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastArgs: Parameters<T> | null = null
@@ -197,92 +206,124 @@ function throttle<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
 /** 已上报过 search_word 的 word 缓存，避免连续 hover 重复上报 */
 const reportedWordSet = new Set<string>()
 
-function handleMouseMove(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (target.classList.contains('annotated-word')) {
-    const def = target.getAttribute('data-def')
-    if (def) {
-      currentAnnotation.value = def
+/** 浮层实测尺寸；尚未渲染（首次显示）时回退到常量估算 */
+function measureTooltipSize(): { width: number; height: number } {
+  const rect = tooltipRef.value?.getBoundingClientRect()
+  return {
+    width: rect?.width ?? TOOLTIP_ESTIMATED_WIDTH,
+    height: rect?.height ?? TOOLTIP_ESTIMATED_HEIGHT,
+  }
+}
 
-      // 字词查询埋点：每个 word 每个 session 仅上报一次
-      const word = target.textContent?.trim() || ''
-      if (word && !reportedWordSet.has(word)) {
-        reportedWordSet.add(word)
+/**
+ * R23：首帧用估算尺寸定位，渲染出真实尺寸后再校正一次。
+ * 长注释（WEN_01 84 字 / WEN_03 174 字）第一次悬停时不会再冲出视口下沿。
+ */
+async function correctWithRealSize() {
+  await nextTick()
+  if (!showTooltip.value) return
+  const rect = tooltipRef.value?.getBoundingClientRect()
+  if (!rect) return
+  const fixed = computeTooltipPosition(lastMouse.x, lastMouse.y, {
+    width: rect.width,
+    height: rect.height,
+  })
+  if (fixed.x !== tooltipPosition.value.x || fixed.y !== tooltipPosition.value.y) {
+    tooltipPosition.value = fixed
+  }
+}
+
+/**
+ * 在事件派发同步阶段抓到的指针快照。
+ *
+ * 不能把 MouseEvent 本身交给节流器：throttle 的 trailing 调用发生在派发结束之后，
+ * 那时 `e.target` 已被 DOM 置为 null（规范行为），读它会抛
+ * `Cannot read properties of null (reading 'classList')`，浮层既不更新也不收起。
+ */
+interface PointerProbe {
+  x: number
+  y: number
+  isWord: boolean
+  word: string
+  def: string | null
+}
+
+function probeFromEvent(e: MouseEvent): PointerProbe {
+  const target = e.target as HTMLElement | null
+  const isWord = !!target && target.classList.contains('annotated-word')
+  return {
+    x: e.clientX,
+    y: e.clientY,
+    isWord,
+    word: isWord ? target!.textContent?.trim() || '' : '',
+    def: isWord ? target!.getAttribute('data-def') : null,
+  }
+}
+
+function handleMouseMove(probe: PointerProbe) {
+  if (probe.isWord && probe.def) {
+    // 追问区接入点（本轮不做 UI）：word_list 的 follow_up_questions 由适配器在 span 上
+    // 输出 data-follow-up（仅非空时写入）。追问 UI 上线时在此多抓一个
+    // target.dataset.followUp 字段并 JSON.parse，渲染到 tooltip 模板的预留位置。
+    currentAnnotation.value = probe.def
+    lastMouse.x = probe.x
+    lastMouse.y = probe.y
+    // 首次显示时 tooltip 还不存在，只能靠估算尺寸；已显示则实测尺寸已可用
+    const wasVisible = showTooltip.value
+
+    // 字词查询埋点：每个 word 每个 session 仅上报一次
+    const word = probe.word
+    if (word && !reportedWordSet.has(word)) {
+      reportedWordSet.add(word)
+      try {
+        let userId = ''
         try {
-          let userId = ''
-          try {
-            const authStore = useAuthStore()
-            if (authStore.isLoggedIn && authStore.user) {
-              userId = authStore.user.studentId || authStore.user.id || ''
-            }
-          } catch {
-            /* Pinia 未就绪 */
+          const authStore = useAuthStore()
+          if (authStore.isLoggedIn && authStore.user) {
+            userId = authStore.user.studentId || authStore.user.id || ''
           }
-          post('/api/track', {
-            events: [
-              {
-                event_type: 'search_word',
-                user_id: userId,
-                session_id: getSessionId(),
-                step_id: props.wenId,
-                properties: { word, is_audio: false },
-                page_url: window.location.pathname + window.location.search,
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          }).catch(() => {
-            /* 静默 */
-          })
         } catch {
-          /* 静默 */
+          /* Pinia 未就绪 */
         }
+        post('/api/track', {
+          events: [
+            {
+              event_type: 'search_word',
+              user_id: userId,
+              session_id: getSessionId(),
+              step_id: props.wenId,
+              properties: { word, is_audio: false },
+              page_url: window.location.pathname + window.location.search,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }).catch(() => {
+          /* 静默 */
+        })
+      } catch {
+        /* 静默 */
       }
-
-      // R23：优先用真实 DOM 尺寸，fallback 到常量估算
-      const rect = tooltipRef.value?.getBoundingClientRect()
-      const tooltipWidth = rect?.width ?? TOOLTIP_ESTIMATED_WIDTH
-      const tooltipHeight = rect?.height ?? TOOLTIP_ESTIMATED_HEIGHT
-
-      let x = e.clientX + TOOLTIP_OFFSET
-      let y = e.clientY + TOOLTIP_OFFSET
-
-      // 边界检查：保证不超出视口
-      if (x + tooltipWidth > window.innerWidth) {
-        x = e.clientX - tooltipWidth - TOOLTIP_OFFSET
-      }
-      if (y + tooltipHeight > window.innerHeight) {
-        y = e.clientY - tooltipHeight - TOOLTIP_OFFSET
-      }
-      // 左/上边界也兜底
-      if (x < 0) x = 0
-      if (y < 0) y = 0
-
-      tooltipPosition.value = { x, y }
-      showTooltip.value = true
-      return
     }
+
+    tooltipPosition.value = computeTooltipPosition(probe.x, probe.y, measureTooltipSize())
+    showTooltip.value = true
+    if (!wasVisible) void correctWithRealSize()
+    return
   }
   showTooltip.value = false
 }
 
-// R22：包装为节流版本
+// R22：包装为节流版本（入参是纯数据快照，trailing 延迟执行也安全）
 const throttledMouseMove = throttle(handleMouseMove, MOUSE_MOVE_THROTTLE_MS)
 
-// 生命周期钩子：监听 mousemove + resize 时用真实尺寸重新计算
-onMounted(async () => {
-  const contentEl = contentRef.value
-  if (contentEl) {
-    contentEl.addEventListener('mousemove', throttledMouseMove)
-  }
-  // 等 tooltip DOM 渲染后，下一帧再检测真实尺寸，避免首次移动时 fallback 到估算值
-  await nextTick()
-})
+/** 模板绑定的入口：先同步抓快照，再交给节流器 */
+function onMouseMove(e: MouseEvent) {
+  throttledMouseMove(probeFromEvent(e))
+}
 
+// 监听器已由模板 @mousemove 绑定（Vue 负责创建时绑定 / 卸载时解绑），
+// 这里只需要清掉节流器里还没落地的 trailing 定时器。
 onUnmounted(() => {
-  const contentEl = contentRef.value
-  if (contentEl) {
-    contentEl.removeEventListener('mousemove', throttledMouseMove)
-  }
   throttledMouseMove.cancel()
 })
 </script>
@@ -365,7 +406,9 @@ onUnmounted(() => {
   color: var(--color-primary) !important;
   text-decoration: underline !important;
   text-decoration-color: var(--color-primary) !important;
-  cursor: help !important;
+  /* 悬浮出的是自定义浮层（不是系统帮助提示），用 pointer 与站内其他可点元素一致；
+     原先的 help 在 Windows 上渲染成右下角问号，学生会误以为那是帮助标记 */
+  cursor: pointer !important;
   font-weight: var(--font-weight-semibold) !important;
   background-color: rgba(133, 30, 14, 0.08) !important;
   padding: 0 2px;
@@ -383,5 +426,12 @@ onUnmounted(() => {
   z-index: 1000;
   pointer-events: none;
   box-shadow: var(--shadow-small);
+  /* 长注释限宽换行：position: fixed 只设 left 时按「视口宽 - left」做收缩适配，
+     WEN_03 那条 174 字的注释会摊成接近整屏宽的色块压住正文 */
+  max-width: min(320px, calc(100vw - 16px));
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: left;
+  line-height: 1.7;
 }
 </style>
