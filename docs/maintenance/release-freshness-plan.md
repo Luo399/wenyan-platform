@@ -1,7 +1,7 @@
 # 发布新鲜度方案（Release Freshness）
 
 - 起草：2026-10-26
-- 状态：**执行中**（阶段 0 / 2 / 3 / 1 已落代码并合入 `feature-1`，阶段 4 未做；决策点 D1、D2 已定，见第 5 节）
+- 状态：**执行中**（阶段 0 / 1 / 2 / 3 / 4 的代码与单测都已落地；余下的是 `feature-1 → main` 人工审批与线上浏览器矩阵复验，见第 8 节）
 - 父功能分支（拟）：`feature/release-freshness`，从 `feature-1` 拉取
 - 关联：`docs/test-environment-deployment-guide.md`、`docs/上线检查清单.md`、`tasks/nightly-tasks.md`、`.trae/rules/project-workflow.md`
 
@@ -47,7 +47,7 @@
 | 1 | `feature/release-freshness/build-id-visibility` | 构建号注入 + 页脚显示 + 单测 | `--no-ff` → `feature/release-freshness` |
 | 2 | `feature/release-freshness/deploy-cache-contract` | 两个 deploy workflow 的上传拆分与 CDN 刷新校验 | 同上 |
 | 3 | `feature/release-freshness/chunk-reload-recovery` | `vite:preloadError` / chunk 失败自动刷新一次 | 同上 |
-| 4 | `feature/release-freshness/version-prompt` | 版本探测 + 更新提示（决策点 D2 通过后才做） | 同上 |
+| 4 | `feature/release-freshness/version-prompt` | 版本探测 + 更新提示（D2 已定：只提示不自动刷新）—— 已完成，见第 8 节 | 同上 |
 
 父分支 `feature/release-freshness` 全部子项完成后合入 `feature-1` 并 push（触发 `deploy-frontend-test` + `deploy-backend-test`），在 test 复验，再单独创建一个 `feature-1 → main` 的 PR 等人工审批上线。台账按约定勾 `tasks/nightly-tasks.md` 并记分支名与 commit，变更记录写 `docs/maintenance/changelog/changelog-YYYYMMDD.md`。
 
@@ -131,10 +131,10 @@ gh run list --branch feature-1 --limit 5
 - **已上线（生产）**：阶段 0（导航修复）+ 阶段 2 的 `deploy-frontend.yml` 随 PR #190 进入 `main` 并完成部署。实测 `https://www.classicalab.cn/` 返回 `Cache-Control: max-age=0`、入口 `/assets/index-BFzw8KIW.js`。
 - **已在测试环境**：阶段 2（测试侧 workflow）+ 阶段 3 + 阶段 1 合入 `feature-1`，`Deploy Frontend to Test OSS` 首跑成功，自检第 1 轮命中 `/assets/index-DiJuirkI.js`。
 - **仍未完成的验证**（阶段 1 的 meta 生效只能在这一步确认，生产那份构建里没有它）：
-  1. `curl -kSs https://test.classicalab.cn/ | grep build-id` —— 期望 `content="<feature-1 提交短 sha>"`；显示 `content="local"` 说明 `define` 没吃到 `GITHUB_SHA`。
-  2. 浏览器打开测试环境，页脚备案号右侧应出现「· 构建 xxxxxxx」；出现「本地构建」同上原因。
+  1. ~~`curl -kSs https://test.classicalab.cn/ | grep build-id` —— 期望 `content="<feature-1 提交短 sha>"`；显示 `content="local"` 说明 `define` 没吃到 `GITHUB_SHA`。~~ 已验：`feature-1` 到 `4b44b2f8` 后测试环境返回 `<meta name="build-id" content="4b44b2f">`，与提交短 sha 一致；部署后的入口 chunk `assets/index-PXv-Td1Z.js` 里是 `function jd(){return Md("4b44b2f")}`，`__BUILD_ID__` 出现 0 次（`define` 生效、`typeof` 守卫被折叠掉）。
+  2. 浏览器打开测试环境，页脚备案号右侧应出现「· 构建 xxxxxxx」；出现「本地构建」同上原因。（curl 已证明常量进了产物，这一条只剩肉眼确认）
   3. G3 的人工验收（把某个 chunk 改名后触发路由跳转，页面自动刷新一次且不死循环）与浏览器矩阵复验（无痕 / `Ctrl+F5` / 手机热点）尚未执行 —— 测试环境证书与账号问题见下。
-- **仍未做的阶段**：阶段 4（新版本探测，只提示不刷新）。
+- **仍未完成的收尾**：阶段 4 的代码与单测已并入集成分支（`ca8c6c96`），等 `feature-1` 合并与测试环境真跑；`feature-1 → main` 的 [PR #193](https://github.com/Luo399/wenyan-platform/pull/193) 仍等人工审批。
 
 ### 2026-10-26 阶段 0 —— 完成
 
@@ -177,6 +177,16 @@ gh run list --branch feature-1 --limit 5
 - `env.d.ts` 声明常量（该文件在仓库根目录，已被 `tsconfig.app.json` 的 include 覆盖，不在 `src/` 下）；`src/utils/buildStamp.ts` 收全部格式化分支，`src/components/common/BuildStamp.vue` 只负责摆进页脚那一行，与备案号同一行、`pointer-events` 单独放开便于复制。
 - **踩到并修掉的坑**：模板里一条根级 HTML 注释在开发模式下也是一份子节点，组件变成 fragment，`@vue/test-utils` 的 `wrapper.element` 是挂载容器 `DIV`，三条用例因此红。说明移进 `<script setup>`，并把「必须是单根」写成断言锁死。
 - D1 按第一选项实施：学生端也显示。要改成只测试环境可见的话，是删一行的事。
+
+### 2026-10-28 阶段 4 —— 代码与单测完成
+
+`feature/release-freshness/version-prompt` @ `a4f0330` + 修红 `2b2edf0`，经 [PR #197](https://github.com/Luo399/wenyan-platform/pull/197) / [PR #198](https://github.com/Luo399/wenyan-platform/pull/198) 合入集成分支（`ca8c6c96`）。新增 `src/utils/buildVersion.ts`（331 行）+ `src/components/common/UpdatePrompt.vue`（187 行）+ `src/App.vue` 挂载 + `src/main.ts` 注册，单测 23 + 10 项。
+
+- **探测路径的选择是这一阶段的关键**：请求的就是用户手动刷新时会走的那条 `/index.html`，`cache: no-store` 但**不加时间戳参数**。加了时间戳会绕过边缘节点，测出「线上并不提供的那份」，提示就变成假消息。
+- **指纹两档**：主口径 `meta[name=build-id]`（阶段 1 注入的），备口径入口 chunk 文件名 `/assets/index-*.js`；两种口径之间不比较，口径不同宁可不说，避免误报。本地开发（构建号为 `local`）拿不到本地指纹，整条链路不参与。
+- **只提示不刷新的落点**：探测层只 `dispatchEvent`；`requestManualRefresh()` 只有组件的点击会调用，单测把「事件到来时它没被调用」写成断言。节流是「首屏不查 + 10 分钟一次 + 切回标签页补一次，最小间隔 60s」，离线与请求失败全部静默（仅开发环境一行 `debugWarn`）。
+- **接住了阶段 3 的放弃分支**：`wenyan:chunk-reload-failed` 事件与 `wenyan:chunk-reload-hint` 记录都在这里变成人话。文案用 `Record<ChunkRecoveryHint['reason'], string>` 而非 switch，以后阶段 3 加了新原因，这里编译期就漏。hint 带 10 分钟有效期，旧记录不再弹。
+- **两条被 CI 教的事**：① 根级注释 / 根级 `v-if` 都会让组件变 fragment，`wrapper.element` 就不是那个 div —— 阶段 1 踩过一次，这里直接把「单根」写成断言，隐藏改用 `.is-hidden` 控制 `display`。② `onMounted` 里改状态是异步重渲染，挂载那一帧还是隐藏；「监听就绪之前的 hint」必须回到 setup 里读，顺带也免掉了先藏后现的闪动（PR #198 修的就是这条）。
 
 ### 决策点结论
 
