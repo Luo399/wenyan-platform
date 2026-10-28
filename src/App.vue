@@ -27,6 +27,9 @@
       </a>
       <BuildStamp />
     </footer>
+
+    <!-- 新版本 / 加载失败的提示条（发布新鲜度阶段 4，只提示，刷新由用户点击） -->
+    <UpdatePrompt />
   </div>
 </template>
 
@@ -34,6 +37,7 @@
 import { useRoute } from 'vue-router'
 import StudentDisplay from '@/components/StudentDisplay.vue'
 import BuildStamp from '@/components/common/BuildStamp.vue'
+import UpdatePrompt from '@/components/common/UpdatePrompt.vue'
 
 // R140: 供 router-view 的 key 使用（见上方注释）
 const route = useRoute()
