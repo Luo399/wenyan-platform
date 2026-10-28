@@ -217,7 +217,8 @@ function measureTooltipSize(): { width: number; height: number } {
 
 /**
  * R23：首帧用估算尺寸定位，渲染出真实尺寸后再校正一次。
- * 长注释（WEN_01 84 字 / WEN_03 174 字）第一次悬停时不会再冲出视口下沿。
+ * 页面上实际渲染出来的最长注释是 WEN_01「发闾左適戍渔阳」那条 84 字，
+ * 第一次悬停时它不会再冲出视口下沿。
  */
 async function correctWithRealSize() {
   await nextTick()
@@ -427,7 +428,7 @@ onUnmounted(() => {
   pointer-events: none;
   box-shadow: var(--shadow-small);
   /* 长注释限宽换行：position: fixed 只设 left 时按「视口宽 - left」做收缩适配，
-     WEN_03 那条 174 字的注释会摊成接近整屏宽的色块压住正文 */
+     84 字的注释（WEN_01「发闾左適戍渔阳」）会摊成接近整屏宽的色块压住正文 */
   max-width: min(320px, calc(100vw - 16px));
   white-space: normal;
   overflow-wrap: break-word;

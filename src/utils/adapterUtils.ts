@@ -169,7 +169,7 @@ export function buildContentHtmlWithAnnotations(
  * - \u201C \u201D（" "）→ "（U+0022）
  * - \u2018 \u2019（' '）→ '（U+0027）
  * - \u300C \u300D（「 」）→ "（U+0022）
- * - \u300E \u300F（『 』）→ "（U+0022）
+ * - \u300E \u300F（『 』）→ '（U+0027）—— 外层双、内层单，与英文排版一致
  * - ` （U+0060 backtick）→ '（U+0027）
  * - ´ （U+00B4 acute accent）→ '（U+0027）
  *
