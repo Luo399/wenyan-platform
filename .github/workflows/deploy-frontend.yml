@@ -44,21 +44,77 @@ jobs:
 
       - name: Deploy to Aliyun OSS (main bucket)
         run: |
-          # 先上传所有资源文件（带 hash 的 JS/CSS 等），设置长缓存
-          ./ossutil64 cp -r ./dist oss://${{ secrets.OSS_BUCKET }}/ --force \
-            -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
-            -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
-            -e oss-cn-zhongwei.aliyuncs.com \
-            --acl public-read \
-            --meta "Cache-Control:public,max-age=31536000"
-          # 再单独上传 index.html，设置不缓存，确保用户总能获取最新版本
-          ./ossutil64 cp ./dist/index.html oss://${{ secrets.OSS_BUCKET }}/index.html \
-            -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
-            -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
-            -e oss-cn-zhongwei.aliyuncs.com \
-            --acl public-read \
-            --meta "Cache-Control:no-cache" \
-            --force
+          set -euo pipefail
+          OSS_ARGS=(-i "${{ secrets.OSS_ACCESS_KEY_ID }}" -k "${{ secrets.OSS_ACCESS_KEY_SECRET }}" -e oss-cn-zhongwei.aliyuncs.com --acl public-read --force)
+          BUCKET="oss://${{ secrets.OSS_BUCKET }}"
+
+          # 1) 带 hash 的构建产物：一年 + immutable。文件名含内容 hash，内容变则名变，长缓存安全。
+          ./ossutil64 cp -r ./dist/assets "${BUCKET}/assets/" "${OSS_ARGS[@]}" \
+            --meta "Cache-Control:public,max-age=31536000,immutable"
+
+          # 2) 入口 HTML：绝不缓存。
+          #    旧写法是整目录（含 index.html）先打一年缓存、再单独补传 index.html 修正。
+          #    两步之间一旦失败或被边缘节点抢先抓取，带一年缓存的 index.html 就会被发出去，
+          #    用户本地从此不再回源校验 —— 表现为"某台浏览器永远停在旧版"。
+          #    现在长缓存只作用于 assets/，index.html 从一开始就只有 no-cache 这一份。
+          ./ossutil64 cp ./dist/index.html "${BUCKET}/index.html" "${OSS_ARGS[@]}" \
+            --meta "Cache-Control:no-cache"
+
+          # 3) 其余不带 hash 的静态文件（favicon / robots / 根目录图片等）：1 小时中缓存，
+          #    既不会被长期钉死，也不至于每次请求都回源。
+          for entry in ./dist/*; do
+            base="$(basename "${entry}")"
+            case "${base}" in
+              assets|index.html) continue ;;
+            esac
+            ./ossutil64 cp -r "${entry}" "${BUCKET}/${base}" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:public,max-age=3600"
+          done
+
+      - name: Record expected build fingerprint
+        id: fingerprint
+        run: |
+          set -euo pipefail
+          hash="$(grep -o '/assets/index-[A-Za-z0-9_-]*\.js' ./dist/index.html | head -1 || true)"
+          if [ -z "${hash}" ]; then
+            echo "::error::dist/index.html 里找不到 /assets/index-*.js，无法自检"
+            exit 1
+          fi
+          echo "value=${hash}" >> "$GITHUB_OUTPUT"
+          echo "本次构建入口：${hash}"
+
+      - name: Refresh Alibaba Cloud CDN cache (www.classicalab.cn)
+        run: |
+          set -euo pipefail
+          wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar xzf aliyun-cli-linux-latest-amd64.tgz
+          chmod +x aliyun
+          ./aliyun configure set --access-key-id ${{ secrets.OSS_ACCESS_KEY_ID }} --access-key-secret ${{ secrets.OSS_ACCESS_KEY_SECRET }} --region cn-zhongwei
+          # 目录刷新覆盖 www 域名下全部对象。HTML 自身是 no-cache，但边缘节点仍可能留着刷新前的副本，
+          # 所以这一步不能"失败也只 warn"——旧写法用 || echo Warning 把失败吞掉，等于没有保障。
+          # 现在 set -e + 不做 || 兜底，CLI 非零退出即 job 失败；真正的生效与否由下一步黑盒验证。
+          ./aliyun cdn RefreshObjectCaches \
+            --ObjectPath "https://www.classicalab.cn/" \
+            --ObjectType Directory
+
+      - name: Verify public URL serves this build
+        run: |
+          set -euo pipefail
+          expected="${{ steps.fingerprint.outputs.value }}"
+          url="https://www.classicalab.cn/"
+          got=""
+          for i in $(seq 1 20); do
+            got="$(curl -sS -m 30 "${url}" | grep -o '/assets/index-[A-Za-z0-9_-]*\.js' | head -1 || true)"
+            echo "[$i] ${url} -> ${got:-<empty>} (期望 ${expected})"
+            if [ "${got}" = "${expected}" ]; then
+              echo "生产入口已指向本次构建。"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::CDN 刷新后约 5 分钟，${url} 仍返回 ${got:-<empty>}，与本次构建 ${expected} 不符。"
+          echo "::error::不要把这当成部署成功：边缘节点还在发旧 index.html，用户看到的仍是旧版。"
+          exit 1
 
       - name: Deploy internal dashboard to needed-data bucket
         run: |
@@ -72,21 +128,6 @@ jobs:
               --force
           else
             echo "OSS_BUCKET_DASHBOARD not set, skipping dashboard deployment"
-          fi
-
-      - name: Refresh Alibaba Cloud CDN cache (www.classicalab.cn)
-        run: |
-          # 使用 aliyun CLI 刷新 CDN 缓存，确保 www 域名也能立即获取最新版本
-          if [ -n "${{ secrets.OSS_ACCESS_KEY_ID }}" ]; then
-            wget -q https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
-            tar xzf aliyun-cli-linux-latest-amd64.tgz
-            chmod +x aliyun
-            ./aliyun configure set --access-key-id ${{ secrets.OSS_ACCESS_KEY_ID }} --access-key-secret ${{ secrets.OSS_ACCESS_KEY_SECRET }} --region cn-zhongwei
-            # 刷新 www 域名的根目录缓存
-            ./aliyun cdn RefreshObjectCaches --ObjectPath "https://www.classicalab.cn/" --ObjectType Directory || \
-              echo "Warning: CDN refresh failed, user may need to clear browser cache manually"
-          else
-            echo "OSS_ACCESS_KEY_ID not set, skipping CDN cache refresh"
           fi
 
       - name: Purge CloudFront CDN cache (legacy)
