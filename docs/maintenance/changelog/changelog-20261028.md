@@ -4,15 +4,22 @@
 >
 > 本次变更聚焦「发布新鲜度」方案（`docs/maintenance/release-freshness-plan.md`）的阶段 1 / 2 / 3 / 4：
 > 构建号可见、部署缓存契约与自检、旧会话懒加载失败自愈、新版本只提示不刷新。
+>
+> **发布事实（2026-10-28 13:23）**：PR #193 由人工把 `feature-1`（`f34eeb76`，含 CR-01…07）合入 `main`（`f4c2d18e`），
+> `Deploy Frontend to Aliyun OSS` 成功。生产 `https://www.classicalab.cn/` 的 `index.html` 返回
+> `<meta name="build-id" content="f4c2d18">`、入口 `/assets/index-C3VehIAz.js`，`Cache-Control` 分别为 `max-age=0`（入口）与 `max-age=31536000`（hash 产物）。
+> 下面各明细段落里的「待上线」是写下那条时的状态，表格列已按发布结果更新。
 
 | 变更编号 | 变更类型 | 影响范围 | 变更描述 | 测试状态 | 上线状态 |
 |---|---|---|---|---|---|
-| CR-20261028-01 | feat | `src/utils/chunkRecovery.ts`、`src/main.ts` | 懒加载 chunk 失败时整页重载到本次导航目标地址，一次会话同一地址只刷一次 | 已通过 | 待上线 |
-| CR-20261028-02 | chore | `.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml` | 长缓存只给 hash 产物、`index.html` 每次回源、CDN 刷新失败即红、部署后自检入口 hash | 已通过（测试环境首跑成功） | 待上线 |
-| CR-20261028-03 | feat | `vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/components/common/BuildStamp.vue`、`src/App.vue`、`vitest.config.ts` | 构建号注入 + 页脚可见 + `index.html` 的 `build-id` meta | 已通过 | 待上线 |
-| CR-20261028-04 | docs | `docs/maintenance/release-freshness-plan.md`、`tasks/nightly-tasks.md` | 方案落库（含执行记录与两条方案自我修正）、台账补「发布新鲜度」父功能 | 不适用 | 待上线 |
-| CR-20261028-05 | feat | `src/utils/buildVersion.ts`、`src/components/common/UpdatePrompt.vue`、`src/App.vue`、`src/main.ts` | 新版本探测 + 底部提示条（只提示，刷新只在用户点击时发生），并接手阶段 3 放弃重载的四种原因文案 | 已通过 | 待上线 |
-| CR-20261028-06 | docs | 同 CR-04 两份文档 + 本变更记录 | 阶段 4 执行记录、meta 生效已实测的验证项更新、台账勾选 | 不适用 | 待上线 |
+| CR-20261028-01 | feat | `src/utils/chunkRecovery.ts`、`src/main.ts` | 懒加载 chunk 失败时整页重载到本次导航目标地址，一次会话同一地址只刷一次 | 已通过 | 已上线 |
+| CR-20261028-02 | chore | `.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml` | 长缓存只给 hash 产物、`index.html` 每次回源、CDN 刷新失败即红、部署后自检入口 hash | 已通过（测试环境首跑成功） | 已上线 |
+| CR-20261028-03 | feat | `vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/components/common/BuildStamp.vue`、`src/App.vue`、`vitest.config.ts` | 构建号注入 + 页脚可见 + `index.html` 的 `build-id` meta | 已通过 | 已上线 |
+| CR-20261028-04 | docs | `docs/maintenance/release-freshness-plan.md`、`tasks/nightly-tasks.md` | 方案落库（含执行记录与两条方案自我修正）、台账补「发布新鲜度」父功能 | 不适用 | 已上线 |
+| CR-20261028-05 | feat | `src/utils/buildVersion.ts`、`src/components/common/UpdatePrompt.vue`、`src/App.vue`、`src/main.ts` | 新版本探测 + 底部提示条（只提示，刷新只在用户点击时发生），并接手阶段 3 放弃重载的四种原因文案 | 已通过 | 已上线 |
+| CR-20261028-06 | docs | 同 CR-04 两份文档 + 本变更记录 | 阶段 4 执行记录、meta 生效已实测的验证项更新、台账勾选 | 不适用 | 已上线 |
+| CR-20261028-07 | fix | `src/components/ClassPicker.vue`、`src/components/__tests__/ClassPicker.test.ts` | 全年级权限勾上不收起、勾年级后班级行永远出不来两处缺陷；测试的 testid 前缀串味修正；`quality-check` 自建立首次全绿 | 已通过 | 已上线 |
+| CR-20261028-08 | chore | `figma-plugin/**`、`.github/workflows/sync-figma-plugin.yml`（PR #186 → `feature-1`）+ 两份文档 | 插件读取共享样式的工作合入 `feature-1`（不含在本次生产发布里）；台账补「CI 质量基线转绿」与发布事实 | 已通过 | 未上线（等下一次 `main` 窗口） |
 
 ## 变更明细
 
@@ -89,4 +96,28 @@
 - **影响范围**：`docs/maintenance/release-freshness-plan.md`、`tasks/nightly-tasks.md`、本变更记录
 - **变更描述**：方案第 8 节补阶段 4 执行记录与两条被 CI 教的事（fragment、异步重渲染）；第 7 节「仍未完成的验证」第 1 条改为已实测 —— 测试环境 `index.html` 返回 `<meta name="build-id" content="4b44b2f">` 且与 `feature-1` 提交短 sha 一致，部署后的入口 chunk 内为 `Md("4b44b2f")`、`__BUILD_ID__` 出现 0 次；台账勾选 `version-prompt` 并更新父功能的分支链与用例数（21 + 8 + 3 + 23 + 10 = 65）。
 - **测试状态**：不适用
-- **上线状态**：待上线
+- **上线状态**：已上线
+
+### CR-20261028-07 ClassPicker 两处缺陷修复（CI 质量基线转绿）
+
+- **变更类型**：fix（缺陷修复）
+- **变更时间**：2026-10-28
+- **分支**：`feature/classpicker-fix` @ `0433156`；PR #200 并入 `feature-1`（`f34eeb76`）；随 PR #193 并入 `main`（`f4c2d18e`）
+- **影响范围**：`src/components/ClassPicker.vue`、`src/components/__tests__/ClassPicker.test.ts`（合计 +141 / -38，用例 22 → 27）
+- **变更描述**：
+  - 缺陷一（用户可见）：勾「全年级权限」不会收起具体班级选择区。Vue 对 Boolean prop 做隐式转换 —— 父组件不传 `fullAccess` 时 `props.fullAccess` 是 `false` 而不是 `undefined`（`runtime-dom` 的 `resolvePropValue`：absent 且无 default → `false`），于是 `props.fullAccess ?? innerFullAccess` 恒为 `false`，`if (props.fullAccess === undefined)` 是死分支。`AdminConsoleView.vue:66` 与 `TeacherRegisterView.vue:158` 两个调用点都只监听 `@update:full-access`、不绑这个 prop，所以这条路径从组件写出来那天起在线上是坏的。现在 `innerFullAccess` 是唯一事实源，prop 变化时才由 watcher 同步进来（父组件真用 `v-model:full-access` 也照常工作）。
+  - 缺陷二：年级 chip 勾上后班级行永远出不来。`emitChange()` 末尾用「已选班级」反推该保留哪些年级，而勾年级 chip 时 v-model 刚把年级加进去、已选班级还是空的，紧接着这段过滤就把刚勾上的年级抹掉。过滤本身有意图（移除班级后年级不该残留），抽成 `pruneGradesToSelection()`，只在班级数量**减少**的路径上调用（移除按钮、取消勾选班级 chip），手动添加编码不再顺手收掉已展开的年级。
+  - 测试侧三处：`[data-testid^="selected-"]` 会连容器 `selected-row` 一起数、`[data-testid^="class-"]` 会连根节点 `class-picker` 一起数，改成限定容器后代的 `selectedChips()` / `classChips()`；`addManual()` 的 `trim()` 是有意的（从表格粘贴编码常带空格），原用例把「`' 202501'` 算非法」写成与实现相反的期望，现拆成一条独立用例断言它被正确添加；「超过 6 位」的输入用例删除 —— 输入框带 `maxlength=6`，程序化赋值是否被截断取决于测试环境，断言不稳（长度不足已由 `'123'` / `'20250'` 覆盖）。
+  - 组件模板只改了一个 `@change` 绑定，`data-testid` 全部保持原样，页面与 E2E 无需跟改。
+- **测试状态**：已通过。本机无 node、vitest 只能由 CI 跑：`quality-check`（type-check / lint / test）自 `ClassPicker.test.ts` 建立以来**首次全绿**，27 条用例全过；`feature-1` 在 `#186` 合入后仍全绿（run 40637908089）。
+- **上线状态**：已上线。生产 `https://www.classicalab.cn/assets/ClassPicker-DXgI1AbN.js` 里过滤逻辑已是独立函数（`map(e=>e.slice(0,4))` + `filter`）且不在 `emitChange` 内，确认部署的是修好的那份。
+
+### CR-20261028-08 插件样式读取合入 feature-1 与文档补记
+
+- **变更类型**：chore（合入 + docs）
+- **变更时间**：2026-10-28
+- **分支**：`feature/figma-plugin-style-extract` @ `4bb6a60`；PR #186 并入 `feature-1`（`007dc90a`）
+- **影响范围**：`figma-plugin/**`（`core.ts`、`code.ts`、`code.js`、`ui.html`、两份文档、`__tests__/core.test.ts`）、`.github/workflows/sync-figma-plugin.yml`，合计 +2472 / -61；以及 `tasks/nightly-tasks.md` 与本变更记录
+- **变更描述**：插件读取样式 Frame 与本地共享样式 CSS 参数的那批改动合入 `feature-1`。只碰 `figma-plugin/`，不进前端产物 —— `deploy-frontend-test.yml` 的 `paths:` 过滤因此没有为 `007dc90a` 触发前端部署，这是预期行为而不是漏跑。台账新增父功能「CI 质量基线转绿」，「发布新鲜度」父功能补上 `feature-1` / `main` 的实际 sha 与生产实测结果。
+- **测试状态**：已通过（`CI Checks` run 40637908089 全绿，`figma-plugin-check` 覆盖插件新增的 403 行用例）
+- **上线状态**：未上线 —— 生产只到 `f4c2d18e`，这部分等下一次 `feature-1 → main` 窗口

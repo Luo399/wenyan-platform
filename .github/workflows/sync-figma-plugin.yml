@@ -34,6 +34,8 @@ jobs:
         run: |
           echo "=== Copying figma-plugin files to wenyan-asset-sync ==="
           cp wenyan-platform/figma-plugin/code.ts wenyan-asset-sync/code.ts
+          # core.ts 必须一起同步：code.ts 从 ./core 导入纯逻辑，缺文件会让镜像仓库的构建直接失败。
+          cp wenyan-platform/figma-plugin/core.ts wenyan-asset-sync/core.ts
           cp wenyan-platform/figma-plugin/code.js wenyan-asset-sync/code.js
           cp wenyan-platform/figma-plugin/ui.html wenyan-asset-sync/ui.html
           cp wenyan-platform/figma-plugin/manifest.json wenyan-asset-sync/manifest.json
@@ -56,7 +58,7 @@ jobs:
             # 注意：ASSET_SYNC_REPO_TOKEN 需要访问 wenyan-asset-sync 仓库的 repo 和 PR 权限。
 
             **同步内容：**
-            - `code.ts` / `code.js`：插件主逻辑
+            - `code.ts` / `core.ts` / `code.js`：插件主逻辑（core.ts 为可单测的纯逻辑）
             - `ui.html`：插件 UI
             - `manifest.json`：插件清单
             - `package.json` / `package-lock.json` / `tsconfig.json`：构建配置
