@@ -9,6 +9,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  // 阶段 1 的构建号是编译期常量：真实构建由 vite.config.ts 注入提交短 sha，
+  // 测试这边给一个 sha 形态的固定值，让 BuildStamp 的用例跑在和线上一致的条件下。
+  define: {
+    __BUILD_ID__: JSON.stringify('abc1234'),
+  },
   test: {
     globals: true,
     // happy-dom 比 jsdom 稳：jsdom 30 + Node 20 内置 undici 在 CacheStorage 初始化时
