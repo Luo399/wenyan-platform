@@ -52,9 +52,11 @@ export function adaptWordList(
 
   // 字段映射：ProcessedWordItem.word + basic_meaning → {word, meaning}
   // 对 word 做 normalizeQuotes 确保与已规范化原文匹配
+  // followUpQuestions 是追问区的结构预留：透传原始数组，空数组不会写入 DOM（见 adapterUtils）
   const annotations = wordList.map((w) => ({
     word: normalizeQuotes(w.word),
     meaning: w.basic_meaning,
+    followUpQuestions: w.follow_up_questions,
   }))
 
   // 生成带注释的 HTML 内容（移除斜杠 + 段落包裹）
