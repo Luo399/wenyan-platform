@@ -66,7 +66,8 @@
 - 目标：让「同一份修复在不同浏览器上新旧不一」这件事可辨识、可自愈、可验证。事实基线与方案见 `docs/maintenance/release-freshness-plan.md`。
 - 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/utils/chunkRecovery.ts`、`src/utils/buildVersion.ts`、`src/components/common/BuildStamp.vue`、`src/components/common/UpdatePrompt.vue`、`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
 - 红线：发现新版本**只提示、不自动刷新**（学生答题中途不能被刷掉）；chunk 失败自愈必须带单次限制防死循环；不引入 Service Worker；`deploy-*.yml` 是 CI 盲区，改动的第一次执行就是真跑。
-- 分支 / commit / CI：父分支 `feature/release-freshness/main`（阶段 2 `7599a12` → 阶段 3 `490c06e` → 阶段 1 `7013e55` + 修红 `d452d16` → 阶段 4 `a4f0330` + 修红 `2b2edf0`，集成分支 `ca8c6c96`）；阶段 1–3 经 PR #192 并入 `feature-1`（`3c0a786`），阶段 4 随 PR #199 并入。`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条红，本方案新增的 65 条用例（21 + 8 + 3 + 23 + 10）全绿；`Deploy Frontend to Test OSS` 用新缓存契约首跑成功，自检第 1 轮命中本次构建入口，`index.html` 里已带 `<meta name="build-id" content="4b44b2f">`。
+- 分支 / commit / CI：父分支 `feature/release-freshness/main`（阶段 2 `7599a12` → 阶段 3 `490c06e` → 阶段 1 `7013e55` + 修红 `d452d16` → 阶段 4 `a4f0330` + 修红 `2b2edf0`，集成分支 `ca8c6c96`）；阶段 1–3 经 PR #192 并入 `feature-1`（`3c0a786`），阶段 4 随 PR #199 并入。`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条红，本方案新增的 65 条用例（21 + 8 + 3 + 23 + 10）全绿；`Deploy Frontend to Test OSS` 用新缓存契约首跑成功，自检第 1 轮命中本次构建入口，`index.html` 里已带 `<meta name="build-id" content="4b44b2f">`。继承的 `ClassPicker.test.ts` 9 条红已由 PR #200 清掉（见下一父功能），`quality-check` 从此恢复「绿 = 真的没问题」。
+- 上线：PR #193 由人工于 2026-10-28 13:23 合入 `main`（`f4c2d18e`，取自 `feature-1` 的 `f34eeb76`），`Deploy Frontend to Aliyun OSS` 成功。生产 `https://www.classicalab.cn/` 的 `index.html` 带 `<meta name="build-id" content="f4c2d18">`、入口 `/assets/index-C3VehIAz.js`；`Cache-Control` 入口 `max-age=0`、hash 产物 `max-age=31536000`；入口 chunk 内含 `wenyan:new-version`、`wenyan:chunk-reload-failed`、`发现新版本`，`assets/ClassPicker-DXgI1AbN.js` 里过滤年级的逻辑已是独立函数 —— 阶段 2 的生产侧复验与阶段 3/4 的产物核对都通过。方案第 7 节遗留的「生产侧未验证」一项可以划掉。
 
 ### [x] 构建号注入与页脚可见 (build-id-visibility)
 
@@ -95,6 +96,21 @@
 - 验收：不自动刷新；复用 `chunkRecovery` 已派发的 `wenyan:chunk-reload-failed` 事件与 `wenyan:chunk-reload-hint` 记录；探测逻辑在 `src/utils/` 层，组件不直接 fetch。
 - 关联文件：`src/utils/buildVersion.ts`、`src/components/common/UpdatePrompt.vue`、`src/App.vue`、`src/main.ts`
 - 分支 / commit / CI：`feature/release-freshness/version-prompt` @ `a4f0330` + 修红 `2b2edf0`；PR #197 / #198；`src/utils/__tests__/buildVersion.test.ts`（23）+ `src/components/__tests__/UpdatePrompt.test.ts`（10）全绿，`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条。修的那条：`onMounted` 里回读 hint 触发的是异步重渲染，挂载那一帧还是隐藏 —— 回读挪进 setup。
+
+---
+
+## [x] CI 质量基线转绿 (ci-quality-baseline)
+
+- 目标：让 `quality-check` 的绿 / 红重新有意义。它此前常红（继承的 `ClassPicker.test.ts` 9 条，`main` 上也红），每次都要翻日志判断「这条红是不是我这次改坏的」，等于没有基线。
+- 红线：组件的 `data-testid` 不许为了迁就测试而改名（页面与将来 E2E 都靠它）；`addManual()` 的 `trim()` 是产品行为不是漏洞，用例要跟着实现走，不是反过来；本机没有 node，vitest 只能由 CI 跑，所以改测试必须逐条推演而不是试探。
+- 关联文件：`src/components/ClassPicker.vue`、`src/components/__tests__/ClassPicker.test.ts`
+
+### [x] 修 ClassPicker 全年级权限与年级联动 (classpicker-fullaccess-grade-prune)
+
+- 目标：清掉那 9 条红，并且把它背后藏着的两条真实缺陷改掉，而不是把断言改成迎合坏实现。
+- 验收：勾「全年级权限」必须收起具体班级选择区；勾年级 chip 后班级行必须出现；`quality-check` 全绿；组件 `data-testid` 未改名。
+- 关联文件：同上两个文件（+141 / -38，用例 22 → 27）
+- 分支 / commit / CI：`feature/classpicker-fix` @ `0433156`；PR #200 → `feature-1`（`f34eeb76`）→ 随 PR #193 上 `main`（`f4c2d18e`，已部署）。两处缺陷的根因记在 `docs/maintenance/changelog/changelog-20261028.md` CR-07：① Vue 把缺省的 Boolean prop 转成 `false` 而不是 `undefined`，`props.fullAccess ?? innerFullAccess` 恒为 `false`，两个调用点都只监听 `@update:full-access` 不绑 prop，所以「全年级权限」在线上从不收起选择区；② `emitChange()` 末尾用「已选班级」反推保留年级，勾年级时班级还是空的，刚勾上的年级立刻被抹掉，班级行永远出不来。教训：`data-testid` 用前缀匹配时容器自身会被数进去（`selected-` / `class-` 都撞了），以及 `maxlength` 让「程序化赋超长值」的断言在不同环境不稳。
 
 ---
 
