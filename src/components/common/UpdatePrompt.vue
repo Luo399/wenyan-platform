@@ -60,7 +60,17 @@ type PromptEntry =
   | { kind: 'new-version'; fingerprint: VersionFingerprint }
   | { kind: 'recovery'; hint: ChunkRecoveryHint }
 
-const prompt = ref<PromptEntry | null>(null)
+/**
+ * 首屏懒加载失败时，阶段 3 的放弃事件可能在本组件挂载之前就已经派发过去了，听不到只能回读。
+ * 放在 setup 里读而不是 onMounted：后者会让提示条先隐藏再出现，闪一下。
+ */
+function storedRecoveryEntry(): PromptEntry | null {
+  const stored = readRecoveryHint()
+  if (!stored || !isRecoveryHintFresh(stored, Date.now())) return null
+  return { kind: 'recovery', hint: stored }
+}
+
+const prompt = ref<PromptEntry | null>(storedRecoveryEntry())
 
 const visible = computed(() => prompt.value !== null)
 
@@ -112,12 +122,6 @@ function handleDismiss() {
 onMounted(() => {
   window.addEventListener(NEW_VERSION_EVENT, onNewVersion)
   window.addEventListener(CHUNK_RELOAD_FAILED_EVENT, onRecoveryFailed)
-
-  // 挂载前阶段 3 已经放弃过重载的话，事件是听不到的，这里补一次
-  const stored = readRecoveryHint()
-  if (stored && isRecoveryHintFresh(stored, Date.now())) {
-    prompt.value = { kind: 'recovery', hint: stored }
-  }
 })
 
 onBeforeUnmount(() => {
