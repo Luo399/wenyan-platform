@@ -223,7 +223,9 @@ export async function getTeacherTextMatrix(classCode?: string): Promise<TeacherT
 /**
  * 学生明细（分页 + 排序 + 关键字）
  */
-export async function getTeacherStudents(query: StudentQuery = {}): Promise<StudentsResult> {
+export async function getTeacherStudents(
+  query: StudentQuery = {},
+): Promise<TeacherStudentsResult> {
   const params: Record<string, string | number> = {
     page: query.page ?? 1,
     page_size: query.page_size ?? 20,
@@ -251,7 +253,7 @@ export async function getTeacherWeakQuestions(
   classCode?: string,
   minStudents = 2,
   limit = 10,
-): Promise<WeakQuestionsResult> {
+): Promise<TeacherWeakQuestionsResult> {
   const params: Record<string, string | number> = { min_students: minStudents, limit }
   if (classCode) params.class_code = classCode
   const res = await get<TeacherWeakQuestionsResult>('/api/teacher/dashboard/weak-questions', params)
@@ -261,7 +263,7 @@ export async function getTeacherWeakQuestions(
 /**
  * 活跃趋势：按日提交 + 24 小时分布
  */
-export async function getTeacherActivity(classCode?: string, days = 30): Promise<ActivityResult> {
+export async function getTeacherActivity(classCode?: string, days = 30): Promise<TeacherActivityResult> {
   const params: Record<string, string | number> = { days }
   if (classCode) params.class_code = classCode
   const res = await get<TeacherActivityResult>('/api/teacher/dashboard/activity', params)

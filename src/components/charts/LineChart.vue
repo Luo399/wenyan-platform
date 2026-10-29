@@ -156,7 +156,7 @@ const ticks = computed(() => buildTicks(axisMax.value, 4))
 const labelIndices = computed(() => axisLabelIndices(props.labels.length, 6))
 
 function colorOf(index: number): string {
-  return CHART_PALETTE[index % CHART_PALETTE.length]
+  return CHART_PALETTE[index % CHART_PALETTE.length] ?? CHART_PALETTE[0] ?? ''
 }
 
 function pointsOf(line: ChartSeries): Point[] {
@@ -187,12 +187,12 @@ function dotRadius(index: number, line: ChartSeries): number {
   return 1.5
 }
 
-function xLabel(raw: string): string {
+function xLabel(raw: string | undefined): string {
   return shortDate(String(raw ?? ''))
 }
 
-function displayValue(value: number): string {
-  if (!Number.isFinite(value)) return '0'
+function displayValue(value: number | undefined): string {
+  if (value === undefined || !Number.isFinite(value)) return '0'
   return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
 }
 </script>

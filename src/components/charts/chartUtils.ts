@@ -128,6 +128,9 @@ export function areaPath(points: Point[], innerHeight: number): string {
   if (points.length < 2) return ''
   const first = points[0]
   const last = points[points.length - 1]
+  // noUncheckedIndexedAccess 下数组下标取出来是 T | undefined，这里显式收口，
+  // 真拿不到点就走空串，让调用方按空态渲染，而不是拼出 "undefined" 进 path。
+  if (!first || !last) return ''
   return `${linePath(points)} L${fmt(last.x)},${fmt(innerHeight)} L${fmt(first.x)},${fmt(innerHeight)} Z`
 }
 
