@@ -7,9 +7,7 @@ const {
   resetStudentPassword,
   resetTeacherPasswordByAdmin,
   hashPassword,
-  getDefaultPasswordHash,
-  DEFAULT_STUDENT_PASSWORD,
-  DEFAULT_TEACHER_PASSWORD,
+  generateTempPassword,
 } = require('../services/authService')
 
 // 统一格式正则
@@ -49,38 +47,78 @@ const createTeacherSchema = z
 const STUDENT_SAFE_COLUMNS =
   'id, student_id, student_name, class_code, school_id, must_reset_password, created_by, created_at, updated_at'
 
+// 列表分页：默认 50 条/页，上限 200 条，避免一次拉全表
+const DEFAULT_PAGE_SIZE = 50
+const MAX_PAGE_SIZE = 200
+
+function parsePagination(query = {}) {
+  const page = Math.max(1, Number.parseInt(query.page, 10) || 1)
+  const rawSize = Number.parseInt(query.pageSize, 10) || DEFAULT_PAGE_SIZE
+  const pageSize = Math.min(Math.max(rawSize, 1), MAX_PAGE_SIZE)
+  return { page, pageSize, offset: (page - 1) * pageSize }
+}
+
+/**
+ * 显式解析布尔开关：true/1/'true'/'1' → true，false/0/'false'/'0' → false，其余返回 null
+ * （禁止 Boolean('false') === true 这类隐式转换）
+ */
+function parseBooleanFlag(value) {
+  if (value === true || value === 1 || value === 'true' || value === '1') return true
+  if (value === false || value === 0 || value === 'false' || value === '0') return false
+  return null
+}
+
 /**
  * 管理员：列出所有教师（附带所教班级与所属学校）
- * GET /api/admin/teachers
+ * GET /api/admin/teachers?status=active&page=1&pageSize=50
  */
 async function listTeachers(req, res) {
   try {
     const { status } = req.query
+    const { page, pageSize, offset } = parsePagination(req.query)
     const conditions = []
     const params = []
     if (status && ['pending', 'active', 'disabled', 'rejected'].includes(status)) {
       conditions.push('t.status = ?')
       params.push(status)
     }
+    const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
+
+    const countRow = await dbGet(db, `SELECT COUNT(*) AS total FROM teachers t${whereSql}`, params)
+    const total = countRow ? countRow.total : 0
+
     let sql = `SELECT t.id, t.phone, t.name, t.school_id, t.status, t.can_view_all,
       t.created_at, s.name AS school_name
       FROM teachers t
       LEFT JOIN schools s ON s.id = t.school_id`
-    if (conditions.length > 0) {
-      sql += ' WHERE ' + conditions.join(' AND ')
-    }
-    sql += ' ORDER BY t.created_at DESC'
-    const teachers = await dbAll(db, sql, params)
-    // 附带班级信息
-    for (const t of teachers) {
-      const classes = await dbAll(
+    sql += whereSql
+    sql += ' ORDER BY t.created_at DESC LIMIT ? OFFSET ?'
+    const teachers = await dbAll(db, sql, [...params, pageSize, offset])
+
+    // 一次 IN 查询补班级信息，避免逐教师 N+1
+    if (teachers.length > 0) {
+      const teacherIds = teachers.map((t) => t.id)
+      const classRows = await dbAll(
         db,
-        `SELECT class_code FROM teacher_classes WHERE teacher_id = ?`,
-        [t.id],
+        `SELECT teacher_id, class_code FROM teacher_classes
+          WHERE teacher_id IN (${teacherIds.map(() => '?').join(',')})`,
+        teacherIds,
       )
-      t.class_codes = classes.map((c) => c.class_code)
+      const classMap = new Map()
+      for (const row of classRows) {
+        if (!classMap.has(row.teacher_id)) classMap.set(row.teacher_id, [])
+        classMap.get(row.teacher_id).push(row.class_code)
+      }
+      for (const t of teachers) {
+        t.class_codes = classMap.get(t.id) || []
+      }
     }
-    res.status(200).json({ success: true, data: teachers })
+
+    res.status(200).json({
+      success: true,
+      data: teachers,
+      pagination: { page, pageSize, total },
+    })
   } catch (err) {
     logger.error('[admin] 查教师列表失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
@@ -88,12 +126,13 @@ async function listTeachers(req, res) {
 }
 
 /**
- * 管理员：列出所有学生（全量）
- * GET /api/admin/students?class_code=202409&school_id=1
+ * 管理员：列出所有学生（分页，默认 50 条/页，上限 200）
+ * GET /api/admin/students?class_code=202409&school_id=1&page=1&pageSize=50
  */
 async function listStudents(req, res) {
   try {
     const { class_code, school_id } = req.query
+    const { page, pageSize, offset } = parsePagination(req.query)
     const conditions = []
     const params = []
     if (class_code) {
@@ -104,16 +143,23 @@ async function listStudents(req, res) {
       conditions.push('school_id = ?')
       params.push(school_id)
     }
+    const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''
+
+    const countRow = await dbGet(db, `SELECT COUNT(*) AS total FROM students${whereSql}`, params)
+    const total = countRow ? countRow.total : 0
+
     // 安全：剔除 password_hash（哈希不应暴露给前端）
     let sql = `SELECT s.id, s.student_id, s.student_name, s.class_code, s.school_id,
       s.must_reset_password, s.created_by, s.created_at, s.updated_at, sch.name AS school_name
       FROM students s LEFT JOIN schools sch ON sch.id = s.school_id`
-    if (conditions.length > 0) {
-      sql += ' WHERE ' + conditions.join(' AND ')
-    }
-    sql += ' ORDER BY s.class_code ASC, s.student_id ASC LIMIT 10000'
-    const rows = await dbAll(db, sql, params)
-    res.status(200).json({ success: true, data: rows })
+    sql += whereSql
+    sql += ' ORDER BY s.class_code ASC, s.student_id ASC LIMIT ? OFFSET ?'
+    const rows = await dbAll(db, sql, [...params, pageSize, offset])
+    res.status(200).json({
+      success: true,
+      data: rows,
+      pagination: { page, pageSize, total },
+    })
   } catch (err) {
     logger.error('[admin] 查学生列表失败:', err)
     res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '查询失败' })
@@ -121,7 +167,7 @@ async function listStudents(req, res) {
 }
 
 /**
- * 管理员重置学生密码 → DEFAULT_STUDENT_PASSWORD (99999999)
+ * 管理员重置学生密码 → 一次性随机口令（明文仅返回一次）
  * POST /api/admin/students/:studentId/reset-password
  */
 async function resetStudent(req, res) {
@@ -139,8 +185,8 @@ async function resetStudent(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: `密码已重置为 ${DEFAULT_STUDENT_PASSWORD}`,
-      data: { temporary_password: DEFAULT_STUDENT_PASSWORD },
+      message: '密码已重置，请将一次性口令告知该学生（仅显示一次）',
+      data: { temporary_password: r.temporary_password },
     })
   } catch (err) {
     logger.error('[admin] 重置学生密码失败:', err)
@@ -149,7 +195,7 @@ async function resetStudent(req, res) {
 }
 
 /**
- * 管理员重置教师密码 → 10 位随机临时密码
+ * 管理员重置教师密码 → 一次性随机口令（明文仅返回一次）
  * POST /api/admin/teachers/:phone/reset-password
  */
 async function resetTeacher(req, res) {
@@ -163,7 +209,7 @@ async function resetTeacher(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: '教师密码已重置为 99999999',
+      message: '教师密码已重置，请将一次性口令告知该教师（仅显示一次）',
       data: { temporary_password: r.temporary_password },
     })
   } catch (err) {
@@ -450,7 +496,16 @@ async function updateTeacher(req, res) {
         return res.status(400).json({ success: false, error: 'SCHOOL_NOT_FOUND', message: '所选学校不存在' })
       }
     }
-    const willFullAccess = can_view_all !== undefined ? Boolean(can_view_all) : null
+    // 显式解析 can_view_all，避免 Boolean('false') === true 把字符串误判为开启
+    const parsedFullAccess = can_view_all === undefined ? null : parseBooleanFlag(can_view_all)
+    if (can_view_all !== undefined && parsedFullAccess === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_CAN_VIEW_ALL',
+        message: 'can_view_all 只能是 true/false（或 1/0、"true"/"false"）',
+      })
+    }
+    const willFullAccess = parsedFullAccess
     if (class_codes !== undefined && !willFullAccess) {
       if (!Array.isArray(class_codes) || class_codes.length === 0) {
         return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
@@ -473,7 +528,7 @@ async function updateTeacher(req, res) {
              updated_at = ?
          WHERE phone = ?`,
         [name ?? null, school_id ?? null, status ?? null,
-         can_view_all !== undefined ? (can_view_all ? 1 : 0) : null,
+         parsedFullAccess === null ? null : (parsedFullAccess ? 1 : 0),
          now, phone],
       )
       if (class_codes !== undefined) {
@@ -544,7 +599,7 @@ async function getStudent(req, res) {
 }
 
 /**
- * 管理员：新增学生账号（初始密码 DEFAULT_STUDENT_PASSWORD = 99999999）
+ * 管理员：新增学生账号（一次性随机初始口令，明文仅返回一次）
  * POST /api/admin/students  { student_id, student_name, class_code }
  */
 async function createStudent(req, res) {
@@ -567,7 +622,8 @@ async function createStudent(req, res) {
     }
 
     const now = new Date().toISOString()
-    const passwordHash = await getDefaultPasswordHash()
+    const temporaryPassword = generateTempPassword()
+    const passwordHash = await hashPassword(temporaryPassword)
     await dbRun(
       db,
       `INSERT INTO students
@@ -579,8 +635,13 @@ async function createStudent(req, res) {
 
     res.status(201).json({
       success: true,
-      message: `学生账号创建成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}`,
-      data: { student_id, class_code: String(finalClassCode), initial_password: DEFAULT_STUDENT_PASSWORD },
+      message: '学生账号创建成功，请将一次性口令告知学生（仅显示一次）',
+      data: {
+        student_id,
+        class_code: String(finalClassCode),
+        initial_password: temporaryPassword,
+        temporary_password: temporaryPassword,
+      },
     })
   } catch (err) {
     logger.error('[admin] 创建学生失败:', err)
@@ -634,13 +695,25 @@ async function updateStudent(req, res) {
 /**
  * 管理员：删除学生账号
  * DELETE /api/admin/students/:studentId
+ *
+ * 事务内按依赖顺序清理：答题记录 → 埋点事件 → 密码重置审计 → 学生账号，失败整体回滚
  */
 async function deleteStudent(req, res) {
   try {
-    const info = await dbRun(db, 'DELETE FROM students WHERE student_id = ?', [req.params.studentId])
-    if (!info || info.changes === 0) {
+    const studentId = req.params.studentId
+    const exists = await dbGet(db, 'SELECT 1 FROM students WHERE student_id = ? LIMIT 1', [studentId])
+    if (!exists) {
       return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
     }
+    await dbTransaction(db, async ({ dbRun: txRun }) => {
+      await txRun('DELETE FROM answers WHERE student_id = ?', [studentId])
+      await txRun('DELETE FROM tracking_events WHERE user_id = ?', [studentId])
+      await txRun('DELETE FROM password_resets WHERE target_type = ? AND target_id = ?', [
+        'student',
+        studentId,
+      ])
+      await txRun('DELETE FROM students WHERE student_id = ?', [studentId])
+    })
     res.status(200).json({ success: true, message: '学生账号已删除' })
   } catch (err) {
     logger.error('[admin] 删除学生失败:', err)

@@ -26,11 +26,12 @@ const STUDENT_SAFE_COLUMNS =
 function getStudentList(req, res) {
   db.all(`SELECT ${STUDENT_SAFE_COLUMNS} FROM students ORDER BY created_at DESC`, (err, rows) => {
     if (err) {
+      logger.error('[student] 查询学生列表失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '查询失败: ' + err.message,
-      });
+        message: '查询失败',
+      })
     }
 
     res.status(200).json({
@@ -45,11 +46,12 @@ function getStudent(req, res) {
 
   db.get(`SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`, [studentId], (err, row) => {
     if (err) {
+      logger.error('[student] 查询学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '查询失败: ' + err.message,
-      });
+        message: '查询失败',
+      })
     }
 
     if (!row) {
@@ -83,11 +85,12 @@ function getStudentPublicName(req, res) {
     [studentId],
     (err, row) => {
       if (err) {
+        logger.error('[student] 查询学生姓名失败:', err)
         return res.status(500).json({
           success: false,
           error: 'DATABASE_ERROR',
-          message: '查询失败: ' + err.message,
-        });
+          message: '查询失败',
+        })
       }
 
       if (!row) {
@@ -127,11 +130,12 @@ function createStudent(req, res) {
   stmt.run(body.student_id, body.student_name || null, now, now, (err) => {
     stmt.finalize();
     if (err) {
+      logger.error('[student] 创建学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '创建失败: ' + err.message,
-      });
+        message: '创建失败',
+      })
     }
 
     res.status(201).json({
@@ -158,11 +162,12 @@ function updateStudent(req, res) {
   stmt.run(body.student_name || null, new Date().toISOString(), studentId, (err) => {
     stmt.finalize();
     if (err) {
+      logger.error('[student] 更新学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '更新失败: ' + err.message,
-      });
+        message: '更新失败',
+      })
     }
 
     res.status(200).json({
@@ -180,11 +185,12 @@ function deleteStudent(req, res) {
   stmt.run(studentId, (err) => {
     stmt.finalize();
     if (err) {
+      logger.error('[student] 删除学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '删除失败: ' + err.message,
-      });
+        message: '删除失败',
+      })
     }
 
     res.status(200).json({

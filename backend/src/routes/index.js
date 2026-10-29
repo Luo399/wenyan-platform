@@ -8,7 +8,7 @@ const dashboardController = require('../controllers/dashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const exportController = require('../controllers/exportController')
-const { requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
+const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
 const { submitRateLimit, queryRateLimit, loginRateLimit, aiChatRateLimit } = require('../middleware/rateLimitMiddleware')
 
@@ -33,26 +33,26 @@ function registerRoutes(app) {
         'POST   /api/teacher/students/batch': '教师批量添加学生（Excel后调用）',
         'PUT    /api/teacher/students/:studentId': '教师更新学生姓名',
         'DELETE /api/teacher/students/:studentId': '教师删除本班学生账号',
-        'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为 99999999',
+        'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码（返回一次性口令）',
         'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况（框架）',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
         'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
         'PUT    /api/admin/teachers/:phone': '管理员更新教师（姓名/学校/班级/状态）',
         'DELETE /api/admin/teachers/:phone': '管理员删除教师账号',
-        'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码为99999999',
+        'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码（返回一次性口令）',
         'POST   /api/admin/teachers/:phone/status': '管理员启用/禁用教师',
         'POST   /api/admin/teachers/:phone/approve': '管理员审批待注册教师（pending→active）',
         'POST   /api/admin/teachers/:phone/reject': '管理员驳回待注册教师（pending→rejected）',
         'GET    /api/admin/students': '管理员查所有学生',
         'GET    /api/admin/students/:studentId': '管理员查单个学生',
-        'POST   /api/admin/students': '管理员新增学生账号（初始密码 99999999）',
+        'POST   /api/admin/students': '管理员新增学生账号（返回一次性口令）',
         'PUT    /api/admin/students/:studentId': '管理员更新学生信息',
         'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
-        'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为99999999',
+        'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码（返回一次性口令）',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
         // 遗留学生管理路由（已废弃，迁移目标：/api/teacher/students/* 和 /api/admin/students/*）
-        'GET  /api/students/:studentId/name': '公开：按学号查询学生姓名（登录页回显）',
+        'GET  /api/students/:studentId/name': '按学号查询学生姓名（需登录，登录页回显）',
         // 已废弃：GET/POST/PUT/DELETE /api/students*（原 teacher/admin 鉴权）— 已物理移除
         'POST /api/submit': '提交答案',
         'GET /api/answers/wen/:wenId': '按文言文ID查询答题',
@@ -141,8 +141,13 @@ function registerRoutes(app) {
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
   // 前端 AnswerQueryView 迁移完成后在 Phase 2 物理删除
-  // 公开查询：登录页回显学生姓名（仅返回学号+姓名，无需鉴权）
-  app.get('/api/students/:studentId/name', studentController.getStudentPublicName)
+  // 登录页回显学生姓名（仅返回学号+姓名；需登录态，防止匿名枚举学号）
+  app.get(
+    '/api/students/:studentId/name',
+    requireAuthMiddleware,
+    queryRateLimit,
+    studentController.getStudentPublicName,
+  )
   // 已废弃：旧的 teacher/admin 鉴权学生 CRUD 路由（原 /api/students*）
   // 迁移目标：教师侧用 /api/teacher/students/*，管理员侧用 /api/admin/students/*
 
@@ -181,8 +186,9 @@ function registerRoutes(app) {
   app.get('/api/home/dashboard', dashboardAuthMiddleware, dashboardController.getDashboard)
   app.get('/api/home/dashboard/raw', dashboardAuthMiddleware, dashboardController.getRawData)
 
-  // ============ 用户行为埋点上报（无需登录，学生端上报） ============
-  app.post('/api/track', trackingController.track)
+  // ============ 用户行为埋点上报（可选登录：带 token 时把 user_id 绑定到当前学生） ============
+  // 注意：user_id 一律取 req.user.student_id，不再信任请求体里的 user_id（防投毒）
+  app.post('/api/track', optionalAuthMiddleware, trackingController.track)
 
   // ============ 埋点数据分析（需看板密码验证，含学生学号/成绩/会话路径等敏感数据） ============
   app.get('/api/tracking/funnel', dashboardAuthMiddleware, trackingAnalysisController.getFunnel)
@@ -208,7 +214,36 @@ function registerRoutes(app) {
   const assetController = require('../controllers/assetController')
   const assetAuthMiddleware = require('../middleware/assetAuthMiddleware')
   const multer = require('multer')
-  const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
+
+  // 上传限制：单文件 20MB；白名单仅图片/视频/音频/PDF，明确拒绝 SVG（可携带脚本）与未知类型
+  const UPLOAD_MAX_FILE_SIZE = 20 * 1024 * 1024
+  function createInvalidFileTypeError(message) {
+    const err = new Error(message)
+    err.statusCode = 400
+    err.error = 'INVALID_FILE_TYPE'
+    return err
+  }
+  function uploadFileFilter(_req, file, cb) {
+    const mime = file.mimetype || ''
+    if (mime === 'image/svg+xml') {
+      return cb(createInvalidFileTypeError('不允许上传 SVG 文件'))
+    }
+    const allowed =
+      mime.startsWith('image/') ||
+      mime.startsWith('video/') ||
+      mime.startsWith('audio/') ||
+      mime === 'application/pdf'
+    if (!allowed) {
+      return cb(createInvalidFileTypeError(`不支持的文件类型: ${mime || 'unknown'}`))
+    }
+    cb(null, true)
+  }
+  const uploadOptions = {
+    storage: multer.memoryStorage(),
+    limits: { fileSize: UPLOAD_MAX_FILE_SIZE },
+    fileFilter: uploadFileFilter,
+  }
+  const uploadMiddleware = multer(uploadOptions)
   // 上传与预签名写入必须校验 ASSET_SYNC_TOKEN；版本信息读取无需鉴权（前端读取）
   app.post('/api/assets/upload', assetAuthMiddleware, uploadMiddleware.any(), assetController.upload)
   app.post('/api/assets/pre-signed', assetAuthMiddleware, assetController.generatePreSignedUrl)
@@ -222,7 +257,7 @@ function registerRoutes(app) {
 
   // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
   const resourceController = require('../controllers/resourceController')
-  const singleUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } }).single('file')
+  const singleUpload = multer(uploadOptions).single('file')
   app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin']), singleUpload, resourceController.uploadResource)
 
   // ============ AI 对话（仅学生） ============

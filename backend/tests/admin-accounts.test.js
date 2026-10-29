@@ -13,6 +13,10 @@ const request = require('supertest')
 
 process.env.DB_PATH = ':memory:'
 process.env.JWT_SECRET = 'ci-test-secret'
+// 安全加固后不再内置 admin/admin123：必须显式配置初始管理员口令，
+// 且该赋值要在 require database（会触发 seedInitialAdmin）之前
+process.env.INITIAL_ADMIN_PASSWORD = 'AdminInit#2024'
+process.env.INITIAL_ADMIN_USERNAME = 'admin'
 
 const { db, initAllTables } = require('../src/config/database')
 const { dbGet } = require('../src/utils/dbPromise')
@@ -33,8 +37,9 @@ beforeAll(async () => {
 
   const loginRes = await request(app)
     .post('/api/auth/admin/login')
-    .send({ username: 'admin', password: 'admin123' })
+    .send({ username: 'admin', password: process.env.INITIAL_ADMIN_PASSWORD })
   adminToken = loginRes.body.data.token
+  expect(adminToken).toBeTruthy()
 })
 
 afterAll((done) => {
@@ -90,14 +95,31 @@ describe('管理员：教师账号 CRUD', () => {
 })
 
 describe('管理员：学生账号 CRUD', () => {
-  it('新增学生账号', async () => {
+  it('新增学生账号（一次性初始口令，可直接登录且强制改密）', async () => {
     const res = await asAdmin(request(app).post('/api/admin/students')).send({
       student_id: '20240101',
       student_name: '测试学生甲',
       class_code: '202401',
     })
     expect(res.status).toBe(201)
-    expect(res.body.data.initial_password).toBe('99999999')
+    // 契约变更：不再返回固定 99999999，而是一次性 8 位随机口令
+    const pwd = res.body.data.initial_password
+    expect(pwd).toMatch(/^\d{8}$/)
+    expect(pwd).not.toBe('99999999')
+
+    const login = await request(app).post('/api/auth/student/login').send({
+      student_id: '20240101',
+      password: pwd,
+    })
+    expect(login.status).toBe(200)
+    expect(login.body.data.user.must_reset_password).toBe(true)
+
+    // 旧默认口令必须失效
+    const oldLogin = await request(app).post('/api/auth/student/login').send({
+      student_id: '20240101',
+      password: '99999999',
+    })
+    expect(oldLogin.status).toBe(401)
   })
 
   it('查询单个学生应不返回密码哈希', async () => {

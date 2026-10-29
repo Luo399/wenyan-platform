@@ -29,6 +29,20 @@ async function main() {
   console.log('========================================')
 
   // 等数据库就绪 + 幂等初始化（确保表结构是最新的）
+  // 安全闸门：本脚本会把所有教师口令重置成同一个已知值，属于历史遗留的一次性运维动作。
+  // 生产环境默认禁用；即使非生产，也必须额外显式设置 ALLOW_LEGACY_PASSWORD_RESET=1。
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[拒绝] NODE_ENV=production 下禁止执行密码批量重置（会产生统一的已知口令）')
+    process.exit(1)
+  }
+  if (!isDryRun && process.env.ALLOW_LEGACY_PASSWORD_RESET !== '1') {
+    console.error(
+      '[拒绝] 真正执行需要显式设置 ALLOW_LEGACY_PASSWORD_RESET=1；' +
+        '该操作会把所有教师口令重置为同一个已知值，仅限本地/测试库使用。',
+    )
+    process.exit(1)
+  }
+
   await dbReady
   await initAllTables()
   const { db } = require('../src/config/database')
