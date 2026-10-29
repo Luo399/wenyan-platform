@@ -119,10 +119,22 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, role: ['admin', 'super_admin'] },
   },
   {
+    path: '/admin-dashboard',
+    name: 'admin-dashboard',
+    component: () => import('@/views/AdminDashboardView.vue'),
+    meta: { requiresAuth: true, role: ['admin', 'super_admin'] },
+  },
+  {
     path: '/teacher-completion',
     name: 'teacher-completion',
     component: () => import('@/views/TeacherCompletionView.vue'),
     // 后端 /api/teacher/completion/* 用 requireRole('teacher')，管理员也不放行
+    meta: { requiresAuth: true, role: 'teacher' },
+  },
+  {
+    path: '/teacher-dashboard',
+    name: 'teacher-dashboard',
+    component: () => import('@/views/TeacherDashboardView.vue'),
     meta: { requiresAuth: true, role: 'teacher' },
   },
   {

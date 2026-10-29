@@ -28,11 +28,17 @@
       <a href="/resource-upload" class="tool-nav-link">音视频资源上传</a>
       <span class="tool-nav-sep">|</span>
       <a href="/answer-query" class="tool-nav-link">学生信息查询</a>
-      <span class="tool-nav-sep">|</span>
-      <a href="/teacher-completion" class="tool-nav-link">学生完成情况</a>
+      <template v-if="isTeacher">
+        <span class="tool-nav-sep">|</span>
+        <a href="/teacher-completion" class="tool-nav-link">学生完成情况</a>
+        <span class="tool-nav-sep">|</span>
+        <a href="/teacher-dashboard" class="tool-nav-link">教师数据看板</a>
+      </template>
       <span class="tool-nav-sep">|</span>
       <button class="tool-nav-btn" @click="showBatchCreateDialog = true">批量创建教师</button>
       <template v-if="isAdmin">
+        <span class="tool-nav-sep">|</span>
+        <a href="/admin-dashboard" class="tool-nav-link">管理员数据看板</a>
         <span class="tool-nav-sep">|</span>
         <a href="/admin-console" class="tool-nav-link">账号管理控制台</a>
       </template>
@@ -336,7 +342,7 @@ import {
   type StudentInfo,
 } from '@/services/studentService'
 import { debugError } from '@/utils/debug'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, type Role } from '@/stores/auth'
 import StudentTable from '@/components/StudentTable.vue'
 import AnswerTable from '@/components/AnswerTable.vue'
 import StudentFormModal from '@/components/StudentFormModal.vue'
@@ -410,8 +416,15 @@ const TOAST_DURATION_MS = 3000 as const
 /** 当前登录的 auth store */
 const authStore = useAuthStore()
 
-/** 是否管理员（管理员才展示账号管理入口） */
-const isAdmin = computed(() => authStore.user?.role === 'admin')
+/** 管理员侧入口：后端 adminAuth 同时放 admin 与 super_admin，这里要对齐 */
+const ADMIN_ROLES: Role[] = ['admin', 'super_admin']
+const isAdmin = computed(() => {
+  const role = authStore.user?.role
+  return !!role && ADMIN_ROLES.includes(role)
+})
+
+/** 教师侧入口：数据看板与学生完成情况的后端接口只认 teacher */
+const isTeacher = computed(() => authStore.user?.role === 'teacher')
 
 // ============================================================
 // 基础状态
