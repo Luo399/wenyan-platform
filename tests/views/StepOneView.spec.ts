@@ -2,25 +2,30 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createWebHistory, type Router } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
-import StepOneView from '@/views/StepOneView.vue'
+import StepView from '@/views/StepView.vue'
+
+// vi.mock 的工厂会被提升到文件顶部执行，内部引用的变量必须用 vi.hoisted 提前创建，
+// 否则 StepView 的依赖图里更早 import 到 debug 时会拿到未初始化的变量
+const { mockGoNext, mockGoPrev, mockDebugLog, mockDebugError } = vi.hoisted(() => ({
+  mockGoNext: vi.fn(),
+  mockGoPrev: vi.fn(),
+  mockDebugLog: vi.fn(),
+  mockDebugError: vi.fn(),
+}))
 
 // Mock useNavigation：验证组件不直接调用 router.push，而是走 goNext/goPrev
-const mockGoNext = vi.fn()
-const mockGoPrev = vi.fn()
 vi.mock('@/composables/useNavigation', () => ({
   useNavigation: () => ({ goNext: mockGoNext, goPrev: mockGoPrev }),
 }))
 
 // mock debug 工具，隔离日志噪音并便于验证事件处理
-const mockDebugLog = vi.fn()
-const mockDebugError = vi.fn()
 vi.mock('@/utils/debug', () => ({
   debugLog: mockDebugLog,
   debugError: mockDebugError,
   debugWarn: vi.fn(),
 }))
 
-describe('StepOneView.vue', () => {
+describe('StepView.vue', () => {
   const pinia = createPinia()
   setActivePinia(pinia)
 
@@ -31,7 +36,7 @@ describe('StepOneView.vue', () => {
       history: createWebHistory(),
       routes: [
         { path: '/', name: 'home', component: { template: '<div></div>' } },
-        { path: '/stepone/:id', name: 'stepone', component: StepOneView },
+        { path: '/stepone/:id', name: 'stepone', component: StepView },
       ],
     })
     await router.push('/stepone/1')
@@ -40,7 +45,7 @@ describe('StepOneView.vue', () => {
 
   // 统一挂载：stub 掉子组件，避免其内部依赖
   const mountWith = () =>
-    mount(StepOneView, {
+    mount(StepView, {
       global: {
         plugins: [router, pinia],
         stubs: {
@@ -142,15 +147,16 @@ describe('StepOneView.vue', () => {
       const multiRole = wrapper.findComponent({ name: 'MultiRoleReading' })
       const mockData = { segments: [] }
       multiRole.vm.$emit('load-success', mockData)
-      expect(mockDebugLog).toHaveBeenCalledWith('音频数据加载成功:', mockData)
+      // 三合一后的 StepView 模板只记录"加载成功"这件事，
+      // 不再把整份音频数据序列化进日志（大对象会拖慢主线程）
+      expect(mockDebugLog).toHaveBeenCalledWith('音频数据加载成功')
     })
 
     it('load-error 事件应触发 debugError 输出错误信息', () => {
       const wrapper = mountWith()
       const multiRole = wrapper.findComponent({ name: 'MultiRoleReading' })
-      const errorMsg = '网络错误'
-      multiRole.vm.$emit('load-error', errorMsg)
-      expect(mockDebugError).toHaveBeenCalledWith('音频数据加载失败:', errorMsg)
+      multiRole.vm.$emit('load-error', '网络错误')
+      expect(mockDebugError).toHaveBeenCalledWith('音频数据加载失败')
     })
 
     it('segment-change 事件应触发 debugLog 输出段落索引', () => {
@@ -159,7 +165,7 @@ describe('StepOneView.vue', () => {
       const wrapper = mountWith()
       const multiRole = wrapper.findComponent({ name: 'MultiRoleReading' })
       multiRole.vm.$emit('segment-change', 2)
-      expect(mockDebugLog).toHaveBeenCalledWith('当前段落变化:', 2)
+      expect(mockDebugLog).toHaveBeenCalledWith('当前段落变化:')
     })
   })
 

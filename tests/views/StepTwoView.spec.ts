@@ -1,76 +1,111 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createRouter, createWebHistory, type Router } from 'vue-router'
 import { setActivePinia, createPinia } from 'pinia'
-import { ref } from 'vue'
-import StepTwoView from '@/views/StepTwoView.vue'
+import StepView from '@/views/StepView.vue'
 
-const mockRouter = {
-  push: vi.fn(),
-  back: vi.fn(),
-}
-
-vi.mock('vue-router', () => ({
-  useRouter: () => mockRouter,
-  useRoute: () => ({ params: { id: 'WEN_01' } }),
+// StepOne/Two/ThreeView 已在 R1 合并为 StepView（stepone/steptwo/stepthree 共用），
+// 本文件验证 steptwo 路由下的 Step 2 行为。
+const { mockGoNext, mockGoPrev } = vi.hoisted(() => ({
+  mockGoNext: vi.fn(),
+  mockGoPrev: vi.fn(),
 }))
 
-vi.mock('@/composables/useDataLoader', () => ({
-  useDataLoader: vi.fn(() => ({
-    loading: ref(false),
-    error: ref<string | null>(null),
-    data: ref({
-      title: '测试页面',
-      blocks: [],
-    }),
-    retry: vi.fn(),
-  })),
+vi.mock('@/composables/useNavigation', () => ({
+  useNavigation: () => ({ goNext: mockGoNext, goPrev: mockGoPrev }),
 }))
 
-describe('StepTwoView.vue', () => {
-  beforeEach(() => {
-    const pinia = createPinia()
-    setActivePinia(pinia)
+vi.mock('@/utils/debug', () => ({
+  debugLog: vi.fn(),
+  debugWarn: vi.fn(),
+  debugError: vi.fn(),
+}))
+
+// Step 2 的数据来自 useDataLoader（/data/<dataDir>/<wenId>.json），
+// 这里直接给出已加载的 pageConfig，避免走 fetch/Worker 链路
+vi.mock('@/composables/useDataLoader', async () => {
+  const { ref } = await import('vue')
+  return {
+    useDataLoader: vi.fn(() => ({
+      loading: ref(false),
+      error: ref<string | null>(null),
+      isTimeout: ref(false),
+      data: ref({ title: '测试页面', blocks: [] }),
+      load: vi.fn(),
+      retry: vi.fn(),
+    })),
+  }
+})
+
+describe('StepView.vue（step 2 / steptwo）', () => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+
+  let router: Router
+  beforeEach(async () => {
     vi.clearAllMocks()
-    global.fetch = vi.fn()
+    router = createRouter({
+      history: createWebHistory(),
+      routes: [
+        { path: '/', name: 'home', component: { template: '<div></div>' } },
+        { path: '/steptwo/:id', name: 'steptwo', component: StepView },
+      ],
+    })
+    await router.push('/steptwo/1')
+    await router.isReady()
   })
 
+  const mountStep = () =>
+    mount(StepView, {
+      global: {
+        plugins: [router, pinia],
+        stubs: {
+          BlockRenderer: { name: 'BlockRenderer', template: '<div class="block-stub"></div>' },
+          WordList: true,
+          MultiRoleReading: true,
+          CultureCards: true,
+        },
+      },
+    })
+
   describe('基础渲染测试', () => {
-    it('应该正确渲染组件', () => {
-      const wrapper = mount(StepTwoView)
-      expect(wrapper.exists()).toBe(true)
+    it('应该正确渲染 Step 2 壳子', () => {
+      const wrapper = mountStep()
+      expect(wrapper.find('.step-2-view').exists()).toBe(true)
+      expect(wrapper.find('.page-scaffold').exists()).toBe(true)
+      expect(wrapper.find('.page-scaffold-title').text()).toBeTruthy()
     })
 
     it('应该显示返回按钮', () => {
-      const wrapper = mount(StepTwoView)
-      expect(wrapper.text()).toContain('返回')
+      const wrapper = mountStep()
+      expect(wrapper.find('.back-btn').text()).toContain('返回')
     })
 
-    it('应该显示继续按钮', () => {
-      const wrapper = mount(StepTwoView)
-      expect(wrapper.text()).toContain('继续')
+    it('未完成答题前不应显示继续按钮', () => {
+      const wrapper = mountStep()
+      expect(wrapper.find('.continue-btn').exists()).toBe(false)
     })
   })
 
   describe('导航功能测试', () => {
-    it('点击返回按钮应该触发goPrev', async () => {
-      const wrapper = mount(StepTwoView)
-      const backBtn = wrapper.find('.back-btn')
-      await backBtn.trigger('click')
-      expect(mockRouter.push).toHaveBeenCalled()
+    it('点击返回按钮应该触发 goPrev', async () => {
+      const wrapper = mountStep()
+      await wrapper.find('.back-btn').trigger('click')
+      expect(mockGoPrev).toHaveBeenCalledTimes(1)
     })
 
-    it('点击继续按钮应该触发goNext', async () => {
-      const wrapper = mount(StepTwoView)
-      const continueBtn = wrapper.find('.continue-btn')
-      await continueBtn.trigger('click')
-      expect(mockRouter.push).toHaveBeenCalled()
+    it('BackContinue 触发 continue 事件应该调用 goNext', async () => {
+      const wrapper = mountStep()
+      wrapper.findComponent({ name: 'BackContinue' }).vm.$emit('continue')
+      await wrapper.vm.$nextTick()
+      expect(mockGoNext).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('答题进度测试', () => {
-    it('应该初始化答题进度', () => {
-      const wrapper = mount(StepTwoView)
-      expect(wrapper.vm.$data).toBeDefined()
+    it('已加载 pageConfig 时应渲染 blocks 容器', () => {
+      const wrapper = mountStep()
+      expect(wrapper.find('.blocks-container').exists()).toBe(true)
     })
   })
 })

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { reactive } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { useNavigation } from '@/composables/useNavigation'
 
@@ -7,11 +8,19 @@ const mockRouter = {
   push: vi.fn(() => Promise.resolve()),
   replace: vi.fn(() => Promise.resolve()),
   back: vi.fn(),
+  // useNavigation.isAlreadyAt() 会读 router.currentRoute.value.fullPath
+  currentRoute: reactive({ value: { fullPath: '/__none__' } }),
 }
+
+// R140 起 useNavigation 实时读当前路由（useRoute），提示值只是兜底，
+// 因此 mock 必须同时提供 useRoute / NavigationFailureType。
+const mockRoute = reactive({ name: '' as string, params: {} as Record<string, string> })
 
 vi.mock('vue-router', () => ({
   useRouter: () => mockRouter,
+  useRoute: () => mockRoute,
   isNavigationFailure: () => false,
+  NavigationFailureType: { aborted: 4, cancelled: 8 },
 }))
 
 // Mock debug 模块，便于断言 warn/error/log
@@ -37,6 +46,10 @@ describe('useNavigation', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     vi.clearAllMocks()
+    // 每个用例从「不在顺序路由上」开始：此时提示值生效
+    mockRoute.name = ''
+    mockRoute.params = {}
+    mockRouter.currentRoute.value = { fullPath: '/__none__' }
   })
 
   describe('composable 初始化', () => {
@@ -184,32 +197,34 @@ describe('useNavigation', () => {
 
   describe('顺序页面行为兼容性测试', () => {
     it('顺序页面 goNext 正常跳转到下一页', () => {
-      // rules 是第二项，下一页应为 stepone（新顺序：rules -> stepone -> rule1 -> ...）
+      // pageSequence: home(0) rules(1) rule1(2) stepone(3) rule2(4) steptwo(5)
+      //               rule3(6) stepthree(7) detail(8)
       const navigation = useNavigation('rules', '1')
-      navigation.goNext()
-      expect(mockRouter.push).toHaveBeenCalledTimes(1)
-      expect(mockRouter.push).toHaveBeenCalledWith('/stepone/1')
-    })
-
-    it('顺序页面 stepone 的 goNext 应跳转到 rule1', () => {
-      // 新顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> steptwo -> stepthree -> detail
-      const navigation = useNavigation('stepone', '1')
       navigation.goNext()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
       expect(mockRouter.push).toHaveBeenCalledWith('/rule1/1')
     })
 
+    it('顺序页面 stepone 的 goNext 应跳转到 rule2', () => {
+      // 顺序：rules -> rule1 -> stepone -> rule2 -> steptwo -> rule3 -> stepthree -> detail
+      const navigation = useNavigation('stepone', '1')
+      navigation.goNext()
+      expect(mockRouter.push).toHaveBeenCalledTimes(1)
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule2/1')
+    })
+
     it('顺序页面 goPrev 正常跳转到上一页', () => {
-      // stepone 是第三项，上一页应为 rules
+      // stepone 的上一页是 rule1
       const navigation = useNavigation('stepone', '1')
       navigation.goPrev()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
-      expect(mockRouter.push).toHaveBeenCalledWith('/rules/1')
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule1/1')
     })
 
     it('顺序页面 currentIndex 返回正确索引', () => {
       const navigation = useNavigation('rules', '1')
-      // pageSequence: home(0) rules(1) stepone(2) rule1(3) rule2(4) rule3(5) steptwo(6) stepthree(7) detail(8)
+      // pageSequence: home(0) rules(1) rule1(2) stepone(3) rule2(4) steptwo(5)
+      //               rule3(6) stepthree(7) detail(8)
       expect(navigation.currentIndex.value).toBe(1)
     })
 
@@ -244,7 +259,7 @@ describe('useNavigation', () => {
 
       const properties = call[2] as Record<string, unknown>
       expect(properties.action).toBe('go_next')
-      expect(properties.target_path).toBe('/stepone/1')
+      expect(properties.target_path).toBe('/rule1/1')
       expect(typeof properties.cost_time).toBe('number')
       expect(typeof properties.sync_cost).toBe('number')
       expect(typeof properties.user_agent).toBe('string')
@@ -257,6 +272,37 @@ describe('useNavigation', () => {
       await Promise.resolve()
 
       expect(mockTrack).not.toHaveBeenCalled()
+      expect(mockDebugWarn).toHaveBeenCalled()
+    })
+  })
+
+  describe('R140: 实时路由优先于提示值（组件复用场景）', () => {
+    it('实时路由名属于 pageSequence 时忽略过期的提示值', () => {
+      // 模拟 stepone → steptwo 复用同一组件实例：提示值仍是 'stepone'
+      mockRoute.name = 'steptwo'
+      mockRoute.params = { id: '1' }
+      const navigation = useNavigation('stepone', '1')
+
+      expect(navigation.currentIndex.value).toBe(5)
+      navigation.goNext()
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule3/1')
+    })
+
+    it('实时 params.id 优先于 idHint', () => {
+      mockRoute.name = 'steptwo'
+      mockRoute.params = { id: '9' }
+      const navigation = useNavigation('steptwo', '1')
+
+      navigation.goNext()
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule3/9')
+    })
+
+    it('目标与当前地址相同时不应重复 push', () => {
+      mockRouter.currentRoute.value = { fullPath: '/rule1/1' }
+      const navigation = useNavigation('rules', '1')
+
+      navigation.goNext()
+      expect(mockRouter.push).not.toHaveBeenCalled()
       expect(mockDebugWarn).toHaveBeenCalled()
     })
   })

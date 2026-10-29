@@ -1,21 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import AnswerQueryView from '@/views/AnswerQueryView.vue'
-import { get } from '@/utils/api'
+import { get, batchPost } from '@/utils/api'
 import {
   createStudent,
   updateStudent,
   deleteStudent,
-  validateStudentId,
-  validateStudentName,
-} from '@/utils/studentApi'
+  getAllStudents,
+} from '@/services/studentService'
+import { resetTeacherPassword } from '@/services/adminService'
+import { useAuthStore } from '@/stores/auth'
 import { formatDate, formatAnswer } from '@/utils/format'
 
+// 视图现在直接从 services/studentService 导入（旧的 utils/studentApi 只是 re-export 兼容层），
+// 因此 mock 必须打在 services 路径上，否则拦截不到。
 vi.mock('@/utils/api', () => ({
   get: vi.fn(),
+  batchPost: vi.fn(),
 }))
 
-vi.mock('@/utils/studentApi', () => ({
+vi.mock('@/services/studentService', () => ({
+  getAllStudents: vi.fn(),
   createStudent: vi.fn(),
   updateStudent: vi.fn(),
   deleteStudent: vi.fn(),
@@ -23,12 +29,17 @@ vi.mock('@/utils/studentApi', () => ({
   validateStudentName: vi.fn(() => ({ valid: true })),
 }))
 
+vi.mock('@/services/adminService', () => ({
+  resetTeacherPassword: vi.fn(),
+}))
+
 const mockGet = vi.mocked(get)
+const mockBatchPost = vi.mocked(batchPost)
+const mockGetAllStudents = vi.mocked(getAllStudents)
 const mockCreateStudent = vi.mocked(createStudent)
 const mockUpdateStudent = vi.mocked(updateStudent)
 const mockDeleteStudent = vi.mocked(deleteStudent)
-const mockValidateStudentId = vi.mocked(validateStudentId)
-const mockValidateStudentName = vi.mocked(validateStudentName)
+const mockResetTeacherPassword = vi.mocked(resetTeacherPassword)
 
 const mockStudents = [
   { student_id: '2024001', name: '张三', class: 9, created_at: '2024-01-01' },
@@ -80,26 +91,43 @@ const mockStudentAnswers = [
 ]
 
 describe('AnswerQueryView.vue', () => {
+  let pinia: ReturnType<typeof createPinia>
+
+  /** 视图 setup 里就会 useAuthStore()，必须带 pinia 挂载 */
+  const mountView = () => mount(AnswerQueryView, { global: { plugins: [pinia] } })
+
   beforeEach(() => {
     vi.clearAllMocks()
+    pinia = createPinia()
+    setActivePinia(pinia)
+    // 学生列表接口按角色分流，默认用教师身份（管理员专属入口另有单独用例）
+    const authStore = useAuthStore()
+    authStore.token = 'test-token'
+    authStore.user = { id: '1', username: 'teacher', studentId: '1', role: 'teacher' }
+
+    // 学生 tab 现在走 studentService.getAllStudents（→ /api/teacher|admin/students）
+    mockGetAllStudents.mockResolvedValue(mockStudents as never)
     mockGet.mockResolvedValue({
       success: true,
       data: mockStudents,
     })
-    mockCreateStudent.mockResolvedValue({ success: true })
-    mockUpdateStudent.mockResolvedValue({ success: true })
-    mockValidateStudentId.mockReturnValue({ valid: true })
-    mockValidateStudentName.mockReturnValue({ valid: true })
+    mockCreateStudent.mockResolvedValue({ success: true, message: '学生添加成功' })
+    mockUpdateStudent.mockResolvedValue({ success: true, message: '学生信息修改成功' })
+    mockDeleteStudent.mockResolvedValue({ success: true, message: '学生删除成功' })
+    mockResetTeacherPassword.mockResolvedValue({
+      success: true,
+      data: { temporary_password: 'TempPass123' },
+    } as never)
   })
 
   describe('基础渲染测试', () => {
     it('应该正确渲染页面标题', () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       expect(wrapper.find('.page-header h1').text()).toBe('学生信息查询与管理')
     })
 
     it('应该显示标签页', () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       const tabBtns = wrapper.findAll('.tab-btn')
       expect(tabBtns.length).toBe(3)
       expect(tabBtns[0].text()).toBe('学生管理')
@@ -108,7 +136,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('默认应该显示学生管理标签页', () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       const activeTab = wrapper.find('.tab-btn.active')
       expect(activeTab.text()).toBe('学生管理')
     })
@@ -116,10 +144,11 @@ describe('AnswerQueryView.vue', () => {
 
   describe('学生管理功能测试', () => {
     it('应该正确加载学生列表', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
-      expect(mockGet).toHaveBeenCalledWith('/api/students')
+      expect(mockGetAllStudents).toHaveBeenCalledTimes(1)
+      expect(mockGet).not.toHaveBeenCalled()
 
       const tableRows = wrapper.findAll('.data-table tbody tr')
       expect(tableRows.length).toBe(3)
@@ -127,7 +156,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('应该正确显示学生信息', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const firstRow = wrapper.findAll('.data-table tbody tr')[0]
@@ -138,7 +167,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('应该支持搜索功能', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const searchInput = wrapper.find('.search-input')
@@ -152,7 +181,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('应该支持按班级筛选', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const classSelect = wrapper.find('.class-select')
@@ -160,11 +189,11 @@ describe('AnswerQueryView.vue', () => {
       await classSelect.trigger('change')
       await flushPromises()
 
-      expect(mockGet).toHaveBeenCalledWith('/api/students?class=9')
+      expect(mockGetAllStudents).toHaveBeenLastCalledWith({ class: 9 })
     })
 
     it('应该支持新增学生', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const addBtn = wrapper.find('.add-btn')
@@ -176,7 +205,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('应该支持编辑学生', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const editBtn = wrapper.findAll('.edit-btn')[0]
@@ -188,7 +217,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('应该支持删除学生', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const deleteBtn = wrapper.findAll('.delete-btn')[0]
@@ -199,7 +228,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('提交新增学生表单应该打开表单弹窗', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const addBtn = wrapper.find('.add-btn')
@@ -210,7 +239,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('提交编辑学生表单应该打开表单弹窗', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const editBtn = wrapper.findAll('.edit-btn')[0]
@@ -221,7 +250,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('确认删除学生应该调用deleteStudent', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const deleteBtn = wrapper.findAll('.delete-btn')[0]
@@ -238,7 +267,7 @@ describe('AnswerQueryView.vue', () => {
 
   describe('按文言文ID查询功能测试', () => {
     it('切换到文言文ID查询标签页应该显示查询表单', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
@@ -258,7 +287,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
@@ -285,7 +314,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
@@ -315,7 +344,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
@@ -347,7 +376,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
@@ -372,7 +401,7 @@ describe('AnswerQueryView.vue', () => {
 
   describe('按学生ID查询功能测试', () => {
     it('切换到学生ID查询标签页应该显示查询表单', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const studentIdTab = wrapper.findAll('.tab-btn')[2]
@@ -394,7 +423,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const studentIdTab = wrapper.findAll('.tab-btn')[2]
@@ -405,7 +434,8 @@ describe('AnswerQueryView.vue', () => {
       await input.setValue('2024001')
       await flushPromises()
 
-      const queryBtn = wrapper.find('.query-btn')
+      // 第 2 个 query-btn 属于学生ID表单（两个 tab 都在 DOM 里）
+      const queryBtn = wrapper.findAll('.query-btn')[1]
       await queryBtn.trigger('click')
       await flushPromises()
 
@@ -423,7 +453,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const studentIdTab = wrapper.findAll('.tab-btn')[2]
@@ -434,7 +464,8 @@ describe('AnswerQueryView.vue', () => {
       await input.setValue('2024001')
       await flushPromises()
 
-      const queryBtn = wrapper.find('.query-btn')
+      // 第 2 个 query-btn 属于学生ID表单（两个 tab 都在 DOM 里）
+      const queryBtn = wrapper.findAll('.query-btn')[1]
       await queryBtn.trigger('click')
       await flushPromises()
 
@@ -443,7 +474,7 @@ describe('AnswerQueryView.vue', () => {
     })
 
     it('学生ID查询应该显示查询表单', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const studentIdTab = wrapper.findAll('.tab-btn')[2]
@@ -456,18 +487,19 @@ describe('AnswerQueryView.vue', () => {
 
   describe('数据展示测试', () => {
     it('错误状态应该显示错误信息', async () => {
-      mockGet.mockRejectedValue(new Error('网络错误'))
+      mockGetAllStudents.mockRejectedValue(new Error('网络错误'))
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       expect(wrapper.find('.error-state').exists()).toBe(true)
+      expect(wrapper.find('.error-state').text()).toContain('网络错误')
     })
 
     it('空数据状态应该显示提示', async () => {
-      mockGet.mockResolvedValue({ success: true, data: [] })
+      mockGetAllStudents.mockResolvedValue([])
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       expect(wrapper.find('.empty-state').exists()).toBe(true)
@@ -482,7 +514,7 @@ describe('AnswerQueryView.vue', () => {
         },
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
@@ -507,7 +539,7 @@ describe('AnswerQueryView.vue', () => {
         data: mockStudents,
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const sortSelect = wrapper.find('.sort-select')
@@ -524,7 +556,7 @@ describe('AnswerQueryView.vue', () => {
         data: mockStudents,
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       expect(wrapper.find('.pagination').exists()).toBe(true)
@@ -536,7 +568,7 @@ describe('AnswerQueryView.vue', () => {
         data: mockStudents,
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const exportBtn = wrapper.find('.export-btn')
@@ -562,33 +594,38 @@ describe('AnswerQueryView.vue', () => {
 
   describe('边界情况测试', () => {
     it('查询空文言文ID应该显示错误', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const wenIdTab = wrapper.findAll('.tab-btn')[1]
       await wenIdTab.trigger('click')
       await flushPromises()
 
-      const queryBtn = wrapper.find('.query-btn')
+      const queryBtn = wrapper.findAll('.query-btn')[0]
       await queryBtn.trigger('click')
       await flushPromises()
 
       expect(wrapper.find('.error-state').exists()).toBe(true)
+      expect(wrapper.find('.error-state').text()).toContain('请输入文言文ID')
+      expect(mockGet).not.toHaveBeenCalled()
     })
 
     it('查询空学生ID应该显示错误', async () => {
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
       await flushPromises()
 
       const studentIdTab = wrapper.findAll('.tab-btn')[2]
       await studentIdTab.trigger('click')
       await flushPromises()
 
-      const queryBtn = wrapper.find('.query-btn')
+      // 第二个 query-btn 属于「按学生ID查询」表单（两个 tab 都在 DOM 里，靠 v-show 切换）
+      const queryBtn = wrapper.findAll('.query-btn')[1]
       await queryBtn.trigger('click')
       await flushPromises()
 
       expect(wrapper.find('.error-state').exists()).toBe(true)
+      expect(wrapper.find('.error-state').text()).toContain('请输入学生学号')
+      expect(mockGet).not.toHaveBeenCalled()
     })
 
     it('API返回失败应该显示错误信息', async () => {
@@ -597,11 +634,74 @@ describe('AnswerQueryView.vue', () => {
         message: '获取数据失败',
       })
 
-      const wrapper = mount(AnswerQueryView)
+      const wrapper = mountView()
+      await flushPromises()
+
+      const wenIdTab = wrapper.findAll('.tab-btn')[1]
+      await wenIdTab.trigger('click')
+      await flushPromises()
+
+      await wrapper.find('input[placeholder="如：WEN_01"]').setValue('WEN_01')
+      await wrapper.findAll('.query-btn')[0].trigger('click')
       await flushPromises()
 
       expect(wrapper.find('.error-state').exists()).toBe(true)
       expect(wrapper.find('.error-state').text()).toContain('获取数据失败')
+    })
+  })
+
+  describe('角色权限（批量创建教师入口仅管理员可见）', () => {
+    it('教师看不到「批量创建教师」入口', async () => {
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.findAll('.tool-nav-btn').length).toBe(0)
+      expect(wrapper.text()).not.toContain('批量创建教师')
+    })
+
+    it('管理员可见「批量创建教师」入口', async () => {
+      const authStore = useAuthStore()
+      authStore.user = { id: '2', username: 'admin', studentId: '2', role: 'admin' }
+      mockGetAllStudents.mockResolvedValue([])
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('批量创建教师')
+    })
+
+    it('批量创建不提交写死口令，并展示服务端一次性临时口令', async () => {
+      const authStore = useAuthStore()
+      authStore.user = { id: '2', username: 'admin', studentId: '2', role: 'super_admin' }
+      mockGetAllStudents.mockResolvedValue([])
+      mockBatchPost.mockResolvedValue(
+        [
+          { key: 'a001', success: true, message: '创建成功' },
+        ] as never,
+      )
+
+      const wrapper = mountView()
+      await flushPromises()
+
+      await wrapper.find('.tool-nav-btn').trigger('click')
+      await flushPromises()
+      await wrapper.find('.modal-footer .btn-primary').trigger('click')
+      await flushPromises()
+
+      expect(mockBatchPost).toHaveBeenCalledTimes(1)
+      const [url, items] = mockBatchPost.mock.calls[0] as unknown as [
+        string,
+        Array<{ body: { password: string } }>,
+      ]
+      expect(url).toBe('/api/admin/teachers')
+      expect(items).toHaveLength(9)
+      // 旧实现写死 12345678；现在每个账号使用随机初始化口令，且不由前端展示
+      for (const item of items) {
+        expect(item.body.password).not.toBe('12345678')
+        expect(item.body.password.length).toBe(16)
+      }
+      expect(mockResetTeacherPassword).toHaveBeenCalledWith('a001')
+      expect(wrapper.find('.result-password').text()).toContain('TempPass123')
     })
   })
 })

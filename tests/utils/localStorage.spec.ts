@@ -156,13 +156,26 @@ describe('utils/localStorage', () => {
       expect(getQuizRecords<QuizReport>('S001')).toEqual([report])
     })
 
-    it('脏数据（非数组 JSON）下追加时自动重置为干净数组', () => {
-      localStorage.setItem('quiz_records_S001', '{invalid json')
+    it('脏数据（损坏 JSON）下追加时跳过写入，避免覆盖历史数据', () => {
+      // R98：损坏数据不再被覆盖成干净数组——宁可本条不落盘，
+      // 也不要把用户历史答题记录抹掉；原始数据原样保留等待人工处理
+      const corrupt = '{invalid json'
+      localStorage.setItem('quiz_records_S001', corrupt)
       const record: SingleRecord = { questionId: 'Q1', isCorrect: true, score: 100 }
       const result = appendQuizRecord('S001', record)
 
-      expect(result).toEqual([record])
-      expect(getQuizRecords<SingleRecord>('S001')).toEqual([record])
+      expect(result).toEqual([])
+      expect(localStorage.getItem('quiz_records_S001')).toBe(corrupt)
+      expect(getQuizRecords<SingleRecord>('S001')).toEqual([])
+    })
+
+    it('脏数据（非数组 JSON）下追加时同样跳过写入', () => {
+      const dirty = JSON.stringify({ not: 'array' })
+      localStorage.setItem('quiz_records_S001', dirty)
+      const record: SingleRecord = { questionId: 'Q1', isCorrect: true, score: 100 }
+
+      expect(appendQuizRecord('S001', record)).toEqual([])
+      expect(localStorage.getItem('quiz_records_S001')).toBe(dirty)
     })
 
     it('连续追加按顺序保留', () => {

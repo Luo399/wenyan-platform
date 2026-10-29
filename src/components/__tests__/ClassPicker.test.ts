@@ -64,7 +64,8 @@ describe('ClassPicker 组件', () => {
       }))
 
       const { default: FreshClassPicker } = await import('../ClassPicker.vue')
-      const w = mount(FreshClassPicker as any, { props: { modelValue: [] } })
+      // 重新 import 得到的是新的 SFC 类型，mount 的泛型能直接吃下，无需 as any
+      const w = mount(FreshClassPicker, { props: { modelValue: [] } })
 
       await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
       vi.doUnmock('@/services/classOptions')
@@ -75,13 +76,14 @@ describe('ClassPicker 组件', () => {
   describe('v-model 双向同步', () => {
     it('modelValue 初始有值 → 已选列表展示', () => {
       const w = factory({ modelValue: ['202401', '202402'] })
-      expect(w.findAll('[data-testid^="selected-"]').length).toBe(2)
+      // 用 .selected-code 定位具体编码；[data-testid^="selected-"] 会把 selected-row 一起算进去
+      expect(w.findAll('.selected-code').length).toBe(2)
     })
 
     it('更新外部 modelValue → 内部 innerClassCodes 同步', async () => {
       const w = factory({ modelValue: ['202401'] })
       await w.setProps({ modelValue: ['202401', '202402', '202403'] })
-      expect(w.findAll('[data-testid^="selected-"]').length).toBe(3)
+      expect(w.findAll('.selected-code').length).toBe(3)
     })
   })
 
@@ -176,15 +178,27 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="selected-202501"]').exists()).toBe(true)
     })
 
-    it('非法编码（非 6 位 / 字母 / 空格）→ 不添加', async () => {
+    it('非法编码（非 6 位纯数字）→ 不添加', async () => {
       const w = factory()
-      const cases = ['', 'abc', '123', '20250', ' 202501', '2025011', '202a01']
+      // 注意：addManual 会先 trim，首尾空格属于合法输入（见下一条用例），
+      // 所以这里只保留"内容本身不合法"的取值
+      const cases = ['', 'abc', '123', '20250', '2025011', '202a01', '2025 1']
       for (const val of cases) {
         await w.get('[data-testid="manual-input"]').setValue(val)
         await w.get('[data-testid="add-btn"]').trigger('click')
       }
       // 全部无效，selected-row 不应出现
       expect(w.find('[data-testid="selected-row"]').exists()).toBe(false)
+    })
+
+    it('首尾空格会被 trim → 合法编码照常添加', async () => {
+      const w = factory()
+      await w.get('[data-testid="manual-input"]').setValue(' 202501 ')
+      await w.get('[data-testid="add-btn"]').trigger('click')
+
+      expect(w.find('[data-testid="selected-202501"]').exists()).toBe(true)
+      const modelEmitted = w.emitted('update:modelValue')!
+      expect(modelEmitted[modelEmitted.length - 1][0]).toEqual(['202501'])
     })
 
     it('重复输入同一编码 → 去重不再次添加', async () => {
