@@ -314,11 +314,53 @@
 
 ---
 
+## [x] Step 三关答题闭环与 Figma 资产审计 (step3-quiz-closure-asset-audit)
+
+- 目标：回应甲方三条反馈——第一关补选择题、第二关第二题答完后解析 dialogue 要显示、Figma 扫描上传的产物是否全部用上。
+- 红线：不改内容 JSON 的答案字段；组件提交仍走 `useQuizSubmitter`；05 起没有 `level1_quiz` 数据时不能把第一关卡死。
+- 分支 / commit / CI：`feature/step12-quiz-fixes` @ `2bfa324`（本地 `5750dd8`，树同为 `4ac8243`）→ `--no-ff` 语义并入
+  `feature-1`@`2a46603`；子分支 `CI Checks` run `40816371706` 6 项全绿，合并后 run `40816528148` 6 项全绿，
+  `Deploy Frontend to Test OSS` run `40816528133` 成功。分支名不删。
+- 落提交方式：`github.com:443` 不通，走 Git Data API 建 blob/tree/commit/ref；服务端 tree sha 与本地一致（`4ac8243`），
+  blob sha 逐个与 `git rev-parse HEAD:path` 对上。合并前父分支被 PR #221 推到 `5dfe95c`，先 compare 确认其 7 个文件与本次三个文件零重叠，
+  再以新头为基线重建合并树，父提交 `[5dfe95c, 2bfa324]`。
+- 本机校验：便携 Node 20.18.0，全量 `vitest run` 252/252（15 个文件）、`vue-tsc --build` 0 错误、改动文件 `eslint` 0 错误、
+  `oxlint` 0 warning、`prettier --check` 通过。
+- 明确没做：WEN_04 的 B2 答案与解析矛盾、B1 缺 `correct_answer` 只登记不擅改；WEN_05 起的第一关数据由内容侧补；
+  Figma 6,049 张切片不删不迁移；不碰 `main`（`feature-1` → `main` 仍走人工审批 PR）。
+
+### [x] 第二关末题解析对话恢复显示 (step2-trailing-explanation)
+
+- 根因：`useQuizFlow.submit()` 在最后一题不推进 `currentIndex`（日志 `prevIndex 0 → newIndex 0, isCompleted true`），
+  `isQuizBlockVisible()` 以 `quizBlockIndices[currentIndex]` 为上界，题目之后的 dialogue 永远 `show=false`。
+- 修复：`step2Flow.isCompleted` 为真时全部解锁；解析对话本就属于「答完才该看」的内容。
+
+### [x] 第一关接入 A 关选择题 (step1-quiz)
+
+- 数据：`level1_quiz/{WEN}.json`（当前 01–04 各 1 题）→ `adaptLevel1Quiz()` 生成 `WEN_nn_A{n}` / `module A`；
+  `normalizeCorrectIndex()` 兼容字母、数字与 0 基索引。
+- 交互：`QuizCard` 逐题渲染 + `useQuizFlow.submit()` 单题提交；`completionKey` 三关分离（`stepone:` 等），
+  新增 `wenId` 参数保证后端仍收到纯 `WEN_xx`；A 关 JSON 无 `question_id`，提交必须带 `correctAnswer`。
+- 降级：无数据时整段隐藏，不影响字词/朗读与「继续」。
+- 测试：`src/views/__tests__/StepView.test.ts` 两个回归用例（末题后 dialogue 可见；stepone 渲染/提交 payload 正确且无 `stepone:` 前缀）。
+
+### [x] Figma 扫描资产使用审计 (figma-asset-usage-audit)
+
+- 产物：`docs/素材使用审计-20261029.md`。结论：6,075 项插件产物（screens 6,049 + texts 26，styles 0）运行时引用为 0；
+  真正在用的通用图只有 `login_bg.png`、`article_list_bg.png`、`article_list_title.png` 3 张。
+- 证据：`icon_dialog` 25 个字段全空；`illustration` 8 个全空；`image_file` 35 个中 24 个 mp4 走 `/video/`、11 个是「文字」占位；
+  quiz / explanation / summary / cultural_card / video 五类切片无任何组件消费。
+- 建议：先标注不急着删；挂头像先填 `icon_dialog`；题目/解析插图先定 schema；`data/texts` 归为内容底稿；
+  增加发布前资产引用审计（数据字段 → URL → HEAD 200）。
+
+---
+
 ## [x] 前端覆盖率环境 + 本机工具链 + 23 号位确认 (coverage-python-slot23)
 
 - 目标：把上一批留下的三个「跑不了 / 没确认」口子关掉——前端覆盖率缺 provider、`generate-inventory.py` 没有 python、
   23 号位归属未确认；另外清掉 `origin` URL 里的明文凭据。
-- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第三批（CR-20261029-16 ~ 19）。
+- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第四批（CR-20261029-18 ~ 21）。
+  号段从 18 起是因为上一节（第三批）已占用 16 / 17，本批与它并行、编号顺延。
 - 红线：全程不 `checkout` / 不 `stash` / 不动共享工作区与 HEAD（git plumbing 落提交）；
   校验在 `git archive` 出的干净树里跑（`mklink /J` 把 `node_modules` 指回仓库）；不碰 `main`。
 - 分支 / commit / PR：`feature-1` 从 `eca26c4` 推到 `3c19c03`（三个 PR 各 6 项检查全绿才合）。
@@ -327,7 +369,7 @@
 
 - 分支 / commit / CI：`feature/quality-gate/frontend-coverage-v8` @ `28cbdd6` → PR #220 → 合并提交 `387b9b3`；CI 6 项全绿。
 - 落点：`@vitest/coverage-v8@4.1.10`（vitest 4 已删 `c8`）+ `vitest.config.ts` 的 `coverage` 段，
-  阈值 statements 14 / functions 16 / branches 11 / lines 14（实测 14.93 / 16.76 / 11.49 / 14.09 往下取整）。
+  阈值 statements 14 / functions 16 / branches 11 / lines 14（当时实测 14.93 / 16.76 / 11.49 / 14.09 往下取整）。
 - 未做：CI 的 `quality-check` 仍跑 `npm run test`、**不带 `--coverage`**，阈值只在本地生效；要不要钉进 CI 等你定。
 
 ### [x] 23 号位确认为《活板》(slot-23-huoban)
@@ -340,7 +382,8 @@
 ### [x] 本机 Python 与资源清单重跑 (python-and-inventory)
 
 - 分支 / commit / CI：`feature/asset-inventory/regenerate-snapshot` @ `02f1b3f` → PR #222 → `3c19c03`；CI 6 项全绿。
-- 本机装 Python 3.12.10；输入取自线上 `GET /api/assets/version`（`production_version.json` 未被 git 跟踪）。
+- 本机装 Python 3.12.10（`python -X utf8` 跑，否则中文输出乱码）；输入取自线上 `GET /api/assets/version`
+  （`production_version.json` 未被 git 跟踪，测试环境的 `test_version.json` 因 502 没拿到）。
 - 清单从 2026-08-21 的 1947 资源刷到 6077，标题表由「37 条推测」换成「25 条确认 + 12 条占位」。
 
 ### [x] origin remote URL 去掉明文令牌 (remote-url-credential)
@@ -349,4 +392,3 @@
 - 改法：`gh auth setup-git` 把 `credential.https://github.com.helper` 指向 `gh.exe auth git-credential`，
   URL 清成 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树已扫不到该令牌字节，fetch / push 均正常。
 - **待你本人做**：轮换那枚令牌（`gh auth refresh-token`，或在 GitHub 设置里撤销后 `gh auth login`）。
-
