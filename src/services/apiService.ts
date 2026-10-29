@@ -475,6 +475,6 @@ export interface TeacherRegisterParams {
 
 export async function teacherRegister(
   params: TeacherRegisterParams,
-): Promise<{ success: boolean; message: string; data?: { pending: boolean; teacher_id: number } }> {
+): Promise<ApiResponse<{ pending: boolean; teacher_id: number }>) {
   return post('/api/auth/teacher/register', params)
 }
