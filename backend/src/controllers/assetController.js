@@ -369,7 +369,7 @@ function loadWenTitles(dataBasePath) {
 }
 
 function buildInventory(entryList, lastSyncAt, dataBasePath) {
-  // 编号 ↔ 篇目：只收录内容组**已确认**的号（2026-10-28 对照表）。
+  // 编号 ↔ 篇目：只收录内容组**已确认**的号（2026-10-28 对照表，23 由用户 2026-10-29 确认为《活板》）。
   // 与 src/utils/wenUtils.ts 的 poemMap 同步维护；旧表 05 往后是按教材顺序推测的，
   // 与美术/内容侧编号从 05 起整体错位，推测值当标题用会张冠李戴，所以删掉。
   const CONFIRMED_POEM_TITLES = {
@@ -378,12 +378,13 @@ function buildInventory(entryList, lastSyncAt, dataBasePath) {
     'WEN_09': '卖油翁', 'WEN_10': '湖心亭看雪', 'WEN_11': '孙权劝学', 'WEN_12': '邹忌讽齐王纳谏',
     'WEN_13': '曹刿论战', 'WEN_14': '《论语》十二章', 'WEN_15': '诫子书', 'WEN_16': '穿井得一人',
     'WEN_17': '杞人忧天', 'WEN_18': '愚公移山', 'WEN_19': '陈太丘与友期行', 'WEN_22': '狼',
+    'WEN_23': '活板',
     'WEN_24': '送东阳马生序', 'WEN_25': '出师表', 'WEN_26': '三峡', 'WEN_27': '答谢中书书',
   }
 
   // 素材分类要覆盖全部 37 个号（美术按号交付，未确认的号也有文件要归位），
-  // 所以这里按号位补齐，未确认的用占位标题，不要把 POEMS 缩成已确认的 24 条——
-  // 下面按 Object.keys(POEMS) 匹配 ossPath 里的 WEN_xx，缩表会让 20/21/23/28–37 归不到课文。
+  // 所以这里按号位补齐，未确认的用占位标题，不要把 POEMS 缩成已确认的 25 条——
+  // 下面按 Object.keys(POEMS) 匹配 ossPath 里的 WEN_xx，缩表会让 20/21/28–37 归不到课文。
   const POEMS = Object.fromEntries(
     Array.from({ length: 37 }, (_, i) => `WEN_${String(i + 1).padStart(2, '0')}`).map((wenId) => [
       wenId,

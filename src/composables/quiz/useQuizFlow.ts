@@ -11,7 +11,15 @@
  * - 未登录时后端提交静默跳过（progress 状态仍正常工作）
  */
 
-import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
+import {
+  ref,
+  computed,
+  watch,
+  toValue,
+  type Ref,
+  type ComputedRef,
+  type MaybeRefOrGetter,
+} from 'vue'
 import { useQuizSubmitter } from '@/composables/useQuizSubmitter'
 import { useAuthStore } from '@/stores/auth'
 import { resolveQuestionId } from '@/utils/questionId'
@@ -39,8 +47,17 @@ export interface QuizFlowParams {
   totalQuestions: Ref<number>
   /** 单题提交后回调（可选） */
   onSubmit?: (questionIndex: number, answer: number | string, isCorrect?: boolean) => void
-  /** 完成记录 key（用于 localStorage 持久化，含学生维度隔离） */
-  completionKey?: string
+  /**
+   * 完成记录 key（用于 localStorage 持久化，含学生维度隔离）。
+   * 三关共用同一篇 wenId 时会互相覆盖，建议传 `stepone|steptwo|stepthree:${wenId}`。
+   */
+  completionKey?: MaybeRefOrGetter<string>
+  /**
+   * 后端提交使用的篇目 ID（WEN_xx）。
+   * 与 completionKey 分离，避免为了隔离完成记录而把 `steptwo:WEN_01` 这类 key 带进后端。
+   * 缺省时回退 completionKey（兼容旧调用）。
+   */
+  wenId?: MaybeRefOrGetter<string>
 }
 
 /** submit() 参数 */
@@ -95,7 +112,7 @@ function getStudentInfo(): { studentId: string; studentName: string } {
 }
 
 export function useQuizFlow(params: QuizFlowParams): UseQuizFlowReturn {
-  const { totalQuestions, onSubmit, completionKey } = params
+  const { totalQuestions, onSubmit, completionKey, wenId } = params
 
   const currentIndex = ref(0)
   const completedCount = ref(0)
@@ -116,31 +133,35 @@ export function useQuizFlow(params: QuizFlowParams): UseQuizFlowReturn {
   })
 
   const hasCompletionRecord = computed(() => {
-    if (!completionKey) return false
-    return getCompletionRecord(getStudentInfo().studentId, completionKey) !== null
+    const key = toValue(completionKey)
+    if (!key) return false
+    return getCompletionRecord(getStudentInfo().studentId, key) !== null
   })
 
   function saveCompletionRecord(): void {
-    if (!completionKey) return
+    const key = toValue(completionKey)
+    if (!key) return
     const record: QuizCompletionRecord = {
       completionId: generateCompletionId(),
       completedAt: new Date().toISOString(),
       totalQuestions: totalQuestions.value,
       answeredCount: completedCount.value,
     }
-    setCompletionRecord(getStudentInfo().studentId, completionKey, record)
+    setCompletionRecord(getStudentInfo().studentId, key, record)
     debugLog('[useQuizFlow] 完成记录已保存:', record)
   }
 
   function clearCompletionRecord(): void {
-    if (!completionKey) return
-    clearCompletionRecordByScope(getStudentInfo().studentId, completionKey)
+    const key = toValue(completionKey)
+    if (!key) return
+    clearCompletionRecordByScope(getStudentInfo().studentId, key)
     debugLog('[useQuizFlow] 完成记录已清除')
   }
 
   async function submitSingleToBackend(answer: QuizFlowAnswer): Promise<void> {
-    if (!completionKey) {
-      debugLog('[useQuizFlow] 无 completionKey，跳过后端提交')
+    const backendWenId = toValue(wenId) || toValue(completionKey)
+    if (!backendWenId) {
+      debugLog('[useQuizFlow] 无 wenId/completionKey，跳过后端提交')
       return
     }
 
@@ -151,9 +172,13 @@ export function useQuizFlow(params: QuizFlowParams): UseQuizFlowReturn {
         return
       }
 
-      const questionId = resolveQuestionId(completionKey, answer.questionId, answer.questionIndex + 1)
+      const questionId = resolveQuestionId(
+        backendWenId,
+        answer.questionId,
+        answer.questionIndex + 1,
+      )
       await submitter.submitSingle({
-        wenId: completionKey,
+        wenId: backendWenId,
         questionId,
         userAnswer: answer.answer,
         correctAnswer: answer.correctAnswer,

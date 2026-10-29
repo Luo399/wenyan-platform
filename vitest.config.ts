@@ -25,5 +25,21 @@ export default defineConfig({
     // 且 jsdom 30 + Node 20 有 webidl 兼容性问题，后续统一处理
     include: ['src/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/backend/tests/**'],
+    // 覆盖率门槛（`npm run test:coverage` 才生效）：provider 必须是 'v8'，
+    // vitest 4 已移除 'c8' provider，写 'c8' 会直接报 "Cannot find dependency 'c8'"。
+    // 阈值取 2026-10-29 实测值向下取整（stmts 14.93 / branch 11.49 / funcs 16.76 / lines 14.09），
+    // 作用是「不许往下走」，不是「达标线」——往上提要跟着补测试。
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,vue}'],
+      exclude: ['src/**/__tests__/**', 'src/**/main.ts', 'src/**/*.d.ts', 'src/mock/**'],
+      thresholds: {
+        lines: 14,
+        functions: 16,
+        branches: 11,
+        statements: 14,
+      },
+    },
   },
 })

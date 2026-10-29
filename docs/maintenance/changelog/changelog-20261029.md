@@ -124,10 +124,11 @@
   `.vscode/extensions.json` 的删除（工作区把推荐扩展删了，不是仓库决策）、
   `docs/maintenance/release-freshness-plan.md`（`feature-1` 上已有更新版本，用工作区这份覆盖会回退）。
 - **遗留（不静默绕过）**：
-  前端 `test:coverage` 仍缺 provider——vitest 4 已移除 `c8`，要装 `@vitest/coverage-v8` 并改 lockfile，留给你决定；
-  `figma-plugin/resource-inventory.json` 是脚本离线快照、仍带旧推测标题，本机无 python 跑不了 `generate-inventory.py`，需在装了 python 的机器上重跑；
+  ~~前端 `test:coverage` 仍缺 provider~~——已解决，见「第四批」CR-20261029-19；
+  ~~本机无 python 跑不了 `generate-inventory.py`~~——本机已装 Python 3.12.10，脚本已跑通，清单重跑见 CR-20261029-21；
   `docs/document_index.csv` 未登记 CR-20261029-15 那三份文档，因为该表要求「创建日期」而这三份没有可靠原始日期；
-  内容侧待确认的 13 个号位（20、21、23、28–37）与 23 号位两条未挂载视频，状态不变。
+  内容侧待确认号位当时记 13 个（20、21、23、28–37），**23 已由用户 2026-10-29 确认为《活板》**，剩 12 个，见 CR-20261029-20；
+  23 号位两条卡片视频（`card_paper` / `card_printing`）**仍是孤儿**——挂载障碍只剩「还没生成 `WEN_23.json`」。
 
 ### 发布事实（2026-10-29 中午复核）
 
@@ -149,3 +150,161 @@
   因单元格里改了文案，第一批那张表的 prettier 列对齐已放宽，不影响渲染。
 - **本条发布事实自身**只是 `docs/**` 改动，不在两个 deploy workflow 的 `paths` 白名单里，
   合进 `main` 不会触发任何发布；它先落 `feature-1`，随下一个 `main` 窗口走。
+
+---
+
+## 第三批：Step 三关答题闭环与 Figma 资产审计（CR-20261029-16 / 17）
+
+> 甲方两条功能反馈 + 一条资产质询：① 第一关只有字词注释与多角色朗读，要补选择题；
+> ② 第二关第二题答完后，用于讲解答案的 dialogue 不显示；③ Figma 插件扫描上传的东西是否全部用上。
+> 本轮只改前端与文档，不动后端接口、不改内容 JSON 的答案字段。
+
+| 变更编号       | 变更类型 | 影响范围                                                                                                | 变更描述                                                                                                                                             | 测试状态                         | 上线状态                                      |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------- |
+| CR-20261029-16 | fix      | `src/views/StepView.vue`、`src/composables/quiz/useQuizFlow.ts`、`src/views/__tests__/StepView.test.ts` | 第二关最后一题提交后解析 dialogue 恢复显示；第一关接入 `level1_quiz` 选择题（A 关题号、`module: A`、统一提交出口），完成记录 key 与后端 `wenId` 解耦 | 已通过（本机 252/252 + CI 6 项） | 已进 `feature-1`（`2a46603`），等 `main` 窗口 |
+| CR-20261029-17 | docs     | `docs/素材使用审计-20261029.md`                                                                         | 按生产 OSS 清单与代码引用交叉审计 Figma 插件产物：6,075 项插件产物运行时引用为 0，真正在用的通用图只有 3 张                                          | 不适用                           | 同左                                          |
+
+### CR-20261029-16 第二关末题解析对话 + 第一关选择题
+
+- **变更类型**：fix（缺陷修复 + 功能补齐）
+- **分支 / commit**：`feature/step12-quiz-fixes` @ `2bfa324`（本地 `5750dd8`，树 `4ac8243` 与服务端逐字节一致）；
+  `--no-ff` 语义并入 `feature-1`（合并提交 `2a46603`）。
+- **分支起点与父分支前移**：子分支从 `feature-1`@`387b9b3` 开出；合并前另一条会话把 PR #221
+  （23 号位《活板》）合进父分支，头变成 `5dfe95c`。比较 `387b9b3...5dfe95c` 的 7 个文件
+  （`assetController.js` / 三份素材文档 / `generate-inventory.py` / `poemAssets.ts` / `wenUtils.ts`）与本次三个文件零重叠，
+  因此合并树以 `5dfe95c` 的树为基线、只替换本次三个 blob，父提交记为 `[5dfe95c, 2bfa324]`。
+- **第二关根因**：`useQuizFlow.submit()` 在最后一题不会把 `currentIndex` 往前推
+  （实测日志 `prevIndex: 0 → newIndex: 0, isCompleted: true`），而 `isQuizBlockVisible()` 用
+  `quizBlockIndices[currentIndex]` 当可见上界；于是「最后一题之后的解析 dialogue」永远 `show=false`。
+  修复为 `step2Flow.isCompleted` 时全部解锁——解析对话本来就是答完才该看的内容，不属于防剧透范围。
+- **第一关做法**：不挂载历史 `Level1Quiz.vue`（它用旧题号 `${wenId}_level1_q{n}` 且直接批量提交），
+  改为 `useDataLoader` 读 `level1_quiz/{WEN}.json` → `adaptLevel1Quiz()`（题号 `WEN_nn_A{n}`、`module A`）
+  → `QuizCard` 逐题渲染 → `useQuizFlow.submit()` 走 `useQuizSubmitter` 单题提交。
+  `normalizeCorrectIndex()` 同时接受字母（`"C"`）、数字与 0 基索引；A 关 JSON 没有 `question_id`，
+  后端 `getCorrectAnswerFromJson()` 查不到，所以提交必须带 `correctAnswer`（已由 `useQuizFlow` 传入）。
+  无数据（WEN_05 起没有 `level1_quiz` 文件）时整段隐藏，不报错、不阻塞「继续」。
+- **完成记录 key 与后端 `wenId` 解耦**：`completionKey` 从 `string` 改为 `MaybeRefOrGetter<string>`，
+  三关分别用 `stepone:`/`steptwo:`/`stepthree:` 前缀，避免 localStorage 完成记录串关；
+  新增可选 `wenId`（`MaybeRefOrGetter`）单独供后端提交，缺省回退 `completionKey` 兼容旧调用。
+  getter 形式同时修掉「切篇后 key 冻结」的旧问题。
+- **测试**：`src/views/__tests__/StepView.test.ts` 两个回归用例。其一用 5 块夹具
+  （dialogue / quiz / dialogue / quiz / dialogue）断言初始末块隐藏、第一题后中间两块显示、第二题后末块显示
+  （修复前此例必红）；其二断言第一关渲染题目与 4 个选项、提交后出现解析与完成态，
+  且 `submitSingleAnswer` 收到 `wenId: WEN_01` / `questionId: WEN_01_A1` / `userAnswer: 2` / `correctAnswer: 2`，
+  `questionId` 不含 `stepone:` 前缀。
+- **本机校验**：便携 Node 20.18.0，全量 `vitest run` 252/252（15 个文件）、`vue-tsc --build` 0 错误、
+  改动文件 `eslint` 0 错误、`oxlint` 0 warning、`prettier --check` 通过。
+- **CI**：子分支 `CI Checks` run `40816371706` 6 项全绿；合并后 `feature-1` 的 `CI Checks` run `40816528148`
+  6 项全绿，`Deploy Frontend to Test OSS` run `40816528133` 成功。
+
+### CR-20261029-17 Figma 扫描资产使用审计
+
+- **变更类型**：docs（审计结论，无代码改动）
+- **结论**：没有全部用上，**运行时使用率接近于零**。插件产物共 6,075 项
+  （`images/screens/**` 6,049 + `data/texts/**` 26，`styles/**` 为空）；生产 OSS 文件合计 7,797 项。
+- **切片**：`images/screens` 按类型为 dialogue 3,026 / quiz 1,741 / video 823 / explanation 224 /
+  summary 162 / cultural_card 73，运行时引用 **0**。唯一有消费逻辑的是 `DialogueCard` 对
+  `icon_dialog` 的 `resolveScreenAsset()` 探测，但现有 25 个 `icon_dialog` 字段全部为空；
+  quiz / explanation / summary / cultural_card / video 五类没有任何组件读取。
+- **通用图**：真正在用的只有 `images/login_bg.png`、`images/general/article_list_bg.png`、
+  `images/general/article_list_title.png` 3 张；`card_scroll.png` 只有注释提到、代码未引用。
+- **数据侧**：`data/texts` 前端与后端运行时均零消费，更像内容组整理页面 JSON 时的文字底稿；
+  `illustration` 8 个字段全空；`image_file` 35 个里 24 个是 mp4（走 `/video/`）、11 个是「文字」占位。
+- **建议**：先标注不急着删；要挂头像先填 `icon_dialog`；题目/解析插图需先定 schema 与渲染位置；
+  把 `data/texts` 明确为内容底稿；加一条发布前「数据字段 → URL → HEAD 200」的资产引用审计。
+  复算命令与分类表见 `docs/素材使用审计-20261029.md`。
+
+### CR-20261029-18 Figma 扫描资产接入前端
+
+- **变更类型**：feat（`src/config`、`DetailView`、`AdaptQuiz`、脚本、文档）
+- **目录**：新增 `src/config/figmaScreenCatalog.ts`（自动生成），把生产清单里的 6,049 个扫描文件折叠成
+  37 篇 / 775 条「篇目 × 角色」记录；生成脚本 `scripts/gen-figma-screen-catalog.mjs`，
+  输入为 `GET https://api.classicalab.cn/api/assets/oss-list` 的快照。
+- **读取**：`figmaAssets.ts` 新增 `normalizeWenId`、`getWenScreenCatalog` 与
+  title / role / option / textBox / avatar / characterCard 六个 URL 读取函数，
+  统一走 `VITE_OSS_BASE_URL/images/screens/...`；目录来自 OSS 清单，读取时不再逐张 HEAD。
+- **渲染**：`DetailView` 标题改用整篇书法图（`article_title_*`，17–29KB；有图时 `h1` 收进 `.sr-only`，
+  图片 `@error` 回退文字）；`AdaptQuiz` 选项 A–D 使用 `option_a..d_01.png`（4–10KB）作底图，
+  选中/正确/错误态仍由 CSS 覆盖。
+- **未接**：背景/立绘单张 2.8–18MB，需先做 WebP 衍生图；按钮图文字已烘焙；`card_bamboo` 20.8MP 解码过重；
+  文本框图等待总结页 schema。逐项原因见 `docs/figma-scan-integration.md`。
+- **校验**：新增 7 个单测（覆盖 37 篇、路径均为 `images/screens` 相对路径、标题取整篇版本、
+  URL 拼接与 null 兜底）；生产桶抽 4 条 URL HEAD 200；`vue-tsc` 与改动文件 `eslint` 通过。
+
+### 遗留与风险（本轮不静默绕过）
+
+- **WEN_04 内容矛盾**：`pages_level2_dialog_quiz/WEN_04.json` 的 B2 `correct_answer` 是 `"A"`，
+  但题目后的解析 dialogue 写「答案是B」并解释「以退为进，反守为攻」；B1 则完全没有 `correct_answer`。
+  这是内容数据问题，本轮没有擅自改答案，需内容组确认后修 JSON。
+- **WEN_05 起没有 `level1_quiz` 数据**：第一关选择题会按设计整段隐藏；若后续篇目也要练习，
+  需内容侧补 `public/data/level1_quiz/WEN_xx.json`（当前只有 01–04）。
+- **Figma 切片仍未挂载**：审计只回答「有没有用上」，没有替内容组决定哪些该挂；6,049 张切片仍在生产桶。
+
+---
+
+## 第四批：覆盖率环境、本机工具链与 23 号位确认（PR #220 – #222）
+
+> 这一批的起因是三个「本机跑不了 / 号位没确认」的口子：前端 `test:coverage` 缺 provider、
+> `generate-inventory.py` 没有 python 可跑、23 号位归属未确认。三者都补上了，另外清了一条凭据外泄。
+>
+> **编号为什么从 19 起**：CR-20261029-16 / 17 / 18 已被上一节「第三批」占用（Step 三关答题、Figma 资产审计、
+> Figma 扫描资产接入前端），本批四个条目顺延为 19 – 22。两批是同一天并行推进的，PR 号（#220 – #222）
+> 与 CR 号不是同一套序号，别按数字大小推断先后。
+
+| 变更编号       | 变更类型 | 影响范围                                                                                                                                                                                                                           | 变更描述                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 测试状态                                                               | 上线状态                                                   |
+| -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| CR-20261029-19 | chore    | `package.json`、`package-lock.json`、`vitest.config.ts`                                                                                                                                                                            | 前端覆盖率环境落地：vitest 4 已删 `c8` provider，改装 `@vitest/coverage-v8@4.1.10`（lock 489 → 506 条，只增不减；`ast-v8-to-istanbul` 依赖的 `js-tokens@10` / `estree-walker@3` 按 npm 解析嵌套安装，摊平到顶层会让 `getIgnoreHints` 崩）；`vitest.config.ts` 加 `coverage` 段，阈值按当时本机实测值往下取整（statements 14.93→14 / functions 16.76→16 / branches 11.49→11 / lines 14.09→14）                                                                                       | 已通过（当时本机 `vitest run --coverage` 14 文件 250 例全过；CI 6 项） | 未上线（`feature-1`@`387b9b3`，等下一个 `main` 窗口）      |
+| CR-20261029-20 | fix      | `src/config/poemAssets.ts`、`src/utils/wenUtils.ts`、`src/config/__tests__/poemAssets.test.ts`、`backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 用户确认 **23 号位 = 《活板》**，四处编号表 + 两份文档同步：已确认号位 24 → 25、待确认 13 → 12（20、21、28–37）、学生可进入 21 → 22 篇。旧推测表两头都错（23 写《湖心亭看雪》、37 写《活板》），回归断言拆成两条反向检查。23 号位 4 段 rule 视频线上实测 200，确认即放行                                                                                                                                                                                                            | 已通过（本机 vitest 251 例 + `vue-tsc --build` 0 错误；CI 6 项）       | 未上线（`feature-1`@`5dfe95c`，等下一个 `main` 窗口）      |
+| CR-20261029-21 | chore    | `figma-plugin/resource-inventory.json`                                                                                                                                                                                             | 本机装上 Python 3.12.10 后重跑 `generate-inventory.py`，清单从 2026-08-21 的离线快照刷到当前：输入是 `GET https://api.classicalab.cn/api/assets/version` 的返回（`production_version.json`，未被 git 跟踪），6077 个资源、`lastSyncAt` 2026-09-29；标题表由「37 条推测」换成「25 条确认 + 12 条占位」；状态统计 完整 0 → 14、缺数据文件 8 → 12、缺 OSS 4 → 1、未配置 25 → 10                                                                                                        | 已通过（脚本退出码 0、产物可 `json.load`；CI 6 项）                    | 未上线（`figma-plugin/**` 不在 deploy 白名单，本就不发布） |
+| CR-20261029-22 | chore    | 本机 `.git/config`、`~/.gitconfig`（**不进仓库**）                                                                                                                                                                                 | `origin` 的 remote URL 里嵌着**明文 GitHub 令牌**，经哈希比对确认就是 `gh` 当前在用的那枚（`gho_` 开头、40 字符，sha256 前 12 位一致），不是历史遗留 PAT。改成 `gh auth setup-git` 走凭据助手（全局写入 `credential.https://github.com.helper = '!'C:\Program Files\GitHub CLI\gh.exe' auth git-credential`，指向 Windows 凭据管理器里的 gh 令牌），URL 只留 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树扫描已无该令牌字节，`ls-remote` / `fetch` / `push` 均照常 | 已验证（fetch + 本 PR 的真实 push）                                    | 不适用（机器侧配置）                                       |
+
+### 明细
+
+- **分支 / commit / PR / 合并提交**：
+  `feature/quality-gate/frontend-coverage-v8` @ `28cbdd6` → PR #220（`387b9b3`）；
+  `feature/asset-numbering/slot-23-huoban` @ `845b33b` → PR #221（`5dfe95c`）；
+  `feature/asset-inventory/regenerate-snapshot` @ `02f1b3f` → PR #222（`3c19c03`）。
+  `feature-1` 从 `eca26c4` 推到 `3c19c03`；三个 PR 都是 6 项检查全绿才 `--merge`，分支不删。
+- **本节自身怎么并进去的（两轮冲突）**：本 changelog + 台账是纯 `docs/**` + `tasks/**` 改动，单独开在 PR #223。
+  开 PR 之后另一条会话连着把「第三批」（`2000ebc`）和 PR #224（`ede69c8`）记进了同一批文件的同一批位置
+  （都在文末追加新章节、都改「遗留」那几条），#223 两次变成 `CONFLICTING`。
+  这里没有 force-push、也没有另开 PR，而是把 `feature-1` 的头合进本分支再人工重排文本：
+  两批内容都保留，本批章节名定为「第四批」，编号跟着当前头顺延（第一轮 18 – 21、第二轮改为 19 – 22），
+  合并提交的父提交依次记为 `[9148ec2, 2000ebc]`、`[3dc05ce, ede69c8]`。
+- **本机校验已经能当发版前的门**：`git archive origin/feature-1` 出干净树 + `mklink /J node_modules` 指回仓库，
+  在树外跑 `vitest run --coverage` 与 `vue-tsc --build`，共享工作区一个字节没动。这批三次 PR 的校验一次过，没有靠 CI 来回试。
+  注：CR-19 的「14 文件 250 例」是当时（`387b9b3`）的数，此后第三批的 `StepView.test.ts` 与 PR #224 的
+  `figmaScreenCatalog.test.ts` 各自加了用例，全量数与覆盖率都已上移，阈值没有随之重算（当前阈值仍偏低，不会挡路）。
+- **23 号位「放行」到底改变了什么**：`isPoemReady = hasRuleVideo && isNumberingConfirmed`，
+  两条现在都满足 → 首页选篇多出《活板》。它的八类页面数据 JSON 仍全缺，属于**内容组还没产出**那一类
+  （`public/data/` 里根本没有 `WEN_23.json`，线上 `data/*/WEN_23.json` 404），
+  与「仓库里有、线上没发」（如 `culture_cards/WEN_22.json` 仓库有、线上 200）不是一回事。
+- **仍然没做的**：
+  CI 的 `quality-check` 跑的是 `npm run test`，**不带 `--coverage`**，所以 CR-19 的阈值只在本地 `npm run test:coverage` 生效，
+  要把门槛真正钉进 CI 还得改 workflow（未改，等你定）；
+  23 号位那 2 条孤儿卡片视频仍未挂载（`ORPHAN_CARD_VIDEO_POEM_IDS` 保持 `['23']`），挂载需要新建
+  `public/data/culture_cards/WEN_23.json`，而 `public/data/` 被 .gitignore 忽略、要 `git add -f`，且卡文案得内容组给；
+  `test_version.json` 没拿到——`test-api.classicalab.cn` 的 `/api/assets/version` 当前 502（测试后端没起），
+  所以清单里 `test_last_sync` 仍是 `null`，与被替换的旧快照一致；
+  内容侧还剩 12 个号位待确认、21 张卡的 `knowledge_text` 等复核、08/11 库尔班大叔重复与 08 台标版权未定。
+- **CR-22 的后续动作（需要你本人做）**：那枚令牌在 `.git/config` 里明文躺过、也在本次会话的命令行输出里出现过，
+  虽然它只在你这台机器上，仍建议轮换：`gh auth refresh-token` 或到 `https://github.com/settings/tokens` 撤销后 `gh auth login`。
+  轮换不影响本次改动——远端 URL 已经不含凭据，git 会自己向凭据助手要。
+
+---
+
+## 第五批：Figma 资产接入的测试补齐
+
+### CR-20261029-23 Figma 资产接入的单元与集成测试
+
+- **变更类型**：test（无业务改动）
+- **单元**：`src/config/__tests__/figmaAssets.test.ts` 9 例——ossBase 地址拼接与逐段编码、
+  HEAD 探测的成功/异常缓存、并发去重、`resolveScreenAsset` 的 200/404 分支、
+  目录角色/头像/名牌读取与 null 兜底。
+- **集成**：`src/views/__tests__/DetailView.figmaAssets.test.ts` 3 例（标题图 src 指向
+  `images/screens/WEN_02/...`、图片 error 后 h1 恢复可见、目录无图时直接显示文字）；
+  `src/components/__tests__/AdaptQuiz.figmaAssets.test.ts` 3 例（四个选项分别带 `option_a..d` 底图、
+  无素材篇目不写 `background-image`、答题正确/错误态不受底图影响）。
+- **结果**：全量 `vitest run` 19 个文件 / 274 个用例通过（新增 15 例）；`vue-tsc --build` 0 错误；
+  新文件 ESLint / oxlint / prettier 通过。
+- **说明**：测试文件都在 `src/**/__tests__`，走 `vitest.config.ts` 的 include，不需要改配置或依赖。
