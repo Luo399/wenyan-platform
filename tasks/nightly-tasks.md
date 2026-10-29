@@ -248,7 +248,10 @@
 - 关联文件：见各子功能；细节与遗留记在 `docs/maintenance/changelog/changelog-20261029.md` 第二批。
 - 红线：全程 git plumbing 落提交（`read-tree` → `update-index --cacheinfo` LF blob → `write-tree` → `commit-tree` → `update-ref`）；
   每个 PR 轮询到 6 项检查全绿才 `--merge`；不碰 `main`（`feature-1` → `main` 只走人工审批的 PR #209）。
-- 分支 / commit / CI：见下 8 个子功能；`feature-1` 从 `c7911a3` 推到 `2299edf`。
+- 分支 / commit / CI：见下 9 个子功能；`feature-1` 从 `117e287` 推到 `580e4c8`。
+- 上线：PR #209（`feature-1`@`580e4c8` → `main`@`78a6c29`，2026-10-29 11:19 人工合并）已把本批全部带上线，
+  前端 `Deploy Frontend to Aliyun OSS` / 后端 `Deploy Backend to Aliyun Server` / 插件镜像同步三条 run 全绿；
+  线上 `index.html` 的 `build-id` 为 `78a6c29`，看板 chunk 与生产注册接口的 `VALIDATION_ERROR` 均已实测到。
 
 ### [x] 角色门禁支持多角色与 super_admin (auth-role-gate)
 
@@ -289,6 +292,12 @@
 
 - 分支 / commit / CI：`feature/docs/tech-docs` @ `6635547` → PR #215 → `2299edf`；CI 6 项全绿（含 secret-scan）。
 - 未做：`docs/document_index.csv` 未登记，该表要「创建日期」而这三份没有可靠原始日期。
+
+### [x] 发布事实与上线状态回填 (release-facts-20261029)
+
+- 分支 / commit / CI：`feature/maintenance/release-facts-20261029`；docs-only 改动，不在 deploy `paths` 白名单，合进 `main` 不触发发布。
+- 内容：changelog 两张表的「上线状态」由「未上线（等下一次 `main` 窗口）」改成「已上线（`78a6c29`）」共 12 行，
+  并补一节「发布事实（2026-10-29 中午复核）」记 workflow run、`build-id`、看板 chunk、生产 `VALIDATION_ERROR` 四项实测。
 
 ### 与既有小节的关系（本轮没改动它们的勾选状态）
 
