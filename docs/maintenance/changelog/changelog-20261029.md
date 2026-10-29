@@ -290,3 +290,21 @@
 - **CR-22 的后续动作（需要你本人做）**：那枚令牌在 `.git/config` 里明文躺过、也在本次会话的命令行输出里出现过，
   虽然它只在你这台机器上，仍建议轮换：`gh auth refresh-token` 或到 `https://github.com/settings/tokens` 撤销后 `gh auth login`。
   轮换不影响本次改动——远端 URL 已经不含凭据，git 会自己向凭据助手要。
+
+---
+
+## 第五批：Figma 资产接入的测试补齐
+
+### CR-20261029-23 Figma 资产接入的单元与集成测试
+
+- **变更类型**：test（无业务改动）
+- **单元**：`src/config/__tests__/figmaAssets.test.ts` 9 例——ossBase 地址拼接与逐段编码、
+  HEAD 探测的成功/异常缓存、并发去重、`resolveScreenAsset` 的 200/404 分支、
+  目录角色/头像/名牌读取与 null 兜底。
+- **集成**：`src/views/__tests__/DetailView.figmaAssets.test.ts` 3 例（标题图 src 指向
+  `images/screens/WEN_02/...`、图片 error 后 h1 恢复可见、目录无图时直接显示文字）；
+  `src/components/__tests__/AdaptQuiz.figmaAssets.test.ts` 3 例（四个选项分别带 `option_a..d` 底图、
+  无素材篇目不写 `background-image`、答题正确/错误态不受底图影响）。
+- **结果**：全量 `vitest run` 19 个文件 / 274 个用例通过（新增 15 例）；`vue-tsc --build` 0 错误；
+  新文件 ESLint / oxlint / prettier 通过。
+- **说明**：测试文件都在 `src/**/__tests__`，走 `vitest.config.ts` 的 include，不需要改配置或依赖。
