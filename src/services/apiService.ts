@@ -454,3 +454,27 @@ export async function submitSingleAnswer(
   }
   return response.data
 }
+
+// ============================================================
+// 认证辅助接口（注册 / 刷新等——不涉及 JWT 登录态管理，由 stores/auth.ts 统一处理）
+// ============================================================
+
+/**
+ * 教师自助注册
+ * POST /api/auth/teacher/register
+ * 教师角色的登录流程统一走 stores/auth.ts 的 login()，
+ * 注册是前置步骤，由 apiService 单独封装。
+ */
+export interface TeacherRegisterParams {
+  name: string
+  phone: string
+  password: string
+  class_codes?: string[]
+  can_view_all?: boolean
+}
+
+export async function teacherRegister(
+  params: TeacherRegisterParams,
+): Promise<{ success: boolean; message: string; data?: { pending: boolean; teacher_id: number } }> {
+  return post('/api/auth/teacher/register', params)
+}
