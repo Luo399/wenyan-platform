@@ -72,3 +72,59 @@
 - `vue-tsc --build`：0 错误
 - `eslint`（只跑改动文件，不带 `--fix`）：0 错误；`prettier --check` 通过（两份测试文件 `--write` 后复跑仍绿）
 - CI：PR #204 的 6 项检查（`secret-scan` / `pipeline-test` / `figma-plugin-check` / `quality-check` / `backend-check` / `circular-check`）全绿后才合入
+
+
+---
+
+## 第二批：共享工作区按修复内容拆分成 PR 依次入库（PR #207 – #215）
+
+> 同一工作区（分支 `feature/continue-nav-stuck`）攒着 103 条未提交改动，且会被另一条会话同时切分支/提交。
+> 本轮不 `checkout`、不 `stash`、不动工作区与 HEAD：逐个 commit 用 git plumbing
+> （`read-tree` 基线 → `update-index --cacheinfo` 灌 LF blob → `write-tree` → `commit-tree` → `update-ref`）
+> 落到各自的分支，再按「后端先于前端、被依赖的先合」的顺序 push → 开 PR → 轮询 CI → `--merge` 进 `feature-1`。
+>
+> 前置事实：本轮起点是 PR #206 把 `feature-1`（`9dbc812` 一线）并入 `main` 之后的 `feature-1`。
+> 103 条里 63 条经字节比对确认已在 `feature-1`（多为上一批与另一条会话所落），29 条与库内版本不同、11 条是库里没有的新文件。
+
+| 变更编号 | 变更类型 | 影响范围 | 变更描述 | 测试状态 | 上线状态 |
+| --- | --- | --- | --- | --- | --- |
+| CR-20261029-08 | fix | `src/stores/auth.ts`、`src/router/guards.ts`、`src/router/index.ts` | 角色门禁从「单角色字符串」改成「角色集合判定」，`Role` 扩出 `super_admin`；`meta.role` 支持 `Role \| Role[]`，新增导出的 `normalizeRequiredRoles` / `isRoleAllowed` 两个纯函数并据此放行 `/answer-query`、`/admin-console`、`/teacher-completion`、`/resource-upload`；同时删掉路由表里两处已废弃的 `*-dashboard` 旧块 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-09 | refactor | `src/services/apiService.ts`、`src/views/TeacherRegisterView.vue` | 教师自助注册不再裸 `fetch`，改走 `teacherRegister()` + 统一 `ApiResponse`；`ApiError`（后端业务码）与真正的网络异常分文案，避免「参数不合法」被说成「网络异常」 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-10 | chore | `backend/package.json` | jest 覆盖率统计从只算 `server.js` 扩到 `src/**`（排除 `__tests__`），并设首轮阈值 branches 20 / functions 30 / lines 30 / statements 30 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-11 | refactor | `backend/src/middleware/validate.js` + 7 个 controller + `backend/tests/ai-chat-security.test.js` | zod 校验收敛：找回仓库里**并不存在**、却被 7 个 controller `require` 的 `middleware/validate.js`（从 `feature/data-dashboard/backend-api` 取回，98 行），错误统一成 400 `VALIDATION_ERROR`，多条 issue 去重后以「；」拼接；admin/ai/answer/auth/student/teacher/tracking 七个 controller 一起落，`assetController` 留给 CR-20261029-14 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-12 | feat | `teacherDashboardController.js`、`adminDashboardController.js`、`utils/dashboardQuery.js`、`utils/questionInventory.js`、`routes/index.js` + 3 个测试 | 教师/管理员看板聚合接口从 10-23 那条一直没合并的本地分支移植进主仓（约 +2300 行含测试）；`routes/index.js` 走三方合并，`/api/teacher/dashboard/*` 挂 `teacherAuth`、`/api/admin/dashboard/*` 挂 `requireRole(['admin','super_admin'])` | 已通过（CI 6 项，后端 3 个新测试文件全绿） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-13 | feat | `src/components/charts/*`、`src/components/dashboard/*`、`src/services/{teacher,admin}DashboardService.ts`、`src/views/{Teacher,Admin}DashboardView.vue`、`src/router/index.ts`、`AnswerQueryView.vue`、`AdminConsoleView.vue` | 看板前端：手写 SVG 图表（StatCard / ProgressRing / BarChart / LineChart / HeatmapChart + `chartUtils`，只依赖 `vue`，不引第三方图表库）、面板与学生明细/薄弱题组件、两个看板页面与路由入口；服务层空态兜底与后端分页类型对齐 | 已通过（CI 6 项；`vue-tsc --build` 本机 0 错误） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-14 | fix | `backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py` | 「编号 ↔ 篇目」表换成 2026-10-28 内容组确认表：只保留已确认 24 个号，未确认 13 个号位（20、21、23、28–37）显示占位「编号待确认」，与已落库的 `src/utils/wenUtils.ts` 一致；号位仍按 1–37 生成，否则 `Object.keys(POEMS)` 匹配不到这些号的已交付素材 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-15 | docs | `docs/CODE_WIKI.md`、`docs/QUALITY_ASSESSMENT.md`、`docs/MIGRATION_CLUSTER.md` | 三份只在共享工作区存在过的技术文档落库（共 2281 行）：Code Wiki、2026-10-23 六维度质量评估快照、PM2 cluster + Redis 迁移路线图。评估报告头部加了「落库时点说明」，标明其 P0 项已被 #207 / #210 / #211 处理、分数不回填重算 | 已通过（CI 6 项，含 secret-scan） | 未上线（等下一次 `main` 窗口） |
+
+### 明细
+
+- **分支 / commit / CI**（合并提交为 `feature-1` 上的 `--merge` 结果）：
+  `feature/auth-session/super-admin-role` @ `34c4caa` → PR #207（`e5aa54b`）；
+  `feature/auth-session/teacher-register-api` @ `8478a4b` → PR #208（`d8220fa`）；
+  `feature/quality-gate/backend-coverage-thresholds` @ `bcf23d9` → PR #210（`b2a71ff`）；
+  `feature/backend-api/zod-validation` @ `62f67ca` → PR #211（`00c06cd`）；
+  `feature/data-dashboard/api` @ `dcdd46c` → PR #212（`c7911a3`）；
+  `feature/data-dashboard/pages` @ `c3d2080` → PR #213（`4a3e9b4`）；
+  `feature/asset-inventory/confirmed-numbering` @ `c41ad52` → PR #214（`d08fca9`）；
+  `feature/docs/tech-docs` @ `6635547` → PR #215（`2299edf`）。
+  每个 PR 都轮询到 6 项检查（`quality-check` / `backend-check` / `circular-check` / `pipeline-test` /
+  `figma-plugin-check` / `secret-scan`）全绿才合，分支名不删。
+- **号段与 `main` 窗口**：本轮没占用 PR #209——它是已存在的 `feature-1` → `main` 发布 PR
+  （#204 合完之后另开的「生字注释三级匹配兜底」，等人工审批）。因为这 8 个 PR 全部落在 `feature-1`，
+  `#209` 的 diff 现在也连带包含本批（`feature-1` → `main` 只有一个 PR），审批时按需重新核对标题范围。
+- **顺序为什么这样排**：#211 必须和 7 个 controller 同批——单独合 `validate.js` 或单独合 controller 都会让另一半天红；
+  #212（看板接口）先于 #213（看板页面），否则页面的服务层类型没有对照物；#214 只碰素材标题表，与看板无耦合。
+- **本轮修掉的 CI 失败（2 次，都是本地校验盲区）**：#208 首次 `TS2322`（`ApiResponse.message` 可选 vs 必填，返回类型写窄了）
+  与 `TS1005`（`Promise<ApiResponse<{…}>>` 少写一个 `>`）；#213 首次 8 处 `noUncheckedIndexedAccess` 报错，
+  修完剩 1 处 `pagination.page_size` 取的是 `Record<string, string | number>` 里的值 → 改成复用 `number` 型局部变量 `pageSize`。
+  从 #213 起本机校验补上了 `vue-tsc --build`：便携 Node + `git archive` 出分支树 + junction 指回仓库 `node_modules`，
+  工作树之外跑，全量 0 错误后才推。
+- **故意没提交**：`NUL`（Windows 重定向留下的垃圾文件）、`tmp-vitest.mjs` / `tmp-vitest-report.json`（临时跑测脚本与产物）、
+  `.vscode/extensions.json` 的删除（工作区把推荐扩展删了，不是仓库决策）、
+  `docs/maintenance/release-freshness-plan.md`（`feature-1` 上已有更新版本，用工作区这份覆盖会回退）。
+- **遗留（不静默绕过）**：
+  前端 `test:coverage` 仍缺 provider——vitest 4 已移除 `c8`，要装 `@vitest/coverage-v8` 并改 lockfile，留给你决定；
+  `figma-plugin/resource-inventory.json` 是脚本离线快照、仍带旧推测标题，本机无 python 跑不了 `generate-inventory.py`，需在装了 python 的机器上重跑；
+  `docs/document_index.csv` 未登记 CR-20261029-15 那三份文档，因为该表要求「创建日期」而这三份没有可靠原始日期；
+  内容侧待确认的 13 个号位（20、21、23、28–37）与 23 号位两条未挂载视频，状态不变。
