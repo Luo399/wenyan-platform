@@ -355,3 +355,114 @@
   `figma-plugin/resource-inventory.json` 反映的是**线上**快照，仓库侧挂载不该改它，本批未动；
   23 号位两张卡的 `knowledge_text` 导语、其余 12 个号位（20、21、28–37）待确认、08/11 库尔班大叔重复与 08 台标版权待定；
   GitHub 令牌轮换（CR-20261029-22 的后续）仍待你本人执行。
+
+## 第七批：按行业规则全站审查的 70 项修复（PR #231）
+
+> 口径来自用户一句话：**「按行业规则审查网站代码，全部都要审，列出清单」→「一一解决，并行」**。
+> 审查基线是 OWASP ASVS 4.0 L2 / Top 10 2021 / CWE Top 25、WCAG 2.1 AA、12-Factor、Vue 官方风格指南，
+> 加 PIPL、未成年人网络保护条例、等保 2.0 二级；台账与 70 项清单本身只留在对话与 PR 正文里，不落报告文件。
+>
+> **编号从 26 起**：CR-20261029-25 已被第六批占用。本批按并行分组（A–G）成行，不按 70 项逐条成行——
+> 逐条状态在 PR #231 正文与提交信息里，本表只记「哪一组动了哪些文件、结果如何」。
+>
+> 台账终值：**已修 52 / 部分修 18 / 未修 0**。18 条「部分修」不是漏做，是本轮明确不越界的项（见文末「仍没做」）。
+
+| 变更编号 | 变更类型 | 影响范围 | 变更描述 | 测试状态 | 上线状态 |
+| --- | --- | --- | --- | --- | --- |
+| CR-20261029-26 | fix(security) | `backend/src/middleware/{authMiddleware,validate,assetAuthMiddleware,dashboardAuthMiddleware}.js`、`backend/src/controllers/{authController,adminController}.js`、`backend/src/services/authService.js`、`backend/init_db.js` | 补回被摘掉的 zod 校验中间件；登录改成先验密码再判账号状态（消掉用户名枚举的时序差）；注册路径不接受 `can_view_all`；admin 重置口令改随机 + 写 `must_reset_password` + 落 `password_resets` 审计；内置 `admin/admin123` 取消，初始管理员必须由 `INITIAL_ADMIN_PASSWORD` 显式配置；内部看板在无 `DASHBOARD_PASSWORD` 时 fail-closed 返回 503 | 已通过 | 未上线（`feature-1`@`5e4886c`） |
+| CR-20261029-27 | fix(backend) | `backend/src/controllers/{answerController,studentController,teacherController,assetController,trackingController}.js`、`backend/src/services/{answerService,assetService}.js`、`backend/src/utils/{jsonReader,dbPromise,logger}.js` | 答题归属与判分：提交加 IDOR 守卫 `authorizeSubmit`，越权代答直接拒；资产上传与预签名 URL 补角色/归属校验，`/api/upload/resource` 与前端路由口径统一（含 `super_admin`）；埋点接口忽略 body 里的 `user_id`、只信登录态，并加 32KB payload 上限与 24h 时间戳偏移校验；日志与事务安全收口 | 已通过 | 未上线 |
+| CR-20261029-28 | fix(frontend) | `src/utils/api.ts`（`sanitizeRedirect`、上传超时与 `signal`）、`src/stores/auth.ts`、`src/router/{index,guards}.ts`、`src/components/{LoginModal,StudentDisplay}.vue`、`src/views/{StudentLoginView,TeacherLoginView,AnswerQueryView}.vue` | 登录态与失效接口修正；越权入口按路由 `meta.role` 门禁拦截；`sanitizeRedirect`（在 `api.ts`）把 `route.query.redirect` 收敛到站内路径白名单，防开放重定向；上传单独 60s 超时并支持外部 `signal` 中止 | 已通过 | 未上线 |
+| CR-20261029-29 | refactor(frontend) | `vite.config.ts`、`eslint.config.ts`、`src/components/**`、`src/composables/index.ts`、`src/mock/**`（删除） | 删首页桶文件、mock 目录与过期文档；修 `MultiRoleReading` 父子组件循环依赖；无障碍（`aria-live`、焦点可见、label 关联）与死代码清理。顺带补回此前只存在于工作区、导致 HEAD 干净克隆构建不出来的 `src/utils/tooltipPosition.ts` 与看板视图/图表组件 | 已通过 | 未上线 |
+| CR-20261029-30 | ci | `.github/workflows/*`、`.github/{CODEOWNERS,dependabot.yml,PULL_REQUEST_TEMPLATE.md}`、`scripts/*.sh`、`Dockerfile`、`docker-compose.yml`、`ecosystem.config.js` | 部署与环境变量、OSS 工具链、脚本健壮性：workflow 全部 `permissions: contents: read`、生产部署挂 `environment: production` + `concurrency`；脚本统一 `set -euo pipefail` 与显式错误退出；`package.json` 的 `lint` 拆成 `lint:oxlint` + `lint:eslint` 并加不带 `--fix` 的 `lint:ci` | 已通过（12 项检查 + 测试环境部署） | 已部署测试环境；生产待发版 |
+| CR-20261029-31 | chore(repo) | `.gitignore`、`backend/data/students.json`、`backend/data/answer_records.json`、`backend/database/answers.db`、`data-pipeline/source/*.xlsx`、`*.zip`、`SECURITY.md`、`CONTRIBUTING.md`、`LICENSE`、`README.md` | 移除误提交的 sqlite 数据库、真实学生名单与压缩包（PII 不再入库，本地文件保留所以数据管线照跑）；新增仓库治理文件。**`xlsx` 依赖删除**：npm 上 0.18.5 停在有原型污染通告的版本、官方修复只发在 SheetJS 自己的 CDN，导出改标准 CSV（UTF-8 BOM + RFC 4180 引号转义），内部看板下载名同步 `.csv` | 已通过 | 未上线 |
+| CR-20261029-32 | test | `backend/tests/{security-hardening,export-format,answer-p0-security,admin-dashboard,teacher-dashboard}.test.js`、`tests/**`、`src/**/__tests__/*`、`vitest.config.ts` | 后端新增 `security-hardening.test.js`（30 例）与 `export-format.test.js`（8 例）；前端新增 open redirect、路由角色门禁、WordList 浮层、图表工具等用例；两张看板测试改按新鉴权契约（显式配 `INITIAL_ADMIN_PASSWORD`、学生登录用创建接口返回的一次性口令）；`vitest.config.ts` 的 `include` 恢复 `tests/**/*.spec.ts` + `setupFiles`，覆盖率门槛按合并后实测重定 | 已通过 | 不适用 |
+| CR-20261029-33 | fix(ci) | `.github/workflows/{deploy-backend-test,deploy-backend}.yml` | 修本轮 E 组带回的测试部署回归：`.env` 门禁由「四把密钥全必需」改成「只对 `JWT_SECRET` 判红、其余三把 WARN 并写明哪个功能 503」；测试环境 `JWT_SECRET` 按旧值 > Secret > 现场生成一次并持久化补齐；剔除阶段顺带丢掉这四把的空值行。生产仍绝不自动生成密钥 | 已通过（本机抽出 `.env` 重建段跑三种机器状态 + `bash -n` + YAML parse；PR #250 六项检查全绿；合并后 run `40858018689` 部署成功、健康检查第 2 次通过） | 已部署测试环境；生产待发版 |
+
+### 合并后暴露的部署回归（同一轮内修掉，CR-20261029-33）
+
+`Deploy Backend to Test Server` 在合并提交 `5e4886c` 上判红：
+`ERROR: backend/.env 缺少必需变量: JWT_SECRET DASHBOARD_PASSWORD DEEPSEEK_API_KEY`——合并前该工作流连续 10 次成功，
+所以是 E 组「fail-closed 环境变量校验」的回归，不是测试机坏了（部署中止，测试后端仍是上一个版本，没有半部署状态）。
+
+根因是**门禁口径比后端代码严**：本仓库的 Actions Secrets 里只有 `ASSET_SYNC_TOKEN`（`gh api actions/secrets` 实查），
+`JWT_SECRET` / `DASHBOARD_PASSWORD` / `DEEPSEEK_API_KEY` 三把 `inject_if_missing` 永远填不上；而代码对这三把的态度是
+「功能关掉」而不是「服务起不来」（资产同步 503 / 内部看板 503 / AI 对话 503），真正硬抛的只有
+`NODE_ENV=production` 且 `JWT_SECRET` 缺失一条。测试机上 `JWT_SECRET=` 还是**空值行**——旧版工作流无条件
+`echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"` 留下的痕迹。
+
+改法（PR #250 @ `5c18a00`，只动两个 workflow 文件）：测试工作流的 `JWT_SECRET` 走「旧值 > GitHub Secret > 现场
+`openssl rand -hex 32` 一次并持久化」，绝不留空（留空等于用可预测的 `dev-only-secret` 在公网域名 `test.classicalab.cn`
+上发 token）；两个工作流把另外三把降为 WARNING 并写明「对应接口 503、不影响本次部署」，只有 `JWT_SECRET` 缺失才判红；
+**生产不自动生成密钥**（静默换密钥会一次性作废全网已签发 token），缺失时保持人工处置。
+剔除阶段顺手丢掉这四把的空白值行，避免新旧两行同时存在于一个文件里。
+
+本机验证（不 SSH、不部署）：把 workflow 里的 `.env` 重建段抽出来在临时目录跑——复现测试机状态 → `rc=0` 且
+`JWT_SECRET` 恰好 1 行、长度 64、其它键原样保留，**再跑一次值不变**（幂等，不会每次部署作废 token）；
+已有真实值 → 不覆盖；生产段空值 → `rc=1` 并打印人工处置提示。
+
+### 明细
+
+- **分支 / commit / PR / 合并提交**：`feature/continue-nav-stuck`（Step-0 先落 `c149427` 快照保存当时工作区未提交改动，之后 22 个内容提交，末位 `0830713`）
+  → 与 `origin/feature-1` 的 108 个新提交在 `d2f62b3` 合并（42 文件冲突）→ PR #231 → 合并提交 `5e4886c`。
+  PR 上 `push` + `pull_request` 两条 run × 6 job 全绿才 `--merge`，分支不删；合并后 `feature-1` 复跑 CI。
+- **一个真实回归**（就是它把台账从 51/19 改回 52/18）：`/v1` 别名原先写成挂载式 `app.use('/v1', fn)`，
+  Express 在挂载层 `next()` 返回时会用保存的原始 url 还原 `req.url`，层内改写等于没生效，`/v1/texts` 实测 404。
+  改成 app 级前缀判断后重写，测试覆盖 `/v1` 与 `/v1/api` 两种形态。**教训：URL 重写不能在挂载中间件里做。**
+- **并行分组的文件所有权是真约束**：A–G 七组按「改动文件互不相交」划分，每组独立提交；撞车的只有 `package.json`
+  与两份 workflow，靠 Step-0 快照保证任何一组都能回退。
+- **与 feature-1 的冲突处理口径**（编号事实、测试面、门槛都以合并后为准）：素材编号四张表统一到 feature-1 的
+  25 个已确认号 + `WEN_23=《活板》`；双方各自新建的同名文件（看板 service、charts、核查脚本、核查文档、几份测试）
+  取 feature-1 版——它们已在自己的 CI 上跑绿，本分支一侧没有独有内容损失；安全侧改动逐条复核仍在（`/v1` 仍 app 级、
+  导出仍 CSV 且 `xlsx` 命中 0、上传仍三角色、埋点 `user_id` 仍只信登录态、初始管理员仍需显式配置）。
+  `vite.config.ts` 取并集（`vueDevTools` 只在 dev 注入 + 保留 `buildIdMeta`/`__BUILD_ID__`）；
+  部署工作流取 feature-1 的分组缓存 + 构建指纹自检 + 线上黑盒验证，再补回 `data/`、`fonts/`、`favicon.ico` 走 no-cache
+  （素材 JSON 改了必须立刻生效，否则旧 data 配新代码会给出错的篇目清单）。
+- **覆盖率门槛为什么当场重定**：并入 feature-1 后测试面从 19 文件 278 例回到 64 文件 967 例，
+  实测 stmts 53.05 / branch 44.58 / funcs 51.25 / lines 53.84，原为小测试面定的 18/20/13/18 已不构成任何约束，
+  按实测留 ≥5 个点余量改为 45/38/42/45。门槛的作用仍是「不许往下走」，不是达标线。
+- **合并后的验证数字**（本机与 CI 逐项一致；CI run `40855488092` 六项全绿）：后端 Jest 27 suites / 527 tests；
+  前端 Vitest 64 files / 967 tests；`vue-tsc --build` 0 error；`oxlint .` 302 文件 0 warning 0 error；`eslint .` 0 problem；
+  `vite build` 成功并产出 `TeacherDashboardView` / figma 资产 chunk。
+- **用户已确认「明确不做」的五项**：git 历史清洗（`filter-repo` + 强推，历史里 2026-06 的 `JWT_SECRET` 就留着）、
+  登录强制改密（`must_reset_password` 仍只写不校验）、JWT 刷新与密钥轮换、OSS ACL / 桶策略操作、生产库运维。
+- **仍没做（18 条部分修集中在这里，留给后续 PR）**：`AnswerQueryView.vue` 仍 1812 行未拆；前端无 CSP；
+  `jsonReader` 仍是每请求同步 `readFileSync`；`tsconfig.app.json` 仍排除 `src/**/__tests__/*`（这批测试不在任何
+  vue-tsc project 里）；残留 2 处 `as any`；`StudentLogin.vue` 死代码仍在；`parseLimit` 未导出所以钳制逻辑没有单测。
+  另：`.vscode/extensions.json` 仍被跟踪——当前 sparse-checkout 排除了 `.vscode/**`，这条删除既无法暂存也没进本 PR。
+- **验证边界（不给自己加分）**：按项目约束本批全程未启动本地服务、未部署、未 SSH，因此没有真实浏览器端到端验证，
+  CI 是唯一外部门禁；无障碍项按代码与 ARIA 契约核对，未做屏幕阅读器实测。
+- **`docs/QUALITY_ASSESSMENT.md`（2026-10-23）的安全性 86 分 / B+ 已不成立**。该文件按 feature-1 的版本入库（10-23 快照，
+  文件头的「落库时点说明」只提到 PR #207 / #210 / #211 三笔），本批不回填重算，只在其说明里补一句
+  「PR #231 的 70 项台账取代本报告的**安全性**结论」——原稿其余打分继续作历史记录保留。
+- **两处 `as any` 是核过的**：`src/views/AdminConsoleView.vue:120`、`src/views/StepView.vue:151`
+  （`grep "as any"` 的第三条命中是 `ClassPicker.test.ts` 里「无需 as any」那句注释，不是违规）。
+
+### 发布事实
+
+- 本批只到 `feature-1`（`5e4886c` + `de822c6`），**没进 `main`**：`feature-1` → `main` 只走人工审批的发布 PR。
+  所以生产仍是 10-29 中午那版，`https://api.classicalab.cn` 的行为没变；测试环境已带上新契约。
+- 测试环境副作用一条，说明白：CR-33 的修复让测试机第一次现场生成了 `JWT_SECRET`，
+  **此前签发的测试站 token 全部作废一次**，测试账号需重新登录（此后每次部署沿用已持久化的那把，不再变）。
+- 需要人工确认的一件事：`seedInitialAdmin()` 只在 `admins` 表为空时按 `INITIAL_ADMIN_PASSWORD` 建号，
+  所以**已存在的库里那行 admin 的口令哈希不会被本批改掉**——如果测试/生产库里的 admin 还是当年
+  `admin/admin123` 播下的，得人工登进去改密（我没动库、也没 SSH，无法代为确认）。
+- **测试环境黑盒核对（CR-33 部署后，run `40858018689` 成功、健康检查第 2 次通过）**：
+  `https://test-api.classicalab.cn` 上 `/v1/texts` 与 `/v1/api/texts` 均 200 且返回同一份 4 篇课文
+  ——证明 `/v1` 别名那条真回归**在部署产物里已经好了**；`/api/home/dashboard` 返回
+  `503 DASHBOARD_AUTH_NOT_CONFIGURED`——证明看板 fail-closed 也生效了（测试机没配 `DASHBOARD_PASSWORD`，
+  这正是 CR-33 那条 WARNING 说的事；要在测试环境看看板就写进 `.env` 或建同名 Secret）。
+- **⚠️ 生产当前是未修状态**（同一时刻在 `https://api.classicalab.cn` 实测）：
+  `/v1/texts` → 404（别名回归仍在生产）、`/api/home/dashboard` → **200 且返回真实汇总**
+  （`studentCount:1 / submissionCount:0 / passRate:0`）、`/api/home/dashboard/raw` → 200、
+  `/api/tracking/funnel` → 200，三者都**不带任何凭据**；`/api/admin/students` → 401（管理端一直是保护的）。
+  也就是说内部看板那几个代理接口此刻对公网匿名开放，修它的代码已经在 `feature-1`，
+  **只有走 `main` 的发布 PR 才会生效**（本批没有那个权限，也不该自动合）。
+
+### 本批新增的 dependabot 配置立刻开了 18 个 PR（待你处置，我没合任何一个）
+
+PR #231 里加的 `.github/dependabot.yml`（4 个生态各 `open-pull-requests-limit: 5`，weekly）第一次扫描就开了
+PR #232–#249 共 18 条，正好每个生态顶到 5 条上限。抽查：#242/#247/#244 六项检查全绿，**#238（vitest 4→5）有 1 条红**。
+这些几乎全是 major（vitest 5、TypeScript 7、zod 4、dotenv 18、supertest 7、actions 大版本），
+major 升级要人工判断（zod 4 会动所有 schema、vitest 5 会动配置），所以**本批一条都没合**。
+要少受这个干扰可以把三个 npm 生态加 `ignore: update-types: ["version-update:semver-major"]`，
+只留 minor/patch + 安全更新；但那样 CVE 需要 major 才能修时依赖更新不会自动来，得人工发起——要不要收紧由你定。
