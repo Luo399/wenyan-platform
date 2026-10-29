@@ -141,6 +141,11 @@
                 注册入口
               </button>
             </div>
+
+            <!-- 页内提示（替代 alert） -->
+            <p v-if="linkHint" class="link-hint" role="status" aria-live="polite">
+              {{ linkHint }}
+            </p>
           </form>
 
           <!--
@@ -163,6 +168,7 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStudentQuery } from '@/composables/useStudentQuery'
+import { debounce } from '@/utils/debounce'
 import { debugError } from '@/utils/debug'
 
 // ============================================================
@@ -208,6 +214,8 @@ const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 const isSubmitting = ref(false)
+/** 底部链接的页内提示（替代 alert） */
+const linkHint = ref('')
 
 // Store
 const authStore = useAuthStore()
@@ -219,30 +227,11 @@ const { queryStudentName } = useStudentQuery()
 const isLoading = authStore.isLoading
 
 /**
- * R30: 手写 debounce（避免引入 lodash-es）
+ * R30: 防抖查询学生姓名
  * - 300ms 内重复输入只保留最后一次，停止输入 300ms 后发起请求
  * - 同时处理"请求序号"的竞态：后输入的响应即使后发出，也保证不会被先到的旧请求覆盖
+ * - debounce 实现统一在 @/utils/debounce（原先与本文件各写一份，逻辑完全重复）
  */
-function debounce<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  const debounced = function (this: unknown, ...args: Parameters<T>) {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => fn.apply(this, args), waitMs)
-  } as T & { cancel: () => void; flush: () => void }
-  debounced.cancel = () => {
-    if (timer) {
-      clearTimeout(timer)
-      timer = null
-    }
-  }
-  debounced.flush = () => {
-    if (timer) {
-      clearTimeout(timer)
-      timer = null
-    }
-  }
-  return debounced
-}
 
 // R30 防抖 + 竞态控制
 const QUERY_DEBOUNCE_MS = 300 as const
@@ -279,6 +268,7 @@ watch(
       password.value = ''
       studentName.value = ''
       hasError.value = false
+      linkHint.value = ''
       lastQuerySeq = 0
       authStore.clearError()
       // 记录 modal 打开前被 focus 的元素，关闭时归还给它（WAI-ARIA 规范）
@@ -327,7 +317,13 @@ async function handleSubmit(): Promise<void> {
   debouncedQueryName.cancel()
 
   try {
-    await authStore.login(studentId.value.trim(), password.value, studentName.value, props.role)
+    await authStore.login(
+      studentId.value.trim(),
+      password.value,
+      studentName.value,
+      props.role,
+      rememberMe.value,
+    )
     emit('login-success')
     handleClose()
   } catch (err) {
@@ -339,19 +335,20 @@ async function handleSubmit(): Promise<void> {
 
 // 关闭弹窗
 function handleClose(): void {
+  linkHint.value = ''
   emit('close')
 }
 
 // 忘记密码处理
 function handleForgotPassword(): void {
-  // 目前无独立找回密码页面，提示用户联系管理员
-  alert('请联系管理员重置密码')
+  // 目前无独立找回密码页面，页内提示用户联系管理员
+  linkHint.value = '目前不支持自助找回密码，请联系管理员重置'
 }
 
 // 注册入口处理（教师端）
 function handleRegister(): void {
-  // 目前无独立注册页面，提示用户联系管理员
-  alert('请联系管理员申请教师账号')
+  // 目前无独立注册页面，页内提示用户联系管理员
+  linkHint.value = '请联系学校管理员申请教师账号'
 }
 
 // 点击外部区域关闭
@@ -714,6 +711,14 @@ onUnmounted(() => {
 .link-separator {
   color: var(--color-text-secondary);
   font-size: var(--font-size-small);
+}
+
+/* 页内提示（代替 alert 弹窗） */
+.link-hint {
+  margin: var(--spacing-sm) 0 0;
+  text-align: center;
+  font-size: var(--font-size-small);
+  color: var(--color-primary);
 }
 
 /* 加载动画 */

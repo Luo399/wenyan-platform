@@ -17,8 +17,8 @@
  * ```
  */
 
-import { onMounted, onUnmounted, onActivated, onDeactivated, ref, watch } from 'vue'
-import { track, consumeBackButtonFlag, consumeExitType, isPageVisible } from '@/utils/tracking'
+import { onMounted, onUnmounted, onActivated, onDeactivated, ref } from 'vue'
+import { track, consumeBackButtonFlag, consumeExitType } from '@/utils/tracking'
 
 // ============================================================
 // 会话级去重：每个 session 每个 step 只记录一次"首次进入"

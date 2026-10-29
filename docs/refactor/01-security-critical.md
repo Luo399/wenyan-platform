@@ -7,7 +7,7 @@
 ## S01. 生产密钥泄露（.env.production 已入 git）
 - **优先级**: P0
 - **状态**: [ ] 未开始
-- **文件**: `.env.production`（第 7 行 `VITE_AUTH_SECRET=wenyan-production-secret-2024`）
+- **文件**: `.env.production`（第 7 行 `VITE_AUTH_SECRET=<REDACTED>`）
 - **问题描述**: 前端 `.env.production` 含 HMAC 签名密钥明文，已被 git 追踪并推送至远程。攻击者可从公开仓库获取密钥，伪造任意提交 token
 - **修复方案**:
   1. 将 `.env.production` 加入根 `.gitignore`
@@ -102,7 +102,7 @@
 - **优先级**: P0
 - **状态**: [ ] 未开始
 - **文件**: `.github/workflows/deploy-backend-test.yml`（第 47 行）
-- **问题描述**: `AUTH_SECRET=wenyan-test-secret-2024` 明文写死在 workflow 中并提交 git
+- **问题描述**: `AUTH_SECRET=<REDACTED>` 明文写死在 workflow 中并提交 git
 - **修复方案**: 改为 `${{ secrets.TEST_AUTH_SECRET }}`，在 GitHub Settings 中配置
 - **验证方式**: workflow 文件中 grep `AUTH_SECRET` 无明文值
 - **分支建议**: `refactor/security-07`

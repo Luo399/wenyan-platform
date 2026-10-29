@@ -649,7 +649,7 @@
           var blobUrl = URL.createObjectURL(blob)
           var a = document.createElement('a')
           a.href = blobUrl
-          a.download = type + '_' + new Date().toISOString().slice(0, 10) + '.xlsx'
+          a.download = type + '_' + new Date().toISOString().slice(0, 10) + '.csv'
           document.body.appendChild(a)
           a.click()
           document.body.removeChild(a)

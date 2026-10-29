@@ -14,9 +14,18 @@ on:
       - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
 
+# 部署只需要读仓库；不授予写权限
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # 生产部署需要人工批准（GitHub Environment: production）
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -42,7 +51,14 @@ jobs:
           wget https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
           chmod +x ossutil64
 
-      - name: Deploy to Aliyun OSS (main bucket)
+      # 缓存策略分组（此前整目录 max-age=31536000, immutable，导致 data/*.json 与
+      # index.html 一年不更新）：
+      #   1) dist/assets/**（带 hash）→ 1 年 immutable
+      #   2) index.html                → no-cache
+      #   3) dist/data/**、fonts/**、favicon.ico → no-cache（数据与字体更新必须立刻生效）
+      #   4) 其余静态资源              → 1 天
+      # 每条路径只被上传一次、只打一次缓存头，不存在「先打长缓存再补传修正」的中间窗口。
+      - name: Deploy static files (grouped cache control)
         run: |
           set -euo pipefail
           OSS_ARGS=(-i "${{ secrets.OSS_ACCESS_KEY_ID }}" -k "${{ secrets.OSS_ACCESS_KEY_SECRET }}" -e oss-cn-zhongwei.aliyuncs.com --acl public-read --force)
@@ -60,15 +76,30 @@ jobs:
           ./ossutil64 cp ./dist/index.html "${BUCKET}/index.html" "${OSS_ARGS[@]}" \
             --meta "Cache-Control:no-cache"
 
-          # 3) 其余不带 hash 的静态文件（favicon / robots / 根目录图片等）：1 小时中缓存，
+          # 3) data/ fonts/ favicon.ico：no-cache。素材 JSON 改了必须立刻生效，
+          #    否则边缘与本地缓存里的旧 data 会给出和本次代码不一致的篇目清单。
+          if [ -d ./dist/data ]; then
+            ./ossutil64 cp -r ./dist/data "${BUCKET}/data/" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:no-cache"
+          fi
+          if [ -d ./dist/fonts ]; then
+            ./ossutil64 cp -r ./dist/fonts "${BUCKET}/fonts/" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:no-cache"
+          fi
+          if [ -f ./dist/favicon.ico ]; then
+            ./ossutil64 cp ./dist/favicon.ico "${BUCKET}/favicon.ico" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:no-cache"
+          fi
+
+          # 4) 其余不带 hash 的静态文件（robots / 根目录图片等）：1 天，
           #    既不会被长期钉死，也不至于每次请求都回源。
           for entry in ./dist/*; do
             base="$(basename "${entry}")"
             case "${base}" in
-              assets|index.html) continue ;;
+              assets|index.html|data|fonts|favicon.ico) continue ;;
             esac
             ./ossutil64 cp -r "${entry}" "${BUCKET}/${base}" "${OSS_ARGS[@]}" \
-              --meta "Cache-Control:public,max-age=3600"
+              --meta "Cache-Control:public,max-age=86400"
           done
 
       - name: Record expected build fingerprint

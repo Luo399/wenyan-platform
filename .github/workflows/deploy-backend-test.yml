@@ -18,9 +18,16 @@ env:
   REGISTRY: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com
   IMAGE_NAME: luo-hui-ning/wenyan-platform-backend
 
+# 部署只需要读仓库；不授予写权限
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-test
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -67,7 +74,7 @@ jobs:
 
       - name: Deploy to test server
         run: |
-          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 ${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 "${{ secrets.SERVER_USER }}@${{ secrets.SSH_HOST }}" << 'EOF'
             set -e
             TEST_PATH="${{ secrets.SERVER_PROJECT_PATH }}-test"
             BRANCH="feature-1"
@@ -81,29 +88,24 @@ jobs:
             git checkout "$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            echo "=== [2/4] Create .env file ==="
+            echo "=== [2/4] Rebuild backend/.env (preserve existing keys) ==="
+            umask 077
             if [ -f backend/.env ]; then
-              cp backend/.env backend/.env.bak
+              cp -p backend/.env backend/.env.prev
+              echo "已备份现有 backend/.env → backend/.env.prev"
+            else
+              : > backend/.env.prev
+              echo "WARNING: 未找到 backend/.env，将从空配置重建（首次部署）"
             fi
-            echo "PORT=3001" > backend/.env
-            echo "CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn" >> backend/.env
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> backend/.env
-            # ASSET_SYNC_TOKEN：保留备份值或从 Secret 读取
-            SAVED_TOKEN=""
-            if [ -f backend/.env.bak ]; then
-              SAVED_TOKEN=$(grep '^ASSET_SYNC_TOKEN=' backend/.env.bak | cut -d= -f2-)
-            fi
-            if [ -n "$SAVED_TOKEN" ]; then
-              echo "ASSET_SYNC_TOKEN=$SAVED_TOKEN" >> backend/.env
-              echo "ASSET_SYNC_TOKEN restored from backup"
-            elif [ -n "${{ secrets.ASSET_SYNC_TOKEN }}" ]; then
-              echo "ASSET_SYNC_TOKEN=${{ secrets.ASSET_SYNC_TOKEN }}" >> backend/.env
-              echo "ASSET_SYNC_TOKEN set from GitHub Secret"
-            fi
-            rm -f backend/.env.bak
 
-            # OSS 上传配置：复用测试前端桶 OSS_TEST_BUCKET（wenyan-test-online, cn-guangzhou）。
-            # 后端作为 Figma 插件上传中转，资源直接进测试前端桶，前端经 test.classicalab.cn 读取。
+            # 只剔除本步骤会重新写入的键，其余键原样保留
+            grep -vE '^(PORT|CORS_ORIGIN|OSS_PUBLIC_URL|ALIYUN_OSS_BUCKET|ALIYUN_OSS_REGION|ALIYUN_ACCESS_KEY_ID|ALIYUN_ACCESS_KEY_SECRET)=' \
+              backend/.env.prev > backend/.env || true
+
+            echo "PORT=3001" >> backend/.env
+            echo "CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn" >> backend/.env
+
+            # OSS 上传配置：复用测试前端桶 OSS_TEST_BUCKET（cn-guangzhou）。
             if [ -n "${{ secrets.OSS_TEST_BUCKET }}" ]; then
               echo "OSS_PUBLIC_URL=https://${{ secrets.OSS_TEST_BUCKET }}.oss-cn-guangzhou.aliyuncs.com" >> backend/.env
               echo "ALIYUN_OSS_BUCKET=${{ secrets.OSS_TEST_BUCKET }}" >> backend/.env
@@ -113,6 +115,36 @@ jobs:
             else
               echo "WARNING: OSS_TEST_BUCKET not set, assets upload will fallback to local backend/data"
             fi
+
+            # 旧值优先；旧 .env 里没有时才用 GitHub Secret 补齐
+            inject_if_missing() {
+              KEY="$1"
+              VALUE="$2"
+              if ! grep -qE "^${KEY}=.+" backend/.env && [ -n "$VALUE" ]; then
+                printf '%s=%s\n' "$KEY" "$VALUE" >> backend/.env
+                echo "$KEY 已从 GitHub Secret 注入"
+              fi
+            }
+            inject_if_missing JWT_SECRET "${{ secrets.JWT_SECRET }}"
+            inject_if_missing ASSET_SYNC_TOKEN "${{ secrets.ASSET_SYNC_TOKEN }}"
+            inject_if_missing DASHBOARD_PASSWORD "${{ secrets.DASHBOARD_PASSWORD }}"
+            inject_if_missing DEEPSEEK_API_KEY "${{ secrets.DEEPSEEK_API_KEY }}"
+
+            # 必需变量校验：缺失则失败，只打印变量名，不打印值
+            MISSING_KEYS=""
+            for KEY in JWT_SECRET ASSET_SYNC_TOKEN DASHBOARD_PASSWORD DEEPSEEK_API_KEY; do
+              if ! grep -qE "^${KEY}=.+" backend/.env; then
+                MISSING_KEYS="$MISSING_KEYS $KEY"
+              fi
+            done
+            chmod 600 backend/.env
+            if [ -n "$MISSING_KEYS" ]; then
+              echo "ERROR: backend/.env 缺少必需变量:$MISSING_KEYS"
+              echo "请先在服务器 $PWD/backend/.env 中补齐（或配置同名 GitHub Secret）后重新部署。"
+              echo "旧配置完整保留在 backend/.env.prev，本次部署已终止。"
+              exit 1
+            fi
+            rm -f backend/.env.prev
 
             echo "=== [3/5] Install Docker if not present ==="
             if ! command -v docker &>/dev/null; then
@@ -155,15 +187,16 @@ jobs:
               --username "${{ secrets.ACR_USERNAME }}" \
               --password-stdin \
               ${{ env.REGISTRY }}
-            docker compose pull
+            # compose 里 image 使用必填变量 ${IMAGE_TAG}，pull/up 都必须带上
+            COMPOSE_ENV="IMAGE_TAG=latest HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test NODE_ENV=development"
+            eval "$COMPOSE_ENV docker compose pull"
 
             echo "=== [5/5] Restart backend (test environment) ==="
             pm2 delete wenyan-backend-test 2>/dev/null || true
             mkdir -p backend/database backend/data backend/logs
             chown -R 1000:1000 backend/database backend/data backend/logs
-            # 清理任何残留的旧容器名（防止"wenyan-backend"冲突）
-            docker rm -f wenyan-backend 2>/dev/null || true
-            COMPOSE_ENV="HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test NODE_ENV=development"
+            # 只重建本项目自己的测试容器（wenyan-backend-test）；
+            # 不要 docker rm -f wenyan-backend，避免误删同机其它项目的容器。
             eval "$COMPOSE_ENV docker compose up -d --remove-orphans"
 
             echo "=== Health check (with retry) ==="
@@ -172,7 +205,8 @@ jobs:
             RETRY_DELAY=10
             for ((i=1; i<=MAX_RETRIES; i++)); do
               echo "Attempt $i/$MAX_RETRIES to check health..."
-              if curl -s http://127.0.0.1:3001/api/health 2>/dev/null; then
+              # -f 让 HTTP 4xx/5xx 直接失败，再校验响应体，避免把 500 当成功
+              if RESP=$(curl -fsS http://127.0.0.1:3001/api/health 2>/dev/null) && grep -q '"success":true' <<< "$RESP"; then
                 HEALTH_OK=true
                 echo "=== Health check passed ==="
                 break
@@ -191,22 +225,43 @@ jobs:
               docker ps -a --filter name=wenyan-backend-test --format "table {{.ID}}\t{{.Status}}\t{{.Ports}}"
 
               # 检查容器是否在重启循环（如 SQLITE_CORRUPT 导致反复崩溃）
-              CONTAINER_STATUS=$(docker ps -a --filter name=wenyan-backend-test --format "{{.Status}}")
+              CONTAINER_STATUS=$(docker ps -a --filter name=wenyan-backend-test --format "{{.Status}}" || true)
               if echo "$CONTAINER_STATUS" | grep -q "Restarting"; then
-                echo "=== Container is restarting, attempting database recovery ==="
-                docker compose down
-                echo "Removing database file to fix corruption..."
-                rm -f backend/database/answers.db
-                # 再次清理旧容器名残留
-                docker rm -f wenyan-backend 2>/dev/null || true
-                echo "Database file removed, restarting container..."
+                echo "=== Container is restarting, attempting database recovery (backup first, never rm) ==="
+                eval "$COMPOSE_ENV docker compose down"
+                DB_FILE="backend/database/answers.db"
+                if [ -f "$DB_FILE" ]; then
+                  TS=$(date +%Y%m%d%H%M%S)
+                  cp -p "$DB_FILE" "$DB_FILE.bak-$TS"
+                  # WAL/SHM 里可能有尚未 checkpoint 的最新答题，一并备份
+                  if [ -f "$DB_FILE-wal" ]; then cp -p "$DB_FILE-wal" "$DB_FILE-wal.bak-$TS"; fi
+                  if [ -f "$DB_FILE-shm" ]; then cp -p "$DB_FILE-shm" "$DB_FILE-shm.bak-$TS"; fi
+                  echo "已备份数据库: $DB_FILE.bak-$TS"
+                  # 只保留最近 3 份备份
+                  ls -1t "$DB_FILE".bak-* 2>/dev/null | tail -n +4 | while IFS= read -r OLD_BAK; do
+                    rm -f "$OLD_BAK"
+                  done
+                  # 连同 WAL/SHM 一起隔离，避免旧 WAL 影响新建的空库
+                  if [ -f "$DB_FILE-wal" ]; then mv "$DB_FILE-wal" "$DB_FILE-wal.corrupt-$TS"; fi
+                  if [ -f "$DB_FILE-shm" ]; then mv "$DB_FILE-shm" "$DB_FILE-shm.corrupt-$TS"; fi
+                  mv "$DB_FILE" "$DB_FILE.corrupt-$TS"
+                  echo "============================================================"
+                  echo "WARNING: 测试库疑似损坏，已隔离为："
+                  echo "  $DB_FILE.corrupt-$TS"
+                  echo "原始数据未删除，最近备份：$DB_FILE.bak-$TS（保留最近 3 份）"
+                  echo ">>> 需人工恢复答题数据：核对 .corrupt-* / .bak-* 后手动导回 <<<"
+                  echo "============================================================"
+                else
+                  echo "未找到 $DB_FILE，跳过备份，直接由服务重建空库"
+                fi
+                echo "Restarting container..."
                 eval "$COMPOSE_ENV docker compose up -d --remove-orphans"
                 # 恢复后重试健康检查
                 for ((i=1; i<=MAX_RETRIES; i++)); do
                   echo "Recovery attempt $i/$MAX_RETRIES to check health..."
-                  if curl -s http://127.0.0.1:3001/api/health 2>/dev/null; then
+                  if RESP=$(curl -fsS http://127.0.0.1:3001/api/health 2>/dev/null) && grep -q '"success":true' <<< "$RESP"; then
                     HEALTH_OK=true
-                    echo "=== Database recovery successful ==="
+                    echo "=== Database recovery successful (需人工恢复数据) ==="
                     break
                   fi
                   if [ $i -lt $MAX_RETRIES ]; then

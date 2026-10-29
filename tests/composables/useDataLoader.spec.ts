@@ -3,6 +3,7 @@ import { useDataLoader, terminateJsonParserWorker, clearDataCache } from '@/comp
 
 vi.mock('@/utils/debug', () => ({
   debugLog: vi.fn(),
+  debugWarn: vi.fn(),
   debugError: vi.fn(),
 }))
 
@@ -38,7 +39,15 @@ describe('useDataLoader', () => {
       }
     }
 
-    vi.stubGlobal('Worker', vi.fn().mockImplementation(createMockWorker))
+    // 注意：Worker 实现必须是 function/class，vitest 4 下 `new` 一个箭头函数实现的
+    // vi.fn() 会抛出 "is not a constructor"，导致 useDataLoader 的 Worker 解析链路
+    // 直接失败（回落后虽能解析，但会多打一次 warn，且测试无法覆盖 Worker 分支）
+    vi.stubGlobal(
+      'Worker',
+      vi.fn(function (this: unknown) {
+        return createMockWorker()
+      }),
+    )
   })
 
   afterEach(() => {
@@ -176,20 +185,40 @@ describe('useDataLoader', () => {
   })
 
   describe('空URL处理测试', () => {
-    it('空URL应该触发错误', async () => {
-      const { error, load } = useDataLoader(() => '', { autoLoad: false })
+    // 行为变更：空 URL 表示「当前实例处于非激活态」（例如 StepView 里
+    // stepNumber 不匹配时那条 useDataLoader），必须静默跳过，
+    // 不能写 error —— 否则会污染共用的 PageScaffold 错误态。
+    it('空URL应静默跳过：不请求、不置错误', async () => {
+      global.fetch = vi.fn() as Mock
+      const onLoadError = vi.fn()
+      const { error, loading, data, load } = useDataLoader(() => '', {
+        autoLoad: false,
+        onLoadError,
+      })
 
       await load()
 
-      expect(error.value).toBe('请提供有效的URL')
+      expect(error.value).toBe(null)
+      expect(loading.value).toBe(false)
+      expect(data.value).toBe(null)
+      expect(global.fetch).not.toHaveBeenCalled()
+      expect(onLoadError).not.toHaveBeenCalled()
     })
 
-    it('undefined URL应该触发错误', async () => {
-      const { error, load } = useDataLoader(() => undefined as any, { autoLoad: false })
+    it('undefined URL应静默跳过：不请求、不置错误', async () => {
+      global.fetch = vi.fn() as Mock
+      const onLoadError = vi.fn()
+      const { error, loading, load } = useDataLoader(() => undefined as unknown as string, {
+        autoLoad: false,
+        onLoadError,
+      })
 
       await load()
 
-      expect(error.value).toBe('请提供有效的URL')
+      expect(error.value).toBe(null)
+      expect(loading.value).toBe(false)
+      expect(global.fetch).not.toHaveBeenCalled()
+      expect(onLoadError).not.toHaveBeenCalled()
     })
   })
 

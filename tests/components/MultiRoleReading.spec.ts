@@ -85,7 +85,8 @@ describe('readingAdapter', () => {
       expect(formatTime(90)).toBe('01:30')
       expect(formatTime(0)).toBe('00:00')
       expect(formatTime(65)).toBe('01:05')
-      expect(formatTime(3661)).toBe('61:01')
+      // 超过 1 小时时走 HH:MM:SS（parseSecondsToTime 的新行为），不再拼成 61:01
+      expect(formatTime(3661)).toBe('01:01:01')
     })
   })
 

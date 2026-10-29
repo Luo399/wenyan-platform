@@ -46,7 +46,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr v-for="record in records" :key="record.wenId">
+      <tr v-for="(record, index) in records" :key="rowKey(record, index)">
         <td>{{ record.wenId }}</td>
         <td>{{ formatDate(record.submittedAt) }}</td>
         <td>{{ record.totalQuestions }}</td>
@@ -62,16 +62,23 @@
 
 <script setup lang="ts">
 import { formatDate } from '@/utils/format'
+import type { AnswerTableRow } from '@/types/answer'
 
 defineProps<{
   /** 查询结果记录（学生维度或文言文维度，结构由后端返回决定） */
-  records: Array<Record<string, any>>
+  records: AnswerTableRow[]
   /** 表格展示模式 */
   mode: 'wenId' | 'studentId'
 }>()
 
 // 行"详情"事件：将整行记录透传给父组件
 defineEmits<{
-  (e: 'viewDetail', record: Record<string, any>): void
+  (e: 'viewDetail', record: AnswerTableRow): void
 }>()
+
+/** 行 key：优先 wenId，缺失时回退到下标（后端理论上必带，防御异常数据） */
+function rowKey(record: AnswerTableRow, index: number): string {
+  const wenId = 'wenId' in record ? record.wenId : undefined
+  return typeof wenId === 'string' && wenId ? wenId : String(index)
+}
 </script>

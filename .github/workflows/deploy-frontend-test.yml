@@ -12,9 +12,16 @@ on:
       - '.env.production'
       - '.github/workflows/deploy-frontend-test.yml'
 
+# 部署只需要读仓库；不授予写权限
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-test
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -40,7 +47,9 @@ jobs:
           wget https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
           chmod +x ossutil64
 
-      - name: Deploy to Aliyun OSS test bucket
+      # 与生产一致的分组缓存策略：
+      #   其余静态资源 1 天；assets/** 1 年 immutable；data/**、index.html、favicon.ico、fonts/** no-cache
+      - name: Deploy static files (1 day cache)
         run: |
           set -euo pipefail
           OSS_ARGS=(-i "${{ secrets.OSS_ACCESS_KEY_ID }}" -k "${{ secrets.OSS_ACCESS_KEY_SECRET }}" -e oss-cn-guangzhou.aliyuncs.com --acl public-read --force)
@@ -54,13 +63,29 @@ jobs:
           ./ossutil64 cp ./dist/index.html "${BUCKET}/index.html" "${OSS_ARGS[@]}" \
             --meta "Cache-Control:no-cache"
 
+          # data/、fonts/、favicon.ico 也走 no-cache：素材 JSON 改了必须立刻生效，
+          # 否则客户端拿着缓存里的旧 data，会看到和本次代码不一致的篇目清单。
+          if [ -d ./dist/data ]; then
+            ./ossutil64 cp -r ./dist/data "${BUCKET}/data/" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:no-cache"
+          fi
+          if [ -d ./dist/fonts ]; then
+            ./ossutil64 cp -r ./dist/fonts "${BUCKET}/fonts/" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:no-cache"
+          fi
+          if [ -f ./dist/favicon.ico ]; then
+            ./ossutil64 cp ./dist/favicon.ico "${BUCKET}/favicon.ico" "${OSS_ARGS[@]}" \
+              --meta "Cache-Control:no-cache"
+          fi
+
+          # 其余顶层产物给 1 天
           for entry in ./dist/*; do
             base="$(basename "${entry}")"
             case "${base}" in
-              assets|index.html) continue ;;
+              assets|index.html|data|fonts|favicon.ico) continue ;;
             esac
             ./ossutil64 cp -r "${entry}" "${BUCKET}/${base}" "${OSS_ARGS[@]}" \
-              --meta "Cache-Control:public,max-age=3600"
+              --meta "Cache-Control:public,max-age=86400"
           done
 
       - name: Record expected build fingerprint

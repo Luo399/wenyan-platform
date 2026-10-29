@@ -14,6 +14,9 @@ const request = require('supertest')
 
 process.env.DB_PATH = ':memory:'
 process.env.JWT_SECRET = 'ci-test-secret'
+// 安全加固后不再内置 admin/admin123，初始管理员需显式配置（require database 前）
+process.env.INITIAL_ADMIN_PASSWORD = 'AdminInit#2024'
+process.env.INITIAL_ADMIN_USERNAME = 'admin'
 
 const { db, initAllTables } = require('../src/config/database')
 const { dbGet } = require('../src/utils/dbPromise')
@@ -49,8 +52,9 @@ beforeAll(async () => {
 
   const adminLogin = await request(app)
     .post('/api/auth/admin/login')
-    .send({ username: 'admin', password: 'admin123' })
+    .send({ username: 'admin', password: process.env.INITIAL_ADMIN_PASSWORD })
   adminToken = adminLogin.body.data.token
+  expect(adminToken).toBeTruthy()
 
   const school = await dbGet(db, 'SELECT id FROM schools LIMIT 1')
 
@@ -66,17 +70,19 @@ beforeAll(async () => {
     .send({ phone: 't9201', password: '12345678' })
   teacherToken = teacherLogin.body.data.token
 
-  // 本班学生 2 名
-  await asAdmin(request(app).post('/api/admin/students')).send({
+  // 本班学生 2 名（一次性初始口令由创建接口返回，仅此处可拿到明文）
+  const created1 = await asAdmin(request(app).post('/api/admin/students')).send({
     student_id: '20260101',
     student_name: '框架学生甲',
     class_code: '202601',
   })
-  await asAdmin(request(app).post('/api/admin/students')).send({
+  const created2 = await asAdmin(request(app).post('/api/admin/students')).send({
     student_id: '20260102',
     student_name: '框架学生乙',
     class_code: '202601',
   })
+  expect(created1.status).toBe(201)
+  expect(created2.status).toBe(201)
   // 他班学生 1 名（用于越权过滤断言）
   await asAdmin(request(app).post('/api/admin/students')).send({
     student_id: '20260201',
@@ -87,12 +93,14 @@ beforeAll(async () => {
   // 本班学生登录，拿到 token 用于 submit
   const s1 = await request(app)
     .post('/api/auth/student/login')
-    .send({ student_id: '20260101', password: '99999999' })
+    .send({ student_id: '20260101', password: created1.body.data.initial_password })
   student2601Token = s1.body.data.token
   const s2 = await request(app)
     .post('/api/auth/student/login')
-    .send({ student_id: '20260102', password: '99999999' })
+    .send({ student_id: '20260102', password: created2.body.data.initial_password })
   student2602Token = s2.body.data.token
+  expect(student2601Token).toBeTruthy()
+  expect(student2602Token).toBeTruthy()
 })
 
 afterAll((done) => {
@@ -141,21 +149,21 @@ describe('教师查看学生完成情况', () => {
     const before = await asTeacher(request(app).get('/api/teacher/completion/students'))
     expect(before.body.data.students[0].answered_questions).toBe(0)
 
-    // 提交两道题（一道对一道错）
+    // 提交两道题（一道对一道错），题目与答案均来自真实题库：
+    //   data/text-quiz/WEN_01.json            → WEN_01_Q1 正确答案 1
+    //   data/pages_level2_dialog_quiz/WEN_01.json → WEN_01_B1 正确答案 'B'
     await asStudent2601(request(app).post('/api/submit/single')).send({
       studentId: '20260101',
-      wenId: 'WEN_COMPLETE_1',
-      questionId: 'q1',
-      userAnswer: 3,
-      correctAnswer: 3,
+      wenId: 'WEN_01',
+      questionId: 'WEN_01_Q1',
+      userAnswer: 1,
       submittedAt: new Date().toISOString(),
     })
     await asStudent2601(request(app).post('/api/submit/single')).send({
       studentId: '20260101',
-      wenId: 'WEN_COMPLETE_1',
-      questionId: 'q2',
-      userAnswer: 1,
-      correctAnswer: 2,
+      wenId: 'WEN_01',
+      questionId: 'WEN_01_B1',
+      userAnswer: 'A',
       submittedAt: new Date().toISOString(),
     })
 
@@ -169,21 +177,19 @@ describe('教师查看学生完成情况', () => {
   })
 
   it('多次 attempt 同一道题应取最后一次结果判定（attempt_number 最大）', async () => {
-    // q1 先答对错，再答对
+    // 同一道题（WEN_01_Q1，正确答案 1）先答错再答对
     await asStudent2602(request(app).post('/api/submit/single')).send({
       studentId: '20260102',
-      wenId: 'WEN_COMPLETE_2',
-      questionId: 'qX',
-      userAnswer: 1,
-      correctAnswer: 2,
+      wenId: 'WEN_01',
+      questionId: 'WEN_01_Q1',
+      userAnswer: 0,
       submittedAt: new Date().toISOString(),
     })
     await asStudent2602(request(app).post('/api/submit/single')).send({
       studentId: '20260102',
-      wenId: 'WEN_COMPLETE_2',
-      questionId: 'qX',
-      userAnswer: 2,
-      correctAnswer: 2,
+      wenId: 'WEN_01',
+      questionId: 'WEN_01_Q1',
+      userAnswer: 1,
       submittedAt: new Date().toISOString(),
     })
 

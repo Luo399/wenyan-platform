@@ -20,7 +20,26 @@ vi.mock('@/utils/tracking', () => ({
 }))
 
 // 引入 mock 函数用于断言
-import { resetSessionId, resetFirstEnterSet } from '@/utils/tracking'
+import { resetSessionId } from '@/utils/tracking'
+import { resetFirstEnterSet } from '@/composables/useTracking'
+
+// resetFirstEnterSet 在 store 里是从 composables/useTracking 引入的（不是 utils/tracking），
+// 必须 mock 同一个模块，否则断言的是另一个函数的调用记录
+vi.mock('@/composables/useTracking', () => ({
+  resetFirstEnterSet: vi.fn(),
+  useTracking: vi.fn(),
+}))
+
+/** 生成一个 exp 在未来的合法 JWT（initialize() 现在会校验 token 的 exp） */
+function makeJwt(expSecondsFromNow = 3600): string {
+  const b64url = (obj: unknown) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')
+  return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ exp: Math.floor(Date.now() / 1000) + expSecondsFromNow })}.sig`
+}
 
 describe('useAuthStore', () => {
   const localStorageMock: Record<string, string> = {}
@@ -40,6 +59,7 @@ describe('useAuthStore', () => {
     })
 
     Object.keys(localStorageMock).forEach((key) => delete localStorageMock[key])
+    sessionStorage.clear()
 
     global.fetch = vi.fn()
 
@@ -66,13 +86,14 @@ describe('useAuthStore', () => {
         studentId: '2024001',
         role: 'student',
       })
-      localStorage.setItem('auth_token', 'mock-token')
+      const token = makeJwt()
+      localStorage.setItem('auth_token', token)
       localStorage.setItem('auth_user', mockUser)
 
       const authStore = useAuthStore()
       authStore.initialize()
 
-      expect(authStore.token).toBe('mock-token')
+      expect(authStore.token).toBe(token)
       expect(authStore.user).toEqual({
         id: '2024001',
         username: '张三',
@@ -80,6 +101,35 @@ describe('useAuthStore', () => {
         role: 'student',
       })
       expect(authStore.isLoggedIn).toBe(true)
+    })
+
+    it('持久化 token 已过期时应清理登录态', () => {
+      localStorage.setItem('auth_token', makeJwt(-60))
+      localStorage.setItem(
+        'auth_user',
+        JSON.stringify({ id: '1', username: '张三', studentId: '1', role: 'student' }),
+      )
+
+      const authStore = useAuthStore()
+      authStore.initialize()
+
+      expect(authStore.token).toBe(null)
+      expect(authStore.isLoggedIn).toBe(false)
+      expect(localStorage.getItem('auth_token')).toBeNull()
+    })
+
+    it('持久化角色非法时应拒绝恢复', () => {
+      localStorage.setItem('auth_token', makeJwt())
+      localStorage.setItem(
+        'auth_user',
+        JSON.stringify({ id: '1', username: 'hacker', studentId: '1', role: 'root' }),
+      )
+
+      const authStore = useAuthStore()
+      authStore.initialize()
+
+      expect(authStore.token).toBe(null)
+      expect(authStore.isLoggedIn).toBe(false)
     })
   })
 
@@ -107,6 +157,51 @@ describe('useAuthStore', () => {
         role: 'student',
       })
       expect(authStore.isLoggedIn).toBe(true)
+    })
+
+    it('勾选「记住我」时登录态写入 localStorage', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            token: 'jwt-token',
+            user: { id: '2024001', username: '张三', studentId: '2024001', role: 'student' },
+          },
+        }),
+      })
+
+      const authStore = useAuthStore()
+      await authStore.login('2024001', 'pwd', undefined, 'student', true)
+
+      expect(localStorage.getItem('auth_token')).toBe('jwt-token')
+      expect(sessionStorage.getItem('auth_token')).toBeNull()
+    })
+
+    it('未勾选「记住我」时登录态只写 sessionStorage', async () => {
+      const sessionToken = makeJwt()
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            token: sessionToken,
+            user: { id: '2024001', username: '张三', studentId: '2024001', role: 'student' },
+          },
+        }),
+      })
+
+      const authStore = useAuthStore()
+      await authStore.login('2024001', 'pwd', undefined, 'student', false)
+
+      expect(sessionStorage.getItem('auth_token')).toBe(sessionToken)
+      expect(localStorage.getItem('auth_token')).toBeNull()
+
+      // 重新初始化时应能从 sessionStorage 恢复，并识别出 persist 来源
+      setActivePinia(createPinia())
+      const restored = useAuthStore()
+      restored.initialize()
+      expect(restored.token).toBe(sessionToken)
     })
 
     it('登录成功应同步重置 session_id 和首次进入记录（切割旧会话）', async () => {
@@ -208,20 +303,23 @@ describe('useAuthStore', () => {
       expect(authStore.token).toBe('new-jwt-token')
     })
 
-    it('刷新失败应该登出', async () => {
+    it('刷新失败不应直接登出（F-004：避免网络抖动踢掉有效会话）', async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({ success: false, message: 'token过期' }),
       })
 
       const authStore = useAuthStore()
-      authStore.token = 'expired-token'
+      authStore.token = makeJwt()
+      const validToken = authStore.token
       authStore.user = { id: '2024001', username: '张三', studentId: '2024001', role: 'student' }
 
       await expect(authStore.refreshToken()).rejects.toThrow()
 
-      expect(authStore.token).toBe(null)
-      expect(authStore.user).toBe(null)
+      // token/user 保持不变，由调用方或路由守卫在 token 真正过期时兜底登出
+      expect(authStore.token).toBe(validToken)
+      expect(authStore.user).not.toBe(null)
+      expect(authStore.isLoggedIn).toBe(true)
     })
   })
 })

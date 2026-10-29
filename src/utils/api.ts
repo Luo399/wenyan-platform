@@ -153,23 +153,53 @@ export async function request<T = unknown>(
  * FormData 文件上传 helper
  * 绕过 buildFetchConfig 的 JSON.stringify + Content-Type 硬编码，
  * 让浏览器自动处理 multipart/form-data 边界。
+ *
+ * - 内置 60s 超时（大文件上传也不能无限期挂住串行队列）
+ * - 支持外部传入 signal，调用方可以主动取消
  */
+export const UPLOAD_TIMEOUT_MS = 60000
+
 export async function upload<T = unknown>(
   url: string,
   formData: FormData,
   extraHeaders: Record<string, string> = {},
+  signal?: AbortSignal,
 ): Promise<ApiResponse<T>> {
   const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
-  const response = await fetch(fullUrl, {
-    method: 'POST',
-    headers: {
-      ...getAuthHeaders(),
-      ...extraHeaders,
-      // 注意：不设置 Content-Type，让浏览器自动加 boundary
-    },
-    body: formData,
-  })
-  return handleResponse<T>(response)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+
+  // 外部取消 → 同步取消内部 controller（超时与主动取消共用同一个 signal）
+  const onExternalAbort = () => controller.abort()
+  if (signal) {
+    if (signal.aborted) controller.abort()
+    else signal.addEventListener('abort', onExternalAbort, { once: true })
+  }
+
+  try {
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        ...extraHeaders,
+        // 注意：不设置 Content-Type，让浏览器自动加 boundary
+      },
+      body: formData,
+      signal: controller.signal,
+    })
+    return await handleResponse<T>(response)
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      const message = signal?.aborted
+        ? '上传已取消'
+        : `上传超时（${UPLOAD_TIMEOUT_MS / 1000} 秒），请检查网络后重试`
+      throw new ApiError(0, 'TIMEOUT', message)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+    signal?.removeEventListener('abort', onExternalAbort)
+  }
 }
 
 /**
@@ -325,8 +355,9 @@ export async function batchPost<T = unknown>(
       const res = await post<T>(url, item.body)
       results.push({
         key: item.key,
-        success: true,
-        message: res.message || '操作成功',
+        // 后端可能以 2xx + success:false 返回业务失败，不能一律当成成功
+        success: res.success !== false,
+        message: res.message || (res.success !== false ? '操作成功' : '操作失败'),
         data: res.data,
       })
     } catch (err) {
@@ -340,6 +371,26 @@ export async function batchPost<T = unknown>(
   }
 
   return results
+}
+
+/**
+ * 校验并返回可安全跳转的内部路径
+ *
+ * 只允许站内绝对路径（以 `/` 开头），拒绝协议相对地址（`//evil.com`）、
+ * 带 scheme 的地址（`https://evil.com`）和反斜杠变体（浏览器会把 `/\evil.com`
+ * 当成 `//evil.com`），避免登录后的 redirect 参数被拿来做开放重定向。
+ *
+ * @param raw - 来自 query 的原始值（可能是 string | null | string[]）
+ * @param fallback - 校验不通过时的角色首页
+ */
+export function sanitizeRedirect(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback
+  const target = raw.trim()
+  if (!target) return fallback
+  if (!target.startsWith('/')) return fallback
+  if (target.startsWith('//') || target.startsWith('/\\')) return fallback
+  if (target.includes('://') || target.includes('\\')) return fallback
+  return target
 }
 
 // ============================================================

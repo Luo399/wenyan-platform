@@ -462,7 +462,7 @@ describe('collectStyleNodes', () => {
   })
 
   it('层级超深时截断并置 truncated', () => {
-    let deepest = makeStyleNode('d8', 'n8', 'FRAME', { children: [] })
+    const deepest = makeStyleNode('d8', 'n8', 'FRAME', { children: [] })
     let cursor = deepest
     for (let i = 7; i >= 1; i--) {
       cursor = makeStyleNode('d' + i, 'n' + i, 'FRAME', { children: [cursor] })

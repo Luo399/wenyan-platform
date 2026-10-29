@@ -14,7 +14,6 @@
 import type { TextBasicInfo, WordItem } from '@/services/apiService'
 import {
   buildContentHtmlWithAnnotations,
-  parseTimeToSeconds,
   parseTimeRange,
 } from '@/utils/adapterUtils'
 
@@ -168,11 +167,11 @@ export function adaptWordListFromApi(rawData: WordItem[]): ProcessedWordItem[] {
  *
  * @param rawData API返回的原始数据
  */
-export function adaptMultiRoleReadingFromApi(rawData: any): ProcessedMultiRoleReading {
+export function adaptMultiRoleReadingFromApi(rawData: RawMultiRoleReading): ProcessedMultiRoleReading {
   return {
     text_id: rawData.text_id,
     audio_file: rawData.audio_file,
-    segments: rawData.segments.map((segment: any) => ({
+    segments: rawData.segments.map((segment) => ({
       ...segment,
       startTime: parseTimeRange(segment.time_range).start,
       endTime: parseTimeRange(segment.time_range).end,
@@ -185,9 +184,9 @@ export function adaptMultiRoleReadingFromApi(rawData: any): ProcessedMultiRoleRe
  *
  * @param rawData API返回的原始数据
  */
-export function adaptQuizFromApi(rawData: any): ProcessedQuizData {
+export function adaptQuizFromApi(rawData: { questions?: RawQuizQuestion[] }): ProcessedQuizData {
   return {
-    questions: (rawData.questions || []).map((question: any) => ({
+    questions: (rawData.questions || []).map((question) => ({
       ...question,
       optionLabels: generateOptionLabels(question.options.length),
     })),

@@ -37,12 +37,6 @@ beforeAll(() => {
 // ============================================================
 describe('📦 资源完整性检查', () => {
   describe('音频文件检查', () => {
-    const audioTypes = {
-      'multi_role': '多角色朗读音频',
-      'multi_dialog': '对话音频',
-      'bgm': '背景音乐'
-    };
-
     WEN_MODULES.forEach(wenId => {
       describe(`${wenId} 音频文件`, () => {
         it(`应存在 ${wenId}_multi_role.mp3`, () => {
@@ -366,7 +360,7 @@ describe('🔍 边界条件测试', () => {
     });
 
     it('快速连续请求应稳定响应', async () => {
-      const requests = Array(20).fill(null).map((_, i) => 
+      const requests = Array(20).fill(null).map(() => 
         request(app).get('/api/texts')
       );
       
@@ -461,13 +455,6 @@ describe('📝 答题提交接口', () => {
 // 测试报告生成
 // ============================================================
 describe('📊 测试报告', () => {
-  let testResults = [];
-  
-  beforeAll(() => {
-    // 收集测试结果
-    testResults = [];
-  });
-
   afterAll(() => {
     // 生成测试报告
     console.log('\n' + '='.repeat(80));

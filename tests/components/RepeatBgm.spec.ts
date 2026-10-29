@@ -91,6 +91,8 @@ describe('RepeatBgm.vue', () => {
       const store = useBgmStore()
       // 不设置 wenId，currentBgmFile 为空
       store.setActiveWenId('')
+      // 组件挂载时 immediate watch 会用 route.params.id 覆盖 store，这里一并清空
+      mockRoute.params.id = ''
       const wrapper = mount(RepeatBgm)
 
       expect(wrapper.find('.bgm-controls').exists()).toBe(false)

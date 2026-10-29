@@ -14,6 +14,10 @@ const request = require('supertest')
 
 process.env.DB_PATH = ':memory:'
 process.env.JWT_SECRET = 'ci-test-secret'
+// 安全加固后不再内置 admin/admin123：初始管理员需显式配置
+// 必须在 require database（内部 seedInitialAdmin）之前赋值
+process.env.INITIAL_ADMIN_PASSWORD = 'AdminInit#2024'
+process.env.INITIAL_ADMIN_USERNAME = 'admin'
 
 const { db, initAllTables } = require('../src/config/database')
 const { dbGet } = require('../src/utils/dbPromise')
@@ -37,10 +41,10 @@ beforeAll(async () => {
   const { createApp } = require('../src/app')
   app = createApp()
 
-  // 管理员登录，用于准备教师 / 学生数据
+  // 管理员登录，用于准备教师 / 学生数据（口令来自 INITIAL_ADMIN_PASSWORD）
   const adminLogin = await request(app)
     .post('/api/auth/admin/login')
-    .send({ username: 'admin', password: 'admin123' })
+    .send({ username: 'admin', password: process.env.INITIAL_ADMIN_PASSWORD })
   adminToken = adminLogin.body.data.token
 
   const school = await dbGet(db, 'SELECT id FROM schools LIMIT 1')

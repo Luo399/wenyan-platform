@@ -14,9 +14,10 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { post } from '@/utils/api'
+import { post, ApiError } from '@/utils/api'
 import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
+import type { AuthPersistTarget } from '@/utils/localStorage'
 import { resetSessionId } from '@/utils/tracking'
 import { resetFirstEnterSet } from '@/composables/useTracking'
 
@@ -56,26 +57,83 @@ interface AuthTokenResponse {
   user?: RawBackendUser
 }
 
+/** 合法角色枚举：持久化数据是外部输入，恢复时必须按白名单校验 */
+const VALID_ROLES: readonly Role[] = ['student', 'teacher', 'admin', 'super_admin']
+
+function isValidRole(value: unknown): value is Role {
+  return typeof value === 'string' && (VALID_ROLES as readonly string[]).includes(value)
+}
+
+/**
+ * 解析 JWT 过期时间（毫秒时间戳）
+ * - 非法 token / payload 无 exp → null（调用方按过期处理）
+ */
+function decodeTokenExpiryMs(rawToken: string | null): number | null {
+  if (!rawToken) return null
+
+  try {
+    const tokenParts = rawToken.split('.')
+    if (tokenParts.length < 2) return null
+
+    let payloadStr = tokenParts[1] || ''
+    // URL-safe base64 → 标准 base64
+    payloadStr = payloadStr.replace(/-/g, '+').replace(/_/g, '/')
+    // base64 padding
+    const padLength = (4 - (payloadStr.length % 4)) % 4
+    payloadStr += '='.repeat(padLength)
+
+    const decoded = atob(payloadStr)
+    const payload = JSON.parse(decoded) as { exp?: unknown }
+    if (typeof payload.exp !== 'number') return null
+
+    return payload.exp * 1000
+  } catch {
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  /**
+   * 本次登录态是否写入 localStorage（勾选「记住我」）
+   * 刷新令牌 / setUser 复用同一个持久化目标，避免中途把 session 登录态挪到 local
+   */
+  const rememberMe = ref(true)
 
   const isLoggedIn = computed(() => !!token.value && !!user.value)
 
   /**
    * 初始化认证状态
-   * 从 localStorage 恢复用户信息和 token
+   * 从持久化（localStorage 优先，其次 sessionStorage）恢复用户信息和 token
+   * - token 的 exp 已过期或无法解析 → 清空并置未登录
+   * - user.role 不在白名单 → 清空并置未登录
    */
   function initialize() {
-    // R34: 改用 getAuthData 封装
     const saved = getAuthData()
     if (saved.token && saved.user) {
+      if (!isValidRole(saved.user.role)) {
+        debugError('[AuthStore] 持久化角色非法，已登出:', saved.user.role)
+        error.value = '登录状态异常，请重新登录'
+        clearAuthDataInternal()
+        return
+      }
+
+      const expiry = decodeTokenExpiryMs(saved.token)
+      if (expiry === null || Date.now() >= expiry) {
+        debugLog('[AuthStore] 持久化 token 已过期或无法解析，已清理登录态')
+        error.value = '登录状态已过期，请重新登录'
+        clearAuthDataInternal()
+        return
+      }
+
       token.value = saved.token
       user.value = saved.user
+      rememberMe.value = resolvePersistTarget(saved.persist) === 'local'
       error.value = null
-      debugLog('[AuthStore] 从 localStorage 恢复登录状态')
+      debugLog('[AuthStore] 从持久化存储恢复登录状态，storage:', saved.persist)
       return
     }
 
@@ -86,18 +144,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** persist 为空时按「记住我」的旧行为处理（历史数据都在 localStorage） */
+  function resolvePersistTarget(persist: AuthPersistTarget | null): AuthPersistTarget {
+    return persist ?? 'local'
+  }
+
   /**
    * 登录
    * @param studentId - 学号/手机号
    * @param password - 密码
    * @param studentName - 学生姓名（可选）
    * @param role - 登录角色：'student' 或 'teacher'，默认 'student'
+   * @param remember - 是否勾选「记住我」：true 写 localStorage，false 写 sessionStorage
    */
   async function login(
     studentId: string,
     password: string,
     studentName?: string,
     role: 'student' | 'teacher' | 'admin' = 'student',
+    remember = true,
   ): Promise<void> {
     isLoading.value = true
     error.value = null
@@ -123,21 +188,19 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error(response.message || '登录失败')
       }
 
-      applyLoginResult(response.data, studentId, studentName)
+      rememberMe.value = remember
+      applyLoginResult(response.data, studentId, studentName, remember)
       // 新用户登录，切割旧会话（session_id + 首次进入记录同步重置）
       resetSessionId()
       resetFirstEnterSet()
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       // ACCOUNT_PENDING：教师账号待管理员审批，给出专门提示
-      if (err && typeof err === 'object' && 'response' in err) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const code = (err as any)?.response?.data?.error
-        if (code === 'ACCOUNT_PENDING') {
-          error.value = '账号待管理员审批，请联系学校管理员'
-          clearAuthDataInternal()
-          throw err
-        }
+      // ApiError 没有 response 字段，后端错误码在 errorCode 上
+      if (err instanceof ApiError && err.errorCode === 'ACCOUNT_PENDING') {
+        error.value = '账号待管理员审批，请联系学校管理员'
+        clearAuthDataInternal()
+        throw err
       }
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
       clearAuthDataInternal()
@@ -154,6 +217,7 @@ export const useAuthStore = defineStore('auth', () => {
     result: AuthTokenResponse | undefined,
     studentId: string,
     studentName?: string,
+    remember = true,
   ): void {
     if (!result?.token) {
       throw new Error('登录响应缺少 token')
@@ -163,15 +227,18 @@ export const useAuthStore = defineStore('auth', () => {
     if (!rawUser) {
       throw new Error('登录成功但未返回用户信息')
     }
+    if (rawUser.role !== undefined && !isValidRole(rawUser.role)) {
+      throw new Error('登录响应中的角色无效')
+    }
 
-    token.value = result.token as string
+    token.value = result.token
     user.value = {
       id: rawUser.id,
       username: rawUser.username || rawUser.student_name || studentName || studentId,
       studentId: rawUser.student_id || rawUser.studentId || studentId,
-      role: rawUser.role || 'student',
+      role: rawUser.role ?? 'student',
     }
-    setAuthData(token.value, user.value)
+    setAuthData(token.value, user.value, remember)
   }
 
   /**
@@ -206,7 +273,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       token.value = result.token
-      setAuthData(token.value, user.value)
+      setAuthData(token.value, user.value, rememberMe.value)
 
       debugLog('[AuthStore] 令牌已刷新')
     } catch (err) {
@@ -222,27 +289,7 @@ export const useAuthStore = defineStore('auth', () => {
    * R35: 全路径 try/catch，payload.exp 缺失或解码失败返回 null（调用方保守处理）
    */
   function getTokenExpiryMs(): number | null {
-    if (!token.value) return null
-
-    try {
-      const tokenParts = token.value.split('.')
-      if (tokenParts.length < 2) return null
-
-      let payloadStr = tokenParts[1] || ''
-      // URL-safe base64 → 标准 base64
-      payloadStr = payloadStr.replace(/-/g, '+').replace(/_/g, '/')
-      // base64 padding
-      const padLength = (4 - (payloadStr.length % 4)) % 4
-      payloadStr += '='.repeat(padLength)
-
-      const decoded = atob(payloadStr)
-      const payload = JSON.parse(decoded) as { exp?: number }
-      if (typeof payload.exp !== 'number') return null
-
-      return payload.exp * 1000
-    } catch {
-      return null
-    }
+    return decodeTokenExpiryMs(token.value)
   }
 
   /**
@@ -301,7 +348,7 @@ export const useAuthStore = defineStore('auth', () => {
       studentId: userData.student_id ?? userData.studentId ?? user.value.studentId,
       role: userData.role ?? user.value.role,
     }
-    setAuthData(token.value, user.value)
+    setAuthData(token.value, user.value, rememberMe.value)
     debugLog('[AuthStore] 用户信息已更新:', user.value)
   }
 

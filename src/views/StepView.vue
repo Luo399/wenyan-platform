@@ -335,6 +335,7 @@ async function handleStep1Submit(quizIndex: number, selectedOption: number) {
 watch(wenId, () => step1Flow.reset())
 
 // Step 2 的 PageConfig 类型（从 pageRegistry 读取 blocks 渲染）
+// 复用 @/types/pageConfig 的 PageBlock，与 BlockRenderer 的 props 类型保持一致
 interface PageConfig {
   title?: string
   blocks: PageBlock[]

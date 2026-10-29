@@ -42,7 +42,7 @@ interface Props {
   showContinue?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   backText: '返回',
   continueText: '继续',
   showContinue: true,

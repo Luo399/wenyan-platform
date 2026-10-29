@@ -11,10 +11,53 @@ const logger = require('../utils/logger')
  * 安全解析日期参数，返回 ISO 日期字符串或 null
  */
 function parseDateParam(raw) {
-  if (!raw) return null
+  if (typeof raw !== 'string' || raw.trim() === '') return null
   const d = new Date(raw)
   if (isNaN(d.getTime())) return null
   return d.toISOString()
+}
+
+const DEFAULT_LIMIT = 100
+const MAX_LIMIT = 200
+
+/**
+ * 统一解析日期范围：非法日期或 startDate > endDate 返回 error
+ */
+function parseDateRange(query = {}) {
+  const startDate = parseDateParam(query.startDate)
+  const endDate = parseDateParam(query.endDate)
+  if (query.startDate && !startDate) return { error: 'startDate 不是合法日期' }
+  if (query.endDate && !endDate) return { error: 'endDate 不是合法日期' }
+  if (startDate && endDate && startDate > endDate) {
+    return { error: 'startDate 不能晚于 endDate' }
+  }
+  return { startDate, endDate }
+}
+
+/**
+ * limit 夹到 1..200
+ */
+function parseLimit(raw, fallback = DEFAULT_LIMIT) {
+  const parsed = parseInt(raw, 10)
+  if (Number.isNaN(parsed)) return fallback
+  return Math.min(MAX_LIMIT, Math.max(1, parsed))
+}
+
+/**
+ * offset 不允许为负
+ */
+function parseOffset(raw) {
+  const parsed = parseInt(raw, 10)
+  if (Number.isNaN(parsed) || parsed < 0) return 0
+  return parsed
+}
+
+function sendValidationError(res, message) {
+  return res.status(400).json({
+    success: false,
+    error: 'VALIDATION_ERROR',
+    message,
+  })
 }
 
 /**
@@ -41,8 +84,8 @@ function queryDb(sql, params = []) {
  */
 async function getFunnel(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
 
     let enterSql = 'SELECT step_id, COUNT(*) AS enter_count FROM tracking_events WHERE event_type = ?'
     let exitSql = `
@@ -115,8 +158,8 @@ async function getFunnel(req, res, next) {
  */
 async function getInteractionStats(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
 
     let sql = `
       SELECT
@@ -162,9 +205,10 @@ async function getInteractionStats(req, res, next) {
  */
 async function getSearchTrend(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
-    const limit = parseInt(req.query.limit, 10) || 20
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
+    const limit = parseLimit(req.query.limit, 20)
+    const offset = parseOffset(req.query.offset)
 
     let sql = `
       SELECT
@@ -178,8 +222,8 @@ async function getSearchTrend(req, res, next) {
     if (startDate) { sql += ' AND timestamp >= ?'; params.push(startDate) }
     if (endDate) { sql += ' AND timestamp <= ?'; params.push(endDate) }
 
-    sql += ' GROUP BY step_id, word ORDER BY query_count DESC LIMIT ?'
-    params.push(limit)
+    sql += ' GROUP BY step_id, word ORDER BY query_count DESC LIMIT ? OFFSET ?'
+    params.push(limit, offset)
 
     const rows = await queryDb(sql, params)
 
@@ -214,8 +258,8 @@ async function getSearchTrend(req, res, next) {
  */
 async function getQuizPerformance(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
     const stepIdFilter = req.query.stepId
 
     let sql = `
@@ -285,9 +329,10 @@ async function getQuizPerformance(req, res, next) {
  */
 async function getSessionPath(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
-    const limit = parseInt(req.query.limit, 10) || 100
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
+    const limit = parseLimit(req.query.limit, 100)
+    const offset = parseOffset(req.query.offset)
 
     let sql = `
       SELECT session_id, step_id, timestamp, JSON_EXTRACT(properties, '$.from_back_button') AS from_back
@@ -317,14 +362,14 @@ async function getSessionPath(req, res, next) {
       }
     }
 
-    // 取最近 limit 条 session
+    // 取最近 limit 条 session（支持 offset 分页）
     const sessions = Object.values(sessionMap)
       .sort((a, b) => {
         const aLast = a.steps[a.steps.length - 1]?.timestamp || ''
         const bLast = b.steps[b.steps.length - 1]?.timestamp || ''
         return bLast.localeCompare(aLast)
       })
-      .slice(0, limit)
+      .slice(offset, offset + limit)
 
     // 为每个 session 生成路径字符串
     const data = sessions.map((s) => ({
@@ -353,8 +398,8 @@ async function getSessionPath(req, res, next) {
  */
 async function getActiveUsers(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
 
     let dailySql = `
       SELECT DATE(timestamp) AS date, COUNT(DISTINCT user_id) AS dau
@@ -411,8 +456,8 @@ async function getActiveUsers(req, res, next) {
  */
 async function getHourlyActivity(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
 
     let sql = `
       SELECT CAST(strftime('%H', timestamp) AS INTEGER) AS hour, COUNT(*) AS count
@@ -449,20 +494,23 @@ async function getHourlyActivity(req, res, next) {
  */
 async function getSessionStats(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
-    const limit = parseInt(req.query.limit, 10) || 100
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
+    const limit = parseLimit(req.query.limit, 100)
+    const offset = parseOffset(req.query.offset)
 
     let sql = `
       SELECT session_id, user_id, MIN(timestamp) AS first_time, MAX(timestamp) AS last_time
       FROM tracking_events`
     const params = []
+    const conditions = []
 
-    if (startDate) { sql += ' WHERE timestamp >= ?'; params.push(startDate) }
-    if (endDate) { sql += startDate ? ' AND timestamp <= ?' : ' WHERE timestamp <= ?'; params.push(endDate) }
+    if (startDate) { conditions.push('timestamp >= ?'); params.push(startDate) }
+    if (endDate) { conditions.push('timestamp <= ?'); params.push(endDate) }
+    if (conditions.length > 0) { sql += ` WHERE ${conditions.join(' AND ')}` }
 
-    sql += ' GROUP BY session_id ORDER BY last_time DESC LIMIT ?'
-    params.push(limit)
+    sql += ' GROUP BY session_id ORDER BY last_time DESC LIMIT ? OFFSET ?'
+    params.push(limit, offset)
 
     const rows = await queryDb(sql, params)
 
@@ -516,8 +564,8 @@ async function getSessionStats(req, res, next) {
  */
 async function getFeatureUsage(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
 
     let sql = `
       SELECT
@@ -569,8 +617,8 @@ async function getFeatureUsage(req, res, next) {
  */
 async function getCohortAnalysis(req, res, next) {
   try {
-    const startDate = parseDateParam(req.query.startDate)
-    const endDate = parseDateParam(req.query.endDate)
+    const { startDate, endDate, error } = parseDateRange(req.query)
+    if (error) return sendValidationError(res, error)
 
     // 1. 从 answers 表计算每个学生的平均得分
     let studentScoreSql = `

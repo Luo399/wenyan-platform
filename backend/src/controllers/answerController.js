@@ -36,15 +36,18 @@ const submitAnswersSchema = z.object({
   studentId: studentIdSchema,
   wenId: z.string().min(1, '课文ID必填').max(100, '课文ID长度不能超过 100'),
   submittedAt: z.string().min(1, '提交时间必填').max(40, '提交时间长度异常'),
-  answers: z.record(z.string().min(1).max(100), answerValueSchema),
+  answers: z
+    .record(z.string().min(1).max(100), answerValueSchema)
+    .refine((value) => Object.keys(value).length > 0, { message: 'answers 至少包含 1 道题' }),
   questions: z
     .array(
       z.object({
         id: z.string().min(1, '题目ID必填').max(100, '题目ID长度不能超过 100'),
-        // 兼容后端 JSON 数据源回退：允许 correctAnswer 缺失
+        // 兼容前端契约保留该字段，但判分只认服务端 JSON，这里的值会被忽略
         correctAnswer: answerValueSchema.optional(),
       }),
     )
+    .min(1, 'questions 至少包含 1 道题')
     .max(500, '单次提交题目数量不能超过 500'),
 })
 
@@ -54,6 +57,7 @@ const submitSingleAnswerSchema = z.object({
   wenId: z.string().min(1, '课文ID必填').max(100, '课文ID长度不能超过 100'),
   questionId: z.string().min(1, '题目ID必填').max(100, '题目ID长度不能超过 100'),
   userAnswer: answerValueSchema,
+  // 兼容前端契约保留该字段，但判分只认服务端 JSON，这里的值会被忽略
   correctAnswer: answerValueSchema.optional(),
   submittedAt: z.string().min(1, '提交时间必填').max(40, '提交时间长度异常').optional(),
 })
@@ -66,10 +70,96 @@ const submitSingleAnswerSchema = z.object({
 // B05: controller 改为薄层，所有业务逻辑下沉到 answerService
 // B06: submitAnswers 与 submitSingleAnswer 的公共流程已在 service 层统一
 
+/**
+ * 提交归属校验（防 IDOR）
+ * - 学生：只能提交自己的学号
+ * - 教师：可代提交，但必须能管理目标学生所在班级（can_view_all=1 放行）
+ * - 管理员：可代提交
+ * 校验不通过时已写入响应，返回 false
+ */
+async function authorizeSubmit(req, res, studentId) {
+  const user = req.user
+  if (!user || !user.role) {
+    res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '需要登录' })
+    return false
+  }
+
+  if (user.role === 'student') {
+    if (!user.student_id || String(studentId) !== String(user.student_id)) {
+      res.status(403).json({
+        success: false,
+        error: 'FORBIDDEN',
+        message: '无权提交其他学生的答案',
+      })
+      return false
+    }
+    return true
+  }
+
+  if (user.role === 'teacher') {
+    if (!user.phone) {
+      res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号异常' })
+      return false
+    }
+    const teacher = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [user.phone])
+    if (!teacher) {
+      res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
+      return false
+    }
+    const student = await dbGet(db, 'SELECT class_code FROM students WHERE student_id = ?', [
+      studentId,
+    ])
+    if (!student) {
+      res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
+      return false
+    }
+    const canManage = await teacherCanManageClass(teacher.id, student.class_code)
+    if (!canManage) {
+      res.status(403).json({
+        success: false,
+        error: 'FORBIDDEN',
+        message: '无权代该学生提交答案',
+      })
+      return false
+    }
+    return true
+  }
+
+  if (user.role === 'admin' || user.role === 'super_admin') {
+    return true
+  }
+
+  res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权提交答案' })
+  return false
+}
+
+/**
+ * 统一处理提交类接口的业务错误：5xx 只回通用文案，4xx 回业务原因
+ */
+function respondSubmitError(res, err, logMessage) {
+  logger.error(logMessage, { error: err.message, stack: err.stack })
+  const statusCode = Number(err.statusCode) || 500
+  if (statusCode >= 500) {
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+  return res.status(statusCode).json({
+    success: false,
+    error: err.error || 'BAD_REQUEST',
+    message: err.message || '请求不合法',
+  })
+}
+
 async function submitAnswers(req, res) {
   try {
     // P0: zod 白名单校验，多余字段自动丢弃；校验失败直接抛 ZodError → 被 handleZodError 捕获
     const body = submitAnswersSchema.parse(req.body || {})
+
+    // 防 IDOR：学生只能提交自己的学号，教师需具备目标班级权限
+    if (!(await authorizeSubmit(req, res, body.studentId))) return
 
     const result = await serviceSubmitAnswers({
       studentId: body.studentId,
@@ -86,20 +176,11 @@ async function submitAnswers(req, res) {
       data: result.data,
     })
   } catch (err) {
-    // zod 校验错误 → 400 VALIDATION_ERROR；其他错误 → 500
+    // zod 校验错误 → 400 VALIDATION_ERROR；其他错误按 statusCode 处理
     if (err instanceof z.ZodError) {
       return handleZodError(res, err)
     }
-    logger.error('处理答题批量提交请求失败', {
-      error: err.message,
-      stack: err.stack,
-      body: req.body,
-    })
-    res.status(500).json({
-      success: false,
-      error: 'INTERNAL_ERROR',
-      message: '服务器内部错误',
-    })
+    return respondSubmitError(res, err, '处理答题批量提交请求失败')
   }
 }
 
@@ -108,13 +189,15 @@ async function submitSingleAnswer(req, res) {
     // P0: zod 白名单校验，多余字段自动丢弃；校验失败直接抛 ZodError
     const body = submitSingleAnswerSchema.parse(req.body || {})
 
+    // 防 IDOR：学生只能提交自己的学号，教师需具备目标班级权限
+    if (!(await authorizeSubmit(req, res, body.studentId))) return
+
     const result = await serviceSubmitSingleAnswer({
       studentId: body.studentId,
       studentName: req.user?.student_name || null,
       wenId: body.wenId,
       questionId: body.questionId,
       userAnswer: body.userAnswer,
-      correctAnswer: body.correctAnswer,
       submittedAt: body.submittedAt || new Date().toISOString(),
     })
 
@@ -127,16 +210,7 @@ async function submitSingleAnswer(req, res) {
     if (err instanceof z.ZodError) {
       return handleZodError(res, err)
     }
-    logger.error('处理单题提交请求失败', {
-      error: err.message,
-      stack: err.stack,
-      body: req.body,
-    })
-    res.status(500).json({
-      success: false,
-      error: 'INTERNAL_ERROR',
-      message: '服务器内部错误',
-    })
+    return respondSubmitError(res, err, '处理单题提交请求失败')
   }
 }
 
@@ -185,7 +259,7 @@ async function getAnswersByWenId(req, res) {
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
+      message: '查询失败，请稍后重试',
     })
   }
 }
@@ -221,7 +295,7 @@ async function getAnswersByStudentId(req, res) {
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
+      message: '查询失败，请稍后重试',
     })
   }
 }

@@ -4,7 +4,7 @@
 // 当前后端返回框架数据（metrics_ready=false 表示统计逻辑尚未接入）。
 // ============================================================
 
-import { get } from '@/utils/api'
+import { get, ApiError } from '@/utils/api'
 
 /** 单个学生的完成情况行（框架字段） */
 export interface StudentCompletionRow {
@@ -42,11 +42,8 @@ export async function getStudentsCompletion(
 ): Promise<TeacherCompletionResult> {
   const params = classCode ? { class_code: classCode } : undefined
   const res = await get<TeacherCompletionResult>('/api/teacher/completion/students', params)
-  return (
-    res.data || {
-      metrics_ready: false,
-      summary: { student_count: 0, avg_accuracy: 0 },
-      students: [],
-    }
-  )
+  if (!res.success || !res.data) {
+    throw new ApiError(500, 'COMPLETION_UNAVAILABLE', res.message || '完成情况加载失败，请重试')
+  }
+  return res.data
 }

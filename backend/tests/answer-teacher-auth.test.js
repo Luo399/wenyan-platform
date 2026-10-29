@@ -15,11 +15,22 @@ const request = require('supertest')
 
 process.env.DB_PATH = ':memory:'
 process.env.JWT_SECRET = 'ci-test-secret'
+// 本套件需要多次登录（admin/多个 teacher/多个学生），放宽登录限流避免 429 干扰断言
+process.env.RATE_LIMIT_LOGIN = '200'
+// 安全加固后不再内置 admin/admin123：初始管理员需显式配置（必须在 require database 之前）
+process.env.INITIAL_ADMIN_PASSWORD = 'AdminInit#2024'
+process.env.INITIAL_ADMIN_USERNAME = 'admin'
+
+// 真实题库数据：data/text-quiz/WEN_01.json → WEN_01_Q1 正确答案 1
+const WEN_ID = 'WEN_01'
+const QUESTION_ID = 'WEN_01_Q1'
+const CORRECT_ANSWER = 1
 
 let app
 let adminToken
 let teacherToken
 let studentToken
+let otherStudentToken
 
 function asAdmin(agent) {
   return agent.set('Authorization', `Bearer ${adminToken}`)
@@ -43,8 +54,9 @@ beforeAll(async () => {
   // admin 登录
   const adminLogin = await request(app)
     .post('/api/auth/admin/login')
-    .send({ username: 'admin', password: 'admin123' })
+    .send({ username: 'admin', password: process.env.INITIAL_ADMIN_PASSWORD })
   adminToken = adminLogin.body.data.token
+  expect(adminToken).toBeTruthy()
 
   // 创建一个 teacher（所教班级 202401）
   const teacherCreate = await asAdmin(request(app).post('/api/admin/teachers')).send({
@@ -61,22 +73,31 @@ beforeAll(async () => {
   teacherToken = teacherLogin.body.data.token
 
   // 创建两个学生：本班 202401 + 他班 202402
-  await asAdmin(request(app).post('/api/admin/students')).send({
+  // 一次性初始口令由创建接口返回（明文只出现一次），用它登录而不是历史固定口令
+  const created1 = await asAdmin(request(app).post('/api/admin/students')).send({
     student_id: '20240101',
     student_name: '本班学生',
     class_code: '202401',
   })
-  await asAdmin(request(app).post('/api/admin/students')).send({
+  const created2 = await asAdmin(request(app).post('/api/admin/students')).send({
     student_id: '20240201',
     student_name: '他班学生',
     class_code: '202402',
   })
+  expect(created1.status).toBe(201)
+  expect(created2.status).toBe(201)
 
-  // 用本班学生登录（自动注册到 students 表）
   const studentLogin = await request(app)
     .post('/api/auth/student/login')
-    .send({ student_id: '20240101', password: '99999999' })
-  studentToken = studentLogin.body.data.token
+    .send({ student_id: '20240101', password: created1.body.data.initial_password })
+  studentToken = studentLogin.body.data?.token
+  expect(studentToken).toBeTruthy()
+
+  const otherLogin = await request(app)
+    .post('/api/auth/student/login')
+    .send({ student_id: '20240201', password: created2.body.data.initial_password })
+  otherStudentToken = otherLogin.body.data?.token
+  expect(otherStudentToken).toBeTruthy()
 })
 
 describe('teacher 角色：GET /api/answers/student/:studentId 班级权限隔离', () => {
@@ -107,29 +128,42 @@ describe('teacher 角色：GET /api/answers/student/:studentId 班级权限隔�
 
 describe('teacher 角色：GET /api/answers/wen/:wenId 他班学生被过滤', () => {
   it('teacher 应看不到他班学生的答题记录', async () => {
-    // 先让学生提交一条答题（往 answers 表写数据）
+    // 两个班各提交一条答题（真实题库：WEN_01_Q1 正确答案 1）
     const submitRes = await asStudent(request(app).post('/api/submit/single')).send({
       studentId: '20240101',
-      wenId: 'WEN_AA',
-      questionId: 'q1',
-      userAnswer: 3,
-      correctAnswer: 3,
+      wenId: WEN_ID,
+      questionId: QUESTION_ID,
+      userAnswer: CORRECT_ANSWER,
       submittedAt: new Date().toISOString(),
     })
     expect(submitRes.status).toBe(200)
 
-    // teacher 查 WEN_AA，应该能看到本班学生的答题
-    const teacherRes = await asTeacher(request(app).get('/api/answers/wen/WEN_AA'))
+    const otherRes = await request(app)
+      .post('/api/submit/single')
+      .set('Authorization', `Bearer ${otherStudentToken}`)
+      .send({
+        studentId: '20240201',
+        wenId: WEN_ID,
+        questionId: QUESTION_ID,
+        userAnswer: CORRECT_ANSWER,
+        submittedAt: new Date().toISOString(),
+      })
+    expect(otherRes.status).toBe(200)
+
+    // teacher 查 WEN_01，只能看到本班学生
+    const teacherRes = await asTeacher(request(app).get(`/api/answers/wen/${WEN_ID}`))
     expect(teacherRes.status).toBe(200)
-    expect(teacherRes.body.data.studentCount).toBeGreaterThanOrEqual(1)
     const teacherSeenIds = teacherRes.body.data.students.map((s) => s.studentId)
     expect(teacherSeenIds).toContain('20240101')
     expect(teacherSeenIds).not.toContain('20240201')
+    expect(teacherRes.body.data.studentCount).toBe(1)
 
-    // admin 查同一条，应该能看到全部
-    const adminRes = await asAdmin(request(app).get('/api/answers/wen/WEN_AA'))
+    // admin 查同一条，两班学生都能看到
+    const adminRes = await asAdmin(request(app).get(`/api/answers/wen/${WEN_ID}`))
     expect(adminRes.status).toBe(200)
-    expect(adminRes.body.data.studentCount).toBeGreaterThanOrEqual(1)
+    const adminSeenIds = adminRes.body.data.students.map((s) => s.studentId)
+    expect(adminSeenIds).toEqual(expect.arrayContaining(['20240101', '20240201']))
+    expect(adminRes.body.data.studentCount).toBe(2)
   })
 })
 
@@ -159,7 +193,7 @@ describe('teacher 角色：无关联班级时查询应返回空列表而非崩�
     orphanTeacherToken = loginRes.body.data.token
 
     const res = await request(app)
-      .get('/api/answers/wen/WEN_AA')
+      .get(`/api/answers/wen/${WEN_ID}`)
       .set('Authorization', `Bearer ${orphanTeacherToken}`)
     expect(res.status).toBe(200)
     expect(res.body.data.studentCount).toBe(0)
@@ -200,12 +234,12 @@ describe('teacher can_view_all=1 全权限分支', () => {
 
   it('can_view_all=1 的 teacher 查 wen → 所有班级学生可见', async () => {
     const res = await request(app)
-      .get('/api/answers/wen/WEN_AA')
+      .get(`/api/answers/wen/${WEN_ID}`)
       .set('Authorization', `Bearer ${fullAccessToken}`)
     expect(res.status).toBe(200)
-    // 至少能看到 20240101（之前提交过答题的本班学生）
     const seenIds = res.body.data.students.map((s) => s.studentId)
-    expect(seenIds).toContain('20240101')
+    // 全权限教师能看到两个班的学生
+    expect(seenIds).toEqual(expect.arrayContaining(['20240101', '20240201']))
   })
 
   it('authService.teacherCanManageClass 对 can_view_all=1 放行任意班级', async () => {

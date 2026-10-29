@@ -3,13 +3,13 @@ import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescri
 import pluginVue from 'eslint-plugin-vue'
 import pluginOxlint from 'eslint-plugin-oxlint'
 import skipFormatting from 'eslint-config-prettier/flat'
+import type { Linter } from 'eslint'
 
 // ======= 禁止 barrel 自引用规则 =======
 // 对外桶、对内直、禁自引、CI 强检
-// 注意：ESLint flat config 的 RuleLevelAndOptions 类型要求 tuple 精确推断，
-// 但 vue-tsc 编译 eslint.config.ts 时无法正确推断 ['error', {...}] 为元组而非数组
-// 所以用 any[] 跳过类型检查，ESLint 运行时完全合法
-const selfBarrelRules: any[] = [
+// 用 Linter.Config[] 给数组做上下文类型推断，这样 ['error', { ... }] 会被推断成元组，
+// 不需要 as any / any[] 绕过 strict
+const selfBarrelRules: Linter.Config[] = [
   {
     files: ['src/composables/**/*.ts'],
     rules: {
@@ -69,40 +69,7 @@ const selfBarrelRules: any[] = [
       }],
     },
   },
-  {
-    files: ['src/components/features/step/**/*.ts'],
-    rules: {
-      'no-restricted-imports': ['error', {
-        paths: [{ name: '@/components/features/step', message: '禁自引' }],
-      }],
-    },
-  },
-  {
-    files: ['src/components/features/quiz/**/*.ts'],
-    rules: {
-      'no-restricted-imports': ['error', {
-        paths: [{ name: '@/components/features/quiz', message: '禁自引' }],
-      }],
-    },
-  },
-  {
-    files: ['src/components/features/culture/**/*.ts'],
-    rules: {
-      'no-restricted-imports': ['error', {
-        paths: [{ name: '@/components/features/culture', message: '禁自引' }],
-      }],
-    },
-  },
-  {
-    files: ['src/components/features/auth/**/*.ts'],
-    rules: {
-      'no-restricted-imports': ['error', {
-        paths: [{ name: '@/components/features/auth', message: '禁自引' }],
-      }],
-    },
-  },
 ]
-
 export default defineConfigWithVueTs(
   {
     name: 'app/files-to-lint',
@@ -113,6 +80,37 @@ export default defineConfigWithVueTs(
 
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
+
+  // CJS 源码（后端 / Node 脚本）里的 require 是语言特性，不是缺陷；
+  // @typescript-eslint 这两条规则只对 ESM + TS 场景有意义，对 .js 只会产生噪音。
+  {
+    name: 'app/cjs-js',
+    files: ['**/*.{js,cjs,mjs}'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
+  // 测试代码大量使用松散类型构造 mock / 断言内部结构，显式 any 属常见做法；
+  // 生产代码仍保持该规则为 error。
+  {
+    name: 'app/tests',
+    files: ['tests/**/*.{ts,js}', 'backend/tests/**/*.js', 'backend/tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
+  // figma-plugin 是独立子工程（自带 tsconfig / vitest / 构建脚本），
+  // 其 Figma 宿主 API 的 typings 缺口较多，any 豁免范围仅限该目录。
+  {
+    name: 'app/figma-plugin',
+    files: ['figma-plugin/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 

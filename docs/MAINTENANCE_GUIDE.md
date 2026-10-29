@@ -72,7 +72,7 @@
 3. **预览效果**: 浏览器访问 `http://localhost:5173`
 
 4. **接口代理配置**（已配置好）:
-   - `vite.config.ts` 中已配置代理: `target: 'http://8.138.106.162'`
+   - `vite.config.ts` 中已配置代理: `target: 'http://<PROD_SERVER_IP>'`
    - 所有 `/api/*` 请求自动转发到线上后端
    - 与生产环境接口调用方式完全一致
 
@@ -355,7 +355,10 @@ node scripts/seed.js --answers-only
 #### 更新学生名单流程
 
 ```
-修改 backend/data/students.json → git commit → 服务器 git pull → node scripts/seed.js
+# students.json 含个人信息，已加入 .gitignore，不再入库
+node scripts/export.js                      # 本地导出（或直接在服务器上改）
+scp backend/data/students.json <DEPLOY_USER>@<PROD_SERVER_IP>:/path/to/backend/data/
+ssh <DEPLOY_USER>@<PROD_SERVER_IP> 'cd /path/to/backend && node scripts/seed.js'
 ```
 
 ---

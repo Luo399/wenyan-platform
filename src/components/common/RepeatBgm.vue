@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseLoader from './BaseLoader.vue'
 import BaseError from './BaseError.vue'
@@ -206,11 +206,12 @@ onMounted(() => {
   debugLog('[RepeatBgm] 组件挂载')
 })
 
-onUnmounted(() => {
+// 必须在 onBeforeUnmount 里做：onUnmounted 时模板已卸载，audioRef 已置空，pause 不会执行
+onBeforeUnmount(() => {
   debugLog('[RepeatBgm] 组件卸载')
   if (audioRef.value) {
     audioRef.value.pause()
-    // R26: 卸载时先解绑事件监听再清空 src，避免某些浏览器空 src 触发一次 error
+    // R26: 卸载时先清空 src 再 load，避免某些浏览器空 src 触发一次 error
     audioRef.value.removeAttribute('src')
     audioRef.value.load()
   }

@@ -141,8 +141,9 @@ export const routes: RouteRecordRaw[] = [
     path: '/resource-upload',
     name: 'resource-upload',
     component: () => import('@/views/ResourceUploadTool.vue'),
-    // 后端 /api/upload/resource 用 requireRole(['teacher', 'admin'])
-    meta: { requiresAuth: true, role: ['teacher', 'admin'] },
+    // 路由层放开 super_admin（其权限含 admin）；后端 /api/upload/resource
+    // 已同步为 requireRole(['teacher', 'admin', 'super_admin'])，两侧口径一致
+    meta: { requiresAuth: true, role: ['teacher', 'admin', 'super_admin'] },
   },
   {
     path: '/:pathMatch(.*)*',

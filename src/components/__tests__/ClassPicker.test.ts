@@ -95,7 +95,8 @@ describe('ClassPicker 组件', () => {
       }))
 
       const { default: FreshClassPicker } = await import('../ClassPicker.vue')
-      const w = mount(FreshClassPicker as any, { props: { modelValue: [] } })
+      // 重新 import 得到的是新的 SFC 类型，mount 的泛型能直接吃下，无需 as any
+      const w = mount(FreshClassPicker, { props: { modelValue: [] } })
 
       await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
       vi.doUnmock('@/services/classOptions')
@@ -224,8 +225,9 @@ describe('ClassPicker 组件', () => {
       expect(w.find('[data-testid="selected-202501"]').exists()).toBe(true)
     })
 
-    // 用例一律避开「超过 6 位」的输入：输入框有 maxlength，程序化赋值是否被截断
+    // 用例一律避开「超过 6 位」的输入（如 2025011）：输入框有 maxlength=6，程序化赋值是否被截断
     // 取决于环境实现，断言会不稳；长度不足已由 '123' / '20250' 覆盖。
+    // addManual 会先 trim，首尾空格不算非法输入（见下一条用例），这里只留「内容本身不合法」的取值。
     it('非 6 位数字 / 含字母 / 含空格 → 不添加', async () => {
       const w = factory()
       const cases = ['', 'abc', '123', '20250', '202a01', '2025 1', '   ']
