@@ -98,9 +98,13 @@ jobs:
               echo "WARNING: 未找到 backend/.env，将从空配置重建（首次部署）"
             fi
 
-            # 只剔除本步骤会重新写入的键，其余键原样保留
+            # 只剔除本步骤会重新写入的键，其余键原样保留。
+            # 另外丢掉「键在但值为空」的四把密钥行：旧版工作流无条件写过一次 JWT_SECRET（取自 secrets.JWT_SECRET，
+            # 而该 Secret 在本仓库并不存在），于是测试机上留下一行空值——留着它会和下面生成的值同时出现在文件里。
             grep -vE '^(PORT|CORS_ORIGIN|OSS_PUBLIC_URL|ALIYUN_OSS_BUCKET|ALIYUN_OSS_REGION|ALIYUN_ACCESS_KEY_ID|ALIYUN_ACCESS_KEY_SECRET)=' \
-              backend/.env.prev > backend/.env || true
+              backend/.env.prev \
+              | grep -vE '^(JWT_SECRET|ASSET_SYNC_TOKEN|DASHBOARD_PASSWORD|DEEPSEEK_API_KEY)=[[:space:]]*$' \
+              > backend/.env || true
 
             echo "PORT=3001" >> backend/.env
             echo "CORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn" >> backend/.env
@@ -125,22 +129,45 @@ jobs:
                 echo "$KEY 已从 GitHub Secret 注入"
               fi
             }
-            inject_if_missing JWT_SECRET "${{ secrets.JWT_SECRET }}"
             inject_if_missing ASSET_SYNC_TOKEN "${{ secrets.ASSET_SYNC_TOKEN }}"
             inject_if_missing DASHBOARD_PASSWORD "${{ secrets.DASHBOARD_PASSWORD }}"
             inject_if_missing DEEPSEEK_API_KEY "${{ secrets.DEEPSEEK_API_KEY }}"
 
-            # 必需变量校验：缺失则失败，只打印变量名，不打印值
-            MISSING_KEYS=""
-            for KEY in JWT_SECRET ASSET_SYNC_TOKEN DASHBOARD_PASSWORD DEEPSEEK_API_KEY; do
+            # JWT_SECRET：旧值 > GitHub Secret > 现场生成一次并持久化（下次部署从 backend/.env 原样保留，
+            # 因为它不在本步骤「剔除重建」的键名单里）。
+            # 不能图省事留空：留空时后端按 NODE_ENV 回退到代码里的 'dev-only-secret'，
+            # 而 test.classicalab.cn 是公网域名，可预测密钥等于任何人都能自己铸测试站 token。
+            if ! grep -qE '^JWT_SECRET=.+' backend/.env; then
+              if [ -n "${{ secrets.JWT_SECRET }}" ]; then
+                printf 'JWT_SECRET=%s\n' "${{ secrets.JWT_SECRET }}" >> backend/.env
+                echo "JWT_SECRET 已从 GitHub Secret 注入"
+              else
+                NEW_SECRET=$(openssl rand -hex 32 2>/dev/null \
+                  || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+                printf 'JWT_SECRET=%s\n' "$NEW_SECRET" >> backend/.env
+                echo "JWT_SECRET 本次现场生成并持久化（此前签发的测试 token 全部失效，测试账号需重新登录）"
+              fi
+            fi
+
+            # 门禁口径 = 后端代码自己的硬失败条件，不多管一层：
+            #   ASSET_SYNC_TOKEN 缺失 → assetAuthMiddleware 返回 503 ASSET_SYNC_DISABLED
+            #   DASHBOARD_PASSWORD 缺失 → dashboardAuthMiddleware fail-closed 503
+            #   DEEPSEEK_API_KEY 缺失 → AI 对话返回 503（config/app.js 只 warn，不阻断启动）
+            # 三者都是「某个功能关掉」而不是「服务起不来」，所以只 WARN、不判红——
+            # 否则仓库里没配这几个 Secret 时，feature-1 每次 push 的测试部署都会永远红。
+            chmod 600 backend/.env
+            DEGRADED=""
+            for KEY in ASSET_SYNC_TOKEN DASHBOARD_PASSWORD DEEPSEEK_API_KEY; do
               if ! grep -qE "^${KEY}=.+" backend/.env; then
-                MISSING_KEYS="$MISSING_KEYS $KEY"
+                DEGRADED="$DEGRADED $KEY"
               fi
             done
-            chmod 600 backend/.env
-            if [ -n "$MISSING_KEYS" ]; then
-              echo "ERROR: backend/.env 缺少必需变量:$MISSING_KEYS"
-              echo "请先在服务器 $PWD/backend/.env 中补齐（或配置同名 GitHub Secret）后重新部署。"
+            if [ -n "$DEGRADED" ]; then
+              echo "WARNING: 以下可选密钥未配置，对应接口将 fail-closed 返回 503（不影响本次部署）:$DEGRADED"
+              echo "要启用就在服务器 $PWD/backend/.env 里写值，或建同名 GitHub Actions Secret。"
+            fi
+            if ! grep -qE '^JWT_SECRET=.+' backend/.env; then
+              echo "ERROR: JWT_SECRET 仍为空（生成失败），终止部署以免测试站用可预测密钥启动。"
               echo "旧配置完整保留在 backend/.env.prev，本次部署已终止。"
               exit 1
             fi
