@@ -386,7 +386,8 @@
 - 分支 / commit / CI：`feature/quality-gate/frontend-coverage-v8` @ `28cbdd6` → PR #220 → 合并提交 `387b9b3`；CI 6 项全绿。
 - 落点：`@vitest/coverage-v8@4.1.10`（vitest 4 已删 `c8`）+ `vitest.config.ts` 的 `coverage` 段，
   阈值 statements 14 / functions 16 / branches 11 / lines 14（当时实测 14.93 / 16.76 / 11.49 / 14.09 往下取整）。
-- 未做：CI 的 `quality-check` 仍跑 `npm run test`、**不带 `--coverage`**，阈值只在本地生效；要不要钉进 CI 等你定。
+- 未做：~~CI 的 `quality-check` 仍跑 `npm run test`、**不带 `--coverage`**，阈值只在本地生效；要不要钉进 CI 等你定~~
+  → 第六批已钉进 CI（PR #228）；另纠正一处：当时仓库里**没有 `test:coverage` 脚本**，「只在本地生效」那句并不成立。
 
 ### [x] 23 号位确认为《活板》(slot-23-huoban)
 
@@ -408,3 +409,45 @@
 - 改法：`gh auth setup-git` 把 `credential.https://github.com.helper` 指向 `gh.exe auth git-credential`，
   URL 清成 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树已扫不到该令牌字节，fetch / push 均正常。
 - **待你本人做**：轮换那枚令牌（`gh auth refresh-token`，或在 GitHub 设置里撤销后 `gh auth login`）。
+
+---
+
+## [x] 覆盖率门禁进 CI + 23 号位卡片挂载 (ci-coverage-gate-slot23-mount)
+
+- 目标：执行用户两条口径——**「CI 的进 workflow」**把 CR-19 的覆盖率阈值真正接到 CI（此前 CI 跑 `npm run test`，阈值没人执行）；
+  **「23 号的问题，其他怎么解决的它就怎么解决」**按 2026-10-28 那批挂载提交 `8c51427` 的既有约定补挂 23 号位《活板》的文化卡片，
+  不发明新做法。
+- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第六批（CR-20261029-24 / 25）。
+  号段从 24 起是因为第五批（另一条会话的 Figma 测试补齐）已占用 CR-20261029-23。
+- 红线：全程不 `checkout` / 不 `stash` / 不动共享工作区与 HEAD（git plumbing 落提交）；
+  校验在 `git archive` 出的干净树里跑（`mklink /J` 把 `node_modules` 指回仓库）；不碰 `main`；
+  不凭空编造学生可见文案（23 号位两张卡的 `knowledge_text` 留空串等内容组给正文）。
+- 分支 / commit / PR：`feature-1` 从 `79555e5` 推到 `1072821`；两个 PR 各自 12 项检查
+  （`push` + `pull_request` 两条 run × 6 job）全绿才 `--merge`，分支不删；合并后 `feature-1` 复跑 CI 成功。
+
+### [x] 覆盖率门禁接进 CI workflow (coverage-gate-in-ci)
+
+- 分支 / commit / CI：`feature/quality-gate/ci-coverage-gate` @ `68eabad` → PR #228 → 合并提交 `20e03c4`。
+- 改动：`ci-checks.yml` 的前端测试步骤 `npm run test` → `npm run test:coverage`（该步骤无 `continue-on-error`，是真门禁）；
+  `package.json` 补此前**并不存在**的 `test:coverage` 脚本；`vitest.config.ts` 阈值按当日两次实测下界定为
+  lines 18 / functions 20 / branches 13 / statements 18（实测 22.46 / 25.11 / 16.84 / 23.08）。
+- 前置核对：`@vitest/coverage-v8@^4.1.10` 已在 devDependencies **且在 `package-lock.json`**，CI 的 `npm install` 装得到；
+  三个文件都命中 `on.push.paths`。
+- 验证方式：不只看绿灯，去 job 日志确认出现 `Run npm run test:coverage` → `Coverage enabled with v8` → 覆盖率四列表格；
+  CI 数字（23.06/16.84/25.04/22.45）与本机导出树数字逐项对得上。
+
+### [x] 23 号位《活板》卡片挂载 (slot-23-card-mount)
+
+- 分支 / commit / CI：`feature/asset-numbering/slot-23-card-mount` @ `04f73da` → PR #229 → 合并提交 `1072821`。
+- 逐条照 `8c51427` 的口径：`public` 与 `backend` 两份 `WEN_23.json` 是**同一个 blob**（`bba4ac7`，606 字节 LF）、
+  `card_name` 沿用「历史回响」、`image_file` 写交付原名、`unlock_condition` 照 01–04 文案、`knowledge_text` 两张都留空串。
+- 卡片数量不是照抄模板：拉线上 `/api/assets/oss-list` 的 `wen_list`，23 号位名下**只有** `card_paper` / `card_printing`
+  两个卡片视频；两个视频此前 HEAD 均 200，挂载不引入 404。
+- 代码侧：`CULTURE_CARD_DATA_POEM_IDS` 15 → 16 个号、`ORPHAN_CARD_VIDEO_POEM_IDS` 由 `['23']` 清空；
+  `poemAssets.test.ts` 加三条锁（挂载表 ↔ 目录双向对应、23 号位已挂且清单就是这两个、挂载表与孤儿表不许有交集），21 → 24 例。
+- 文档侧：`docs/素材缺失清单.md` 新增「23 号位补挂（2026-10-29）」小节并把孤儿计数清零；
+  `docs/素材对应核查.md` 的覆盖矩阵是**线上实测**口径，故「卡片」列不改，只在汇总行标「线上 15/37、仓库 16/37」。
+- **待发版**：数据文件要随前端构建才生效，发版前 `https://www.classicalab.cn/data/culture_cards/WEN_23.json` 仍是 404；
+  发版后用 `scripts/check-video-inventory.sh` 探线上复核。`figma-plugin/resource-inventory.json` 是线上快照，本批不该动它。
+- 仍待内容组：23 号位两张卡的导语正文；另有 12 个号位（20、21、28–37）待确认、08/11 库尔班大叔重复与 08 台标版权未定。
+
