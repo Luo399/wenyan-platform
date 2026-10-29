@@ -10,6 +10,7 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",

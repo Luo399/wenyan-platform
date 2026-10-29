@@ -1,4 +1,23 @@
-const { db } = require('../config/database');
+const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
+const { db } = require('../config/database')
+const logger = require('../utils/logger')
+
+// ===== Zod 校验 Schema =====
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+const createStudentSchema = z.object({
+  student_id: z
+    .string()
+    .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
+  student_name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20').nullable().optional(),
+})
+
+const updateStudentSchema = z.object({
+  student_name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20').nullable().optional(),
+})
+
+// handleZodError 已收敛到 ../middleware/validate.js
 
 // 安全：查询学生时不返回 password_hash（哈希也不应暴露给前端）
 const STUDENT_SAFE_COLUMNS =
@@ -91,14 +110,11 @@ function getStudentPublicName(req, res) {
 }
 
 function createStudent(req, res) {
-  const { student_id, student_name } = req.body;
-
-  if (!student_id) {
-    return res.status(400).json({
-      success: false,
-      error: 'INVALID_REQUEST',
-      message: 'student_id 是必填字段',
-    });
+  let body
+  try {
+    body = createStudentSchema.parse(req.body || {})
+  } catch (err) {
+    return handleZodError(res, err, '创建学生参数校验失败')
   }
 
   const stmt = db.prepare(`
@@ -108,7 +124,7 @@ function createStudent(req, res) {
 
   const now = new Date().toISOString();
 
-  stmt.run(student_id, student_name || null, now, now, (err) => {
+  stmt.run(body.student_id, body.student_name || null, now, now, (err) => {
     stmt.finalize();
     if (err) {
       return res.status(500).json({
@@ -127,13 +143,19 @@ function createStudent(req, res) {
 
 function updateStudent(req, res) {
   const { studentId } = req.params;
-  const { student_name } = req.body;
+
+  let body
+  try {
+    body = updateStudentSchema.parse(req.body || {})
+  } catch (err) {
+    return handleZodError(res, err, '更新学生参数校验失败')
+  }
 
   const stmt = db.prepare(`
     UPDATE students SET student_name = ?, updated_at = ? WHERE student_id = ?
   `);
 
-  stmt.run(student_name || null, new Date().toISOString(), studentId, (err) => {
+  stmt.run(body.student_name || null, new Date().toISOString(), studentId, (err) => {
     stmt.finalize();
     if (err) {
       return res.status(500).json({

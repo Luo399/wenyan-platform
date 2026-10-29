@@ -200,7 +200,9 @@ const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 
-/** 点击角色 tab：教师/管理员跳独立页面，学生留在本页 */
+/** 点击角色 tab：教师/管理员跳独立页面，学生留在本页
+ *  注意：auth 流程的 router.push 不走 useNavigation——useNavigation 管学习流程的顺序导航，
+ *  登录页是分支式路由（按角色跳不同目标），属于合法例外。 */
 function onRoleClick(role: Role) {
   if (role === 'teacher') router.push('/teacher-login')
   else if (role === 'admin') router.push('/admin-login')
@@ -383,6 +385,7 @@ async function handleSubmit(): Promise<void> {
       activeRole.value,
     )
     // 登录成功：按角色跳转
+    // auth 流程的 router.push 不走 useNavigation——按角色分支是例外（见 onRoleClick 注释）
     const redirect = route.query.redirect as string | undefined
     if (redirect && redirect !== '/') {
       router.push(redirect)
