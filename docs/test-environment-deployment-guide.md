@@ -124,7 +124,10 @@ package-lock.json 过时 → npm ci 失败 → 依赖缺失 → 启动时 MODULE
 cd /www/wwwroot/wenyan-platform-test/backend
 
 # 2. 创建正确的 .env 文件（使用 printf 避免反引号问题）
-printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\nAUTH_SECRET=wenyan-test-secret-2024\n' > .env
+printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\n' > .env
+# 说明：AUTH_SECRET 已废弃（R90 起统一走 JWT Bearer token）。
+# JWT_SECRET 由 GitHub Secrets（TEST_JWT_SECRET）注入；手动修复时请另行追加：
+#   echo "JWT_SECRET=<取自 TEST_JWT_SECRET 的实际值>" >> .env
 
 # 3. 验证 .env 文件内容
 cat .env
@@ -239,7 +242,10 @@ echo "========================================"
 
 echo ""
 echo "[1/6] 创建 .env 文件..."
-printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\nAUTH_SECRET=wenyan-test-secret-2024\n' > "$BACKEND_PATH/.env"
+printf 'PORT=3001\nCORS_ORIGIN=http://test.classicalab.cn,https://test.classicalab.cn\n' > "$BACKEND_PATH/.env"
+# AUTH_SECRET 已废弃（R90 起统一走 JWT Bearer token）；JWT_SECRET 由 GitHub Secrets 注入。
+# 手动执行本脚本时需另行追加（值取自 TEST_JWT_SECRET，禁止写入仓库）：
+#   echo "JWT_SECRET=<取自 TEST_JWT_SECRET 的实际值>" >> "$BACKEND_PATH/.env"
 cat "$BACKEND_PATH/.env"
 
 echo ""
