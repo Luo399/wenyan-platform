@@ -429,6 +429,7 @@
   回填 PR 不在 deploy `paths` 白名单，合入 `main` 不触发发布。
 - 未纳入本批：`feature/continue-nav-stuck` 的导航失败判定与 OSS 上传链路修复仍未并入 `feature-1`，
   需先走子分支 PR 再等下一班 `main` 窗口。
+  → **已闭合（当晚）**：该分支经 PR #231 并入 `feature-1`@`5e4886c`，随下一班 `main`@`8760894`（PR #253）上线。
 
 ---
 
@@ -592,3 +593,38 @@
   **#238（根 vitest 4 → 5）有 1 条红**。全绿不等于能合——major 的兼容性要按接口面看，不是看测试跑过。
 - 待你定：要不要给三个 npm 生态加 `ignore: update-types: ["version-update:semver-major"]` 只留 minor/patch + 安全更新；
   代价是「CVE 需要 major 才能修」时不会自动开 PR，得人工发起。
+
+---
+
+## [x] main 窗口发布：第六批 + 第七批上生产（PR #252 / #253） (main-release-20261029-evening)
+
+- 目标：执行用户「合并main」——把 `feature-1`@`1b62516`（第六批覆盖率门禁与 23 号位卡片、第七批 70 项审查修复、
+  CR-33 的部署回归修复）经发布 PR 合入 `main` 并发到生产。
+- 分支 / commit / PR：先 PR #252（`feature/maintenance/sync-main-into-feature-1`@`c85e0a5` → `feature-1`，合并提交 `1b62516`）
+  把 `main` 上两个 docs-only 提交合回来，消解 `changelog-20261029.md` / `nightly-tasks.md` 的追加冲突
+  （两边文字一句没删，只按真实时序重排位置）；再发布 PR #253（`feature-1` → `main`）于 19:09:08 `--merge` 为 `main`@`8760894`。
+  两条 PR 的六项检查各自全绿（`40862376523` / `40862429517` / `40862897607`）。
+- 发布：`main` push 四条 run 全绿 —— CI Checks `40863153667`、Deploy Frontend to Aliyun OSS `40863153680`、
+  Deploy Backend to Aliyun Server `40863153617`、Sync Figma Plugin `40863153595`；前端线上 build-id 已是 `8760894`。
+- **新发现（要记进约定）**：`environment: production` 是本轮 CR-30 新引用的，仓库里原本只有 `test`；
+  GitHub 在本次 run 自动建了 `production`，发布后实测 `protection_rules: []`、`reviewers: null`
+  ⇒ **合进 `main` 就是自动上生产，没有人工闸口**。这和「feature-1 → main 只走人工审批 PR」的实际强度不一致，
+  要不要给 `production` 加 Required reviewers 由你定（Settings → Environments → production，我没动）。
+- 线上黑盒对照（合并前 `8db7a6e` vs 合并后 `8760894`，逐条实测）记在
+  `docs/maintenance/changelog/changelog-20261029.md` 文末「发布事实（2026-10-29 晚）」。
+- 更正：PR #253 正文里我写「`/api/v1/texts` 合并后应为 200」是错的——别名是 `/v1/...`（`app.js` 在 app 级改写 URL），
+  `/api/v1/texts` 两环境都 404；实测成立的是 `GET /v1/texts` → 200、`GET /v1/api/texts` → 200。
+
+## [ ] 生产 `backend/.env` 缺 DASHBOARD_PASSWORD 与 DEEPSEEK_API_KEY（看板与 AI 对话 503） (prod-missing-optional-keys)
+
+- 目标：把生产这两个功能从 fail-closed 503 恢复成可用，并且**这次写了能留住**。
+- 事实来源：run `40863153617` 日志 `[2/5]` 实抄
+  `WARNING: 以下可选密钥未配置，对应接口将 fail-closed 返回 503（不影响本次部署）: DASHBOARD_PASSWORD DEEPSEEK_API_KEY`；
+  生产实测 `GET /api/home/dashboard`、`/api/home/dashboard/raw`、`/api/tracking/funnel` 全部 503 `DASHBOARD_AUTH_NOT_CONFIGURED`。
+- 影响：内部数据看板打不开——这是审查定的 fail-closed 口径，不是回归（发布前这三个口是**匿名 200 且返回真实汇总**）；
+  AI 对话同样 503。**后者不是本次发布弄坏的**：旧版部署脚本 `echo "PORT=3000" > backend/.env` 每次截断重建，
+  这把键历史上每部署一次就被抹一次，所以生产 AI 对话早就不可用，只是现在变成明确的 503 而不是静默 500。
+- 待你本人做（我没有 SSH 权限，也不该有）：往生产 `backend/.env` 追加 `DASHBOARD_PASSWORD=<强口令>` 与
+  `DEEPSEEK_API_KEY=<sk-...>`，然后 `pm2 restart wenyan-backend --update-env`；或建同名 GitHub Actions Secret
+  让 `inject_if_missing` 在 `.env` 缺值时补。新版脚本保留旧值，写进去就不会再用一次就没。
+- 红线：`JWT_SECRET` 在生产**绝不自动生成**（静默换密钥会一次性作废全网 token）。本次发布没动它，存量 token 仍有效。
