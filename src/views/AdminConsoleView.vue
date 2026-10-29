@@ -13,7 +13,10 @@
         <h1>管理员控制台</h1>
         <p class="subtitle">教师与学生账号的增删查改</p>
       </div>
-      <button type="button" class="back-btn" @click="goHome">← 返回首页</button>
+      <div class="header-actions">
+        <a class="section-link" href="/admin-dashboard">数据看板 →</a>
+        <button type="button" class="back-btn" @click="goHome">← 返回首页</button>
+      </div>
     </header>
 
     <nav class="tab-bar">
@@ -501,6 +504,22 @@ onMounted(async () => {
 .console-header h1 {
   margin: 0 0 var(--spacing-xs);
   font-size: 1.5rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.section-link {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.section-link:hover {
+  text-decoration: underline;
 }
 
 .subtitle {
