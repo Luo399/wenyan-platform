@@ -1,0 +1,21 @@
+{
+  "text_id": "WEN_06",
+  "cards": [
+    {
+      "text_id": "WEN_06",
+      "card_id": 1,
+      "card_name": "历史回响",
+      "image_file": "WEN_06_card_linzexu.mp4",
+      "knowledge_text": "观看视频，了解林则徐被发配新疆伊犁后的经历。",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮\"我已完成\"，点击\"我已完成\""
+    },
+    {
+      "text_id": "WEN_06",
+      "card_id": 2,
+      "card_name": "历史回响",
+      "image_file": "WEN_06_card_zuo.mp4",
+      "knowledge_text": "观看视频，了解左宗棠在哈密期间的事迹。",
+      "unlock_condition": "完成第三关题目后出现按钮\"我已完成\"，点击\"我已完成\""
+    }
+  ]
+}

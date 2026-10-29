@@ -54,7 +54,7 @@ import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getWenId, getPoemTitle } from '@/utils/wenUtils'
 import { getAssetUrl } from '@/utils/asset'
-import { ASSET_NOT_READY_TEXT, hasRuleVideo } from '@/config/poemAssets'
+import { ASSET_NOT_READY_TEXT, isPoemReady } from '@/config/poemAssets'
 
 /**
  * 预加载后续步骤的懒加载组件 chunk + stepone 的数据 JSON。
@@ -134,8 +134,11 @@ function handleGoPrev() {
   goPrev()
 }
 
-/** 该编号的 rule 视频在 OSS 上是否真的存在 */
-const assetReady = computed(() => hasRuleVideo(poemId.value))
+/**
+ * 该编号现在能不能放学生进（rule 视频齐备 + 编号对应已确认）。
+ * 编号未确认时 OSS 上的视频可能是别的课文的，深链进来也要走降级提示，不能直接播。
+ */
+const assetReady = computed(() => isPoemReady(poemId.value))
 
 /** 未就绪文案 */
 const notReadyText = ASSET_NOT_READY_TEXT

@@ -54,7 +54,8 @@ describe('wenUtils', () => {
     })
 
     it('should return default for unknown poemId', () => {
-      expect(getPoemTitle('5')).toBe('未知篇目')
+      // '20' 是「编号未确认」的号位：poemMap 不收录未确认的号
+      expect(getPoemTitle('20')).toBe('未知篇目')
       expect(getPoemTitle('0')).toBe('未知篇目')
       expect(getPoemTitle('100')).toBe('未知篇目')
       expect(getPoemTitle('abc')).toBe('未知篇目')
@@ -90,9 +91,11 @@ describe('wenUtils', () => {
   })
 
   describe('getAllPoems', () => {
-    it('should return 4 poems', () => {
+    it('should return the confirmed poems only', () => {
       const poems = getAllPoems()
-      expect(poems.length).toBe(4)
+      // 只返回内容组确认过编号的号位；号位全表见 getAllPoemSlots()
+      expect(poems.length).toBe(Object.keys(poemMap).length)
+      expect(poems.length).toBeGreaterThan(4)
     })
 
     it('should return poems sorted by poemId ascending', () => {
