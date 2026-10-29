@@ -353,17 +353,27 @@
 - 建议：先标注不急着删；挂头像先填 `icon_dialog`；题目/解析插图先定 schema；`data/texts` 归为内容底稿；
   增加发布前资产引用审计（数据字段 → URL → HEAD 200）。
 
+### [x] Figma 扫描资产接入前端 (figma-screen-integration)
+
+- 新增 `src/config/figmaScreenCatalog.ts`（6,049 个扫描文件 → 37 篇 / 775 条角色记录）与
+  `scripts/gen-figma-screen-catalog.mjs`；`figmaAssets.ts` 增加标题/角色/选项/文本框/头像/名牌 URL 读取，
+  统一走 OSS `images/screens`。
+- `DetailView` 标题、`AdaptQuiz` 选项底图已直接读取扫描图，加载失败回退文字/CSS。
+- 背景与立绘（2.8–18MB）暂不直接渲染，需先做衍生图；说明见 `docs/figma-scan-integration.md`。
+
 ---
 
 ## [x] 前端覆盖率环境 + 本机工具链 + 23 号位确认 (coverage-python-slot23)
 
 - 目标：把上一批留下的三个「跑不了 / 没确认」口子关掉——前端覆盖率缺 provider、`generate-inventory.py` 没有 python、
   23 号位归属未确认；另外清掉 `origin` URL 里的明文凭据。
-- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第四批（CR-20261029-18 ~ 21）。
-  号段从 18 起是因为上一节（第三批）已占用 16 / 17，本批与它并行、编号顺延。
+- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第四批（CR-20261029-19 ~ 22）。
+  号段从 19 起是因为第三批已占用 16 / 17 / 18，本批与它并行、编号跟着当前 `feature-1` 头顺延。
 - 红线：全程不 `checkout` / 不 `stash` / 不动共享工作区与 HEAD（git plumbing 落提交）；
   校验在 `git archive` 出的干净树里跑（`mklink /J` 把 `node_modules` 指回仓库）；不碰 `main`。
-- 分支 / commit / PR：`feature-1` 从 `eca26c4` 推到 `3c19c03`（三个 PR 各 6 项检查全绿才合）。
+- 分支 / commit / PR：`feature-1` 从 `eca26c4` 推到 `3c19c03`（三个 PR 各 6 项检查全绿才合）；
+  本节的文档改动在 PR #223，因与第三批 / #224 追加位置相同冲突两轮，用「把 `feature-1` 头合进本分支 + 人工重排」解决，
+  没有 force-push。
 
 ### [x] 前端覆盖率 provider 与阈值 (frontend-coverage-v8)
 

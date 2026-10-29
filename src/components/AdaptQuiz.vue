@@ -29,6 +29,7 @@
                 option.label !== getCorrectAnswerLabel(currentQuiz?.correctAnswer),
             }"
             :disabled="submitted"
+            :style="optionArtStyle(option.label)"
             @click="selectOption(option.label)"
           >
             <span class="option-label">{{ option.label }}</span>
@@ -92,7 +93,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { useStudentInfo } from '@/composables/useStudentInfo'
 // P1: 移除组件内后端提交（submitSingleAnswer），答题提交统一由父级经 useQuizSubmitter 处理，
 // 避免与 useQuizProgress 的逐题提交形成"双提交"（同一题在后端插入两条记录）
 import type { QuizItem } from '@/adapters/quizAdapter'
@@ -102,8 +102,9 @@ import type { RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
 import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapter'
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
-import { debugLog, debugError } from '@/utils/debug'
-import { appendQuizRecord } from '@/utils/localStorage'
+import { debugError } from '@/utils/debug'
+import { getWenScreenOptionUrl } from '@/config/figmaAssets'
+import type { FigmaOptionKey } from '@/config/figmaScreenCatalog'
 
 // ============================================================
 // Props / Emits
@@ -149,8 +150,6 @@ const selectedAnswer = ref<string>('')
 const showResult = ref(false)
 const submitted = ref(false)
 const results = ref<{ quiz: QuizItem; answer: string; isCorrect: boolean }[]>([])
-
-const { studentId, getStudentName } = useStudentInfo()
 
 // ============================================================
 // R01: useDataLoader 必须在 setup 顶层同步调用
@@ -202,6 +201,18 @@ function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined
   if (typeof correctAnswer === 'string') return correctAnswer
   const labels = ['A', 'B', 'C', 'D']
   return labels[correctAnswer] || ''
+}
+
+const OPTION_KEYS: readonly FigmaOptionKey[] = ['A', 'B', 'C', 'D']
+
+/**
+ * 选项底图：Figma 插件按篇扫描的 option_a/b/c/d_*.png（4–10KB）。
+ * 从 OSS images/screens/ 读取；没有该篇素材时返回空对象，按钮保持纯 CSS。
+ */
+function optionArtStyle(label: string): Record<string, string> {
+  if (!OPTION_KEYS.includes(label as FigmaOptionKey)) return {}
+  const url = getWenScreenOptionUrl(props.textId, label as FigmaOptionKey)
+  return url ? { backgroundImage: `url("${url}")` } : {}
 }
 
 /**
@@ -315,82 +326,9 @@ function submitAnswer() {
   void persistLocalRecord()
 }
 
-function saveToLocal(
-  quiz: QuizItem,
-  userAnswer: string,
-  correctAnswer: string | number | (string | number)[] | null | undefined,
-  sid: string,
-  studentName: string,
-) {
-  const now = new Date()
-  const submittedAt = now.toISOString()
-  const wenId = quiz.textId || props.textId
-  const questionId =
-    quiz.questionId ||
-    `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
-
-  const isCorrect = String(userAnswer) === String(correctAnswer ?? '')
-
-  const record = {
-    studentId: sid,
-    studentName,
-    wenId,
-    questionId,
-    questionNumber: quiz.questionNumber || 1,
-    level: props.level,
-    userAnswer,
-    correctAnswer,
-    isCorrect,
-    score: isCorrect ? 100 : 0,
-    submittedAt,
-  }
-
-  const allRecords = appendQuizRecord(sid, record)
-  debugLog('[AdaptQuiz] 答题数据已保存到本地:', record, '当前共', allRecords.length, '条')
-  downloadSingleReport(record, sid, studentName)
-  return record
-}
-
-/** 本地答题报告的字段约束（仅用于下载文件名与序列化，避免 any） */
-type AnswerValue = string | number | (string | number)[]
-interface LocalReportRecord {
-  studentId: string
-  studentName?: string
-  wenId?: string
-  questionId: string
-  questionNumber?: number
-  level?: string
-  userAnswer?: string
-  correctAnswer: AnswerValue | null | undefined
-  isCorrect?: boolean
-  score?: number
-  submittedAt?: string
-}
-
-function downloadSingleReport(record: LocalReportRecord, sid: string, studentName: string) {
-  const wenId = record.wenId || props.textId
-  const filename = `答题记录_${sid}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
-  const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-  debugLog('[AdaptQuiz] 报告已下载:', filename)
-}
-
-async function persistLocalRecord() {
-  // P1: 仅做本地记录 + 报告下载（离线兜底），不再向后端提交；
-  // 后端提交由父级页面通过 useQuizSubmitter/useQuizProgress 统一处理。
-  const id = studentId.value
-  if (!id) return
-  const name = await getStudentName()
-  if (!currentQuiz.value) return
-  // R170: 停用前端 localStorage 本地保存（saveToLocal），
-  // 改为后端 /api/submit 统一处理并同步到教师后台。
-  // 函数定义保留作为历史参考，调用已注释掉。
-  // saveToLocal(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer, id, name)
+function persistLocalRecord() {
+  // P1/R170: 答题提交由父级页面通过 useQuizSubmitter/useQuizProgress 统一处理，
+  // 本地 localStorage 保存与答题报告下载已停用，这里保留空实现以兼容调用点。
 }
 
 function handleNext() {
@@ -539,6 +477,9 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: left;
+  /* Figma 选项底图按按钮实际尺寸铺满；无图时不影响 */
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .option-btn:hover:not(:disabled) {
