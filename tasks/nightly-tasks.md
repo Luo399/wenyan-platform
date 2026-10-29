@@ -1,6 +1,7 @@
 # 夜间任务清单
 
 > **格式约定（夜间自动化脚本依赖，请勿改动结构）**
+>
 > - `##` = 父功能，`###` = 子功能；标题行尾的 `(slug)` 为分支名片段（全小写 + 连字符）。
 > - `[ ]` = 未完成，`[x]` = 已完成。完成后在标题下方追加「分支 / commit / CI」记录行。
 > - 分支规则：父功能从 `feature-1` 拉 `feature/<父slug>/main`；子功能从父分支拉 `feature/<父slug>/<子slug>`。
@@ -111,6 +112,28 @@
 - 验收：勾「全年级权限」必须收起具体班级选择区；勾年级 chip 后班级行必须出现；`quality-check` 全绿；组件 `data-testid` 未改名。
 - 关联文件：同上两个文件（+141 / -38，用例 22 → 27）
 - 分支 / commit / CI：`feature/classpicker-fix` @ `0433156`；PR #200 → `feature-1`（`f34eeb76`）→ 随 PR #193 上 `main`（`f4c2d18e`，已部署）。两处缺陷的根因记在 `docs/maintenance/changelog/changelog-20261028.md` CR-07：① Vue 把缺省的 Boolean prop 转成 `false` 而不是 `undefined`，`props.fullAccess ?? innerFullAccess` 恒为 `false`，两个调用点都只监听 `@update:full-access` 不绑 prop，所以「全年级权限」在线上从不收起选择区；② `emitChange()` 末尾用「已选班级」反推保留年级，勾年级时班级还是空的，刚勾上的年级立刻被抹掉，班级行永远出不来。教训：`data-testid` 用前缀匹配时容器自身会被数进去（`selected-` / `class-` 都撞了），以及 `maxlength` 让「程序化赋超长值」的断言在不同环境不稳。
+
+---
+
+## [x] Step One 生字注释悬浮层 (step1-word-tooltip)
+
+- 目标：`https://www.classicalab.cn/stepone/{id}` 正文里的 `.annotated-word` 必须悬浮就出注释、长注释不冲出视口，并且这套行为要有拦得住回退的测试。
+- 方案与根因全在 `figma-plugin/docs/step1-word-tooltip-plan.md`（现已到 v5）。
+- 红线：监听器不许写回 `onMounted`——正文容器在 `v-if / v-else-if / v-else` 分支里，组件挂载时那份 JSON 还在加载、节点还不存在；节流只能吃纯数据快照，不能吃 `MouseEvent`（派发结束后 `e.target` 按规范变 `null`）。
+
+### [x] 监听绑定时序 + 节流失效事件修复与测试回退网 (word-tooltip-binding-fix)
+
+- 分支 / commit / CI：`feature/step1/word-tooltip` @ `adc0108`（修复）+ `03df798`（单测 18 → 78 例）；`--no-ff` 并入 `feature-1`（`cced00c`）；同步 `main` 进 `feature-1`（`19492d6`，为满足分支保护的 strict 状态检查）后开 PR #204 → `main`（`850d97b`），6 项检查全绿，`Deploy Frontend to Aliyun OSS` 成功，线上 `meta[name=build-id]` 与页脚都是 `850d97b`。
+- 验收（2026-10-29 线上实测）：4 篇课文共 190 个 `.annotated-word`，逐个派发 `mousemove` 后 **190/190 出浮层、文本与 `data-def` 逐字一致**，光标移到非词节点即收起（每 20–30 个抽查一次）。
+- 本机校验（推翻「本机没有 node 只能靠 CI」这条老前提）：便携 Node 20.18.0 + 仓库现有 `node_modules`，全量 `vitest run` 194/194、`vue-tsc --build` 0 错、`eslint`（只跑改动文件、不带 `--fix`）0 错、`prettier --check` 通过。
+
+### [x] 词条匹配三级兜底：注音与标点不再漏标 (word-list-match-fallback)
+
+- 目标：浮层本身 100% 命中之后，剩下的洞在生成侧——9 条词条压根没变成 span，鼠标再准也命中不了。
+- 分支 / commit：`feature/step1/annotation-matching` @ `5aad28b`（`src/utils/adapterUtils.ts` 三级匹配 + 63 例测试）、本文档所在提交（台账 / 变更记录 / 方案 v5 / 素材清单）。
+- 验收：三级策略（词条原文整串 → 剥括号注音 → ≥4 汉字允许夹标点的长短语）使 鲦鱼 / 槽枥 / 外见 / `乃丹书帛曰"陈胜王"` / `其必曰："…"乎` 共 5 条开始成 span；「食(sì)」与篇名出处（马说 / 岳阳楼记 / 史记）按决策**不标**，登记在 `docs/素材缺失清单.md` 第十一节。span 总数 190 → 194。
+- 事实修正：WEN_01 的「陈」span 18 → 17，少的那个在「陈胜王」内部，原先挂「古地名，今河南淮阳」是错标，现归长短语。
+- 拦回退的方式：`wordListAdapter.test.ts` 里「每条词条要么已成 span，要么在已登记的『标不了』清单里」双向断言——新素材再冒出清单外的漏标就红，清单里的条目一旦被误标（例如放开单字音注）也红。
 
 ---
 
