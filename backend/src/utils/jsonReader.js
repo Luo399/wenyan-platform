@@ -9,17 +9,6 @@ const logger = require('./logger');
  */
 const SAFE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
-function assertSafeTextId(id) {
-  if (!id || typeof id !== 'string' || !SAFE_ID_PATTERN.test(id)) {
-    const err = new Error('Invalid textId format');
-    err.statusCode = 400;
-    err.error = 'INVALID_TEXT_ID';
-    err.message = 'textId 格式非法';
-    throw err;
-  }
-  return id;
-}
-
 function safeParse(str) {
   try {
     return JSON.parse(str);

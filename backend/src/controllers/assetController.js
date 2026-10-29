@@ -26,6 +26,29 @@ const ALLOWED_JSON_DIRS = [
 const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
 /** 单个 JSON 文件大小上限（500KB） */
 const MAX_JSON_SIZE = 500 * 1024
+/** 预签名直传的 OSS 目录白名单（与上传白名单保持一致） */
+const ALLOWED_OSS_PREFIXES = [
+  ...ALLOWED_MEDIA_DIRS,
+  ...ALLOWED_JSON_DIRS.map((dir) => `${dir}/`),
+]
+/** 预签名有效期固定 600 秒，不接受调用方传入 */
+const PRE_SIGNED_EXPIRES_SECONDS = 600
+/** 预签名 Content-Type 白名单：仅图片/视频/音频 */
+const ALLOWED_CONTENT_TYPE_PATTERN = /^(image|video|audio)\/[A-Za-z0-9][A-Za-z0-9.+-]*$/
+
+/**
+ * 校验 OSS 路径是否在白名单目录下
+ * 拒绝路径穿越、绝对路径、反斜杠、空字节与 URL 编码绕过
+ */
+function isAllowedOssPath(ossPath) {
+  if (typeof ossPath !== 'string' || ossPath.length === 0 || ossPath.length > 512) return false
+  if (ossPath.includes('..') || ossPath.includes('\\') || ossPath.includes('\0')) return false
+  if (ossPath.startsWith('/') || /^[A-Za-z]:/.test(ossPath)) return false
+  if (/%2e|%2f|%5c/i.test(ossPath)) return false
+  return ALLOWED_OSS_PREFIXES.some(
+    (prefix) => ossPath.startsWith(prefix) && ossPath.length > prefix.length,
+  )
+}
 /** 允许的图片扩展名 */
 const ALLOWED_IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg)$/i
 /** 允许的音频扩展名 */
@@ -251,23 +274,43 @@ async function getVersion(req, res, next) {
  * 生成 OSS 预签名 URL（供 Figma 插件直传）
  *
  * Body:
- *   { ossPath: string, contentType?: string, expiresIn?: number }
+ *   { ossPath: string, contentType?: 'image/png' | 'video/mp4' | 'audio/mpeg' }
  *
  * 响应：
  *   { success: true, data: { url: string, ossPath: string, contentType?: string, expiresIn: number } }
  *
  * 说明：
  *   - 将 contentType 纳入 OSS 签名，否则 PUT 直传携带的 Content-Type 会使签名校验失败
+ *   - ossPath 必须在白名单目录内，expiresIn 固定 600 秒（忽略调用方传值）
  */
 async function generatePreSignedUrl(req, res, next) {
   try {
-    const { ossPath, contentType, expiresIn = 3600 } = req.body
+    const { ossPath, contentType } = req.body || {}
 
     if (!ossPath) {
       return res.status(400).json({
         success: false,
         error: 'MISSING_OSS_PATH',
         message: '缺少 ossPath 参数',
+      })
+    }
+
+    if (!isAllowedOssPath(ossPath)) {
+      return res.status(400).json({
+        success: false,
+        error: 'PATH_NOT_ALLOWED',
+        message: 'ossPath 不在允许的目录白名单内',
+      })
+    }
+
+    const contentTypeValue = contentType === undefined || contentType === null
+      ? null
+      : String(contentType)
+    if (contentTypeValue !== null && !ALLOWED_CONTENT_TYPE_PATTERN.test(contentTypeValue)) {
+      return res.status(400).json({
+        success: false,
+        error: 'CONTENT_TYPE_NOT_ALLOWED',
+        message: 'contentType 仅允许 image/*、video/*、audio/*',
       })
     }
 
@@ -291,17 +334,22 @@ async function generatePreSignedUrl(req, res, next) {
 
     // 生成预签名 PUT URL（把 contentType 一并签名，避免直传时 Content-Type 不符导致 403）
     const signOptions = {
-      expires: expiresIn,
+      expires: PRE_SIGNED_EXPIRES_SECONDS,
       method: 'PUT',
     }
-    if (contentType) {
-      signOptions.contentType = String(contentType)
+    if (contentTypeValue) {
+      signOptions.contentType = contentTypeValue
     }
     const url = store.signatureUrl(ossPath, signOptions)
 
     res.json({
       success: true,
-      data: { url, ossPath, contentType: contentType || null, expiresIn },
+      data: {
+        url,
+        ossPath,
+        contentType: contentTypeValue,
+        expiresIn: PRE_SIGNED_EXPIRES_SECONDS,
+      },
     })
   } catch (err) {
     logger.error('[AssetController] 生成预签名 URL 失败:', err)
@@ -361,7 +409,7 @@ function loadWenTitles(dataBasePath) {
           titles[wenId] = parsed.title
         }
       }
-    } catch (_e) {
+    } catch {
       // 单篇读取失败不影响整体，回退到内置表
     }
   }
@@ -682,9 +730,9 @@ async function cleanup(req, res, next) {
 
     for (const rawPath of paths) {
       const ossPath = String(rawPath || '').replace(/^\/+/, '')
-      // 防路径穿越 + 空路径
-      if (!ossPath || ossPath.includes('..')) {
-        errors.push({ ossPath: String(rawPath), error: '非法路径' })
+      // 只允许删除白名单目录下的 key（同时拦截路径穿越/绝对路径）
+      if (!isAllowedOssPath(ossPath)) {
+        errors.push({ ossPath: String(rawPath), error: '路径不在白名单内或包含非法字符' })
         continue
       }
       try {
@@ -692,7 +740,7 @@ async function cleanup(req, res, next) {
         assetService.removeVersionRecord(ossConfig.dataBasePath, ossPath)
         deleted.push(ossPath)
       } catch (err) {
-        errors.push({ ossPath, error: err.message })
+        errors.push({ ossPath, error: '删除失败' })
         logger.error(`[AssetController] 清理失败: ${ossPath}`, err)
       }
     }

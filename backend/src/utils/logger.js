@@ -81,7 +81,7 @@ function createLogEntry(level, message, data = {}) {
     timestampMs: getTimestamp(),
     level: level,
     message: message,
-    ...sanitizeBody(data),
+    ...normalizeLogData(data),
   };
 }
 
@@ -126,12 +126,59 @@ function parseMaxFileSize(sizeStr) {
 }
 
 const MAX_FILE_SIZE_BYTES = parseMaxFileSize(LOG_CONFIG.maxFileSize)
-const MAX_FILES_COUNT = parseInt(LOG_CONFIG.maxFiles) || 30
+/** 日志保留天数：只按文件年龄清理，避免按数量清理时"越删越少" */
+const LOG_RETENTION_DAYS = 14
+/** 清理节流：每个进程每小时最多扫描一次日志目录 */
+const LOG_CLEANUP_INTERVAL_MS = 60 * 60 * 1000
+let lastLogCleanupAt = 0
+
+/**
+ * 从文件名解析日志日期（app-YYYY-MM-DD*.log），失败时回退到文件 mtime
+ */
+function getLogFileTime(fileName, filePath) {
+  const match = fileName.match(/^app-(\d{4})-(\d{2})-(\d{2})/)
+  if (match) {
+    const time = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00`).getTime()
+    if (!Number.isNaN(time)) return time
+  }
+  try {
+    return fs.statSync(filePath).mtimeMs
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 按年龄清理过期日志（保留 14 天）
+ * - 只删除 app-*.log，且绝不动当天的文件
+ * - 清理失败只打 console，不影响业务日志写入
+ */
+function cleanupExpiredLogs(now = Date.now()) {
+  if (now - lastLogCleanupAt < LOG_CLEANUP_INTERVAL_MS) return
+  lastLogCleanupAt = now
+
+  const cutoff = now - LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  const todayFile = path.join(LOG_CONFIG.outputDir, `app-${getDateString()}.log`)
+
+  try {
+    for (const fileName of fs.readdirSync(LOG_CONFIG.outputDir)) {
+      if (!/^app-.*\.log$/.test(fileName)) continue
+      const filePath = path.join(LOG_CONFIG.outputDir, fileName)
+      if (filePath === todayFile) continue
+      const fileTime = getLogFileTime(fileName, filePath)
+      if (fileTime !== null && fileTime < cutoff) {
+        fs.unlinkSync(filePath)
+      }
+    }
+  } catch (err) {
+    console.error('清理过期日志失败:', err.message)
+  }
+}
 
 /**
  * B12: 检查并执行日志文件轮转
  * - 当日志文件超过 maxFileSize 时，将其重命名为带时间戳的归档文件
- * - 清理超过 maxFiles 数量的最旧归档日志
+ * - 归档后按年龄清理（保留 14 天），不再按文件数量清理
  */
 function rotateLogIfNeeded(filePath) {
   try {
@@ -147,16 +194,7 @@ function rotateLogIfNeeded(filePath) {
     const archivedPath = path.join(dir, `${baseName}-${timestamp}.log`)
     fs.renameSync(filePath, archivedPath)
 
-    // 清理超出 MAX_FILES_COUNT 的旧日志
-    const files = fs.readdirSync(dir)
-      .filter((f) => f.startsWith(baseName) && f.endsWith('.log'))
-      .map((f) => ({ file: f, time: fs.statSync(path.join(dir, f)).mtimeMs }))
-      .sort((a, b) => a.time - b.time)
-
-    while (files.length > MAX_FILES_COUNT) {
-      const oldest = files.shift()
-      fs.unlinkSync(path.join(dir, oldest.file))
-    }
+    cleanupExpiredLogs()
   } catch (err) {
     console.error('日志轮转失败:', err.message)
   }
@@ -169,6 +207,8 @@ function fileOutput(logEntry) {
   const filePath = path.join(LOG_CONFIG.outputDir, `app-${getDateString()}.log`);
   const logLine = JSON.stringify(logEntry) + '\n';
 
+  // 按年龄清理（内部有节流，不会每次写日志都扫描目录）
+  cleanupExpiredLogs()
   rotateLogIfNeeded(filePath)
 
   fs.appendFile(filePath, logLine, (err) => {
@@ -224,6 +264,14 @@ function error(message, data = {}) {
 }
 
 /**
+ * 是否为认证相关路由（登录/注册/改密等，禁止整包打印 body）
+ */
+function isAuthRoute(req) {
+  const pathname = req.path || req.originalUrl || ''
+  return pathname.startsWith('/api/auth')
+}
+
+/**
  * 记录HTTP请求日志
  */
 function logRequest(req, res, duration) {
@@ -235,8 +283,9 @@ function logRequest(req, res, duration) {
     type: 'REQUEST',
     method: req.method,
     path: req.path,
-    query: req.query,
-    body: req.body ? sanitizeBody(req.body) : null,
+    query: req.query ? sanitizeBody(req.query) : null,
+    // 认证路由不打印 body（即使脱敏也不记录密码/令牌原文）
+    body: isAuthRoute(req) ? '[REDACTED]' : req.body ? sanitizeBody(req.body) : null,
     statusCode: res.statusCode,
     durationMs: duration,
     ip: req.ip || req.connection?.remoteAddress,
@@ -264,7 +313,7 @@ function logOperation(operation, data = {}) {
     level: LOG_LEVEL.INFO,
     message: operation,
     type: 'OPERATION',
-    ...data,
+    ...normalizeLogData(data),
   };
   
   consoleOutput(logEntry);
@@ -286,7 +335,7 @@ function logError(error, context = {}) {
     type: 'ERROR',
     stack: error.stack,
     name: error.name,
-    ...context,
+    ...normalizeLogData(context),
   };
   
   consoleOutput(logEntry);
@@ -298,30 +347,49 @@ function logError(error, context = {}) {
 
 /**
  * 清理敏感信息
+ * 键名大小写不敏感，覆盖密码/令牌/密钥/会话等常见字段
  */
-const SENSITIVE_PATTERNS = [/key$/i, /token$/i, /secret$/i, /authorization/i]
+const SENSITIVE_KEY_PATTERN =
+  /password|passwd|pwd|old_password|new_password|token|secret|authorization|cookie|api[-_]?key/i
+
+const MAX_SANITIZE_DEPTH = 6
+const MAX_LOG_STRING_LENGTH = 2000
 
 function isSensitiveKey(key) {
-  if (typeof key !== 'string') return false
-  return SENSITIVE_PATTERNS.some((re) => re.test(key))
+  return typeof key === 'string' && SENSITIVE_KEY_PATTERN.test(key)
 }
 
-function sanitizeBody(body) {
+function sanitizeBody(body, depth = 0) {
   if (body === null || body === undefined) return body
+  if (typeof body === 'string') {
+    return body.length > MAX_LOG_STRING_LENGTH
+      ? `${body.slice(0, MAX_LOG_STRING_LENGTH)}...[TRUNCATED]`
+      : body
+  }
   if (typeof body !== 'object') return body
-  if (Array.isArray(body)) return body.map(sanitizeBody)
+  if (body instanceof Date) return body.toISOString()
+  if (body instanceof Error) {
+    return { name: body.name, message: body.message, stack: body.stack }
+  }
+  if (depth >= MAX_SANITIZE_DEPTH) return '[MAX_DEPTH]'
+  if (Array.isArray(body)) return body.map((item) => sanitizeBody(item, depth + 1))
 
   const sanitized = {}
   for (const [key, value] of Object.entries(body)) {
-    if (isSensitiveKey(key)) {
-      sanitized[key] = '[REDACTED]'
-    } else if (value && typeof value === 'object') {
-      sanitized[key] = sanitizeBody(value)
-    } else {
-      sanitized[key] = value
-    }
+    sanitized[key] = isSensitiveKey(key) ? '[REDACTED]' : sanitizeBody(value, depth + 1)
   }
   return sanitized
+}
+
+/**
+ * 保证脱敏后的日志数据可直接展开进日志条目（非对象包一层 data）
+ */
+function normalizeLogData(data) {
+  const sanitized = sanitizeBody(data)
+  if (sanitized && typeof sanitized === 'object' && !Array.isArray(sanitized)) {
+    return sanitized
+  }
+  return { data: sanitized }
 }
 
 module.exports = {

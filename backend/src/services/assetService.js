@@ -107,6 +107,22 @@ function isFileUnchanged(dataBasePath, ossPath, md5) {
 }
 
 /**
+ * 把 OSS 路径解析为本地 data 目录下的绝对路径
+ * 防路径穿越：解析后必须仍位于 dataBasePath 内
+ * @param {string} dataBasePath
+ * @param {string} ossPath
+ * @returns {string}
+ */
+function resolveLocalPath(dataBasePath, ossPath) {
+  const base = path.resolve(dataBasePath || '.')
+  const target = path.resolve(base, String(ossPath || ''))
+  if (!target.startsWith(`${base}${path.sep}`)) {
+    throw new Error('非法资源路径')
+  }
+  return target
+}
+
+/**
  * 上传文件到 OSS
  * @param {Buffer} buffer - 文件内容
  * @param {string} ossPath - OSS 目标路径
@@ -117,7 +133,7 @@ async function uploadToOss(buffer, ossPath, ossConfig) {
   if (!ossConfig.bucket) {
     // 无 OSS 配置时保存到本地 data 目录（开发/测试环境）
     const fs = require('fs')
-    const localPath = path.join(ossConfig.dataBasePath || '.', ossPath)
+    const localPath = resolveLocalPath(ossConfig.dataBasePath, ossPath)
     const dir = path.dirname(localPath)
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
@@ -159,7 +175,7 @@ async function deleteOssObject(ossConfig, ossPath) {
   if (!ossConfig.bucket) {
     // 无 OSS 配置时删除本地 data 目录下对应文件（开发/测试环境）
     const fs = require('fs')
-    const localPath = path.join(ossConfig.dataBasePath || '.', ossPath)
+    const localPath = resolveLocalPath(ossConfig.dataBasePath, ossPath)
     if (fs.existsSync(localPath)) {
       fs.unlinkSync(localPath)
       logger.info(`[AssetService] 已删除本地文件: ${localPath}`)
@@ -237,7 +253,7 @@ function updateVersionRecord(dataBasePath, ossPath, md5, size, type) {
  * @param {object} ossConfig - OSS 配置
  * @returns {Promise<{ skipped: boolean, ossPath: string, md5: string, size: number }>}
  */
-async function processFileUpload({ buffer, ossPath, originalName, type }, ossConfig) {
+async function processFileUpload({ buffer, ossPath, originalName: _originalName, type }, ossConfig) {
   const md5 = computeMd5(buffer)
   const size = buffer.length
   const dataBasePath = ossConfig.dataBasePath || '.'
