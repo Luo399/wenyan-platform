@@ -131,6 +131,7 @@ import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { resolveQuestionId } from '@/utils/questionId'
 import { debugLog, debugError } from '@/utils/debug'
+import type { PageBlock } from '@/types/pageConfig'
 
 // ======== 模板里用到的组件（必须显式 import，Vue script setup 不会自动扫描） ========
 import WordList from '@/components/WordList.vue'
@@ -171,10 +172,10 @@ const pageUrl = computed(() => {
 })
 
 // Step 2 的 PageConfig 类型（从 pageRegistry 读取 blocks 渲染）
-// 用宽松 any 以匹配 BlockRenderer 的 union type 要求
+// 复用 @/types/pageConfig 的 PageBlock，与 BlockRenderer 的 props 类型保持一致
 interface PageConfig {
   title?: string
-  blocks: any[]
+  blocks: PageBlock[]
 }
 
 // Step 3 的数据类型

@@ -3,7 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  plugins: [vue() as any],
+  plugins: [vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -16,22 +16,26 @@ export default defineConfig({
     environment: 'happy-dom',
     // threads 比 forks 稳：forks 模式下 jsdom 30 + Node 20 会触发 webidl.markAsUncloneable 序列化崩溃
     pool: 'threads',
-    include: ['src/**/*.test.ts'],
-    // 注意：tests/**/*.spec.ts 那批老测试用了过期的 @vue/test-utils 1.x 写法
-    // 且 jsdom 30 + Node 20 有 webidl 兼容性问题，暂不纳入；后续统一处理后再加
+    // src 单元测试 + tests/ 下的存量测试（此前 tests/**/*.spec.ts 从未被执行）
+    include: ['src/**/*.test.ts', 'tests/**/*.spec.ts'],
     exclude: ['**/node_modules/**', '**/backend/tests/**'],
-    // P0-3: 覆盖率阈值强制——首轮用保守值（实测后上调）
-    // 低于此阈值 CI 失败，后续根据实际覆盖率逐步提高
+    // tests/setup.ts 只做三件事：mock ResizeObserver、mock HTMLMediaElement 的
+    // play/pause/load、stub 全局 fetch。均基于 vi.fn()，与 happy-dom 的
+    // window 实现不冲突，因此保留 environment: 'happy-dom' 并直接启用。
+    setupFiles: ['tests/setup.ts'],
+    // P0-3: 覆盖率阈值强制——低于此阈值 CI 失败
+    // 阈值 40/40/30/40（lines/functions/branches/statements）
     coverage: {
-      provider: 'c8',
+      // vitest 4 已移除 c8 provider，必须使用 v8
+      provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,vue}'],
       exclude: ['src/**/__tests__/**', 'src/**/main.ts', 'src/**/*.d.ts', 'src/mock/**'],
       thresholds: {
-        lines: 30,
-        functions: 30,
-        branches: 20,
-        statements: 30,
+        lines: 40,
+        functions: 40,
+        branches: 30,
+        statements: 40,
       },
     },
   },

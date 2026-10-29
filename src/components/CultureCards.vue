@@ -40,7 +40,6 @@
           :key="card.card_id || index"
           class="card-item"
           :class="{
-            locked: !isUnlocked(card),
             'card-media-image': cardMediaType(card) === 'image',
             'card-media-video': cardMediaType(card) === 'video',
             'card-media-text': cardMediaType(card) === 'text',
@@ -49,12 +48,10 @@
           }"
           :style="{
             ...cardSizeStyle(),
-            backgroundImage: card.background_image
-              ? `url(${getCardBackgroundUrl(card)})`
-              : undefined,
+            backgroundImage: cssBackgroundUrl(card),
           }"
-          :role="isUnlocked(card) ? 'button' : undefined"
-          :tabindex="isUnlocked(card) ? 0 : -1"
+          role="button"
+          tabindex="0"
           :aria-label="`文化卡片：${card.card_name}`"
           @click="handleCardClick(card)"
           @keydown.enter="handleCardClick(card)"
@@ -78,9 +75,8 @@
           >
             <div class="card-header">
               <span class="card-name">{{ card.card_name }}</span>
-              <span v-if="!isUnlocked(card)" class="lock-icon">🔒</span>
-              <span v-else-if="cardMediaType(card) === 'video'" class="video-badge">
-                <i class="fas fa-play"></i>
+              <span v-if="cardMediaType(card) === 'video'" class="video-badge">
+                <i class="fas fa-play" aria-hidden="true"></i>
               </span>
             </div>
 
@@ -108,7 +104,21 @@
                   :src="getCardVideoUrl(card)"
                   :poster="card.poster_file ? getCardImageUrl({ ...card, image_file: card.poster_file }) : ''"
                 />
-                <div v-else class="video-thumbnail" @click.stop="handleVideoClick(card)">
+                <!--
+                  缩略图本身可点：加 role=button + tabindex + Enter/Space，
+                  否则键盘用户只能聚焦到外层卡片，永远进不了卡内播放。
+                  keydown 上的 .stop 防止事件继续冒泡到外层卡片（同一个 Enter 播放两次）。
+                -->
+                <div
+                  v-else
+                  class="video-thumbnail"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="`播放视频：${card.card_name}`"
+                  @click.stop="handleVideoClick(card)"
+                  @keydown.enter.stop="handleVideoClick(card)"
+                  @keydown.space.prevent.stop="handleVideoClick(card)"
+                >
                   <img
                     v-if="card.poster_file"
                     :src="getCardImageUrl({ ...card, image_file: card.poster_file })"
@@ -118,7 +128,7 @@
                     @error="handleImageError"
                   />
                   <div class="video-play-overlay">
-                    <i class="fas fa-play-circle"></i>
+                    <i class="fas fa-play-circle" aria-hidden="true"></i>
                     <span class="video-play-text">点击播放</span>
                   </div>
                 </div>
@@ -170,6 +180,7 @@ interface CultureCard {
   /** 卡片背景图（可选，统一使用，不区分卡片类型） */
   background_image?: string
   knowledge_text: string
+  /** 解锁条件（数据侧字段，暂无判据可用，仅透传，不参与渲染） */
   unlock_condition?: string
 }
 
@@ -283,14 +294,50 @@ function cardMediaType(card: CultureCard): 'text' | 'image' | 'video' {
   return 'text'
 }
 
+// ============================================================
+// 资源 URL 拼接（协议白名单 + 逐段编码）
+// ============================================================
+
 /**
- * 获取卡片图片/视频 URL
+ * 只放行 https: 绝对地址与站内相对路径（/ 或 ./ 开头）。
+ * 其余协议（javascript:、data:、协议相对 //evil.com）一律拒绝。
+ *
+ * 卡片数据来自 OSS 上的 JSON（外部可写），原样拼进 `background: url(...)` 时，
+ * 形如 `x.png"); background-image:url(javascript:...)` 的值可以跳出样式声明；
+ * 这里先卡协议，再由 buildCardAssetUrl 逐段编码，双层收口。
+ */
+function isAllowedAssetUrl(url: string): boolean {
+  if (!url) return false
+  if (url.startsWith('//')) return false
+  return url.startsWith('https:') || url.startsWith('/') || url.startsWith('./')
+}
+
+/**
+ * 拼接卡片资源 URL：ossBase 原样保留（可能自带 scheme），动态段逐段 encodeURIComponent。
+ *
+ * 逐段编码的理由：文件名里的空格、括号、引号、# 不被 encode 时，
+ * CSS 的 url() 会提前闭合，浏览器也会把 # 之后当成锚点截断，资源直接 404。
+ *
+ * @returns 合法 URL；不合法（含 ossBase 配错）返回空串，由调用方回退占位
+ */
+function buildCardAssetUrl(...segments: string[]): string {
+  const path = segments.map((segment) => encodeURIComponent(segment)).join('/')
+  const url = `${ossBase}/${path}`
+  return isAllowedAssetUrl(url) ? url : ''
+}
+
+/**
+ * 获取卡片图片 URL
  * 资源路径：{ossBase}/images/culture_cards/{wenId}/{image_file}
- * 通过 ossBase（VITE_OSS_BASE_URL）拼接完整 URL，确保 OSS 生产桶读取
+ * 通过 ossBase（VITE_OSS_BASE_URL）拼接完整 URL，确保 OSS 生产桶读取；
+ * 地址不合法（协议不在白名单内）时回退内联占位图，避免 <img src=""> 重新请求当前页面。
  */
 function getCardImageUrl(card: CultureCard): string {
   if (cardMediaType(card) === 'text') return ''
-  return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
+  return (
+    buildCardAssetUrl('images', 'culture_cards', card.text_id, card.image_file) ||
+    getPlaceholderSvg('图片地址无效')
+  )
 }
 
 /**
@@ -299,7 +346,20 @@ function getCardImageUrl(card: CultureCard): string {
  */
 function getCardBackgroundUrl(card: CultureCard): string {
   if (!card.background_image) return ''
-  return `${ossBase}/images/culture_cards/${card.text_id}/${card.background_image}`
+  return buildCardAssetUrl('images', 'culture_cards', card.text_id, card.background_image)
+}
+
+/**
+ * 内联样式 background-image 的值。
+ *
+ * - 合法地址：外层用双引号包住 url()，配合 buildCardAssetUrl 的逐段编码，
+ *   文件名里的空格 / 括号 / 引号不会提前闭合 url()
+ * - 非法地址：回退到内联占位图，卡片不会变成一块没有底图的空白
+ */
+function cssBackgroundUrl(card: CultureCard): string | undefined {
+  if (!card.background_image) return undefined
+  const url = getCardBackgroundUrl(card)
+  return `url("${url || getPlaceholderSvg('图片地址无效')}")`
 }
 
 /**
@@ -308,7 +368,7 @@ function getCardBackgroundUrl(card: CultureCard): string {
  * 文件名即 card.image_file（如 WEN_01_card_uprising.mp4）
  */
 function getCardVideoUrl(card: CultureCard): string {
-  return `${ossBase}/video/${card.image_file}`
+  return buildCardAssetUrl('video', card.image_file)
 }
 
 /**
@@ -337,20 +397,16 @@ function getPlaceholderSvg(text: string): string {
   return 'data:image/svg+xml,' + encodeURIComponent(svg)
 }
 
-// 解锁状态判断
-// 当前恒 true 为占位实现；接入用户进度数据后再按 card.unlock_condition 判断
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- 参数保留给后续解锁逻辑使用
-function isUnlocked(_card: CultureCard): boolean {
-  return true
-}
+// 卡片解锁：unlock_condition 目前只透传、没有任何可用判据（学生进度数据未接入）。
+// 原 isUnlocked(_card) 恒 return true，既让模板里出现永不生效的 locked 分支，
+// 也让 tabindex 恒为 0 —— 等于死代码。这里直接去掉，接入进度数据时再加判断，
+// 并把 locked 类 / tabindex=-1 / 锁图标一起恢复。
 
 function handleCardClick(card: CultureCard) {
-  if (!isUnlocked(card)) return
   emit('card-click', card)
 }
 
 function handleVideoClick(card: CultureCard) {
-  if (!isUnlocked(card)) return
   // 切换为卡内固定尺寸播放（VideoPlayer 自带全屏键）
   playingCards.add(card.card_id)
   emit('video-click', card)
@@ -471,22 +527,16 @@ function flipNextCard() {
   backdrop-filter: none;
 }
 
-.card-item:hover:not(.locked) {
+.card-item:hover {
   box-shadow: var(--shadow-card);
   border-color: var(--color-primary);
 }
 
-.card-item:focus-visible:not(.locked) {
+.card-item:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   box-shadow: var(--shadow-card);
   border-color: var(--color-primary);
-}
-
-.card-item.locked {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: var(--color-placeholder);
 }
 
 /* 虚线边框（Figma 设计同步） */
@@ -559,10 +609,6 @@ function flipNextCard() {
   font-size: 16px;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
-}
-
-.lock-icon {
-  font-size: 20px;
 }
 
 .video-badge {

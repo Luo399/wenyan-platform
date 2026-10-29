@@ -67,12 +67,12 @@ interface Props {
   show?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   show: true,
 })
 
-// 事件定义
-const emit = defineEmits<{
+// 事件定义（模板里用 $emit 触发，脚本内无需持有 emit 引用）
+defineEmits<{
   (e: 'quiz-submitted'): void
   (
     e: 'quiz-answer',

@@ -11,15 +11,14 @@
     "type-check": "vue-tsc --build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "lint": "run-s lint:*",
+    "lint": "run-s lint:oxlint lint:eslint",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
+    "lint:ci": "oxlint . && eslint . --cache",
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
-    "@videojs-player/vue": "^1.0.0",
     "pinia": "^3.0.4",
-    "video.js": "^7.21.7",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },
@@ -27,6 +26,7 @@
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.13.3",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/coverage-v8": "^4.1.10",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/test-utils": "^2.4.11",
     "@vue/tsconfig": "^0.9.1",

@@ -28,7 +28,6 @@
               :value="g"
               v-model="selectedGrades"
               class="chip-input"
-              @change="emitChange"
             />
             <span class="chip">{{ g }}级</span>
           </label>
@@ -126,6 +125,11 @@ export interface ClassPickerProps {
 
 const props = withDefaults(defineProps<ClassPickerProps>(), {
   modelValue: () => [],
+  // 显式 default: undefined —— boolean 类型的 props 缺省时 Vue 会把它转成 false，
+  // 那样 `props.fullAccess ?? innerFullAccess` 永远拿到 false，
+  // 组件自管 fullAccess 的模式（父组件只监听 update:fullAccess，不传值）就完全失效：
+  // 勾选后 checkbox 立刻被回写成未勾选、specific-picker 也不会隐藏
+  fullAccess: undefined,
 })
 
 const emit = defineEmits<{

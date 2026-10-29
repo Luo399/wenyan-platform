@@ -232,6 +232,28 @@ const containerRef = ref<HTMLElement | null>(null)
  */
 const isFullscreen = ref(false)
 
+/**
+ * 「切源后自动续播」挂着的 loadedmetadata 监听。
+ *
+ * 必须整体保存 { video, handler }：原实现只在回调里 removeEventListener，
+ * 于是出现两条泄漏路径——
+ * 1. metadata 还没到就又切了一次源：旧监听留在旧元素上，闭包仍引用组件状态；
+ * 2. 组件先卸载：监听永远不会被摘掉，回调还会去 play() 一个已销毁的元素。
+ * 现在的规则是「切源前 + 卸载时统一摘掉上一个」。
+ */
+let pendingMetaListener: { video: HTMLVideoElement; handler: () => void } | null = null
+
+/** 摘掉挂着的 loadedmetadata 监听（幂等） */
+function removePendingMetaListener(): void {
+  if (!pendingMetaListener) return
+  const { video, handler } = pendingMetaListener
+  video.removeEventListener('loadedmetadata', handler)
+  pendingMetaListener = null
+}
+
+/** 「重新加载」按钮的 setTimeout id：卸载后必须清掉，否则回调会摸到已销毁的 video */
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+
 // ============================================================
 // 计算属性
 // ============================================================
@@ -365,18 +387,20 @@ function handleVideoError() {
  */
 function retryLoad() {
   loadError.value = false
+  if (!videoRef.value) return
+  // 连点「重新加载」时先清掉上一次挂着的定时器，避免两个回调同时改 src
+  if (retryTimer !== null) clearTimeout(retryTimer)
   // 通过重新设置 src 触发重新加载
-  if (videoRef.value) {
-    const currentSrc = videoRef.value.src
-    videoRef.value.src = ''
-    // 强制浏览器重新加载
-    setTimeout(() => {
-      if (videoRef.value) {
-        videoRef.value.src = currentSrc
-        videoRef.value.load()
-      }
-    }, 100)
-  }
+  const currentSrc = videoRef.value.src
+  videoRef.value.src = ''
+  // 强制浏览器重新加载
+  retryTimer = setTimeout(() => {
+    retryTimer = null
+    if (videoRef.value) {
+      videoRef.value.src = currentSrc
+      videoRef.value.load()
+    }
+  }, 100)
 }
 
 /**
@@ -504,6 +528,9 @@ watch(
   (newSrc, oldSrc) => {
     if (!newSrc || newSrc === oldSrc) return
 
+    // 切源前先摘掉上一条源挂着的续播监听，避免它在新视频上误触发
+    removePendingMetaListener()
+
     // 重置状态
     duration.value = 0
     currentTime.value = 0
@@ -532,12 +559,14 @@ watch(
         // 已加载过 metadata（如从缓存）
         autoPlayAfterMeta()
       } else {
-        // 等待 loadedmetadata 事件一次性触发
+        // 等待 loadedmetadata 事件一次性触发：handler 与 video 一起登记，
+        // 由 removePendingMetaListener 在下次切源 / 卸载时统一摘掉
         const handler = () => {
+          removePendingMetaListener()
           autoPlayAfterMeta()
-          v.removeEventListener('loadedmetadata', handler)
         }
         v.addEventListener('loadedmetadata', handler)
+        pendingMetaListener = { video: v, handler }
       }
     }
   },
@@ -548,9 +577,15 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
-// 组件卸载时移除监听，避免内存泄漏
+// 组件卸载时移除监听与未落地的定时器，避免内存泄漏 / 操作已销毁元素
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  removePendingMetaListener()
+  if (retryTimer !== null) {
+    clearTimeout(retryTimer)
+    retryTimer = null
+  }
+  videoRef.value?.pause()
 })
 </script>
 
