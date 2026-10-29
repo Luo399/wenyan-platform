@@ -26,6 +26,55 @@
         @ended="trackModule.trackInteraction('朗读', '完成', 0)"
       />
     </section>
+
+    <!-- 随堂练习：只在 level1_quiz 有数据时出现，缺数据不阻塞继续 -->
+    <template v-if="step1Cards.length">
+      <div class="divider">
+        <span class="divider-text">随堂练习</span>
+      </div>
+      <section class="quiz-section">
+        <div class="progress-bar-container">
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              :style="{ width: step1Flow.progressPercent.value + '%' }"
+            ></div>
+          </div>
+          <span class="progress-text">
+            {{ step1Flow.completedCount.value }} / {{ step1Flow.totalQuestions.value }}
+          </span>
+        </div>
+
+        <div class="quiz-list">
+          <div
+            v-for="(quiz, index) in step1Cards"
+            :key="quiz.question_id"
+            class="quiz-item"
+            :class="{ hidden: index > step1Flow.currentIndex.value }"
+          >
+            <div class="quiz-header">
+              <span class="quiz-number">第 {{ index + 1 }} 题</span>
+            </div>
+            <QuizCard
+              :data="quiz"
+              :submitted="isStep1Submitted(index)"
+              @submit="
+                (option: number | null) => option !== null && handleStep1Submit(index, option)
+              "
+            />
+          </div>
+        </div>
+
+        <div class="complete-state" v-if="step1Flow.isCompleted.value">
+          <div class="complete-icon"><i class="fas fa-trophy"></i></div>
+          <h2 class="complete-title">练习完成！</h2>
+          <p class="complete-stats">
+            答对 {{ step1CorrectCount }} / {{ step1Flow.completedCount.value }} 题
+          </p>
+        </div>
+      </section>
+    </template>
+
     <BackContinue @back="handleGoPrev" @continue="handleGoNext" />
   </div>
 
@@ -73,9 +122,14 @@
       <!-- 进度条 -->
       <div class="progress-bar-container" v-if="pageData">
         <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: step3Flow.progressPercent.value + '%' }"></div>
+          <div
+            class="progress-fill"
+            :style="{ width: step3Flow.progressPercent.value + '%' }"
+          ></div>
         </div>
-        <span class="progress-text">{{ step3Flow.completedCount.value }} / {{ step3Flow.totalQuestions.value }}</span>
+        <span class="progress-text"
+          >{{ step3Flow.completedCount.value }} / {{ step3Flow.totalQuestions.value }}</span
+        >
       </div>
 
       <!-- 测验内容 -->
@@ -96,7 +150,9 @@
             <QuizCard
               :data="item.quiz as any"
               :submitted="isQuestionSubmitted(index)"
-              @submit="(option: number | null) => option !== null && handleStep3Submit(index, option)"
+              @submit="
+                (option: number | null) => option !== null && handleStep3Submit(index, option)
+              "
             />
           </div>
         </div>
@@ -105,7 +161,9 @@
         <div class="complete-state" v-if="step3Flow.isCompleted.value">
           <div class="complete-icon"><i class="fas fa-trophy"></i></div>
           <h2 class="complete-title">测验完成！</h2>
-          <p class="complete-stats">答对 {{ correctCount }} / {{ step3Flow.completedCount.value }} 题</p>
+          <p class="complete-stats">
+            答对 {{ correctCount }} / {{ step3Flow.completedCount.value }} 题
+          </p>
         </div>
 
         <!-- 文化卡片 -->
@@ -130,6 +188,9 @@ import { useQuizFlow } from '@/composables/quiz/useQuizFlow'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { resolveQuestionId } from '@/utils/questionId'
+import { getDataUrlWithVersion } from '@/utils/asset'
+import { adaptLevel1Quiz, type RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
+import type { PageBlock } from '@/types/pageConfig'
 import { debugLog, debugError } from '@/utils/debug'
 
 // ======== 模板里用到的组件（必须显式 import，Vue script setup 不会自动扫描） ========
@@ -170,11 +231,113 @@ const pageUrl = computed(() => {
   return `/data/${meta.value.dataDir}/${wenId.value}.json`
 })
 
+// ======== Step 1: 随堂练习（A 关，level1_quiz） ========
+// 数据目录只有 WEN_01–04 有题；05 起缺文件时 loader 报错，模板按空数组整段隐藏，
+// 不影响字词/朗读，也不阻塞「继续」。
+interface Step1QuizCard {
+  question_id: string
+  question_type: 'radio' | 'checkbox'
+  question_text: string
+  options: string[]
+  correct_answer?: number
+  explanation?: string
+  difficulty?: string
+}
+
+const step1QuizUrl = computed(() => {
+  if (stepNumber.value !== 1 || !wenId.value) return ''
+  return getDataUrlWithVersion('level1_quiz', `${wenId.value}.json`)
+})
+
+const { data: step1RawQuizzes } = useDataLoader<RawLevel1QuizItem[]>(() => step1QuizUrl.value, {
+  timeout: 10000,
+  retryCount: 1,
+  cacheEnabled: true,
+})
+
+const step1Quizzes = computed(() =>
+  step1RawQuizzes.value ? adaptLevel1Quiz(step1RawQuizzes.value) : [],
+)
+const step1QuizCount = computed(() => step1Quizzes.value.length)
+
+/**
+ * level1_quiz 里的 correct_answer 可能是 "C" / "c" / 2 / "2"，统一归一成 0 基下标。
+ * 无法识别时返回 undefined（QuizCard 不标正确项，提交时 correctAnswer 也留空）。
+ */
+function normalizeCorrectIndex(value: string | number | null | undefined): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 0 && value <= 3 ? value : undefined
+  }
+  if (!value) return undefined
+  const normalized = value.trim().toUpperCase()
+  if (normalized.length === 1) {
+    const letterIndex = normalized.charCodeAt(0) - 65
+    if (letterIndex >= 0 && letterIndex <= 3) return letterIndex
+  }
+  const numeric = Number(normalized)
+  return Number.isInteger(numeric) && numeric >= 0 && numeric <= 3 ? numeric : undefined
+}
+
+const step1Cards = computed<Step1QuizCard[]>(() =>
+  step1Quizzes.value.map((quiz) => ({
+    question_id: quiz.questionId,
+    question_type: quiz.questionType === 'checkbox' ? 'checkbox' : 'radio',
+    question_text: quiz.questionText,
+    options: quiz.options.map((option) => option.value),
+    correct_answer: normalizeCorrectIndex(quiz.correctAnswer),
+    explanation: quiz.explanation,
+    difficulty: quiz.difficulty,
+  })),
+)
+
+const step1Flow = useQuizFlow({
+  totalQuestions: step1QuizCount,
+  // 三关完成记录分开存，避免共用 wenId 时互相覆盖；后端仍收到纯 WEN_xx
+  completionKey: () => `stepone:${wenId.value}`,
+  wenId: () => wenId.value,
+})
+
+const step1SubmittedIndexSet = computed(
+  () => new Set(step1Flow.answers.value.map((a) => a.questionIndex)),
+)
+
+function isStep1Submitted(index: number): boolean {
+  return step1SubmittedIndexSet.value.has(index)
+}
+
+const step1CorrectCount = computed(
+  () => step1Flow.answers.value.filter((answer) => answer.isCorrect).length,
+)
+
+async function handleStep1Submit(quizIndex: number, selectedOption: number) {
+  const quiz = step1Quizzes.value[quizIndex]
+  const card = step1Cards.value[quizIndex]
+  if (!quiz || !card) return
+
+  const isCorrect =
+    card.correct_answer === undefined ? undefined : selectedOption === card.correct_answer
+
+  await step1Flow.submit({
+    answer: selectedOption,
+    isCorrect,
+    questionId: quiz.questionId,
+    module: 'A',
+    correctAnswer: card.correct_answer,
+  })
+
+  if (isCorrect) {
+    trackModule.trackQuizSubmit(100, [])
+  } else {
+    trackModule.trackQuizSubmit(0, [quiz.questionId])
+  }
+}
+
+watch(wenId, () => step1Flow.reset())
+
 // Step 2 的 PageConfig 类型（从 pageRegistry 读取 blocks 渲染）
-// 用宽松 any 以匹配 BlockRenderer 的 union type 要求
 interface PageConfig {
   title?: string
-  blocks: any[]
+  blocks: PageBlock[]
 }
 
 // Step 3 的数据类型
@@ -197,13 +360,19 @@ interface PageData {
   items: PageItem[]
 }
 
-const { data: pageConfig, loading, error, retry } = useDataLoader<PageConfig>(
-  () => (stepNumber.value === 2 ? pageUrl.value : ''),
-)
+const {
+  data: pageConfig,
+  loading,
+  error,
+  retry,
+} = useDataLoader<PageConfig>(() => (stepNumber.value === 2 ? pageUrl.value : ''))
 // StepThree 独立的 loading/error（不能共用 StepTwo 的，否则 stepNumber 切换时空 URL 会污染 error 显示）
-const { data: pageData, loading: pageLoading, error: pageError, retry: retryPage } = useDataLoader<PageData>(
-  () => (stepNumber.value === 3 ? pageUrl.value : ''),
-)
+const {
+  data: pageData,
+  loading: pageLoading,
+  error: pageError,
+  retry: retryPage,
+} = useDataLoader<PageData>(() => (stepNumber.value === 3 ? pageUrl.value : ''))
 
 // ======== Step 2: quiz 进度（useQuizFlow） ========
 const step2QuizCount = ref(0)
@@ -218,24 +387,24 @@ watch(
 
 const step2Flow = useQuizFlow({
   totalQuestions: step2QuizCount,
-  completionKey: wenId.value,
+  completionKey: () => `steptwo:${wenId.value}`,
+  wenId: () => wenId.value,
 })
 
-const showNavigation = computed(() =>
-  Boolean(!loading.value && !error.value && pageConfig.value),
-)
+const showNavigation = computed(() => Boolean(!loading.value && !error.value && pageConfig.value))
 
 // Step 2: 统计 quiz 块索引，实现 Block 可见性控制
 const quizBlockIndices = computed(() => {
   if (!pageConfig.value) return []
-  return pageConfig.value.blocks
-    .map((b, i) => (b.type === 'quiz' ? i : -1))
-    .filter((i) => i !== -1)
+  return pageConfig.value.blocks.map((b, i) => (b.type === 'quiz' ? i : -1)).filter((i) => i !== -1)
 })
 
 function isQuizBlockVisible(blockIndex: number): boolean {
   if (!pageConfig.value) return false
   if (!quizBlockIndices.value.length) return true
+  // 最后一题提交后 currentIndex 不再前进（useQuizFlow 不会越过 totalQuestions），
+  // 仅按「最后一个已解锁 quiz」截断会把题目后面的解析对话永远藏住 → 全部解锁。
+  if (step2Flow.isCompleted.value) return true
   const lastUnlockedQuiz = quizBlockIndices.value[step2Flow.currentIndex.value] ?? Infinity
   return blockIndex <= lastUnlockedQuiz
 }
@@ -276,11 +445,12 @@ watch(
 
 const step3Flow = useQuizFlow({
   totalQuestions: step3QuizCount,
-  completionKey: wenId.value,
+  completionKey: () => `stepthree:${wenId.value}`,
+  wenId: () => wenId.value,
 })
 
-const submittedIndexSet = computed(() =>
-  new Set(step3Flow.answers.value.map((a) => a.questionIndex)),
+const submittedIndexSet = computed(
+  () => new Set(step3Flow.answers.value.map((a) => a.questionIndex)),
 )
 
 function isQuestionSubmitted(index: number): boolean {
@@ -376,7 +546,9 @@ onMounted(() => {
   gap: var(--spacing-lg);
 }
 @media (max-width: 768px) {
-  .step-2-view { padding: var(--spacing-sm); }
+  .step-2-view {
+    padding: var(--spacing-sm);
+  }
 }
 
 /* ============ Step 3 样式 ============ */
@@ -386,19 +558,35 @@ onMounted(() => {
   margin: 0 auto;
   padding-bottom: 5rem;
 }
+/* Step 1 随堂练习与 Step 3 共用同一套答题卡片样式 */
+.step-1-view .quiz-section {
+  margin-top: var(--spacing-md);
+}
+.step-1-view .quiz-list,
 .step-3-view .quiz-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
 }
+.step-1-view .quiz-item,
 .step-3-view .quiz-item {
   animation: fadeInUp 0.5s ease forwards;
 }
-.step-3-view .quiz-item.hidden { display: none; }
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+.step-1-view .quiz-item.hidden,
+.step-3-view .quiz-item.hidden {
+  display: none;
 }
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.step-1-view .progress-bar-container,
 .step-3-view .progress-bar-container {
   display: flex;
   align-items: center;
@@ -408,6 +596,7 @@ onMounted(() => {
   background-color: var(--color-placeholder);
   border-radius: var(--radius-small);
 }
+.step-1-view .progress-bar,
 .step-3-view .progress-bar {
   flex: 1;
   height: 8px;
@@ -415,12 +604,14 @@ onMounted(() => {
   border-radius: 4px;
   overflow: hidden;
 }
+.step-1-view .progress-fill,
 .step-3-view .progress-fill {
   height: 100%;
   background-color: var(--color-primary);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
+.step-1-view .progress-text,
 .step-3-view .progress-text {
   font-family: var(--font-family-serif);
   font-size: var(--font-size-small);
@@ -443,6 +634,7 @@ onMounted(() => {
   line-height: 1.8;
   color: var(--color-text);
 }
+.step-1-view .quiz-header,
 .step-3-view .quiz-header {
   display: flex;
   justify-content: flex-start;
@@ -451,12 +643,14 @@ onMounted(() => {
   border-radius: var(--radius-small) var(--radius-small) 0 0;
   border-bottom: var(--border-width-hairline) solid var(--color-placeholder);
 }
+.step-1-view .quiz-number,
 .step-3-view .quiz-number {
   font-family: var(--font-family-serif);
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
+.step-1-view .complete-state,
 .step-3-view .complete-state {
   display: flex;
   flex-direction: column;
@@ -467,6 +661,7 @@ onMounted(() => {
   border-radius: var(--radius-card);
   margin-top: var(--spacing-lg);
 }
+.step-1-view .complete-icon,
 .step-3-view .complete-icon {
   width: 64px;
   height: 64px;
@@ -479,6 +674,7 @@ onMounted(() => {
   font-size: var(--font-size-heading);
   margin-bottom: var(--spacing-md);
 }
+.step-1-view .complete-title,
 .step-3-view .complete-title {
   margin: 0 0 var(--spacing-xs) 0;
   font-family: var(--font-family-serif);
@@ -486,6 +682,7 @@ onMounted(() => {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
+.step-1-view .complete-stats,
 .step-3-view .complete-stats {
   margin: 0;
   font-family: var(--font-family-serif);
@@ -498,6 +695,8 @@ onMounted(() => {
   border-top: var(--border-width-hairline) solid var(--color-placeholder);
 }
 @media (max-width: 767px) {
-  .step-3-view { padding: var(--spacing-sm); }
+  .step-3-view {
+    padding: var(--spacing-sm);
+  }
 }
 </style>
