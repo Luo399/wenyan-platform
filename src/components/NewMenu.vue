@@ -58,7 +58,11 @@ import { debugLog } from '@/utils/debug'
 const BG_URL = getAssetUrl('images', 'general/article_list_bg.png')
 const TITLE_URL = getAssetUrl('images', 'general/article_list_title.png')
 
-/** 诗题列表数据：37 篇，与旧 PoetryMenu 完全同源（wenUtils） */
+/**
+ * 诗题列表数据：只列内容组**已确认编号**的篇目（当前 20 篇，见 wenUtils.poemMap）。
+ * 编号未确认的号位不进这个列表——列表标题是按编号取的，配错号就是张冠李戴。
+ * ready=false（缺 rule 视频）的仍显示但置灰标「制作中」。
+ */
 const poemList: PoemEntry[] = getAllPoems()
 
 /** 卡片区默认最多显示的诗题数量（超出部分由「查看更多」展开） */
