@@ -80,6 +80,7 @@ export const ALL_POEM_IDS: readonly string[] = Array.from({ length: 37 }, (_, i)
  *
  * 2026-10-28 按「视频平铺在 /video/、文件名即 WEN_nn_card_<标识>.mp4」的约定，
  * 把已交付的卡片视频按号位挂成 JSON，一次补了 06–13、17、18、22 共 11 篇。
+ * 2026-10-29 再补 23（《活板》，见 `ORPHAN_CARD_VIDEO_POEM_IDS` 的说明），现在 16 个号。
  * ⚠ 这份是仓库状态，不等于线上：`scripts/check-video-inventory.sh` 探的是线上 OSS，
  * 发版之前去跑它会给出「只有 01–04」，别照抄回来覆盖这一行。
  */
@@ -99,16 +100,23 @@ export const CULTURE_CARD_DATA_POEM_IDS: readonly string[] = [
   '17',
   '18',
   '22',
+  '23',
 ]
 
 /**
  * OSS 上已交付、但还没被 culture_cards JSON 引用的卡片视频**编号**。
  *
  * 2026-10-28 按命名约定（视频平铺在 /video/，文件名 `WEN_nn_card_<标识>.mp4`，nn 即号位）
- * 把 24 个孤儿里号位已确认的都挂上了，现在只剩 23 号位的 2 个文件。
- * 2026-10-29 用户确认 23 = 《活板》，「不能挂」的障碍解除，但 `WEN_23.json` 还没生成，
- * 所以这两个文件**仍是孤儿**（`paper`/`printing` 与《活板》讲雕版/活字印刷对得上，
- * 这条结论来自号位命名约定，没抽帧验过画面）。逐文件清单见 docs/素材缺失清单.md 第二节。
+ * 把 24 个孤儿里号位已确认的都挂上了，只剩 23 号位的 2 个文件——当时卡在「号位↔篇目未确认」，
+ * 2026-10-29 用户确认 23 = 《活板》后障碍解除，同日按同一口径补出 `WEN_23.json`
+ * （public 与 backend 两份逐字节一致），**这张表因此清空**。
+ *
+ * ⚠ 清空只说明「OSS 上没有没人引用的卡片视频了」，不代表 23 号位的卡片已经上线：
+ * `public/data/culture_cards/WEN_23.json` 要随前端构建发出去才在线上可见，
+ * 发版前 `https://www.classicalab.cn/data/culture_cards/WEN_23.json` 仍是 404。
+ * `card_paper` / `card_printing` 与《活板》讲雕版/活字印刷对得上，
+ * 这条归属结论来自号位命名约定，没抽帧验过画面；两张卡的 `knowledge_text` 都留空串，
+ * 导语等内容组给正文再填。逐文件清单见 docs/素材缺失清单.md 第二节。
  *
  * 挂载时 knowledge_text 的两类处理：有抽帧字幕佐证的写成事实性导语（06 林则徐发配伊犁 /
  * 左宗棠在哈密、07 伊犁将军统辖天山南北、08+11 库尔班大叔、04 奶馕），以及文件名即人名的
@@ -116,9 +124,9 @@ export const CULTURE_CARD_DATA_POEM_IDS: readonly string[] = [
  * `CultureCards.vue:125` 是 `v-if="card.knowledge_text"`，空值不渲染字幕，不会把占位文字漏给学生，
  * 等内容组给正文再填。
  * ⚠ 全部改动要发出去才在线上生效：`public/data/` 被 .gitignore 忽略（历史上靠 git add -f 入库），
- * 新加的 11 份 JSON 不加 -f 就进不了构建，线上照旧 404。详见 docs/素材缺失清单.md 第二节。
+ * 新加的 12 份 JSON 不加 -f 就进不了构建，线上照旧 404。详见 docs/素材缺失清单.md 第二节。
  */
-export const ORPHAN_CARD_VIDEO_POEM_IDS: readonly string[] = ['23']
+export const ORPHAN_CARD_VIDEO_POEM_IDS: readonly string[] = []
 
 /** 素材未就绪时统一展示给学生的文案（不要暴露 404/技术细节） */
 export const ASSET_NOT_READY_TEXT = '本篇素材正在制作中，敬请期待'
