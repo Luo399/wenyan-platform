@@ -106,6 +106,7 @@
         <div class="register-entry">
           <span class="register-text">还没有教师账号？</span>
           <button type="button" class="register-btn" @click="router.push('/teacher-register')">教师注册</button>
+          <!-- 注册入口 router.push 不走 useNavigation——属于 auth 流程分支，见 StudentLoginView.onRoleClick 注释 -->
         </div>
       </form>
     </div>
