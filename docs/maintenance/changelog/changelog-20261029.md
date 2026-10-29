@@ -279,11 +279,16 @@
   两条现在都满足 → 首页选篇多出《活板》。它的八类页面数据 JSON 仍全缺，属于**内容组还没产出**那一类
   （`public/data/` 里根本没有 `WEN_23.json`，线上 `data/*/WEN_23.json` 404），
   与「仓库里有、线上没发」（如 `culture_cards/WEN_22.json` 仓库有、线上 200）不是一回事。
-- **仍然没做的**：
-  CI 的 `quality-check` 跑的是 `npm run test`，**不带 `--coverage`**，所以 CR-19 的阈值只在本地 `npm run test:coverage` 生效，
-  要把门槛真正钉进 CI 还得改 workflow（未改，等你定）；
-  23 号位那 2 条孤儿卡片视频仍未挂载（`ORPHAN_CARD_VIDEO_POEM_IDS` 保持 `['23']`），挂载需要新建
-  `public/data/culture_cards/WEN_23.json`，而 `public/data/` 被 .gitignore 忽略、要 `git add -f`，且卡文案得内容组给；
+- **仍然没做的**（前两条已在**第六批**关掉，见 CR-20261029-24 / 25）：
+  ~~CI 的 `quality-check` 跑的是 `npm run test`，**不带 `--coverage`**，所以 CR-19 的阈值只在本地 `npm run test:coverage` 生效，
+  要把门槛真正钉进 CI 还得改 workflow（未改，等你定）~~
+  → 已钉进 CI（PR #228）。**顺带更正此处原先的说法**：它写「阈值只在本地 `npm run test:coverage` 生效」，
+  但当时仓库里**根本没有 `test:coverage` 这个脚本**（`package.json` 只有 `test`），那句话连本地都不成立——
+  脚本是第六批补的，CR-19 的阈值从落地到被真正执行之间空转了一整天。
+  ~~23 号位那 2 条孤儿卡片视频仍未挂载（`ORPHAN_CARD_VIDEO_POEM_IDS` 保持 `['23']`），挂载需要新建
+  `public/data/culture_cards/WEN_23.json`，而 `public/data/` 被 .gitignore 忽略、要 `git add -f`，且卡文案得内容组给~~
+  → 已按 `8c51427` 那批的同一口径挂载完（PR #229），孤儿表清空；`public/data/` 那个 .gitignore 坑照旧存在，
+  本批用 plumbing 直接落 blob 绕开；`knowledge_text` 仍留空串等内容组给正文。
   `test_version.json` 没拿到——`test-api.classicalab.cn` 的 `/api/assets/version` 当前 502（测试后端没起），
   所以清单里 `test_last_sync` 仍是 `null`，与被替换的旧快照一致；
   内容侧还剩 12 个号位待确认、21 张卡的 `knowledge_text` 等复核、08/11 库尔班大叔重复与 08 台标版权未定。
@@ -308,3 +313,45 @@
 - **结果**：全量 `vitest run` 19 个文件 / 274 个用例通过（新增 15 例）；`vue-tsc --build` 0 错误；
   新文件 ESLint / oxlint / prettier 通过。
 - **说明**：测试文件都在 `src/**/__tests__`，走 `vitest.config.ts` 的 include，不需要改配置或依赖。
+
+---
+
+## 第六批：覆盖率门禁钉进 CI + 23 号位卡片挂载（PR #228 – #229）
+
+> 口径来自用户两句话：**「CI 的进 workflow，23 号的问题，其他怎么解决的它就怎么解决」**。
+> 所以本批一个只动 CI 配置、不碰业务代码；另一个不发明新约定，逐条照 2026-10-28 那批挂载提交 `8c51427` 的做法做。
+>
+> **编号为什么从 24 起**：CR-20261029-23 已被上一节「第五批」（另一条会话的 Figma 测试补齐）占用，本批两条顺延为 24 / 25。
+
+| 变更编号       | 变更类型   | 影响范围                                                                                                                                                                       | 变更描述                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 测试状态                                                                       | 上线状态                                                  |
+| -------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| CR-20261029-24 | ci         | `.github/workflows/ci-checks.yml`、`package.json`、`vitest.config.ts`                                                                                                          | 把覆盖率门禁真正接进 CI：`quality-check` 的前端测试步骤由 `npm run test` 改为 `npm run test:coverage`（该步骤无 `continue-on-error`，不达标直接非零退出），并补上此前**根本不存在**的 `test:coverage` 脚本。阈值按当日两次实测的下界定为 lines 18 / functions 20 / branches 13 / statements 18。前置核对：`@vitest/coverage-v8@^4.1.10` 已在 devDependencies 且在 `package-lock.json`，CI 的 `npm install` 装得到；三个文件都命中 `on.push.paths`                                                                                                                       | 已通过（CI job 日志实测 `Coverage enabled with v8`、19 文件全过、覆盖率 23.06/16.84/25.04/22.45）    | 未上线（`feature-1`@`20e03c4`；CI 配置对 `main` 分支生效） |
+| CR-20261029-25 | feat(素材) | `public/data/culture_cards/WEN_23.json`、`backend/data/culture_cards/WEN_23.json`、`src/config/poemAssets.ts`、`src/config/__tests__/poemAssets.test.ts`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 23 号位《活板》的两张卡片视频按既有口径挂载。`public` 与 `backend` 两份 JSON 是**同一个 blob**（`bba4ac7`，606 字节 LF）；`card_name` 沿用「历史回响」、`image_file` 写交付原名、`unlock_condition` 照 01–04 文案、`knowledge_text` **两张都留空串**（画面未抽帧验证，不编造学生可见文案，组件 `v-if="card.knowledge_text"` 不渲染空字幕）。`CULTURE_CARD_DATA_POEM_IDS` 15 → 16 个号，`ORPHAN_CARD_VIDEO_POEM_IDS` 由 `['23']` 清空；两份素材文档的孤儿计数同步（24 个孤儿文件清零）。测试新增三条锁，`poemAssets.test.ts` 21 → 24 例 | 已通过（本机合并态导出树 19 文件 278 例、覆盖率 23.08/16.84/25.11/22.46；`vue-tsc --build` 0 错误；CI 12 项全绿） | 未上线（数据文件要随前端构建发布；发版前线上仍 404）       |
+
+### 明细
+
+- **分支 / commit / PR / 合并提交**：
+  `feature/quality-gate/ci-coverage-gate` @ `68eabad` → PR #228（合并提交 `20e03c4`）；
+  `feature/asset-numbering/slot-23-card-mount` @ `04f73da` → PR #229（合并提交 `1072821`）。
+  两条分支都从 `79555e5` 切出、改动文件互不相交，各 12 项检查（`push` + `pull_request` 两条 run × 6 job）全绿才 `--merge`，分支不删。
+- **门禁不是只看绿灯，日志里验过它真的跑了**：CI job 日志出现
+  `##[group]Run npm run test:coverage` → `> vitest run --coverage` → `Coverage enabled with v8` → 覆盖率四列表格；
+  这一步没有 `continue-on-error`（上一步 Lint 才有），所以阈值不达标会把 `quality-check` 判红。
+- **本机导出树的数字与 CI 对得上**：CI 在 #228 上跑 `23.06 | 16.84 | 25.04 | 22.45`，合并后在 `feature-1`@`1072821` 跑
+  `23.08 | 16.84 | 25.11 | 22.46`（四列依次是 stmts / branch / funcs / lines）；本机在同一棵导出树
+  （`git archive` + `mklink /J node_modules`）测得后者，逐项一致——说明这套「树外校验」的数字可以直接当 CI 的预测值用。
+  阈值 `statements 18 / branches 13 / functions 20 / lines 18`，相对实测的余量分别是 5.08 / 3.84 / 5.11 / 4.46 个点。
+- **23 号位逐条对齐 `8c51427`，且卡片数量是核过的**：线上 `GET /api/assets/oss-list` 的 `wen_list` 里 23 号位名下
+  **只有** `WEN_23_card_paper.mp4` 与 `WEN_23_card_printing.mp4` 两个卡片视频（没有第三张），两个视频此前逐个 HEAD 均 200，
+  所以挂载不引入 404。`card_id` 按交付顺序 1/2，`text_id` 三处同号。逐字段依据写在 `docs/素材缺失清单.md` 第二节末尾新增的「23 号位补挂（2026-10-29）」。
+- **三条新断言**：① `CULTURE_CARD_DATA_POEM_IDS` ↔ `public/data/culture_cards/` **双向**一一对应（历史上两个方向都漂过：
+  表里有号但目录没文件、目录有文件但表没登记）；② 23 号位已挂载且卡片清单就是那两个文件；③ 挂载表与孤儿表不许有交集。
+  原有的「挂载契约」那组用例是遍历目录的通用断言，新 JSON 自动被同号性 / 防跨号 / 扩展名 / 双扩展名 / 占位文本五道检查覆盖。
+- **一处顺手纠正**：本批发现 `docs/素材对应核查.md` 的覆盖矩阵是**线上实测**口径，所以「卡片」列不因本批挂载而改，
+  只在汇总行标注「线上 15/37、仓库 16/37」——`CULTURE_CARD_DATA_POEM_IDS` 只代表构建里有这份 JSON，不代表线上已经有了。
+- **仍然没做 / 待你这边**：
+  **发版前线上看不到 23 号位的卡片**，`https://www.classicalab.cn/data/culture_cards/WEN_23.json` 现在仍是 404，
+  发版后用 `scripts/check-video-inventory.sh` 探线上复核；
+  `figma-plugin/resource-inventory.json` 反映的是**线上**快照，仓库侧挂载不该改它，本批未动；
+  23 号位两张卡的 `knowledge_text` 导语、其余 12 个号位（20、21、28–37）待确认、08/11 库尔班大叔重复与 08 台标版权待定；
+  GitHub 令牌轮换（CR-20261029-22 的后续）仍待你本人执行。
