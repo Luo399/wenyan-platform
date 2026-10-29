@@ -258,7 +258,8 @@ function registerRoutes(app) {
   // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
   const resourceController = require('../controllers/resourceController')
   const singleUpload = multer(uploadOptions).single('file')
-  app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin']), singleUpload, resourceController.uploadResource)
+  // super_admin 权限含 admin，前端 /resource-upload 路由也放开了它，后端必须一致
+  app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin', 'super_admin']), singleUpload, resourceController.uploadResource)
 
   // ============ AI 对话（仅学生） ============
   const aiController = require('../controllers/aiController')

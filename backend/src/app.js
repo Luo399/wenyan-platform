@@ -98,9 +98,18 @@ function createApp() {
 
   // R7: /v1 版本前缀别名 —— 仅给缺失 /api 前缀的路径补齐，
   // 避免 /v1/api/texts 被改写成 /api/api/texts；/v1/texts 仍等价于 /api/texts
-  app.use('/v1', (req, res, next) => {
-    if (!req.url.startsWith('/api/') && req.url !== '/api') {
-      req.url = '/api' + req.url
+  //
+  // 注意：不能写成 app.use('/v1', fn)。挂载式中间件返回时 Express 会用保存的
+  // 原始 url 还原 req.url（router 的 restore 逻辑），改写等于没生效——实测
+  // /v1/texts 会 404。必须在 app 级别判断前缀再改写。
+  app.use((req, res, next) => {
+    if (req.url === '/v1' || req.url.startsWith('/v1/') || req.url.startsWith('/v1?')) {
+      // 去掉 /v1：/v1/texts → /texts → /api/texts；/v1/api/texts → /api/texts
+      // （保留已有的 /api，避免出现 /api/api/texts）
+      const rest = req.url.slice('/v1'.length)
+      req.url = rest === '/api' || rest.startsWith('/api/') || rest.startsWith('/api?')
+        ? rest
+        : '/api' + rest
     }
     next()
   })
