@@ -344,7 +344,7 @@ function parseArrayField(body, fieldName) {
  * 由调用方回退到内置标题表（见 buildInventory 内 POEMS）。
  *
  * @param {string} dataBasePath - 后端数据目录（ossConfig.dataBasePath）
- * @returns {Record<string, string>} 形如 { WEN_06: '诫子书', ... }
+ * @returns {Record<string, string>} 形如 { WEN_06: '醉翁亭记', ... }
  */
 function loadWenTitles(dataBasePath) {
   const fs = require('fs')
@@ -369,18 +369,27 @@ function loadWenTitles(dataBasePath) {
 }
 
 function buildInventory(entryList, lastSyncAt, dataBasePath) {
-  // 37篇诗文列表
-  const POEMS = {
+  // 编号 ↔ 篇目：只收录内容组**已确认**的号（2026-10-28 对照表）。
+  // 与 src/utils/wenUtils.ts 的 poemMap 同步维护；旧表 05 往后是按教材顺序推测的，
+  // 与美术/内容侧编号从 05 起整体错位，推测值当标题用会张冠李戴，所以删掉。
+  const CONFIRMED_POEM_TITLES = {
     'WEN_01': '陈涉世家', 'WEN_02': '马说', 'WEN_03': '岳阳楼记', 'WEN_04': '庄子与惠子',
-    'WEN_05': '论语十二章', 'WEN_06': '诫子书', 'WEN_07': '陋室铭', 'WEN_08': '爱莲说',
-    'WEN_09': '孟子三章', 'WEN_10': '虽有嘉肴', 'WEN_11': '大道之行', 'WEN_12': '鱼我所欲也',
-    'WEN_13': '送东阳马生序', 'WEN_14': '出师表', 'WEN_15': '三峡', 'WEN_16': '答谢中书书',
-    'WEN_17': '记承天寺夜游', 'WEN_18': '与朱元思书', 'WEN_19': '桃花源记', 'WEN_20': '小石潭记',
-    'WEN_21': '核舟记', 'WEN_22': '醉翁亭记', 'WEN_23': '湖心亭看雪', 'WEN_24': '孙权劝学',
-    'WEN_25': '卖油翁', 'WEN_26': '周亚夫军细柳', 'WEN_27': '唐雎不辱使命', 'WEN_28': '曹刿论战',
-    'WEN_29': '邹忌讽齐王纳谏', 'WEN_30': '穿井得一人', 'WEN_31': '杞人忧天', 'WEN_32': '愚公移山',
-    'WEN_33': '北冥有鱼', 'WEN_34': '咏雪', 'WEN_35': '陈太丘与友期行', 'WEN_36': '狼', 'WEN_37': '活板',
+    'WEN_05': '唐雎不辱使命', 'WEN_06': '醉翁亭记', 'WEN_07': '周亚夫军细柳', 'WEN_08': '咏雪',
+    'WEN_09': '卖油翁', 'WEN_10': '湖心亭看雪', 'WEN_11': '孙权劝学', 'WEN_12': '邹忌讽齐王纳谏',
+    'WEN_13': '曹刿论战', 'WEN_14': '《论语》十二章', 'WEN_15': '诫子书', 'WEN_16': '穿井得一人',
+    'WEN_17': '杞人忧天', 'WEN_18': '愚公移山', 'WEN_19': '陈太丘与友期行', 'WEN_22': '狼',
+    'WEN_24': '送东阳马生序', 'WEN_25': '出师表', 'WEN_26': '三峡', 'WEN_27': '答谢中书书',
   }
+
+  // 素材分类要覆盖全部 37 个号（美术按号交付，未确认的号也有文件要归位），
+  // 所以这里按号位补齐，未确认的用占位标题，不要把 POEMS 缩成已确认的 24 条——
+  // 下面按 Object.keys(POEMS) 匹配 ossPath 里的 WEN_xx，缩表会让 20/21/23/28–37 归不到课文。
+  const POEMS = Object.fromEntries(
+    Array.from({ length: 37 }, (_, i) => `WEN_${String(i + 1).padStart(2, '0')}`).map((wenId) => [
+      wenId,
+      CONFIRMED_POEM_TITLES[wenId] || '编号待确认',
+    ])
+  )
 
   // 动态标题：优先从 data JSON 读取（资源扫描/上传后即可得到），内置表仅作兜底
   const wenTitles = loadWenTitles(dataBasePath)
