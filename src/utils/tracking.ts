@@ -135,7 +135,6 @@ export function initVisibilityTracking(): void {
   if (typeof document === 'undefined') return
 
   document.addEventListener('visibilitychange', () => {
-    const now = Date.now()
     if (document.hidden) {
       isPageVisible = false
       // 页面切到后台，记录 page_hide
@@ -167,7 +166,7 @@ interface TrackEvent {
 }
 
 /** 事件缓冲队列 */
-let eventBuffer: TrackEvent[] = []
+const eventBuffer: TrackEvent[] = []
 /** 批量发送定时器 */
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 /** 批量发送间隔（ms） */

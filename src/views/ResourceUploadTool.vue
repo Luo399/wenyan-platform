@@ -91,10 +91,14 @@
             <div
               class="drop-zone"
               :class="{ 'has-file': ruleVideoFile, 'is-dragover': dragOverSlot === 'rule' }"
+              role="button"
+              tabindex="0"
+              aria-label="选择 Rule 视频文件"
               @dragover.prevent="dragOverSlot = 'rule'"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, 'rule')"
               @click="triggerFileInput('rule')"
+              @keydown="onDropZoneKeydown($event, 'rule')"
             >
               <template v-if="ruleVideoFile">
                 <span class="file-name">{{ ruleVideoFile.name }}</span>
@@ -140,10 +144,14 @@
                 'has-file': cultureCardFiles[slot.id],
                 'is-dragover': dragOverSlot === `culture-${slot.id}`,
               }"
+              role="button"
+              tabindex="0"
+              :aria-label="`选择文化卡片 ${index + 1} 文件`"
               @dragover.prevent="dragOverSlot = `culture-${slot.id}`"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, `culture-${slot.id}`)"
               @click="triggerFileInput(`culture-${slot.id}`)"
+              @keydown="onDropZoneKeydown($event, `culture-${slot.id}`)"
             >
               <template v-if="cultureCardFiles[slot.id]">
                 <span class="file-name">{{ cultureCardFiles[slot.id]?.name }}</span>
@@ -181,10 +189,14 @@
             <div
               class="drop-zone"
               :class="{ 'has-file': readingFile, 'is-dragover': dragOverSlot === 'reading' }"
+              role="button"
+              tabindex="0"
+              aria-label="选择多角色朗读音频文件"
               @dragover.prevent="dragOverSlot = 'reading'"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, 'reading')"
               @click="triggerFileInput('reading')"
+              @keydown="onDropZoneKeydown($event, 'reading')"
             >
               <template v-if="readingFile">
                 <span class="file-name">{{ readingFile.name }}</span>
@@ -212,10 +224,14 @@
             <div
               class="drop-zone"
               :class="{ 'has-file': wordsFile, 'is-dragover': dragOverSlot === 'words' }"
+              role="button"
+              tabindex="0"
+              aria-label="选择字词注释音频文件"
               @dragover.prevent="dragOverSlot = 'words'"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, 'words')"
               @click="triggerFileInput('words')"
+              @keydown="onDropZoneKeydown($event, 'words')"
             >
               <template v-if="wordsFile">
                 <span class="file-name">{{ wordsFile.name }}</span>
@@ -282,7 +298,14 @@ interface CultureSlot {
 // ============ 数据 ============
 const authStore = useAuthStore()
 const userRole = computed(() => authStore.user?.role)
-const isAuthorized = computed(() => userRole.value === 'teacher' || userRole.value === 'admin')
+// 路由 meta.role 已放开 super_admin（其权限含 admin），页面内授权判断必须与其对齐，
+// 否则会出现"能进页面但整页显示未授权"的割裂状态。
+const isAuthorized = computed(
+  () =>
+    userRole.value === 'teacher' ||
+    userRole.value === 'admin' ||
+    userRole.value === 'super_admin',
+)
 
 // 上传工具要能选到全部号位（含编号未确认的 20/21/23/28–37）：
 // 美术是按号交付的，这里只做「把文件挂到这个号上」，不判断该号对应哪篇课文。
@@ -463,6 +486,17 @@ function triggerFileInput(slotKey: string) {
   hiddenInput.value?.click()
 }
 
+/**
+ * 拖拽区的键盘等价操作：Enter / Space 等同于点击选择文件。
+ * 只在事件源就是拖拽区本身时响应，避免区内的"移除"按钮按键时又弹出文件选择框。
+ */
+function onDropZoneKeydown(event: KeyboardEvent, slotKey: string) {
+  if (event.target !== event.currentTarget) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  triggerFileInput(slotKey)
+}
+
 function onFileInputChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -503,26 +537,41 @@ async function uploadAll() {
   uploading.value = true
   uploadLogs.value = []
 
-  const files = collectFiles()
-  let blocked = 0
-  for (const { file, ossPath, wenId: wId } of files) {
-    const fileName = ossPath.split('/').pop() || file.name
-    const error = validateAssetName(selectedType.value, wId, fileName)
-    if (error) {
-      blocked++
-      uploadLogs.value.push({ status: 'error', message: `⛔ ${fileName} 已拦下，未上传：${error}` })
-      continue
+  try {
+    const files = collectFiles()
+    let blocked = 0
+    for (const { file, ossPath, wenId: wId } of files) {
+      const fileName = ossPath.split('/').pop() || file.name
+      const error = validateAssetName(selectedType.value, wId, fileName)
+      if (error) {
+        blocked++
+        uploadLogs.value.push({
+          status: 'error',
+          message: `⛔ ${fileName} 已拦下，未上传：${error}`,
+        })
+        continue
+      }
+      // 串行队列：单项失败/超时只影响这一项，后面的文件继续传
+      try {
+        await uploadSingle(file, ossPath, wId)
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : '未知错误'
+        uploadLogs.value.push({
+          status: 'error',
+          message: `✕ ${fileName} 上传异常: ${errorMsg}`,
+        })
+      }
     }
-    await uploadSingle(file, ossPath, wId)
+    if (blocked > 0) {
+      uploadLogs.value.push({
+        status: 'error',
+        message: `${blocked} 个文件没上传：OSS 对象名要和 JSON 里的引用一模一样，改好文件名再拖进来`,
+      })
+    }
+  } finally {
+    // 无论队列中途出什么错，按钮都不能一直停在"上传中"
+    uploading.value = false
   }
-  if (blocked > 0) {
-    uploadLogs.value.push({
-      status: 'error',
-      message: `${blocked} 个文件没上传：OSS 对象名要和 JSON 里的引用一模一样，改好文件名再拖进来`,
-    })
-  }
-
-  uploading.value = false
 }
 
 function collectFiles(): Array<{ file: File; ossPath: string; wenId: string }> {
@@ -571,6 +620,8 @@ function collectFiles(): Array<{ file: File; ossPath: string; wenId: string }> {
 
 async function uploadSingle(file: File, ossPath: string, wenId: string) {
   const fileName = ossPath.split('/').pop() || file.name
+  // 先占位，结束后原地改写状态：一个文件只占一行日志，失败/超时也能看出是哪一项
+  const logIndex = uploadLogs.value.length
   uploadLogs.value.push({ status: 'pending', message: `正在上传: ${fileName}` })
 
   try {
@@ -579,20 +630,23 @@ async function uploadSingle(file: File, ossPath: string, wenId: string) {
     formData.append('ossPath', ossPath)
     formData.append('wenId', wenId)
 
-    // 走 utils/api.upload()，自动注入 Authorization 头
+    // 走 utils/api.upload()，自动注入 Authorization 头（60s 超时）
     const result = await upload('/api/upload/resource', formData)
 
     if (result.success) {
-      uploadLogs.value.push({ status: 'success', message: `✓ ${fileName} 上传成功` })
+      uploadLogs.value[logIndex] = { status: 'success', message: `✓ ${fileName} 上传成功` }
     } else {
-      uploadLogs.value.push({
+      uploadLogs.value[logIndex] = {
         status: 'error',
         message: `✕ ${fileName} 上传失败: ${result.message || '未知错误'}`,
-      })
+      }
     }
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : '未知错误'
-    uploadLogs.value.push({ status: 'error', message: `✕ ${fileName} 上传异常: ${errorMsg}` })
+    uploadLogs.value[logIndex] = {
+      status: 'error',
+      message: `✕ ${fileName} 上传异常: ${errorMsg}`,
+    }
   }
 }
 
@@ -861,6 +915,12 @@ function onArticleChange() {
 .drop-zone:hover {
   border-color: #4a90d9;
   background: #f0f7ff;
+}
+
+/* 键盘聚焦时给出可见焦点环（拖拽区已支持 tabindex 操作） */
+.drop-zone:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: 2px;
 }
 
 .drop-zone.is-dragover {

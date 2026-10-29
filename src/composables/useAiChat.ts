@@ -63,7 +63,7 @@ const MAX_CONTENT_LENGTH = 2000
 /**
  * 把状态码翻译成面向用户的错误提示
  */
-function humanizeError(status: number, code: string): string {
+function humanizeError(status: number): string {
   if (status === 401) return '登录已过期，请重新登录'
   if (status === 429) return '今日配额已用尽，请明日再试'
   if (status === 502 || status === 503) return 'AI 服务暂时不可用，请稍后再试'
@@ -158,7 +158,7 @@ export function useAiChat(options: AiChatOptions) {
 
       let msg: string
       if (err instanceof ApiError) {
-        msg = humanizeError(err.status, err.errorCode)
+        msg = humanizeError(err.status)
       } else if (err instanceof Error) {
         msg = err.message || '请求失败'
       } else {

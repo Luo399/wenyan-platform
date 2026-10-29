@@ -289,7 +289,7 @@ async function handleSubmit(): Promise<void> {
   serverError.value = ''
 
   try {
-    const data = await teacherRegister({
+    await teacherRegister({
       name: name.value.trim(),
       phone: phone.value.trim(),
       password: password.value,

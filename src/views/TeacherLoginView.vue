@@ -184,7 +184,13 @@ async function handleSubmit(): Promise<void> {
   isSubmitting.value = true
 
   try {
-    await authStore.login(phone.value.trim(), password.value, undefined, 'teacher')
+    await authStore.login(
+      phone.value.trim(),
+      password.value,
+      undefined,
+      'teacher',
+      rememberMe.value,
+    )
     // 登录成功，跳转到教师管理页面
     router.push('/answer-query')
   } catch (err) {
@@ -192,10 +198,6 @@ async function handleSubmit(): Promise<void> {
   } finally {
     isSubmitting.value = false
   }
-}
-
-function handleForgotPassword(): void {
-  alert('请联系管理员重置密码')
 }
 
 function goHome(): void {
