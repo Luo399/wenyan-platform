@@ -18,7 +18,10 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   ALL_POEM_IDS,
+  CULTURE_CARD_DATA_POEM_IDS,
   NUMBERING_CONFIRMED_POEM_IDS,
+  ORPHAN_CARD_VIDEO_POEM_IDS,
+  hasCultureCardData,
   hasRuleVideo,
   isNumberingConfirmed,
   isPoemReady,
@@ -280,6 +283,47 @@ describe('culture_cards 数据 JSON 的挂载契约', () => {
   it('有卡片的号位都必须在 ALL_POEM_IDS 的 37 个号位内', () => {
     for (const { stem } of loadCards()) {
       expect(ALL_POEM_IDS).toContain(stem.replace(/^WEN_0?/, ''))
+    }
+  })
+
+  /**
+   * 常量 ↔ 目录 双向锁。
+   * `CULTURE_CARD_DATA_POEM_IDS` 是一句「构建里有这份 JSON」的**仓库口径**声明，此前只靠人按记忆维护，
+   * 出过两个方向的漂移：OSS 有卡片视频但仓库没 JSON（23 号位挂之前就是这样），以及表里写了号但目录没这份文件。
+   * 这里双向比一次，之后加卡片 JSON 忘了更新表、或更新了表忘了写文件，都会红。
+   */
+  it('CULTURE_CARD_DATA_POEM_IDS 与 public/data/culture_cards/ 目录一一对应', () => {
+    const stems = loadCards().map(({ stem }) => stem)
+    expect(stems.length, 'culture_cards 目录为空').toBeGreaterThan(0)
+    for (const id of CULTURE_CARD_DATA_POEM_IDS) {
+      expect(
+        stems,
+        `常量说 ${id} 号有数据 JSON，但 public/data/culture_cards/ 里没有 WEN_${id.padStart(2, '0')}.json`,
+      ).toContain(`WEN_${id.padStart(2, '0')}`)
+    }
+    for (const stem of stems) {
+      expect(CULTURE_CARD_DATA_POEM_IDS, `${stem} 在目录里但常量表没登记`).toContain(
+        stem.replace(/^WEN_0?/, ''),
+      )
+    }
+  })
+
+  it('23 号位（《活板》）已挂载：有数据 JSON，且不再是孤儿', () => {
+    expect(hasCultureCardData('23')).toBe(true)
+    expect(hasCultureCardData('WEN_23')).toBe(true)
+    expect(ORPHAN_CARD_VIDEO_POEM_IDS).not.toContain('23')
+    const card = loadCards().find(({ stem }) => stem === 'WEN_23')
+    expect(card, 'public/data/culture_cards/WEN_23.json 缺失').toBeDefined()
+    // 23 号位在 OSS 上只有这两个卡片视频（2026-10-29 拉线上列表复核过），没有第三张
+    expect(card?.data.cards?.map((c) => c.image_file)).toEqual([
+      'WEN_23_card_paper.mp4',
+      'WEN_23_card_printing.mp4',
+    ])
+  })
+
+  it('已挂载表与孤儿表不许有交集（同一个号不能既挂了又没人引用）', () => {
+    for (const id of ORPHAN_CARD_VIDEO_POEM_IDS) {
+      expect(CULTURE_CARD_DATA_POEM_IDS, `${id} 号同时出现在两张表里`).not.toContain(id)
     }
   })
 })
