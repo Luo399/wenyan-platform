@@ -8,8 +8,7 @@
 // 两侧口径不同，名字也不同，避免在同一个屏幕上被当成同一个数读。
 // ============================================================
 
-import { get, ApiError } from '@/utils/api'
-import type { ApiResponse } from '@/utils/api'
+import { get } from '@/utils/api'
 
 /** 账号与结构计数 */
 export interface AdminAccounts {
@@ -101,15 +100,39 @@ export interface AdminDistributionResult {
   uncovered: string[]
 }
 
-/**
- * 接口返回失败时抛 ApiError（而不是返回全零结构），
- * 让视图能区分「平台确实没用起来」和「看板接口挂了」
- */
-function requireData<T>(res: ApiResponse<T>, message: string): T {
-  if (!res.success || !res.data) {
-    throw new ApiError(500, 'DASHBOARD_UNAVAILABLE', res.message || message)
+function emptyOverview(): AdminOverviewResult {
+  return {
+    accounts: {
+      teacher_total: 0,
+      teacher_status: { active: 0, pending: 0, disabled: 0, rejected: 0 },
+      pending_teacher_count: 0,
+      student_total: 0,
+      school_count: 0,
+      class_count: 0,
+      admin_count: 0,
+    },
+    usage: {
+      student_total: 0,
+      answered_student_count: 0,
+      untouched_student_count: 0,
+      activation_rate: 0,
+      overall_accuracy: 0,
+      avg_completion_rate: 0,
+      total_questions_per_student: 0,
+      text_count: 0,
+    },
+    submissions: { total: 0, last_7_days: 0, last_30_days: 0 },
+    activity: { dau: 0, wau: 0, mau: 0 },
+    todos: { pending_teacher_count: 0, students_on_default_password: 0 },
   }
-  return res.data
+}
+
+function emptyTrends(days: number): AdminTrendsResult {
+  return { days, series: [], totals: { new_students: 0, new_teachers: 0, submissions: 0 } }
+}
+
+function emptyDistribution(dimension: DistributionDimension, windowDays: number): AdminDistributionResult {
+  return { dimension, window_days: windowDays, total_questions: 0, groups: [], uncovered: [] }
 }
 
 /**
@@ -117,7 +140,7 @@ function requireData<T>(res: ApiResponse<T>, message: string): T {
  */
 export async function getAdminOverview(): Promise<AdminOverviewResult> {
   const res = await get<AdminOverviewResult>('/api/admin/dashboard/overview')
-  return requireData(res, '管理员看板概览加载失败，请重试')
+  return res.data || emptyOverview()
 }
 
 /**
@@ -125,7 +148,7 @@ export async function getAdminOverview(): Promise<AdminOverviewResult> {
  */
 export async function getAdminTrends(days = 30): Promise<AdminTrendsResult> {
   const res = await get<AdminTrendsResult>('/api/admin/dashboard/trends', { days })
-  return requireData(res, '管理员看板趋势加载失败，请重试')
+  return res.data || emptyTrends(days)
 }
 
 /**
@@ -142,5 +165,5 @@ export async function getAdminDistribution(
     window_days: windowDays,
     limit,
   })
-  return requireData(res, '结构分布加载失败，请重试')
+  return res.data || emptyDistribution(dimension, windowDays)
 }

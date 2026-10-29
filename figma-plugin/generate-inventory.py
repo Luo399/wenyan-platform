@@ -31,7 +31,7 @@ TEST_FILE = os.path.join(PROJECT_ROOT, 'test_version.json')
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, 'resource-inventory.json')
 DATA_DIR = os.path.join(PROJECT_ROOT, 'public', 'data')
 
-# 编号 ↔ 篇目：只收录内容组**已确认**的号（2026-10-28 对照表）。
+# 编号 ↔ 篇目：只收录内容组**已确认**的号（2026-10-28 对照表，23 由用户 2026-10-29 确认为《活板》）。
 # 与 src/utils/wenUtils.ts 的 poemMap、backend assetController 的 CONFIRMED_POEM_TITLES 同步维护。
 # 旧表 05 往后是按教材顺序推测的，与美术/内容侧编号从 05 起整体错位，
 # 推测值当标题用会张冠李戴，所以删掉。
@@ -41,11 +41,12 @@ CONFIRMED_POEM_TITLES = {
     'WEN_09': '卖油翁', 'WEN_10': '湖心亭看雪', 'WEN_11': '孙权劝学', 'WEN_12': '邹忌讽齐王纳谏',
     'WEN_13': '曹刿论战', 'WEN_14': '《论语》十二章', 'WEN_15': '诫子书', 'WEN_16': '穿井得一人',
     'WEN_17': '杞人忧天', 'WEN_18': '愚公移山', 'WEN_19': '陈太丘与友期行', 'WEN_22': '狼',
+    'WEN_23': '活板',
     'WEN_24': '送东阳马生序', 'WEN_25': '出师表', 'WEN_26': '三峡', 'WEN_27': '答谢中书书',
 }
 
 # 清单要覆盖全部 37 个号（美术按号交付，未确认的号也有文件要归位），
-# 所以按号位补齐、未确认的显示占位标题。别把 POEMS 缩成已确认的 24 条：
+# 所以按号位补齐、未确认的显示占位标题。别把 POEMS 缩成已确认的 25 条：
 # 下面多处 for wen_id in POEMS 是靠它遍历号位的。
 POEMS = {
     'WEN_%02d' % i: CONFIRMED_POEM_TITLES.get('WEN_%02d' % i, '编号待确认')

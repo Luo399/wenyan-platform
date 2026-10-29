@@ -156,9 +156,7 @@ const ticks = computed(() => buildTicks(axisMax.value, 4))
 const labelIndices = computed(() => axisLabelIndices(props.labels.length, 6))
 
 function colorOf(index: number): string {
-  const size = CHART_PALETTE.length
-  // noUncheckedIndexedAccess：取不到时回退到中性灰，保证返回值一定是 string
-  return CHART_PALETTE[((index % size) + size) % size] ?? '#8a8a8a'
+  return CHART_PALETTE[index % CHART_PALETTE.length] ?? CHART_PALETTE[0] ?? ''
 }
 
 function pointsOf(line: ChartSeries): Point[] {
@@ -194,8 +192,8 @@ function xLabel(raw: string | undefined): string {
 }
 
 function displayValue(value: number | undefined): string {
-  if (!Number.isFinite(value)) return '0'
-  return Number.isInteger(value) ? String(value) : (value as number).toFixed(1).replace(/\.0$/, '')
+  if (value === undefined || !Number.isFinite(value)) return '0'
+  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
 }
 </script>
 

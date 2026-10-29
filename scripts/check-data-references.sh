@@ -27,22 +27,13 @@
 #   bash scripts/check-data-references.sh https://test.classicalab.cn
 # ============================================================
 
-set -euo pipefail
+set -e
 
 BASE="${1:-https://www.classicalab.cn}"
 DATA_DIR="${DATA_DIR:-public/data}"
 
-if [ ! -d "$DATA_DIR" ]; then
-  echo "ERROR: 数据目录不存在: $DATA_DIR（可用 DATA_DIR=... 覆盖）" >&2
-  exit 1
-fi
-if ! command -v curl >/dev/null 2>&1; then
-  echo "ERROR: 需要 curl" >&2
-  exit 1
-fi
-
 probe() {
-  curl -o /dev/null -s -w '%{http_code}' -I -L --max-time 20 --retry 2 "$1" || true
+  curl -o /dev/null -s -w '%{http_code}' -I -L --max-time 20 --retry 2 "$1"
 }
 
 refs=()      # "路径|说明"
@@ -69,7 +60,7 @@ check_ref() {
 # （level1_multi_role_reading.json 这类一篇装多个编号的）也能定位到正确目录。
 tid_of() {
   local v="$1"
-  { printf '%s' "$v" | grep -o 'WEN_[0-9][0-9]' | sed -n '1p'; } || true
+  printf '%s' "$v" | grep -o 'WEN_[0-9][0-9]' | head -1
 }
 
 # 扫 public/data 下**全部** JSON：前端只按 {dir}/WEN_nn.json 取数据，

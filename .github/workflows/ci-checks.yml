@@ -55,8 +55,11 @@ jobs:
         # 若 lint:ci 已存在可替换为 `npm run lint:ci`。
         run: npx oxlint . && npx eslint . --cache
 
-      - name: Run frontend unit tests (vitest)
-        run: npm run test
+      - name: Run frontend unit tests with coverage gate (vitest)
+        # 2026-10-29：覆盖率门槛从「只在本机 npm run test:coverage 生效」挪进 CI。
+        # 阈值在 vitest.config.ts 的 coverage.thresholds，不达标这一步直接非零退出；
+        # provider 依赖 devDependencies 里的 @vitest/coverage-v8（vitest 4 已删 c8）。
+        run: npm run test:coverage
 
   secret-scan:
     runs-on: ubuntu-latest

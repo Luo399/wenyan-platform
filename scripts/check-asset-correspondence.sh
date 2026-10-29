@@ -37,21 +37,12 @@
 # 退出码：0=归属类问题为 0；1=有串台/坏引用/text_id 不一致（覆盖缺口不算失败）
 # ============================================================
 
-set -euo pipefail
+set -e
 
 BASE="${1:-https://www.classicalab.cn}"
 POEM_COUNT="${POEM_COUNT:-37}"
 WEN_UTILS="${WEN_UTILS:-src/utils/wenUtils.ts}"
 CARD_DIR="${CARD_DIR:-card_video_upload_only}"
-
-if ! [[ "$POEM_COUNT" =~ ^[0-9]+$ ]] || [ "$POEM_COUNT" -lt 1 ]; then
-  echo "ERROR: POEM_COUNT 必须是正整数: $POEM_COUNT" >&2
-  exit 1
-fi
-if ! command -v curl >/dev/null 2>&1; then
-  echo "ERROR: 需要 curl" >&2
-  exit 1
-fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -115,13 +106,12 @@ done
 values_of() {
   # $1=文件 $2=字段名 → 该字段的所有非空值
   [ -f "$1" ] || return 0
-  # grep 无匹配时返回 1；配合 pipefail 不能让整个脚本退出
-  { grep -o "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$1" \
-    | sed 's/.*:[[:space:]]*"//; s/"$//' | sort -u; } || true
+  grep -o "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$1" \
+    | sed 's/.*:[[:space:]]*"//; s/"$//' | sort -u
 }
 
 # 引用素材名自带的编号前缀（素材一律 WEN_nn_ 开头）
-tid_of() { { printf '%s' "$1" | grep -o 'WEN_[0-9][0-9]' | sed -n '1p'; } || true; }
+tid_of() { printf '%s' "$1" | grep -o 'WEN_[0-9][0-9]' | head -1; }
 
 # WEN_04 / 04 → 4：poemMap 的 key 是不补零的数字
 nn_key() { local v="${1#WEN_}"; printf '%s' "${v##0}"; }
@@ -193,15 +183,15 @@ for jf in "$JSONS"/*.json; do
   done
 
   # JSON 内部 text_id 是否等于文件名编号
-  inner=$(values_of "$jf" "text_id" | sed -n '1p')
+  inner=$(values_of "$jf" "text_id" | head -1)
   if [ -n "$inner" ] && [ "$inner" != "$file_nn" ]; then
     printf '%s|%s|%s|%s\n' "$d" "text_id" "$inner" "$nn" >>"$TMP/textid.txt"
   fi
 
   # culture_cards：每张卡都要有 text_id（CultureCards.vue 用 card.text_id 拼图片路径）
   if [ "$d" = "culture_cards" ]; then
-    cards=$( { grep -o '"card_id"' "$jf" | wc -l; } || true)
-    tids=$( { grep -o '"text_id"' "$jf" | wc -l; } || true)
+    cards=$(grep -o '"card_id"' "$jf" | wc -l)
+    tids=$(grep -o '"text_id"' "$jf" | wc -l)
     if [ "$tids" -lt $((cards + 1)) ]; then
       printf '%s|%s\n' "$file_nn" "共 $cards 张卡，带 text_id 的只有 $((tids - 1)) 张（顶层占 1 个）" >>"$TMP/cardtid.txt"
     fi
@@ -209,7 +199,7 @@ for jf in "$JSONS"/*.json; do
 
   # 篇名一致性（只对 text_basic_info）
   if [ "$d" = "text_basic_info" ]; then
-    t=$(values_of "$jf" "title" | sed -n '1p')
+    t=$(values_of "$jf" "title" | head -1)
     printf '%s|%s\n' "$nn" "$t" >>"$TMP/online_titles.txt"
   fi
 
@@ -427,11 +417,7 @@ for i in $(seq 1 "$POEM_COUNT"); do
   for k in bg 1 2 3; do has "$BASE/video/WEN_$(printf '%02d' "$i")_rule_${k}.mp4" && t=$((t + 1)); done
   [ "$t" = 4 ] && rule_full=$((rule_full + 1))
 done
-if [ -s "$TMP/online_titles.txt" ]; then
-  json_lessons=$(awk -F'|' '{print $1}' "$TMP/online_titles.txt" | sort -u | wc -l)
-else
-  json_lessons=0
-fi
+json_lessons=$(awk -F'|' '{print $1}' "$TMP/online_titles.txt" 2>/dev/null | sort -u | wc -l)
 echo "  取数总数: $(wc -l <"$URLS") 个 URL，另有引用 $(wc -l <"$REF_URLS") 个"
 echo "  rule 视频 4 段齐的编号: $rule_full / $POEM_COUNT"
 echo "  有线上原文 JSON 的编号: $json_lessons / $POEM_COUNT（只有这些篇目的第二三关才可能有数据）"

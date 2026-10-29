@@ -5,6 +5,8 @@ const authController = require('../controllers/authController')
 const teacherController = require('../controllers/teacherController')
 const adminController = require('../controllers/adminController')
 const dashboardController = require('../controllers/dashboardController')
+const teacherDashboardController = require('../controllers/teacherDashboardController')
+const adminDashboardController = require('../controllers/adminDashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const exportController = require('../controllers/exportController')
@@ -34,7 +36,13 @@ function registerRoutes(app) {
         'PUT    /api/teacher/students/:studentId': '教师更新学生姓名',
         'DELETE /api/teacher/students/:studentId': '教师删除本班学生账号',
         'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码（返回一次性口令）',
-        'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况（框架）',
+        'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况',
+        // 教师侧 - 数据看板（JWT + 教师角色，班级范围由 token 反查）
+        'GET    /api/teacher/dashboard/overview': '教师看板：概览卡片 + 班级汇总',
+        'GET    /api/teacher/dashboard/texts': '教师看板：篇目 × 班级完成矩阵',
+        'GET    /api/teacher/dashboard/students': '教师看板：学生明细（三关进度/停滞天数）',
+        'GET    /api/teacher/dashboard/weak-questions': '教师看板：薄弱题 Top N',
+        'GET    /api/teacher/dashboard/activity': '教师看板：按日趋势 + 24 小时分布',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
         'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
@@ -51,6 +59,10 @@ function registerRoutes(app) {
         'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
         'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码（返回一次性口令）',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
+        // 管理员侧 - 数据看板（JWT + admin/super_admin 角色）
+        'GET    /api/admin/dashboard/overview': '管理员看板：运营概览与待办',
+        'GET    /api/admin/dashboard/trends': '管理员看板：增长与使用趋势',
+        'GET    /api/admin/dashboard/distribution': '管理员看板：学校/年级/班级覆盖率分布',
         // 遗留学生管理路由（已废弃，迁移目标：/api/teacher/students/* 和 /api/admin/students/*）
         'GET  /api/students/:studentId/name': '按学号查询学生姓名（需登录，登录页回显）',
         // 已废弃：GET/POST/PUT/DELETE /api/students*（原 teacher/admin 鉴权）— 已物理移除
@@ -107,6 +119,14 @@ function registerRoutes(app) {
   // 教师查看所教班级学生完成情况（框架版，统计逻辑后续接入）
   app.get('/api/teacher/completion/students', ...teacherAuth, teacherController.getStudentsCompletion)
 
+  // ============ 教师：数据看板（班级范围由 token 反查，前端 class_code 只能收窄） ============
+  // 不挂 queryRateLimit：一次页面加载即并发 5 个请求，30/分钟的上限会让教师刷新两次就被限流
+  app.get('/api/teacher/dashboard/overview', ...teacherAuth, teacherDashboardController.getOverview)
+  app.get('/api/teacher/dashboard/texts', ...teacherAuth, teacherDashboardController.getTextMatrix)
+  app.get('/api/teacher/dashboard/students', ...teacherAuth, teacherDashboardController.listStudentMetrics)
+  app.get('/api/teacher/dashboard/weak-questions', ...teacherAuth, teacherDashboardController.listWeakQuestions)
+  app.get('/api/teacher/dashboard/activity', ...teacherAuth, teacherDashboardController.getActivity)
+
   // ============ 管理员：教师/学生/重置审计 ============
   const adminAuth = [requireAuthMiddleware, requireRole(['admin', 'super_admin'])]
   app.get('/api/admin/teachers', ...adminAuth, adminController.listTeachers)
@@ -137,6 +157,11 @@ function registerRoutes(app) {
   app.post('/api/admin/teachers/:phone/reject', ...adminAuth, adminController.rejectTeacher)
   // 年级/班级选项（公开给注册/编辑下拉用，不需 adminAuth — 只返回编码集合）
   app.get('/api/admin/options/grades-classes', adminController.getGradesAndClasses)
+
+  // ============ 管理员：数据看板（全校范围，JWT 鉴权） ============
+  app.get('/api/admin/dashboard/overview', ...adminAuth, adminDashboardController.getOverview)
+  app.get('/api/admin/dashboard/trends', ...adminAuth, adminDashboardController.getTrends)
+  app.get('/api/admin/dashboard/distribution', ...adminAuth, adminDashboardController.getDistribution)
 
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；

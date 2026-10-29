@@ -29,6 +29,7 @@
                 option.label !== getCorrectAnswerLabel(currentQuiz?.correctAnswer),
             }"
             :disabled="submitted"
+            :style="optionArtStyle(option.label)"
             @click="selectOption(option.label)"
           >
             <span class="option-label">{{ option.label }}</span>
@@ -102,6 +103,8 @@ import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapt
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
 import { debugError } from '@/utils/debug'
+import { getWenScreenOptionUrl } from '@/config/figmaAssets'
+import type { FigmaOptionKey } from '@/config/figmaScreenCatalog'
 
 // ============================================================
 // Props / Emits
@@ -198,6 +201,18 @@ function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined
   if (typeof correctAnswer === 'string') return correctAnswer
   const labels = ['A', 'B', 'C', 'D']
   return labels[correctAnswer] || ''
+}
+
+const OPTION_KEYS: readonly FigmaOptionKey[] = ['A', 'B', 'C', 'D']
+
+/**
+ * 选项底图：Figma 插件按篇扫描的 option_a/b/c/d_*.png（4–10KB）。
+ * 从 OSS images/screens/ 读取；没有该篇素材时返回空对象，按钮保持纯 CSS。
+ */
+function optionArtStyle(label: string): Record<string, string> {
+  if (!OPTION_KEYS.includes(label as FigmaOptionKey)) return {}
+  const url = getWenScreenOptionUrl(props.textId, label as FigmaOptionKey)
+  return url ? { backgroundImage: `url("${url}")` } : {}
 }
 
 /**
@@ -319,6 +334,7 @@ function submitAnswer() {
   )
   emit('quiz-submitted')
   // P1: 后端提交由父级（如 StepTwoView 的 useQuizProgress）统一处理
+  // R170: 前端 localStorage 本地保存与答题报告下载已停用，组件内不再保留调用点
 }
 
 function handleNext() {
@@ -467,6 +483,9 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: left;
+  /* Figma 选项底图按按钮实际尺寸铺满；无图时不影响 */
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .option-btn:hover:not(:disabled) {

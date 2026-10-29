@@ -50,7 +50,7 @@
               :value="code"
               v-model="innerClassCodes"
               class="chip-input"
-              @change="emitChange"
+              @change="onClassChange"
             />
             <span class="chip">{{ code.slice(4) }}班</span>
           </label>
@@ -112,8 +112,9 @@ export interface ClassPickerProps {
   modelValue?: string[]
   /**
    * 可选：父组件传入的全年级权限状态。
-   * 不传时组件内部自管 fullAccess（内部状态 + emit 通知父组件）。
-   * 传了则双向同步（v-model:fullAccess 语义）。
+   * 两个调用点（AdminConsoleView / TeacherRegisterView）都只监听
+   * `@update:full-access` 而**不**绑这个 prop，所以组件必须自己记住状态；
+   * 绑了则按 v-model:fullAccess 语义双向同步。
    */
   fullAccess?: boolean
   /**
@@ -145,22 +146,28 @@ const gradeMap = ref<Record<string, string[]>>(props.options?.gradeMap ?? {})
 const innerClassCodes = ref<string[]>([...props.modelValue])
 const selectedGrades = ref<string[]>([])
 const manualCode = ref('')
-/** 内部 fullAccess 状态（仅当 props.fullAccess 未传时使用） */
-const innerFullAccess = ref(false)
+/**
+ * 全年级权限的唯一事实源。
+ *
+ * 这里不能用「props.fullAccess 是不是 undefined」来判断父组件有没有接管：
+ * Vue 对 Boolean prop 做隐式转换，父组件不传时 props.fullAccess 是 false
+ * 而不是 undefined（见 runtime-dom 的 resolvePropValue：absent && !hasDefault
+ * → false），所以旧写法 `props.fullAccess ?? innerFullAccess` 永远读到 false，
+ * 勾了「全年级权限」也不会收起具体班级选择区，`if (props.fullAccess === undefined)`
+ * 分支同样是死代码。改成内部状态为准，prop 只在变化时同步进来。
+ */
+const innerFullAccess = ref(props.fullAccess === true)
 
 // ===== 派生 =====
 /**
  * 当前是否处于"全年级权限"状态。
- * 优先使用父组件传入的 props.fullAccess；未传时用内部状态。
  * 与 classCodes 解耦：fullAccess=true 时父组件应清空 classCodes，
  * 但组件本身不强制两者等价。
  */
-const isFullAccess = computed({
-  get: () => props.fullAccess ?? innerFullAccess.value,
+const isFullAccess = computed<boolean>({
+  get: () => innerFullAccess.value,
   set: (v: boolean) => {
-    if (props.fullAccess === undefined) {
-      innerFullAccess.value = v
-    }
+    innerFullAccess.value = v
     emit('update:fullAccess', v)
     // 打开全权限时清空已选班级（同步 modelValue）；关闭时保持 classCodes 原样
     if (v) {
@@ -188,13 +195,12 @@ watch(
 watch(
   () => props.fullAccess,
   (val) => {
-    if (val !== undefined) {
-      innerFullAccess.value = val
-      // 外部强制打开全权限时清空 classCodes
-      if (val) {
-        innerClassCodes.value = []
-        selectedGrades.value = []
-      }
+    // 父组件绑了这个 prop 时以它为准（未绑定时 val 恒为 false，watcher 不会触发）
+    innerFullAccess.value = val === true
+    // 外部强制打开全权限时清空 classCodes
+    if (val === true) {
+      innerClassCodes.value = []
+      selectedGrades.value = []
     }
   },
 )
@@ -214,23 +220,38 @@ function onFullToggle(e: Event) {
   isFullAccess.value = (e.target as HTMLInputElement).checked
 }
 
-/** 同步内部选择到父组件（v-model + fullAccess 保持不变） */
-function emitChange() {
-  emit('update:modelValue', [...innerClassCodes.value])
-  // 仅当 classCodes 非空时，强制 fullAccess=false（因为有具体班级选中了）
-  if (innerClassCodes.value.length > 0) {
-    if (props.fullAccess === undefined) {
-      innerFullAccess.value = false
-    }
-    emit('update:fullAccess', false)
-  }
-  // 根据当前选中的班级反推保留有效的年级（避免已选的年级在移除对应班级后残留）
+/**
+ * 年级 chip 只是"展开这一级的班级列表"的过滤器，勾选后应当留在页面上；
+ * 它什么时候自动取消勾选：该年级下的班级已经被清空的时候。
+ *
+ * 只允许在班级数量**减少**的路径上调用。放进 emitChange() 里会出事：
+ * 勾年级 chip 时 v-model 先把年级加进 selectedGrades，紧接着的 emitChange
+ * 用「已选班级」（此时还是空）反推，把刚勾上的年级立刻抹掉，班级行永远出不来。
+ */
+function pruneGradesToSelection() {
   const gSet = new Set(innerClassCodes.value.map((c) => c.slice(0, 4)))
   selectedGrades.value = selectedGrades.value.filter((g) => gSet.has(g))
 }
 
+/** 同步内部选择到父组件 */
+function emitChange() {
+  emit('update:modelValue', [...innerClassCodes.value])
+  // 仅当 classCodes 非空时，强制 fullAccess=false（因为有具体班级选中了）
+  if (innerClassCodes.value.length > 0) {
+    innerFullAccess.value = false
+    emit('update:fullAccess', false)
+  }
+}
+
+/** 班级 chip 勾选 / 取消 */
+function onClassChange() {
+  pruneGradesToSelection()
+  emitChange()
+}
+
 /** 手动输入添加班级编码 */
 function addManual() {
+  // trim 是有意的：从表格里复制编码常带首尾空格
   const code = manualCode.value.trim()
   if (!/^\d{6}$/.test(code)) return
   if (!innerClassCodes.value.includes(code)) innerClassCodes.value.push(code)
@@ -241,6 +262,7 @@ function addManual() {
 /** 移除一个已选班级 */
 function removeClass(code: string) {
   innerClassCodes.value = innerClassCodes.value.filter((c) => c !== code)
+  pruneGradesToSelection()
   emitChange()
 }
 

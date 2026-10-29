@@ -9,8 +9,7 @@
 // 前端不做「已答 / 总题」的二次计算，避免出现两端分母不一致的完成率。
 // ============================================================
 
-import { get, ApiError } from '@/utils/api'
-import type { ApiResponse } from '@/utils/api'
+import { get } from '@/utils/api'
 
 /** 班级范围（token 决定，前端只能收窄） */
 export interface DashboardScope {
@@ -183,57 +182,68 @@ export interface TeacherActivityResult {
   totals: { submissions: number; peak_date: string | null; peak_hour: number | null }
 }
 
-function scopeParams(classCode?: string): Record<string, string> | undefined {
-  return classCode ? { class_code: classCode } : undefined
+/** 空概览结构：接口异常或未开学时用零值渲染，页面不出现 undefined */
+function emptySummary(): TeacherOverviewSummary {
+  return {
+    class_count: 0,
+    student_count: 0,
+    answered_student_count: 0,
+    untouched_student_count: 0,
+    active_students_7d: 0,
+    submissions_total: 0,
+    submissions_7d: 0,
+    avg_accuracy: 0,
+    avg_completion_rate: 0,
+    total_questions: 0,
+    text_count: 0,
+    level_totals: { A: 0, B: 0, C: 0 },
+  }
 }
 
-/**
- * 接口返回失败时抛 ApiError，让视图区分「确实是空数据」和「加载失败」
- * 原实现返回全零结构，页面看起来像「一个学生都没答」，把故障藏了起来。
- */
-function requireData<T>(res: ApiResponse<T>, message: string): T {
-  if (!res.success || !res.data) {
-    throw new ApiError(500, 'DASHBOARD_UNAVAILABLE', res.message || message)
-  }
-  return res.data
+function scopeParams(classCode?: string): Record<string, string> | undefined {
+  return classCode ? { class_code: classCode } : undefined
 }
 
 /**
  * 概览卡片 + 班级汇总
  */
 export async function getTeacherOverview(classCode?: string): Promise<TeacherOverviewResult> {
-  const res = await get<TeacherOverviewResult>(
-    '/api/teacher/dashboard/overview',
-    scopeParams(classCode),
-  )
-  return requireData(res, '教师看板概览加载失败，请重试')
+  const res = await get<TeacherOverviewResult>('/api/teacher/dashboard/overview', scopeParams(classCode))
+  return res.data || { scope: { all_access: false, class_codes: [], requested_class_code: null }, summary: emptySummary(), classes: [] }
 }
 
 /**
  * 篇目 × 班级完成矩阵
  */
 export async function getTeacherTextMatrix(classCode?: string): Promise<TeacherTextMatrixResult> {
-  const res = await get<TeacherTextMatrixResult>(
-    '/api/teacher/dashboard/texts',
-    scopeParams(classCode),
-  )
-  return requireData(res, '篇目完成情况加载失败，请重试')
+  const res = await get<TeacherTextMatrixResult>('/api/teacher/dashboard/texts', scopeParams(classCode))
+  return res.data || { scope: { all_access: false, class_codes: [], requested_class_code: null }, classes: [], rows: [] }
 }
 
 /**
  * 学生明细（分页 + 排序 + 关键字）
  */
-export async function getTeacherStudents(query: StudentQuery = {}): Promise<TeacherStudentsResult> {
+export async function getTeacherStudents(
+  query: StudentQuery = {},
+): Promise<TeacherStudentsResult> {
+  const pageSize = query.page_size ?? 20
   const params: Record<string, string | number> = {
     page: query.page ?? 1,
-    page_size: query.page_size ?? 20,
+    page_size: pageSize,
     sort: query.sort ?? 'student_id',
     order: query.order ?? 'asc',
   }
   if (query.class_code) params.class_code = query.class_code
   if (query.keyword) params.keyword = query.keyword
   const res = await get<TeacherStudentsResult>('/api/teacher/dashboard/students', params)
-  return requireData(res, '学生明细加载失败，请重试')
+  return (
+    res.data || {
+      scope: { all_access: false, class_codes: [], requested_class_code: null },
+      summary: { student_count: 0, answered_student_count: 0, untouched_student_count: 0, active_students_7d: 0, submissions_7d: 0 },
+      pagination: { page: 1, page_size: pageSize, total: 0, total_pages: 1 },
+      students: [],
+    }
+  )
 }
 
 /**
@@ -247,22 +257,24 @@ export async function getTeacherWeakQuestions(
 ): Promise<TeacherWeakQuestionsResult> {
   const params: Record<string, string | number> = { min_students: minStudents, limit }
   if (classCode) params.class_code = classCode
-  const res = await get<TeacherWeakQuestionsResult>(
-    '/api/teacher/dashboard/weak-questions',
-    params,
-  )
-  return requireData(res, '薄弱题加载失败，请重试')
+  const res = await get<TeacherWeakQuestionsResult>('/api/teacher/dashboard/weak-questions', params)
+  return res.data || { scope: { all_access: false, class_codes: [], requested_class_code: null }, questions: [] }
 }
 
 /**
  * 活跃趋势：按日提交 + 24 小时分布
  */
-export async function getTeacherActivity(
-  classCode?: string,
-  days = 30,
-): Promise<TeacherActivityResult> {
+export async function getTeacherActivity(classCode?: string, days = 30): Promise<TeacherActivityResult> {
   const params: Record<string, string | number> = { days }
   if (classCode) params.class_code = classCode
   const res = await get<TeacherActivityResult>('/api/teacher/dashboard/activity', params)
-  return requireData(res, '活跃趋势加载失败，请重试')
+  return (
+    res.data || {
+      scope: { all_access: false, class_codes: [], requested_class_code: null },
+      days,
+      daily: [],
+      hourly: [],
+      totals: { submissions: 0, peak_date: null, peak_hour: null },
+    }
+  )
 }

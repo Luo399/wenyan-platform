@@ -1,6 +1,7 @@
 # 夜间任务清单
 
 > **格式约定（夜间自动化脚本依赖，请勿改动结构）**
+>
 > - `##` = 父功能，`###` = 子功能；标题行尾的 `(slug)` 为分支名片段（全小写 + 连字符）。
 > - `[ ]` = 未完成，`[x]` = 已完成。完成后在标题下方追加「分支 / commit / CI」记录行。
 > - 分支规则：父功能从 `feature-1` 拉 `feature/<父slug>/main`；子功能从父分支拉 `feature/<父slug>/<子slug>`。
@@ -58,6 +59,81 @@
 - 验收：`npm run type-check` 通过；eslint 对改动文件无报错；封面/播放器按 `playingCards` 状态切换。
 - 关联文件：`src/components/CultureCards.vue`、`src/config/cultureCards.ts`
 - 分支 / commit / CI：`feature/culture-card-media/video-inline-player` @ `de43f00`；type-check + eslint 通过；CI 见 feature-1 推送后的 `CI Checks`。
+
+---
+
+## [ ] 发布新鲜度：浏览器不再跑旧构建 (release-freshness)
+
+- 目标：让「同一份修复在不同浏览器上新旧不一」这件事可辨识、可自愈、可验证。事实基线与方案见 `docs/maintenance/release-freshness-plan.md`。
+- 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/utils/chunkRecovery.ts`、`src/utils/buildVersion.ts`、`src/components/common/BuildStamp.vue`、`src/components/common/UpdatePrompt.vue`、`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
+- 红线：发现新版本**只提示、不自动刷新**（学生答题中途不能被刷掉）；chunk 失败自愈必须带单次限制防死循环；不引入 Service Worker；`deploy-*.yml` 是 CI 盲区，改动的第一次执行就是真跑。
+- 分支 / commit / CI：父分支 `feature/release-freshness/main`（阶段 2 `7599a12` → 阶段 3 `490c06e` → 阶段 1 `7013e55` + 修红 `d452d16` → 阶段 4 `a4f0330` + 修红 `2b2edf0`，集成分支 `ca8c6c96`）；阶段 1–3 经 PR #192 并入 `feature-1`（`3c0a786`），阶段 4 随 PR #199 并入。`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条红，本方案新增的 65 条用例（21 + 8 + 3 + 23 + 10）全绿；`Deploy Frontend to Test OSS` 用新缓存契约首跑成功，自检第 1 轮命中本次构建入口，`index.html` 里已带 `<meta name="build-id" content="4b44b2f">`。继承的 `ClassPicker.test.ts` 9 条红已由 PR #200 清掉（见下一父功能），`quality-check` 从此恢复「绿 = 真的没问题」。
+- 上线：PR #193 由人工于 2026-10-28 13:23 合入 `main`（`f4c2d18e`，取自 `feature-1` 的 `f34eeb76`），`Deploy Frontend to Aliyun OSS` 成功。生产 `https://www.classicalab.cn/` 的 `index.html` 带 `<meta name="build-id" content="f4c2d18">`、入口 `/assets/index-C3VehIAz.js`；`Cache-Control` 入口 `max-age=0`、hash 产物 `max-age=31536000`；入口 chunk 内含 `wenyan:new-version`、`wenyan:chunk-reload-failed`、`发现新版本`，`assets/ClassPicker-DXgI1AbN.js` 里过滤年级的逻辑已是独立函数 —— 阶段 2 的生产侧复验与阶段 3/4 的产物核对都通过。方案第 7 节遗留的「生产侧未验证」一项可以划掉。
+
+### [x] 构建号注入与页脚可见 (build-id-visibility)
+
+- 目标：任何人 5 秒内能说出用户跑的是哪次构建（方案 G1）。
+- 验收：页脚显示构建号且与提交短 sha 一致；`index.html` 里有 `<meta name="build-id">` 供 curl / CI 比对；不掺构建时间戳以保住产物字节稳定。
+- 关联文件：`vite.config.ts`、`env.d.ts`、`src/utils/buildStamp.ts`、`src/components/common/BuildStamp.vue`、`src/App.vue`
+- 分支 / commit / CI：`feature/release-freshness/build-id-visibility` @ `7013e55` + `d452d16`；PR #194 / #195；`src/utils/__tests__/buildStamp.test.ts`（8）+ `src/components/__tests__/BuildStamp.test.ts`（3）通过。坑记在方案第 8 节：模板里的根级注释会让组件变成 fragment，测试拿到的 `wrapper.element` 是挂载容器。
+
+### [x] 部署缓存契约与CDN刷新校验 (deploy-cache-contract)
+
+- 目标：长缓存只给 hash 产物，`index.html` 每次回源；CDN 刷新失败必须让 job 变红；部署后自检线上入口是否等于本次构建（方案 G2）。
+- 验收：`deploy-frontend.yml` 与 `deploy-frontend-test.yml` 分段上传；测试与生产各自有一条比对入口 hash 的自检步骤。
+- 关联文件：`.github/workflows/deploy-frontend.yml`、`.github/workflows/deploy-frontend-test.yml`
+- 分支 / commit / CI：`feature/release-freshness/deploy-cache-contract` @ `7599a12`；PR #188；`Deploy Frontend to Test OSS`（run 40614107402）成功，测试入口 `/assets/index-DiJuirkI.js` 与本次构建一致。生产侧待 `feature-1 → main` 的 PR 合并后由 `Deploy Frontend to Aliyun OSS` 复验。
+
+### [x] 懒加载chunk失败整页重载一次 (chunk-reload-recovery)
+
+- 目标：旧会话点到已下线的 chunk 时自动恢复，不停留在半死页面（方案 G3）。
+- 验收：重载目标是本次导航要去的路由地址；同一地址只自动重载一次；业务接口失败绝不触发刷新；离线 / sessionStorage 不可用时只提示。
+- 关联文件：`src/utils/chunkRecovery.ts`、`src/main.ts`
+- 分支 / commit / CI：`feature/release-freshness/chunk-reload-recovery` @ `490c06e`；PR #191；`src/utils/__tests__/chunkRecovery.test.ts` 21 项通过（含与真实 vue-router 的接线用例）。
+
+### [x] 新版本探测与更新提示 (version-prompt)
+
+- 目标：页面可见时 + 定时以 `cache: no-store` 拉 `index.html` 比对版本指纹，发现新版本**只提示**，用户自己点刷新。
+- 验收：不自动刷新；复用 `chunkRecovery` 已派发的 `wenyan:chunk-reload-failed` 事件与 `wenyan:chunk-reload-hint` 记录；探测逻辑在 `src/utils/` 层，组件不直接 fetch。
+- 关联文件：`src/utils/buildVersion.ts`、`src/components/common/UpdatePrompt.vue`、`src/App.vue`、`src/main.ts`
+- 分支 / commit / CI：`feature/release-freshness/version-prompt` @ `a4f0330` + 修红 `2b2edf0`；PR #197 / #198；`src/utils/__tests__/buildVersion.test.ts`（23）+ `src/components/__tests__/UpdatePrompt.test.ts`（10）全绿，`CI Checks` 只剩继承的 `ClassPicker.test.ts` 9 条。修的那条：`onMounted` 里回读 hint 触发的是异步重渲染，挂载那一帧还是隐藏 —— 回读挪进 setup。
+
+---
+
+## [x] CI 质量基线转绿 (ci-quality-baseline)
+
+- 目标：让 `quality-check` 的绿 / 红重新有意义。它此前常红（继承的 `ClassPicker.test.ts` 9 条，`main` 上也红），每次都要翻日志判断「这条红是不是我这次改坏的」，等于没有基线。
+- 红线：组件的 `data-testid` 不许为了迁就测试而改名（页面与将来 E2E 都靠它）；`addManual()` 的 `trim()` 是产品行为不是漏洞，用例要跟着实现走，不是反过来；本机没有 node，vitest 只能由 CI 跑，所以改测试必须逐条推演而不是试探。
+- 关联文件：`src/components/ClassPicker.vue`、`src/components/__tests__/ClassPicker.test.ts`
+
+### [x] 修 ClassPicker 全年级权限与年级联动 (classpicker-fullaccess-grade-prune)
+
+- 目标：清掉那 9 条红，并且把它背后藏着的两条真实缺陷改掉，而不是把断言改成迎合坏实现。
+- 验收：勾「全年级权限」必须收起具体班级选择区；勾年级 chip 后班级行必须出现；`quality-check` 全绿；组件 `data-testid` 未改名。
+- 关联文件：同上两个文件（+141 / -38，用例 22 → 27）
+- 分支 / commit / CI：`feature/classpicker-fix` @ `0433156`；PR #200 → `feature-1`（`f34eeb76`）→ 随 PR #193 上 `main`（`f4c2d18e`，已部署）。两处缺陷的根因记在 `docs/maintenance/changelog/changelog-20261028.md` CR-07：① Vue 把缺省的 Boolean prop 转成 `false` 而不是 `undefined`，`props.fullAccess ?? innerFullAccess` 恒为 `false`，两个调用点都只监听 `@update:full-access` 不绑 prop，所以「全年级权限」在线上从不收起选择区；② `emitChange()` 末尾用「已选班级」反推保留年级，勾年级时班级还是空的，刚勾上的年级立刻被抹掉，班级行永远出不来。教训：`data-testid` 用前缀匹配时容器自身会被数进去（`selected-` / `class-` 都撞了），以及 `maxlength` 让「程序化赋超长值」的断言在不同环境不稳。
+
+---
+
+## [x] Step One 生字注释悬浮层 (step1-word-tooltip)
+
+- 目标：`https://www.classicalab.cn/stepone/{id}` 正文里的 `.annotated-word` 必须悬浮就出注释、长注释不冲出视口，并且这套行为要有拦得住回退的测试。
+- 方案与根因全在 `figma-plugin/docs/step1-word-tooltip-plan.md`（现已到 v5）。
+- 红线：监听器不许写回 `onMounted`——正文容器在 `v-if / v-else-if / v-else` 分支里，组件挂载时那份 JSON 还在加载、节点还不存在；节流只能吃纯数据快照，不能吃 `MouseEvent`（派发结束后 `e.target` 按规范变 `null`）。
+
+### [x] 监听绑定时序 + 节流失效事件修复与测试回退网 (word-tooltip-binding-fix)
+
+- 分支 / commit / CI：`feature/step1/word-tooltip` @ `adc0108`（修复）+ `03df798`（单测 18 → 78 例）；`--no-ff` 并入 `feature-1`（`cced00c`）；同步 `main` 进 `feature-1`（`19492d6`，为满足分支保护的 strict 状态检查）后开 PR #204 → `main`（`850d97b`），6 项检查全绿，`Deploy Frontend to Aliyun OSS` 成功，线上 `meta[name=build-id]` 与页脚都是 `850d97b`。
+- 验收（2026-10-29 线上实测）：4 篇课文共 190 个 `.annotated-word`，逐个派发 `mousemove` 后 **190/190 出浮层、文本与 `data-def` 逐字一致**，光标移到非词节点即收起（每 20–30 个抽查一次）。
+- 本机校验（推翻「本机没有 node 只能靠 CI」这条老前提）：便携 Node 20.18.0 + 仓库现有 `node_modules`，全量 `vitest run` 194/194、`vue-tsc --build` 0 错、`eslint`（只跑改动文件、不带 `--fix`）0 错、`prettier --check` 通过。
+
+### [x] 词条匹配三级兜底：注音与标点不再漏标 (word-list-match-fallback)
+
+- 目标：浮层本身 100% 命中之后，剩下的洞在生成侧——9 条词条压根没变成 span，鼠标再准也命中不了。
+- 分支 / commit：`feature/step1/annotation-matching` @ `5aad28b`（`src/utils/adapterUtils.ts` 三级匹配 + 63 例测试）、本文档所在提交（台账 / 变更记录 / 方案 v5 / 素材清单）。
+- 验收：三级策略（词条原文整串 → 剥括号注音 → ≥4 汉字允许夹标点的长短语）使 鲦鱼 / 槽枥 / 外见 / `乃丹书帛曰"陈胜王"` / `其必曰："…"乎` 共 5 条开始成 span；「食(sì)」与篇名出处（马说 / 岳阳楼记 / 史记）按决策**不标**，登记在 `docs/素材缺失清单.md` 第十一节。span 总数 190 → 194。
+- 事实修正：WEN_01 的「陈」span 18 → 17，少的那个在「陈胜王」内部，原先挂「古地名，今河南淮阳」是错标，现归长短语。
+- 拦回退的方式：`wordListAdapter.test.ts` 里「每条词条要么已成 span，要么在已登记的『标不了』清单里」双向断言——新素材再冒出清单外的漏标就红，清单里的条目一旦被误标（例如放开单字音注）也红。
 
 ---
 
@@ -161,3 +237,217 @@
 
 - 目标：定义进度数据结构与适配器签名，返回占位数据，后续替换为真实接口。
 - 验收：数据访问走 `src/adapters/` + `src/utils/` 封装，**组件内禁止直接 `fetch('/data/...')`**；补 `tests/adapters/` 单测。
+
+
+---
+
+## [x] 共享工作区积压改动按修复内容拆分入库 (shared-worktree-pr-split)
+
+- 目标：`feature/continue-nav-stuck` 工作区攒了 103 条未提交改动（另一条会话同时在用这个工作区），
+  按「一个修复一个分支一个 PR」拆开依次并入 `feature-1`，不 `checkout` / 不 `stash` / 不动工作区与 HEAD。
+- 关联文件：见各子功能；细节与遗留记在 `docs/maintenance/changelog/changelog-20261029.md` 第二批。
+- 红线：全程 git plumbing 落提交（`read-tree` → `update-index --cacheinfo` LF blob → `write-tree` → `commit-tree` → `update-ref`）；
+  每个 PR 轮询到 6 项检查全绿才 `--merge`；不碰 `main`（`feature-1` → `main` 只走人工审批的 PR #209）。
+- 分支 / commit / CI：见下 9 个子功能；`feature-1` 从 `117e287` 推到 `580e4c8`。
+- 上线：PR #209（`feature-1`@`580e4c8` → `main`@`78a6c29`，2026-10-29 11:19 人工合并）已把本批全部带上线，
+  前端 `Deploy Frontend to Aliyun OSS` / 后端 `Deploy Backend to Aliyun Server` / 插件镜像同步三条 run 全绿；
+  线上 `index.html` 的 `build-id` 为 `78a6c29`，看板 chunk 与生产注册接口的 `VALIDATION_ERROR` 均已实测到。
+
+### [x] 角色门禁支持多角色与 super_admin (auth-role-gate)
+
+- 分支 / commit / CI：`feature/auth-session/super-admin-role` @ `34c4caa` → PR #207 → 合并提交 `e5aa54b`；CI 6 项全绿。
+- 落点：`Role` 加 `super_admin`、`normalizeRequiredRoles` / `isRoleAllowed` 两个纯函数、4 个路由的 `meta.role` 改成集合。
+
+### [x] 教师注册改走 apiService (teacher-register-api)
+
+- 分支 / commit / CI：`feature/auth-session/teacher-register-api` @ `8478a4b` → PR #208 → `d8220fa`；
+  首推 CI 报 `TS2322` + `TS1005`，修返回类型与闭合尖括号后转绿。
+
+### [x] 后端覆盖率范围与阈值 (backend-coverage-thresholds)
+
+- 分支 / commit / CI：`feature/quality-gate/backend-coverage-thresholds` @ `bcf23d9` → PR #210 → `b2a71ff`；CI 6 项全绿。
+- 未做：前端 `test:coverage` 需要 `@vitest/coverage-v8`（vitest 4 已删 `c8`），要改 lockfile，留待决定。
+
+### [x] zod 校验收敛到 middleware/validate (zod-validation-middleware)
+
+- 分支 / commit / CI：`feature/backend-api/zod-validation` @ `62f67ca` → PR #211 → `00c06cd`；CI 6 项全绿。
+- 找回：`backend/src/middleware/validate.js` 被 7 个 controller `require` 但仓库里从来没有，从 `feature/data-dashboard/backend-api` 取回。
+
+### [x] 看板聚合接口移植 (dashboard-api)
+
+- 分支 / commit / CI：`feature/data-dashboard/api` @ `dcdd46c` → PR #212 → `c7911a3`；CI 6 项全绿。
+- 来源：10-23 那条未合并的本地分支；`routes/index.js` 三方合并，未拖入 10-23 的 ClassPicker 改动（已由 PR #200 以另一套实现落库）。
+
+### [x] 看板前端页面与入口 (dashboard-pages)
+
+- 分支 / commit / CI：`feature/data-dashboard/pages` @ `c3d2080` → PR #213 → `4a3e9b4`；CI 6 项全绿。
+- 本机校验：便携 Node + `git archive` 出分支树 + junction 指回 `node_modules`，`vue-tsc --build` 0 错误后才推（首推 8 处 `noUncheckedIndexedAccess` 报错）。
+
+### [x] 编号↔篇目确认表同步后端与插件脚本 (asset-numbering-confirmed)
+
+- 分支 / commit / CI：`feature/asset-inventory/confirmed-numbering` @ `c41ad52` → PR #214 → `d08fca9`；CI 6 项全绿。
+- 未做：`figma-plugin/resource-inventory.json` 仍是旧推测标题的离线快照，本机无 python 重跑不了 `generate-inventory.py`。
+
+### [x] 三份技术文档落库 (tech-docs)
+
+- 分支 / commit / CI：`feature/docs/tech-docs` @ `6635547` → PR #215 → `2299edf`；CI 6 项全绿（含 secret-scan）。
+- 未做：`docs/document_index.csv` 未登记，该表要「创建日期」而这三份没有可靠原始日期。
+
+### [x] 发布事实与上线状态回填 (release-facts-20261029)
+
+- 分支 / commit / CI：`feature/maintenance/release-facts-20261029`；docs-only 改动，不在 deploy `paths` 白名单，合进 `main` 不触发发布。
+- 内容：changelog 两张表的「上线状态」由「未上线（等下一次 `main` 窗口）」改成「已上线（`78a6c29`）」共 12 行，
+  并补一节「发布事实（2026-10-29 中午复核）」记 workflow run、`build-id`、看板 chunk、生产 `VALIDATION_ERROR` 四项实测。
+
+### 与既有小节的关系（本轮没改动它们的勾选状态）
+
+`admin-credential-management`、`teacher-student-credential`、`student-progress-view` 三节仍是 `[ ]`：
+本轮落的 #212 / #213 是**看板**（聚合指标 + 明细表 + 薄弱题），与这三节的验收口径（账密增删查改、
+越权单测、占位适配层）不是同一件事，不能拿来勾掉。`ci-quality-baseline` 那节记的是转绿工作，
+覆盖率阈值与 zod 收敛属其「改进建议」，同样不回填勾选。
+
+### 故意没提交（工作区里留着）
+
+`NUL`（Windows 重定向垃圾文件）、`tmp-vitest.mjs` / `tmp-vitest-report.json`（临时跑测产物）、
+`.vscode/extensions.json` 的删除（工作区删了推荐扩展，不是仓库决策）、
+`docs/maintenance/release-freshness-plan.md`（`feature-1` 上版本更新，覆盖会回退）。
+
+---
+
+## [x] Step 三关答题闭环与 Figma 资产审计 (step3-quiz-closure-asset-audit)
+
+- 目标：回应甲方三条反馈——第一关补选择题、第二关第二题答完后解析 dialogue 要显示、Figma 扫描上传的产物是否全部用上。
+- 红线：不改内容 JSON 的答案字段；组件提交仍走 `useQuizSubmitter`；05 起没有 `level1_quiz` 数据时不能把第一关卡死。
+- 分支 / commit / CI：`feature/step12-quiz-fixes` @ `2bfa324`（本地 `5750dd8`，树同为 `4ac8243`）→ `--no-ff` 语义并入
+  `feature-1`@`2a46603`；子分支 `CI Checks` run `40816371706` 6 项全绿，合并后 run `40816528148` 6 项全绿，
+  `Deploy Frontend to Test OSS` run `40816528133` 成功。分支名不删。
+- 落提交方式：`github.com:443` 不通，走 Git Data API 建 blob/tree/commit/ref；服务端 tree sha 与本地一致（`4ac8243`），
+  blob sha 逐个与 `git rev-parse HEAD:path` 对上。合并前父分支被 PR #221 推到 `5dfe95c`，先 compare 确认其 7 个文件与本次三个文件零重叠，
+  再以新头为基线重建合并树，父提交 `[5dfe95c, 2bfa324]`。
+- 本机校验：便携 Node 20.18.0，全量 `vitest run` 252/252（15 个文件）、`vue-tsc --build` 0 错误、改动文件 `eslint` 0 错误、
+  `oxlint` 0 warning、`prettier --check` 通过。
+- 明确没做：WEN_04 的 B2 答案与解析矛盾、B1 缺 `correct_answer` 只登记不擅改；WEN_05 起的第一关数据由内容侧补；
+  Figma 6,049 张切片不删不迁移；不碰 `main`（`feature-1` → `main` 仍走人工审批 PR）。
+
+### [x] 第二关末题解析对话恢复显示 (step2-trailing-explanation)
+
+- 根因：`useQuizFlow.submit()` 在最后一题不推进 `currentIndex`（日志 `prevIndex 0 → newIndex 0, isCompleted true`），
+  `isQuizBlockVisible()` 以 `quizBlockIndices[currentIndex]` 为上界，题目之后的 dialogue 永远 `show=false`。
+- 修复：`step2Flow.isCompleted` 为真时全部解锁；解析对话本就属于「答完才该看」的内容。
+
+### [x] 第一关接入 A 关选择题 (step1-quiz)
+
+- 数据：`level1_quiz/{WEN}.json`（当前 01–04 各 1 题）→ `adaptLevel1Quiz()` 生成 `WEN_nn_A{n}` / `module A`；
+  `normalizeCorrectIndex()` 兼容字母、数字与 0 基索引。
+- 交互：`QuizCard` 逐题渲染 + `useQuizFlow.submit()` 单题提交；`completionKey` 三关分离（`stepone:` 等），
+  新增 `wenId` 参数保证后端仍收到纯 `WEN_xx`；A 关 JSON 无 `question_id`，提交必须带 `correctAnswer`。
+- 降级：无数据时整段隐藏，不影响字词/朗读与「继续」。
+- 测试：`src/views/__tests__/StepView.test.ts` 两个回归用例（末题后 dialogue 可见；stepone 渲染/提交 payload 正确且无 `stepone:` 前缀）。
+
+### [x] Figma 扫描资产使用审计 (figma-asset-usage-audit)
+
+- 产物：`docs/素材使用审计-20261029.md`。结论：6,075 项插件产物（screens 6,049 + texts 26，styles 0）运行时引用为 0；
+  真正在用的通用图只有 `login_bg.png`、`article_list_bg.png`、`article_list_title.png` 3 张。
+- 证据：`icon_dialog` 25 个字段全空；`illustration` 8 个全空；`image_file` 35 个中 24 个 mp4 走 `/video/`、11 个是「文字」占位；
+  quiz / explanation / summary / cultural_card / video 五类切片无任何组件消费。
+- 建议：先标注不急着删；挂头像先填 `icon_dialog`；题目/解析插图先定 schema；`data/texts` 归为内容底稿；
+  增加发布前资产引用审计（数据字段 → URL → HEAD 200）。
+
+### [x] Figma 扫描资产接入前端 (figma-screen-integration)
+
+- 新增 `src/config/figmaScreenCatalog.ts`（6,049 个扫描文件 → 37 篇 / 775 条角色记录）与
+  `scripts/gen-figma-screen-catalog.mjs`；`figmaAssets.ts` 增加标题/角色/选项/文本框/头像/名牌 URL 读取，
+  统一走 OSS `images/screens`。
+- `DetailView` 标题、`AdaptQuiz` 选项底图已直接读取扫描图，加载失败回退文字/CSS。
+- 背景与立绘（2.8–18MB）暂不直接渲染，需先做衍生图；说明见 `docs/figma-scan-integration.md`。
+
+### [x] Figma 资产接入补测试 (figma-screen-test-coverage)
+
+- 单元 9 例：OSS 地址拼接/编码、HEAD 缓存与并发去重、200/404、目录读取与 null 兜底。
+- 集成 6 例：DetailView 标题图渲染/失败回退/无图回退；AdaptQuiz 四选项底图/无素材回退/答题状态。
+- 全量 19 个文件 274 个用例通过；`vue-tsc` 0 错误；新文件 lint / prettier 通过。
+
+---
+
+## [x] 前端覆盖率环境 + 本机工具链 + 23 号位确认 (coverage-python-slot23)
+
+- 目标：把上一批留下的三个「跑不了 / 没确认」口子关掉——前端覆盖率缺 provider、`generate-inventory.py` 没有 python、
+  23 号位归属未确认；另外清掉 `origin` URL 里的明文凭据。
+- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第四批（CR-20261029-19 ~ 22）。
+  号段从 19 起是因为第三批已占用 16 / 17 / 18，本批与它并行、编号跟着当前 `feature-1` 头顺延。
+- 红线：全程不 `checkout` / 不 `stash` / 不动共享工作区与 HEAD（git plumbing 落提交）；
+  校验在 `git archive` 出的干净树里跑（`mklink /J` 把 `node_modules` 指回仓库）；不碰 `main`。
+- 分支 / commit / PR：`feature-1` 从 `eca26c4` 推到 `3c19c03`（三个 PR 各 6 项检查全绿才合）；
+  本节的文档改动在 PR #223，因与第三批 / #224 追加位置相同冲突两轮，用「把 `feature-1` 头合进本分支 + 人工重排」解决，
+  没有 force-push。
+
+### [x] 前端覆盖率 provider 与阈值 (frontend-coverage-v8)
+
+- 分支 / commit / CI：`feature/quality-gate/frontend-coverage-v8` @ `28cbdd6` → PR #220 → 合并提交 `387b9b3`；CI 6 项全绿。
+- 落点：`@vitest/coverage-v8@4.1.10`（vitest 4 已删 `c8`）+ `vitest.config.ts` 的 `coverage` 段，
+  阈值 statements 14 / functions 16 / branches 11 / lines 14（当时实测 14.93 / 16.76 / 11.49 / 14.09 往下取整）。
+- 未做：~~CI 的 `quality-check` 仍跑 `npm run test`、**不带 `--coverage`**，阈值只在本地生效；要不要钉进 CI 等你定~~
+  → 第六批已钉进 CI（PR #228）；另纠正一处：当时仓库里**没有 `test:coverage` 脚本**，「只在本地生效」那句并不成立。
+
+### [x] 23 号位确认为《活板》(slot-23-huoban)
+
+- 分支 / commit / CI：`feature/asset-numbering/slot-23-huoban` @ `845b33b` → PR #221 → `5dfe95c`；CI 6 项全绿。
+- 落点：`NUMBERING_CONFIRMED_POEM_IDS` 与 `poemMap` 加 23，backend / figma-plugin 两份标题表同步，
+  两份素材文档计数跟着改（已确认 24 → 25、待确认 13 → 12、学生可进入 21 → 22）。
+- 校验：本机 `vitest run --coverage` 14 文件 251 例全过、`vue-tsc --build` 0 错误。
+
+### [x] 本机 Python 与资源清单重跑 (python-and-inventory)
+
+- 分支 / commit / CI：`feature/asset-inventory/regenerate-snapshot` @ `02f1b3f` → PR #222 → `3c19c03`；CI 6 项全绿。
+- 本机装 Python 3.12.10（`python -X utf8` 跑，否则中文输出乱码）；输入取自线上 `GET /api/assets/version`
+  （`production_version.json` 未被 git 跟踪，测试环境的 `test_version.json` 因 502 没拿到）。
+- 清单从 2026-08-21 的 1947 资源刷到 6077，标题表由「37 条推测」换成「25 条确认 + 12 条占位」。
+
+### [x] origin remote URL 去掉明文令牌 (remote-url-credential)
+
+- 机器侧改动（`.git/config` + 全局凭据助手），不进仓库：URL 里嵌的就是 `gh` 当前在用的那枚 `gho_` 令牌（sha256 比对确认）。
+- 改法：`gh auth setup-git` 把 `credential.https://github.com.helper` 指向 `gh.exe auth git-credential`，
+  URL 清成 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树已扫不到该令牌字节，fetch / push 均正常。
+- **待你本人做**：轮换那枚令牌（`gh auth refresh-token`，或在 GitHub 设置里撤销后 `gh auth login`）。
+
+---
+
+## [x] 覆盖率门禁进 CI + 23 号位卡片挂载 (ci-coverage-gate-slot23-mount)
+
+- 目标：执行用户两条口径——**「CI 的进 workflow」**把 CR-19 的覆盖率阈值真正接到 CI（此前 CI 跑 `npm run test`，阈值没人执行）；
+  **「23 号的问题，其他怎么解决的它就怎么解决」**按 2026-10-28 那批挂载提交 `8c51427` 的既有约定补挂 23 号位《活板》的文化卡片，
+  不发明新做法。
+- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第六批（CR-20261029-24 / 25）。
+  号段从 24 起是因为第五批（另一条会话的 Figma 测试补齐）已占用 CR-20261029-23。
+- 红线：全程不 `checkout` / 不 `stash` / 不动共享工作区与 HEAD（git plumbing 落提交）；
+  校验在 `git archive` 出的干净树里跑（`mklink /J` 把 `node_modules` 指回仓库）；不碰 `main`；
+  不凭空编造学生可见文案（23 号位两张卡的 `knowledge_text` 留空串等内容组给正文）。
+- 分支 / commit / PR：`feature-1` 从 `79555e5` 推到 `1072821`；两个 PR 各自 12 项检查
+  （`push` + `pull_request` 两条 run × 6 job）全绿才 `--merge`，分支不删；合并后 `feature-1` 复跑 CI 成功。
+
+### [x] 覆盖率门禁接进 CI workflow (coverage-gate-in-ci)
+
+- 分支 / commit / CI：`feature/quality-gate/ci-coverage-gate` @ `68eabad` → PR #228 → 合并提交 `20e03c4`。
+- 改动：`ci-checks.yml` 的前端测试步骤 `npm run test` → `npm run test:coverage`（该步骤无 `continue-on-error`，是真门禁）；
+  `package.json` 补此前**并不存在**的 `test:coverage` 脚本；`vitest.config.ts` 阈值按当日两次实测下界定为
+  lines 18 / functions 20 / branches 13 / statements 18（实测 22.46 / 25.11 / 16.84 / 23.08）。
+- 前置核对：`@vitest/coverage-v8@^4.1.10` 已在 devDependencies **且在 `package-lock.json`**，CI 的 `npm install` 装得到；
+  三个文件都命中 `on.push.paths`。
+- 验证方式：不只看绿灯，去 job 日志确认出现 `Run npm run test:coverage` → `Coverage enabled with v8` → 覆盖率四列表格；
+  CI 数字（23.06/16.84/25.04/22.45）与本机导出树数字逐项对得上。
+
+### [x] 23 号位《活板》卡片挂载 (slot-23-card-mount)
+
+- 分支 / commit / CI：`feature/asset-numbering/slot-23-card-mount` @ `04f73da` → PR #229 → 合并提交 `1072821`。
+- 逐条照 `8c51427` 的口径：`public` 与 `backend` 两份 `WEN_23.json` 是**同一个 blob**（`bba4ac7`，606 字节 LF）、
+  `card_name` 沿用「历史回响」、`image_file` 写交付原名、`unlock_condition` 照 01–04 文案、`knowledge_text` 两张都留空串。
+- 卡片数量不是照抄模板：拉线上 `/api/assets/oss-list` 的 `wen_list`，23 号位名下**只有** `card_paper` / `card_printing`
+  两个卡片视频；两个视频此前 HEAD 均 200，挂载不引入 404。
+- 代码侧：`CULTURE_CARD_DATA_POEM_IDS` 15 → 16 个号、`ORPHAN_CARD_VIDEO_POEM_IDS` 由 `['23']` 清空；
+  `poemAssets.test.ts` 加三条锁（挂载表 ↔ 目录双向对应、23 号位已挂且清单就是这两个、挂载表与孤儿表不许有交集），21 → 24 例。
+- 文档侧：`docs/素材缺失清单.md` 新增「23 号位补挂（2026-10-29）」小节并把孤儿计数清零；
+  `docs/素材对应核查.md` 的覆盖矩阵是**线上实测**口径，故「卡片」列不改，只在汇总行标「线上 15/37、仓库 16/37」。
+- **待发版**：数据文件要随前端构建才生效，发版前 `https://www.classicalab.cn/data/culture_cards/WEN_23.json` 仍是 404；
+  发版后用 `scripts/check-video-inventory.sh` 探线上复核。`figma-plugin/resource-inventory.json` 是线上快照，本批不该动它。
+- 仍待内容组：23 号位两张卡的导语正文；另有 12 个号位（20、21、28–37）待确认、08/11 库尔班大叔重复与 08 台标版权未定。
+

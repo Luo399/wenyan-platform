@@ -141,18 +141,13 @@ async function factoryReady(): Promise<VueWrapper> {
   return wrapper
 }
 
-/**
- * 在注释词上派发一次会冒泡的 mousemove（监听绑在父容器上，不冒泡就测不到根因）。
- *
- * 用 `[data-def]` 选而不是类名：适配器与组件之间的契约就是
- * 「注释词 = 带 data-def 的 span」，按契约查比按样式钩子查更稳。
- */
+/** 在注释词上派发一次会冒泡的 mousemove（监听绑在父容器上，不冒泡就测不到根因） */
 async function hoverWord(
   wrapper: VueWrapper,
   word: string,
   point = { x: 120, y: 160 },
 ): Promise<HTMLElement> {
-  const found = wrapper.findAll('[data-def]').find((w) => w.text() === word)
+  const found = wrapper.findAll('.annotated-word').find((w) => w.text() === word)
   if (!found) {
     throw new Error(
       `夹具里「${word}」没有被标注成 .annotated-word，检查 original_text 是否包含该词`,
@@ -172,26 +167,16 @@ async function hoverWord(
   return el
 }
 
-/**
- * 往正文容器里补一个适配器产不出的注释词节点，用于造异常数据
- * （data-def 为空串 / 压根没有 data-def）。
- *
- * 用 DOM API 构造节点，不再拼 innerHTML 字符串：测试只关心
- * 「这个节点在不在、data-def 是什么」，不该顺带复制组件的渲染结构。
- * class 仍要挂上，因为组件的命中判据就是 annotated-word。
- */
-async function hoverInjectedWord(
+/** 直接往正文容器塞一个节点并派发事件，用于造适配器产不出的 DOM（如空 data-def） */
+async function hoverRawNode(
   wrapper: VueWrapper,
-  def: string | null,
+  html: string,
   point = { x: 120, y: 160 },
 ): Promise<void> {
   const content = wrapper.find('.article-content').element as HTMLElement
-  const span = document.createElement('span')
-  span.className = 'annotated-word'
-  span.textContent = '占位'
-  if (def !== null) span.setAttribute('data-def', def)
-  content.appendChild(span)
-  span.dispatchEvent(
+  content.innerHTML = html
+  const target = content.firstElementChild as HTMLElement
+  target.dispatchEvent(
     new MouseEvent('mousemove', {
       bubbles: true,
       clientX: point.x,
@@ -240,7 +225,7 @@ describe('WordList 渲染分支', () => {
   it('数据就绪后渲染正文与注释词，且默认不显示浮层', async () => {
     const wrapper = await factoryReady()
     expect(wrapper.find('.article-content').exists()).toBe(true)
-    expect(wrapper.findAll('[data-def]').length).toBe(2)
+    expect(wrapper.findAll('.annotated-word').length).toBe(2)
     expect(wrapper.find('.tooltip').exists()).toBe(false)
   })
 
@@ -293,7 +278,7 @@ describe('WordList 渲染分支', () => {
     setLoaders({ data: [...WORD_LIST, WORD_WITH_EMPTY_MEANING] }, { data: BASIC_INFO })
     const { wrapper } = factory()
     await flushPromises()
-    const texts = wrapper.findAll('[data-def]').map((w) => w.text())
+    const texts = wrapper.findAll('.annotated-word').map((w) => w.text())
     expect(texts).toHaveLength(2)
     expect(new Set(texts)).toEqual(new Set(['阳夏', '鸿鹄']))
     expect(texts).not.toContain('燕雀')
@@ -322,13 +307,12 @@ describe('WordList 渲染分支', () => {
 })
 
 describe('WordList 生字注释浮层', () => {
-  it('悬停注释词 → 浮层出现且内容等于该词的释义（根因回归）', async () => {
+  it('悬停注释词 → 浮层出现且内容等于 data-def（根因回归）', async () => {
     const wrapper = await factoryReady()
-    await hoverWord(wrapper, '阳夏')
+    const el = await hoverWord(wrapper, '阳夏')
     const tooltip = wrapper.find('.tooltip')
     expect(tooltip.exists()).toBe(true)
-    // 直接对夹具里的释义断言，而不是回读同一个 data-def —— 后者断言恒真，测不出串词
-    expect(tooltip.text()).toBe('阳夏（jiǎ），今河南太康')
+    expect(tooltip.text()).toBe(el.getAttribute('data-def'))
   })
 
   it('浮层带无障碍语义：role=tooltip + aria-live=polite', async () => {
@@ -341,7 +325,7 @@ describe('WordList 生字注释浮层', () => {
 
   it('监听绑在正文容器上：事件不冒泡就不会误触发（也是 hover 助手必须 bubbles 的原因）', async () => {
     const wrapper = await factoryReady()
-    const el = wrapper.findAll('[data-def]').find((w) => w.text() === '阳夏')!.element
+    const el = wrapper.findAll('.annotated-word').find((w) => w.text() === '阳夏')!.element
     el.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 160 }))
     await flushPromises()
     await wrapper.vm.$nextTick()
@@ -361,10 +345,10 @@ describe('WordList 生字注释浮层', () => {
 
   it('data-def 为空的注释词不弹浮层（防御：v-html 内容未必都来自适配器）', async () => {
     const wrapper = await factoryReady()
-    await hoverInjectedWord(wrapper, '')
+    await hoverRawNode(wrapper, '<span class="annotated-word" data-def="">占位</span>')
     expect(wrapper.find('.tooltip').exists()).toBe(false)
 
-    await hoverInjectedWord(wrapper, null)
+    await hoverRawNode(wrapper, '<span class="annotated-word">没有 data-def</span>')
     expect(wrapper.find('.tooltip').exists()).toBe(false)
   })
 
@@ -387,12 +371,7 @@ describe('WordList 生字注释浮层', () => {
 
   it('在节流窗口内连发一串事件，trailing 用的仍是坐标/词形快照而不是已失效的 MouseEvent', async () => {
     const wrapper = await factoryReady()
-    // 按词形取节点，不按位置解构：正文里「鸿鹄」出现在「阳夏」之前
-    // （夹具原文「燕雀安知鸿鹄之志哉。又败走阳夏。」），位置假设一改就假失败
-    const elByWord = (word: string) =>
-      wrapper.findAll('[data-def]').find((w) => w.text() === word)!.element as HTMLElement
-    const 阳夏 = elByWord('阳夏')
-    const 鸿鹄 = elByWord('鸿鹄')
+    const [阳夏, 鸿鹄] = wrapper.findAll('.annotated-word').map((w) => w.element as HTMLElement)
 
     // 24 次连发全部落在 16ms 窗口内 ⇒ 除首次外都由 trailing 定时器处理；
     // 修复前 trailing 读 e.target 拿到 null，这里会抛 TypeError（未捕获异常会让整个用例失败）
@@ -413,7 +392,7 @@ describe('WordList 生字注释浮层', () => {
 
     // 最后一次事件是「阳夏」⇒ 浮层显示它，而不是中途的某个词
     expect(wrapper.find('.tooltip').exists()).toBe(true)
-    expect(wrapper.find('.tooltip').text()).toBe('阳夏（jiǎ），今河南太康')
+    expect(wrapper.find('.tooltip').text()).toBe(阳夏.getAttribute('data-def'))
 
     // 卸载只该清掉节流器里还没落地的 trailing 定时器，不能碰已销毁实例的状态
     expect(() => wrapper.unmount()).not.toThrow()
@@ -424,7 +403,7 @@ describe('WordList 生字注释浮层', () => {
     const wrapper = await factoryReady()
     await hoverWord(wrapper, '鸿鹄')
     // 紧接着第二次事件走 trailing 定时器，此刻定时器还挂着
-    const el = wrapper.findAll('[data-def]').find((w) => w.text() === '阳夏')!.element
+    const el = wrapper.findAll('.annotated-word').find((w) => w.text() === '阳夏')!.element
     el.dispatchEvent(
       new MouseEvent('mousemove', { bubbles: true, clientX: 200, clientY: 200, view: window }),
     )

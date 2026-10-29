@@ -18,7 +18,10 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   ALL_POEM_IDS,
+  CULTURE_CARD_DATA_POEM_IDS,
   NUMBERING_CONFIRMED_POEM_IDS,
+  ORPHAN_CARD_VIDEO_POEM_IDS,
+  hasCultureCardData,
   hasRuleVideo,
   isNumberingConfirmed,
   isPoemReady,
@@ -26,12 +29,12 @@ import {
 import { getAllPoemSlots, getAllPoems, getPoemTitle, poemMap } from '@/utils/wenUtils'
 
 describe('poemAssets 编号确认表', () => {
-  it('已确认 24 个号：01–19 连续 + 22、24–27', () => {
-    expect(NUMBERING_CONFIRMED_POEM_IDS).toHaveLength(24)
+  it('已确认 25 个号：01–19 连续 + 22–27', () => {
+    expect(NUMBERING_CONFIRMED_POEM_IDS).toHaveLength(25)
     expect([...NUMBERING_CONFIRMED_POEM_IDS].sort((a, b) => Number(a) - Number(b))).toEqual([
       '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
       '11', '12', '13', '14', '15', '16', '17', '18', '19', '22',
-      '24', '25', '26', '27',
+      '23', '24', '25', '26', '27',
     ])
   })
 
@@ -63,7 +66,7 @@ describe('isPoemReady 放行判据', () => {
     }
   })
 
-  it('编号未确认即素材齐全也不放行（20、21、23、28–37 里 OSS 有 rule 视频）', () => {
+  it('编号未确认即素材齐全也不放行（20、21、28–37 里 OSS 有 rule 视频）', () => {
     expect(hasRuleVideo('20')).toBe(true)
     expect(isNumberingConfirmed('20')).toBe(false)
     expect(isPoemReady('20')).toBe(false)
@@ -100,15 +103,24 @@ describe('编号 ↔ 篇目映射', () => {
     expect(getPoemTitle('8')).not.toBe('爱莲说')
     expect(getPoemTitle('10')).not.toBe('虽有嘉肴')
     expect(getPoemTitle('22')).not.toBe('醉翁亭记')
-    expect(getPoemTitle('23')).toBe('未知篇目')
+    expect(getPoemTitle('23')).not.toBe('湖心亭看雪')
+    expect(getPoemTitle('37')).not.toBe('活板')
     expect(getPoemTitle('24')).not.toBe('孙权劝学')
     expect(getPoemTitle('25')).not.toBe('卖油翁')
     expect(getPoemTitle('26')).not.toBe('周亚夫军细柳')
     expect(getPoemTitle('27')).not.toBe('唐雎不辱使命')
   })
 
+  it('23 号位＝《活板》（用户 2026-10-29 确认，非按教材顺序推测）', () => {
+    expect(isNumberingConfirmed('23')).toBe(true)
+    expect(getPoemTitle('WEN_23')).toBe('活板')
+    // 该号 4 段 rule 视频线上都在（实测 /video/WEN_23_rule_bg|1|2|3.mp4 全 200），
+    // 所以确认编号即放行；数据 JSON 仍缺，与其他已确认号位情况一致。
+    expect(isPoemReady('23')).toBe(true)
+  })
+
   it('未确认的号不配任何篇名', () => {
-    for (const id of ['20', '21', '23', '33', '37']) {
+    for (const id of ['20', '21', '33', '37']) {
       expect(getPoemTitle(id)).toBe('未知篇目')
       expect(poemMap[id]).toBeUndefined()
     }
@@ -120,9 +132,9 @@ describe('编号 ↔ 篇目映射', () => {
 })
 
 describe('选篇列表与号位列表', () => {
-  it('getAllPoems 只返回已确认的 24 篇，按编号升序', () => {
+  it('getAllPoems 只返回已确认的 25 篇，按编号升序', () => {
     const poems = getAllPoems()
-    expect(poems).toHaveLength(24)
+    expect(poems).toHaveLength(25)
     expect(poems.map((p) => p.poemId)).toEqual([...NUMBERING_CONFIRMED_POEM_IDS].sort((a, b) => Number(a) - Number(b)))
     expect(poems[0].wenId).toBe('WEN_01')
     expect(poems.every((p) => isNumberingConfirmed(p.poemId))).toBe(true)
@@ -137,7 +149,7 @@ describe('选篇列表与号位列表', () => {
     expect(getAllPoems().filter((p) => p.ready).map((p) => p.wenId)).toEqual([
       'WEN_01', 'WEN_02', 'WEN_03', 'WEN_04', 'WEN_05', 'WEN_06', 'WEN_07', 'WEN_08',
       'WEN_09', 'WEN_10', 'WEN_11', 'WEN_12', 'WEN_14', 'WEN_15', 'WEN_18', 'WEN_19',
-      'WEN_22', 'WEN_24', 'WEN_25', 'WEN_26', 'WEN_27',
+      'WEN_22', 'WEN_23', 'WEN_24', 'WEN_25', 'WEN_26', 'WEN_27',
     ])
   })
 
@@ -151,8 +163,8 @@ describe('选篇列表与号位列表', () => {
       ready: false,
     })
     expect(slots[0].title).toBe('陈涉世家')
-    // 素材上传工具要能选到未交付/未确认的号：37 个号位里只有 21 个可进
-    expect(slots.filter((s) => !s.ready).length).toBe(37 - 21)
+    // 素材上传工具要能选到未交付/未确认的号：37 个号位里只有 22 个可进
+    expect(slots.filter((s) => !s.ready).length).toBe(37 - 22)
   })
 })
 
@@ -271,6 +283,47 @@ describe('culture_cards 数据 JSON 的挂载契约', () => {
   it('有卡片的号位都必须在 ALL_POEM_IDS 的 37 个号位内', () => {
     for (const { stem } of loadCards()) {
       expect(ALL_POEM_IDS).toContain(stem.replace(/^WEN_0?/, ''))
+    }
+  })
+
+  /**
+   * 常量 ↔ 目录 双向锁。
+   * `CULTURE_CARD_DATA_POEM_IDS` 是一句「构建里有这份 JSON」的**仓库口径**声明，此前只靠人按记忆维护，
+   * 出过两个方向的漂移：OSS 有卡片视频但仓库没 JSON（23 号位挂之前就是这样），以及表里写了号但目录没这份文件。
+   * 这里双向比一次，之后加卡片 JSON 忘了更新表、或更新了表忘了写文件，都会红。
+   */
+  it('CULTURE_CARD_DATA_POEM_IDS 与 public/data/culture_cards/ 目录一一对应', () => {
+    const stems = loadCards().map(({ stem }) => stem)
+    expect(stems.length, 'culture_cards 目录为空').toBeGreaterThan(0)
+    for (const id of CULTURE_CARD_DATA_POEM_IDS) {
+      expect(
+        stems,
+        `常量说 ${id} 号有数据 JSON，但 public/data/culture_cards/ 里没有 WEN_${id.padStart(2, '0')}.json`,
+      ).toContain(`WEN_${id.padStart(2, '0')}`)
+    }
+    for (const stem of stems) {
+      expect(CULTURE_CARD_DATA_POEM_IDS, `${stem} 在目录里但常量表没登记`).toContain(
+        stem.replace(/^WEN_0?/, ''),
+      )
+    }
+  })
+
+  it('23 号位（《活板》）已挂载：有数据 JSON，且不再是孤儿', () => {
+    expect(hasCultureCardData('23')).toBe(true)
+    expect(hasCultureCardData('WEN_23')).toBe(true)
+    expect(ORPHAN_CARD_VIDEO_POEM_IDS).not.toContain('23')
+    const card = loadCards().find(({ stem }) => stem === 'WEN_23')
+    expect(card, 'public/data/culture_cards/WEN_23.json 缺失').toBeDefined()
+    // 23 号位在 OSS 上只有这两个卡片视频（2026-10-29 拉线上列表复核过），没有第三张
+    expect(card?.data.cards?.map((c) => c.image_file)).toEqual([
+      'WEN_23_card_paper.mp4',
+      'WEN_23_card_printing.mp4',
+    ])
+  })
+
+  it('已挂载表与孤儿表不许有交集（同一个号不能既挂了又没人引用）', () => {
+    for (const id of ORPHAN_CARD_VIDEO_POEM_IDS) {
+      expect(CULTURE_CARD_DATA_POEM_IDS, `${id} 号同时出现在两张表里`).not.toContain(id)
     }
   })
 })

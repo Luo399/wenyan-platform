@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import BackContinue from '@/components/BackContinue.vue'
 import AiChatPanel from '@/components/AiChatPanel.vue'
@@ -8,6 +8,7 @@ import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { getDataUrlWithVersion } from '@/utils/asset'
+import { getWenScreenTitleUrl } from '@/config/figmaAssets'
 import type { RawTextBasicInfo } from '@/adapters/wordListAdapter'
 import { getWenId } from '@/utils/wenUtils'
 import { debugWarn } from '@/utils/debug'
@@ -71,6 +72,19 @@ const paragraphs = computed(() => {
   return content.split('\n').filter((line) => line.trim() !== '')
 })
 
+// 标题书法图：Figma 插件按篇扫描的 article_title_*.png（11–29KB），
+// 从 OSS images/screens/WEN_xx/... 读取。加载失败就回退到原来的文字标题，
+// 不额外 HEAD 探测——目录本身来自 OSS 清单。
+const titleImageUrl = computed(() => getWenScreenTitleUrl(wenId.value))
+const titleImageError = ref(false)
+const showTitleImage = computed(() => !!titleImageUrl.value && !titleImageError.value)
+watch(wenId, () => {
+  titleImageError.value = false
+})
+function handleTitleImageError() {
+  titleImageError.value = true
+}
+
 // ============================================================
 // R16（顺手修 P3）：answers + handleAnswerChange 是 dead state
 //   - questions 恒为空数组，QuizQuestion 永不渲染
@@ -88,7 +102,16 @@ const paragraphs = computed(() => {
       <button type="button" class="retry-btn" @click="retry">重新加载</button>
     </div>
     <template v-else>
-      <h1>{{ article.title }}</h1>
+      <h1 :class="{ 'sr-only': showTitleImage }">{{ article.title }}</h1>
+      <!-- Figma 扫描的整篇书法标题图（OSS images/screens）；失败时上面的 h1 文字兜底 -->
+      <img
+        v-if="showTitleImage"
+        :src="titleImageUrl ?? ''"
+        class="article-title-art"
+        alt=""
+        aria-hidden="true"
+        @error="handleTitleImageError"
+      />
       <p v-if="article.author || article.dynasty" class="meta">
         {{ article.dynasty }} · {{ article.author }}
       </p>
@@ -146,6 +169,28 @@ const paragraphs = computed(() => {
 .error-state .retry-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+/* Figma 扫描的书法标题图：保持原比例，居中，最大 150px 高 */
+.article-title-art {
+  display: block;
+  max-width: 100%;
+  max-height: 150px;
+  margin: 0 auto var(--spacing-md);
+  object-fit: contain;
+}
+
+/* 有标题图时 h1 只留给读屏，视觉上不重复显示文字 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .meta {
