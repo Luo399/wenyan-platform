@@ -11,7 +11,7 @@
 > `<meta name="build-id" content="850d97b">`，页脚同为「构建 850d97b」；异步产物 `StepView-dFGTMPYv.css`
 > 里能看到新的 `.tooltip[data-v-6e1d0d9d]{…max-width:min(320px,100vw - 16px);position:fixed}`，
 > `StepView-CXGa8ONp.js` 里能看到 `aria-live` / `data-follow-up` / `tooltipRef` 标记。
-> CR-05 / CR-06 的匹配兜底**尚未上线**，等下一次 `main` 窗口。
+> CR-05 / CR-06 的匹配兜底已于当日 11:19 随 PR #209（`feature-1`@`580e4c8` → `main`@`78a6c29`）上线，见文末「发布事实（中午复核）」。
 >
 > 时间戳备注：`19492d6` 等提交的 author/committer 时间显示 2026-10-28 晚，是落提交时本机时钟比真实时间慢约 13 小时
 > （随后被系统对时纠正）。以 GitHub 服务端时间与本文件段落里的「2026-10-29 复核」为准。
@@ -21,10 +21,10 @@
 | CR-20261029-01 | fix      | `src/components/WordList.vue`、`src/utils/tooltipPosition.ts`、`src/adapters/wordListAdapter.ts`、`src/utils/adapterUtils.ts`                                                            | 生字注释浮层不显示的两个根因一起修：监听器从 `onMounted` 手动 `addEventListener` 搬到模板 `@mousemove`；节流只吃同步的 `PointerProbe` 快照，不再在 `setTimeout` 里读已失效的 `e.target`。长注释定位抽成纯函数（右下默认 / 放不下翻转 / 四边 clamp）配 CSS 限宽 | 已通过                 | 已上线（`850d97b`）            |
 | CR-20261029-02 | test     | `src/components/__tests__/WordList.test.ts`、`src/adapters/__tests__/wordListAdapter.test.ts`、`src/utils/__tests__/adapterUtils.test.ts`、`src/utils/__tests__/tooltipPosition.test.ts` | 浮层行为补成一张拦得住回退的测试网（本轮 4 个文件 18 → 78 例）：加载态→就绪后悬浮必须生效、浮层文本 === `data-def`、节流尾调用不得抛 `TypeError`、空注释不显示、retry 同时重试两份 JSON、`data-follow-up` 仅有值才写                                           | 已通过                 | 已上线（`850d97b`）            |
 | CR-20261029-03 | chore    | `feature-1` ← `main` 同步（`19492d6`）、PR #204                                                                                                                                          | 把 `main` 的 #203 合并提交同步进 `feature-1`，满足 `main` 分支保护 `required_status_checks.strict` 的要求；树与 `cced00c` 完全一致，零内容改动                                                                                                                 | 已通过（6 项检查）     | 已上线（`850d97b`）            |
-| CR-20261029-04 | docs     | `figma-plugin/docs/step1-word-tooltip-plan.md`                                                                                                                                           | 方案加第十一节（v5）：命中率的两层含义、190/190 逐 span 实测的测法与两个坑（隐藏标签页定时器被钳 1s、视口 0×0 只能验命中不能验几何）                                                                                                                           | 不适用                 | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-05 | fix      | `src/utils/adapterUtils.ts`                                                                                                                                                              | 注释匹配改成三级降级：词条原文整串 → 剥括号注音（`鲦（tiáo）鱼`→「鲦鱼」，剥完不足两字的单字音注不标）→ ≥4 汉字短语允许两字之间夹最多 4 个非汉字字符整段命中；排序键由字符串长度改为汉字数                                                                     | 已通过                 | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-06 | test     | `src/utils/__tests__/adapterUtils.test.ts`、`src/adapters/__tests__/wordListAdapter.test.ts`                                                                                             | 三级策略逐级验证 + 「每条词条要么已成 span，要么在已登记的『标不了』清单里」双向断言（清单外的漏标、清单内的误标都会红）。span 总数 190 → 194                                                                                                                  | 已通过（全量 194/194） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-07 | docs     | `docs/素材缺失清单.md`、`tasks/nightly-tasks.md`                                                                                                                                         | 素材清单加第十一节：4 条注定成不了 span 的词条（`食(sì)` 与三篇的篇名出处）连同「注音别写进 `word`、出处别放进 word_list」的诉求；台账补 step1 生字注释父功能与两个子功能                                                                                      | 不适用                 | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-04 | docs     | `figma-plugin/docs/step1-word-tooltip-plan.md`                                                                                                                                           | 方案加第十一节（v5）：命中率的两层含义、190/190 逐 span 实测的测法与两个坑（隐藏标签页定时器被钳 1s、视口 0×0 只能验命中不能验几何）                                                                                                                           | 不适用                 | 已上线（`78a6c29`） |
+| CR-20261029-05 | fix      | `src/utils/adapterUtils.ts`                                                                                                                                                              | 注释匹配改成三级降级：词条原文整串 → 剥括号注音（`鲦（tiáo）鱼`→「鲦鱼」，剥完不足两字的单字音注不标）→ ≥4 汉字短语允许两字之间夹最多 4 个非汉字字符整段命中；排序键由字符串长度改为汉字数                                                                     | 已通过                 | 已上线（`78a6c29`） |
+| CR-20261029-06 | test     | `src/utils/__tests__/adapterUtils.test.ts`、`src/adapters/__tests__/wordListAdapter.test.ts`                                                                                             | 三级策略逐级验证 + 「每条词条要么已成 span，要么在已登记的『标不了』清单里」双向断言（清单外的漏标、清单内的误标都会红）。span 总数 190 → 194                                                                                                                  | 已通过（全量 194/194） | 已上线（`78a6c29`） |
+| CR-20261029-07 | docs     | `docs/素材缺失清单.md`、`tasks/nightly-tasks.md`                                                                                                                                         | 素材清单加第十一节：4 条注定成不了 span 的词条（`食(sì)` 与三篇的篇名出处）连同「注音别写进 `word`、出处别放进 word_list」的诉求；台账补 step1 生字注释父功能与两个子功能                                                                                      | 不适用                 | 已上线（`78a6c29`） |
 
 ## 变更明细
 
@@ -88,14 +88,14 @@
 
 | 变更编号 | 变更类型 | 影响范围 | 变更描述 | 测试状态 | 上线状态 |
 | --- | --- | --- | --- | --- | --- |
-| CR-20261029-08 | fix | `src/stores/auth.ts`、`src/router/guards.ts`、`src/router/index.ts` | 角色门禁从「单角色字符串」改成「角色集合判定」，`Role` 扩出 `super_admin`；`meta.role` 支持 `Role \| Role[]`，新增导出的 `normalizeRequiredRoles` / `isRoleAllowed` 两个纯函数并据此放行 `/answer-query`、`/admin-console`、`/teacher-completion`、`/resource-upload`；同时删掉路由表里两处已废弃的 `*-dashboard` 旧块 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-09 | refactor | `src/services/apiService.ts`、`src/views/TeacherRegisterView.vue` | 教师自助注册不再裸 `fetch`，改走 `teacherRegister()` + 统一 `ApiResponse`；`ApiError`（后端业务码）与真正的网络异常分文案，避免「参数不合法」被说成「网络异常」 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-10 | chore | `backend/package.json` | jest 覆盖率统计从只算 `server.js` 扩到 `src/**`（排除 `__tests__`），并设首轮阈值 branches 20 / functions 30 / lines 30 / statements 30 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-11 | refactor | `backend/src/middleware/validate.js` + 7 个 controller + `backend/tests/ai-chat-security.test.js` | zod 校验收敛：找回仓库里**并不存在**、却被 7 个 controller `require` 的 `middleware/validate.js`（从 `feature/data-dashboard/backend-api` 取回，98 行），错误统一成 400 `VALIDATION_ERROR`，多条 issue 去重后以「；」拼接；admin/ai/answer/auth/student/teacher/tracking 七个 controller 一起落，`assetController` 留给 CR-20261029-14 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-12 | feat | `teacherDashboardController.js`、`adminDashboardController.js`、`utils/dashboardQuery.js`、`utils/questionInventory.js`、`routes/index.js` + 3 个测试 | 教师/管理员看板聚合接口从 10-23 那条一直没合并的本地分支移植进主仓（约 +2300 行含测试）；`routes/index.js` 走三方合并，`/api/teacher/dashboard/*` 挂 `teacherAuth`、`/api/admin/dashboard/*` 挂 `requireRole(['admin','super_admin'])` | 已通过（CI 6 项，后端 3 个新测试文件全绿） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-13 | feat | `src/components/charts/*`、`src/components/dashboard/*`、`src/services/{teacher,admin}DashboardService.ts`、`src/views/{Teacher,Admin}DashboardView.vue`、`src/router/index.ts`、`AnswerQueryView.vue`、`AdminConsoleView.vue` | 看板前端：手写 SVG 图表（StatCard / ProgressRing / BarChart / LineChart / HeatmapChart + `chartUtils`，只依赖 `vue`，不引第三方图表库）、面板与学生明细/薄弱题组件、两个看板页面与路由入口；服务层空态兜底与后端分页类型对齐 | 已通过（CI 6 项；`vue-tsc --build` 本机 0 错误） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-14 | fix | `backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py` | 「编号 ↔ 篇目」表换成 2026-10-28 内容组确认表：只保留已确认 24 个号，未确认 13 个号位（20、21、23、28–37）显示占位「编号待确认」，与已落库的 `src/utils/wenUtils.ts` 一致；号位仍按 1–37 生成，否则 `Object.keys(POEMS)` 匹配不到这些号的已交付素材 | 已通过（CI 6 项） | 未上线（等下一次 `main` 窗口） |
-| CR-20261029-15 | docs | `docs/CODE_WIKI.md`、`docs/QUALITY_ASSESSMENT.md`、`docs/MIGRATION_CLUSTER.md` | 三份只在共享工作区存在过的技术文档落库（共 2281 行）：Code Wiki、2026-10-23 六维度质量评估快照、PM2 cluster + Redis 迁移路线图。评估报告头部加了「落库时点说明」，标明其 P0 项已被 #207 / #210 / #211 处理、分数不回填重算 | 已通过（CI 6 项，含 secret-scan） | 未上线（等下一次 `main` 窗口） |
+| CR-20261029-08 | fix | `src/stores/auth.ts`、`src/router/guards.ts`、`src/router/index.ts` | 角色门禁从「单角色字符串」改成「角色集合判定」，`Role` 扩出 `super_admin`；`meta.role` 支持 `Role \| Role[]`，新增导出的 `normalizeRequiredRoles` / `isRoleAllowed` 两个纯函数并据此放行 `/answer-query`、`/admin-console`、`/teacher-completion`、`/resource-upload`；同时删掉路由表里两处已废弃的 `*-dashboard` 旧块 | 已通过（CI 6 项） | 已上线（`78a6c29`） |
+| CR-20261029-09 | refactor | `src/services/apiService.ts`、`src/views/TeacherRegisterView.vue` | 教师自助注册不再裸 `fetch`，改走 `teacherRegister()` + 统一 `ApiResponse`；`ApiError`（后端业务码）与真正的网络异常分文案，避免「参数不合法」被说成「网络异常」 | 已通过（CI 6 项） | 已上线（`78a6c29`） |
+| CR-20261029-10 | chore | `backend/package.json` | jest 覆盖率统计从只算 `server.js` 扩到 `src/**`（排除 `__tests__`），并设首轮阈值 branches 20 / functions 30 / lines 30 / statements 30 | 已通过（CI 6 项） | 已上线（`78a6c29`） |
+| CR-20261029-11 | refactor | `backend/src/middleware/validate.js` + 7 个 controller + `backend/tests/ai-chat-security.test.js` | zod 校验收敛：找回仓库里**并不存在**、却被 7 个 controller `require` 的 `middleware/validate.js`（从 `feature/data-dashboard/backend-api` 取回，98 行），错误统一成 400 `VALIDATION_ERROR`，多条 issue 去重后以「；」拼接；admin/ai/answer/auth/student/teacher/tracking 七个 controller 一起落，`assetController` 留给 CR-20261029-14 | 已通过（CI 6 项） | 已上线（`78a6c29`） |
+| CR-20261029-12 | feat | `teacherDashboardController.js`、`adminDashboardController.js`、`utils/dashboardQuery.js`、`utils/questionInventory.js`、`routes/index.js` + 3 个测试 | 教师/管理员看板聚合接口从 10-23 那条一直没合并的本地分支移植进主仓（约 +2300 行含测试）；`routes/index.js` 走三方合并，`/api/teacher/dashboard/*` 挂 `teacherAuth`、`/api/admin/dashboard/*` 挂 `requireRole(['admin','super_admin'])` | 已通过（CI 6 项，后端 3 个新测试文件全绿） | 已上线（`78a6c29`） |
+| CR-20261029-13 | feat | `src/components/charts/*`、`src/components/dashboard/*`、`src/services/{teacher,admin}DashboardService.ts`、`src/views/{Teacher,Admin}DashboardView.vue`、`src/router/index.ts`、`AnswerQueryView.vue`、`AdminConsoleView.vue` | 看板前端：手写 SVG 图表（StatCard / ProgressRing / BarChart / LineChart / HeatmapChart + `chartUtils`，只依赖 `vue`，不引第三方图表库）、面板与学生明细/薄弱题组件、两个看板页面与路由入口；服务层空态兜底与后端分页类型对齐 | 已通过（CI 6 项；`vue-tsc --build` 本机 0 错误） | 已上线（`78a6c29`） |
+| CR-20261029-14 | fix | `backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py` | 「编号 ↔ 篇目」表换成 2026-10-28 内容组确认表：只保留已确认 24 个号，未确认 13 个号位（20、21、23、28–37）显示占位「编号待确认」，与已落库的 `src/utils/wenUtils.ts` 一致；号位仍按 1–37 生成，否则 `Object.keys(POEMS)` 匹配不到这些号的已交付素材 | 已通过（CI 6 项） | 已上线（`78a6c29`） |
+| CR-20261029-15 | docs | `docs/CODE_WIKI.md`、`docs/QUALITY_ASSESSMENT.md`、`docs/MIGRATION_CLUSTER.md` | 三份只在共享工作区存在过的技术文档落库（共 2281 行）：Code Wiki、2026-10-23 六维度质量评估快照、PM2 cluster + Redis 迁移路线图。评估报告头部加了「落库时点说明」，标明其 P0 项已被 #207 / #210 / #211 处理、分数不回填重算 | 已通过（CI 6 项，含 secret-scan） | 已上线（`78a6c29`） |
 
 ### 明细
 
@@ -128,3 +128,24 @@
   `figma-plugin/resource-inventory.json` 是脚本离线快照、仍带旧推测标题，本机无 python 跑不了 `generate-inventory.py`，需在装了 python 的机器上重跑；
   `docs/document_index.csv` 未登记 CR-20261029-15 那三份文档，因为该表要求「创建日期」而这三份没有可靠原始日期；
   内容侧待确认的 13 个号位（20、21、23、28–37）与 23 号位两条未挂载视频，状态不变。
+
+### 发布事实（2026-10-29 中午复核）
+
+- **PR #209 已把本批全部改动带进 `main`**：它开的时候只含生字注释那批，但 `feature-1` → `main` 只有一个 PR，
+  9 个 PR（#207–#216）落进 `feature-1` 后它的 head 自动跟到 `580e4c8`；11:19:38 人工合并为 `main`@`78a6c29`。
+  `git diff origin/main origin/feature-1` 为空——两分支内容当前完全一致，没有遗漏的批次。
+- **`main` push 触发的三个 workflow 全绿**：`Deploy Frontend to Aliyun OSS`（run `40811509949`）、
+  `Deploy Backend to Aliyun Server`（run `40811509935`）、`Sync Figma Plugin to wenyan-asset-sync`（run `40811509978`）。
+  `CI Checks` 不在 `main` push 上跑，发布前看的是各 PR 的 CI（本批 9 个 PR 都是 6 项全绿才合）。
+- **前端线上实测**：`https://www.classicalab.cn/index.html` 的 `<meta name="build-id" content="78a6c29">`；
+  entry chunk `index-CdPv9V10.js` 里挂着 `TeacherDashboardView-D4X2IUPx.js`（直接 GET 返回 200）与
+  `AdminDashboardView-iGUejIjI.js`，看板代码确实进了产物；同一 chunk 里的标题表已是确认表 24 条 +
+  未确认号位占位「编号待确认」（05 唐雎不辱使命 / 06 醉翁亭记 / 08 咏雪 / 22 狼 / 24–27 送东阳马生序·出师表·三峡·答谢中书书）。
+- **后端线上实测**（证明 CR-20261029-11 找回的 `middleware/validate.js` 真在线上跑）：
+  `POST https://api.classicalab.cn/api/auth/teacher/register` 传非法体返回 400 +
+  `{"error":"VALIDATION_ERROR","message":"手机号格式不正确；姓名必填；密码长度不能少于 6 位"}`，
+  多条 issue 去重后按「；」拼接——只有那份找回的共享模块能产出这个格式，仓库里从来没有它时这条路由是起不来的。
+- **上面这些「已上线（`78a6c29`）」状态即据此改写**（第一批的 CR-04 ~ 07 同样随 #209 上线）；
+  因单元格里改了文案，第一批那张表的 prettier 列对齐已放宽，不影响渲染。
+- **本条发布事实自身**只是 `docs/**` 改动，不在两个 deploy workflow 的 `paths` 白名单里，
+  合进 `main` 不会触发任何发布；它先落 `feature-1`，随下一个 `main` 窗口走。
