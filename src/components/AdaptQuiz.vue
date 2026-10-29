@@ -279,6 +279,17 @@ watch(
   },
 )
 
+// R01 重构把 loader 提前到 setup 顶层后漏掉了错误透传：
+// emit('error') 声明还在、BlockQuiz 也接了 @error，但组件内从没触发过。
+// 这里以 loader.error 为唯一来源补回（immediate 覆盖挂载前就已失败的情况）
+watch(
+  () => loader.error.value,
+  (err) => {
+    if (err) emit('error', err)
+  },
+  { immediate: true },
+)
+
 // R01: level/textId 变化触发自动重新加载（若已关闭 autoLoad 则等待手动 loadData）
 watch(
   () => [props.textId, props.level],
@@ -322,13 +333,8 @@ function submitAnswer() {
     currentQuiz.value.correctAnswer ?? undefined,
   )
   emit('quiz-submitted')
-  // P1: 后端提交由父级（如 StepTwoView 的 useQuizProgress）统一处理，这里只保留本地记录
-  void persistLocalRecord()
-}
-
-function persistLocalRecord() {
-  // P1/R170: 答题提交由父级页面通过 useQuizSubmitter/useQuizProgress 统一处理，
-  // 本地 localStorage 保存与答题报告下载已停用，这里保留空实现以兼容调用点。
+  // P1: 后端提交由父级（如 StepTwoView 的 useQuizProgress）统一处理
+  // R170: 前端 localStorage 本地保存与答题报告下载已停用，组件内不再保留调用点
 }
 
 function handleNext() {

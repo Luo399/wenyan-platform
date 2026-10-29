@@ -37,7 +37,7 @@
             ref="primaryInputRef"
             :id="primaryFieldId"
             v-model="primaryField"
-            :type="primaryFieldType"
+            type="text"
             :inputmode="primaryInputMode"
             :autocomplete="primaryAutocomplete"
             class="form-input"
@@ -50,12 +50,6 @@
           <span v-if="hasError && !primaryField" role="alert" class="error-message">
             请输入{{ primaryLabel }}
           </span>
-        </div>
-
-        <!-- 学生姓名显示（仅学生角色） -->
-        <div v-if="activeRole === 'student' && studentName" class="student-name-display" role="status">
-          <span class="name-label">学生姓名：</span>
-          <span class="name-value">{{ studentName }}</span>
         </div>
 
         <!-- 密码输入（带眼睛图标） -->
@@ -136,7 +130,6 @@
         <p>测试账号：</p>
         <p class="test-accounts">{{ testAccountsText }}</p>
         <p class="format-hint">学号格式：8 位数字（如：99999999）</p>
-        <p class="format-hint">默认密码：99999999</p>
       </div>
     </div>
   </div>
@@ -146,7 +139,7 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useStudentQuery } from '@/composables/useStudentQuery'
+import { sanitizeRedirect } from '@/utils/api'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 import { track } from '@/utils/tracking'
@@ -167,7 +160,6 @@ const roles: RoleOption[] = [
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const { queryStudentName } = useStudentQuery()
 
 // 背景图
 const bgUrl = getAssetUrl('images', 'login_bg.png')
@@ -196,7 +188,6 @@ const activeRole = ref<Role>('student')
 const primaryField = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const studentName = ref('')
 const rememberMe = ref(true)
 const hasError = ref(false)
 
@@ -216,106 +207,45 @@ const isLoading = computed(() => authStore.isLoading)
 // ===== 根据角色计算的 UI 字段 =====
 const currentRoleLabel = computed(() => roles.find((r) => r.value === activeRole.value)?.label ?? '学生')
 
-const currentSubtitle = computed(() => {
-  switch (activeRole.value) {
-    case 'student':
-      return '请输入学号和密码'
-    case 'teacher':
-      return '请输入手机号和密码'
-    case 'admin':
-      return '请输入管理员账号和密码'
-  }
-})
+/** 三种角色的输入框文案/属性集中维护，避免 5 个 switch 各写一遍 */
+const ROLE_UI: Record<
+  Role,
+  { subtitle: string; fieldId: string; label: string; inputMode: 'numeric' | 'tel' | 'text'; autocomplete: string }
+> = {
+  student: {
+    subtitle: '请输入学号和密码',
+    fieldId: 'studentId',
+    label: '学号',
+    inputMode: 'numeric',
+    autocomplete: 'username',
+  },
+  teacher: {
+    subtitle: '请输入手机号和密码',
+    fieldId: 'phone',
+    label: '手机号',
+    inputMode: 'tel',
+    autocomplete: 'tel',
+  },
+  admin: {
+    subtitle: '请输入管理员账号和密码',
+    fieldId: 'username',
+    label: '用户名',
+    inputMode: 'text',
+    autocomplete: 'username',
+  },
+}
 
-const primaryFieldId = computed(() => {
-  switch (activeRole.value) {
-    case 'student':
-      return 'studentId'
-    case 'teacher':
-      return 'phone'
-    case 'admin':
-      return 'username'
-  }
-})
+const currentSubtitle = computed(() => ROLE_UI[activeRole.value].subtitle)
 
-const primaryLabel = computed(() => {
-  switch (activeRole.value) {
-    case 'student':
-      return '学号'
-    case 'teacher':
-      return '手机号'
-    case 'admin':
-      return '用户名'
-  }
-})
+const primaryFieldId = computed(() => ROLE_UI[activeRole.value].fieldId)
+
+const primaryLabel = computed(() => ROLE_UI[activeRole.value].label)
 
 const primaryPlaceholder = computed(() => `请输入${primaryLabel.value}`)
 
-const primaryFieldType = computed(() => {
-  // 管理员用户名可能含字母，其他角色纯数字
-  return activeRole.value === 'admin' ? 'text' : 'text'
-})
+const primaryInputMode = computed(() => ROLE_UI[activeRole.value].inputMode)
 
-const primaryInputMode = computed(() => {
-  switch (activeRole.value) {
-    case 'student':
-      return 'numeric'
-    case 'teacher':
-      return 'tel'
-    case 'admin':
-      return 'text'
-  }
-})
-
-const primaryAutocomplete = computed(() => {
-  switch (activeRole.value) {
-    case 'student':
-      return 'username'
-    case 'teacher':
-      return 'tel'
-    case 'admin':
-      return 'username'
-  }
-})
-
-// ===== 防抖查询学生姓名 =====
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function debounce<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  const debounced = function (this: unknown, ...args: Parameters<T>) {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => fn.apply(this, args), waitMs)
-  } as T & { cancel: () => void; flush: () => void }
-  debounced.cancel = () => {
-    if (timer) {
-      clearTimeout(timer)
-      timer = null
-    }
-  }
-  debounced.flush = () => {
-    if (timer) {
-      clearTimeout(timer)
-      timer = null
-    }
-  }
-  return debounced
-}
-
-const QUERY_DEBOUNCE_MS = 300
-let lastQuerySeq = 0
-async function queryNameInternal(id: string) {
-  const trimmed = id.trim()
-  if (trimmed.length < 1) {
-    studentName.value = ''
-    return
-  }
-  const seq = ++lastQuerySeq
-  const name = await queryStudentName(trimmed)
-  if (seq === lastQuerySeq) {
-    studentName.value = name
-  }
-}
-const debouncedQueryName = debounce(queryNameInternal, QUERY_DEBOUNCE_MS)
+const primaryAutocomplete = computed(() => ROLE_UI[activeRole.value].autocomplete)
 
 watch(
   () => authStore.error,
@@ -327,7 +257,6 @@ watch(
 // 切换角色时清空字段、重置焦点
 watch(activeRole, () => {
   primaryField.value = ''
-  studentName.value = ''
   hasError.value = false
   authStore.clearError()
   nextTick(() => {
@@ -338,25 +267,12 @@ watch(activeRole, () => {
 onMounted(() => {
   primaryField.value = ''
   password.value = ''
-  studentName.value = ''
   hasError.value = false
-  lastQuerySeq = 0
   authStore.clearError()
   nextTick(() => {
     primaryInputRef.value?.focus()
   })
 })
-
-onUnmounted(() => {
-  debouncedQueryName.cancel()
-})
-
-async function handlePrimaryInput(): Promise<void> {
-  clearValidation()
-  if (activeRole.value === 'student') {
-    debouncedQueryName(primaryField.value)
-  }
-}
 
 function clearValidation(): void {
   hasError.value = false
@@ -375,33 +291,24 @@ async function handleSubmit(): Promise<void> {
 
   if (isSubmitting.value) return
   isSubmitting.value = true
-  debouncedQueryName.cancel()
 
   try {
     await authStore.login(
       primaryField.value.trim(),
       password.value,
-      activeRole.value === 'student' ? studentName.value : undefined,
+      undefined,
       activeRole.value,
+      rememberMe.value,
     )
     // 登录成功：按角色跳转
     // auth 流程的 router.push 不走 useNavigation——按角色分支是例外（见 onRoleClick 注释）
-    const redirect = route.query.redirect as string | undefined
-    if (redirect && redirect !== '/') {
-      router.push(redirect)
-      return
+    const roleHome: Record<Role, string> = {
+      student: '/rules/1',
+      teacher: '/answer-query',
+      admin: '/admin-console',
     }
-    switch (activeRole.value) {
-      case 'student':
-        router.push('/rules/1')
-        break
-      case 'teacher':
-        router.push('/answer-query')
-        break
-      case 'admin':
-        router.push('/admin-console')
-        break
-    }
+    // redirect 来自 URL，必须校验为站内路径，否则回落到角色首页（防开放重定向）
+    router.push(sanitizeRedirect(route.query.redirect, roleHome[activeRole.value]))
   } catch (err) {
     debugError('登录失败:', err)
   } finally {

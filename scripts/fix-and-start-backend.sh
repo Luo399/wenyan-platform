@@ -1,12 +1,25 @@
 #!/bin/bash
 # 修复后端依赖并启动
-set -e
+set -euo pipefail
 
-cd /www/wwwroot/api.classicalab.cn/backend
+PROJECT_PATH="${PROJECT_PATH:-/www/wwwroot/api.classicalab.cn}"
+BACKEND_PATH="$PROJECT_PATH/backend"
+API_BASE="${API_BASE:-https://api.classicalab.cn}"
+
+if [ ! -d "$BACKEND_PATH" ]; then
+  echo "ERROR: 后端目录不存在: $BACKEND_PATH（可用 PROJECT_PATH=... 覆盖）" >&2
+  exit 1
+fi
+if ! command -v pm2 >/dev/null 2>&1; then
+  echo "ERROR: 未找到 pm2" >&2
+  exit 1
+fi
+
+cd "$BACKEND_PATH"
 
 # 1. 使用 npm install 同步依赖（解决 lock 文件不同步）
 echo "=== 安装依赖 ==="
-npm install --omit=dev
+npm install --omit=dev --no-audit --no-fund
 
 # 2. 验证 server.js 有 health 端点
 echo ""
@@ -23,7 +36,7 @@ fi
 # 3. 检查 PM2 进程
 echo ""
 echo "=== 检查 PM2 进程 ==="
-pm2 list
+pm2 list || true
 
 # 4. 重启服务
 echo ""
@@ -34,9 +47,9 @@ pm2 reload wenyan-backend --update-env || pm2 start server.js --name wenyan-back
 echo ""
 echo "=== 等待服务启动 ==="
 sleep 3
-pm2 status
+pm2 status || true
 
 # 6. 测试 health 端点
 echo ""
 echo "=== 测试 health 端点 ==="
-curl -v https://api.classicalab.cn/api/health 2>&1 | head -20
+curl -v "$API_BASE/api/health" 2>&1 | head -20 || true

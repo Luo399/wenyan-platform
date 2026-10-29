@@ -34,9 +34,9 @@
         <span class="tool-nav-sep">|</span>
         <a href="/teacher-dashboard" class="tool-nav-link">教师数据看板</a>
       </template>
-      <span class="tool-nav-sep">|</span>
-      <button class="tool-nav-btn" @click="showBatchCreateDialog = true">批量创建教师</button>
       <template v-if="isAdmin">
+        <span class="tool-nav-sep">|</span>
+        <button class="tool-nav-btn" @click="showBatchCreateDialog = true">批量创建教师</button>
         <span class="tool-nav-sep">|</span>
         <a href="/admin-dashboard" class="tool-nav-link">管理员数据看板</a>
         <span class="tool-nav-sep">|</span>
@@ -57,18 +57,21 @@
             <button class="modal-close" @click="showBatchCreateDialog = false">✕</button>
           </div>
           <div class="modal-body">
-            <p>
-              将创建 <strong>a001 ~ a009</strong> 共 9 个教师账号，密码统一为
-              <code>12345678</code>。
+            <p>将创建 <strong>a001 ~ a009</strong> 共 9 个教师账号。</p>
+            <p class="modal-hint">
+              账号创建后可用 phone（如 a001）+ 临时口令登录教师端；临时口令由服务端重置后返回，
+              请逐个转交教师。
             </p>
-            <p class="modal-hint">账号创建后可用 phone（如 a001）+ 密码登录教师端。</p>
             <div v-if="batchCreateResult.length > 0" class="batch-result">
               <div
-                v-for="(item, idx) in batchCreateResult"
-                :key="idx"
+                v-for="item in batchCreateResult"
+                :key="item.phone"
                 :class="['result-item', item.success ? 'success' : 'error']"
               >
                 {{ item.success ? '✓' : '✕' }} {{ item.phone }}: {{ item.message }}
+                <span v-if="item.temporaryPassword" class="result-password">
+                  临时口令：<code>{{ item.temporaryPassword }}</code>
+                </span>
               </div>
             </div>
           </div>
@@ -251,7 +254,7 @@
       <AnswerTable
         v-else
         :records="displayAnswerRecords"
-        :mode="activeTab as 'wenId' | 'studentId'"
+        :mode="answerTableMode"
         @view-detail="handleViewDetail"
       />
     </div>
@@ -333,14 +336,16 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
-import { get, post, batchPost } from '@/utils/api'
+import { get, batchPost } from '@/utils/api'
 import { formatDate } from '@/utils/format'
 import {
   createStudent,
   updateStudent,
   deleteStudent,
+  getAllStudents,
   type StudentInfo,
 } from '@/services/studentService'
+import { resetTeacherPassword } from '@/services/adminService'
 import { debugError } from '@/utils/debug'
 import { useAuthStore, type Role } from '@/stores/auth'
 import StudentTable from '@/components/StudentTable.vue'
@@ -348,6 +353,12 @@ import AnswerTable from '@/components/AnswerTable.vue'
 import StudentFormModal from '@/components/StudentFormModal.vue'
 import DeleteConfirmModal from '@/components/DeleteConfirmModal.vue'
 import AnswerDetailModal from '@/components/AnswerDetailModal.vue'
+import type {
+  AnswerDetail,
+  AnswerTableRow,
+  StudentIdAnswerRecord,
+  WenIdAnswerRecord,
+} from '@/types/answer'
 
 // ============================================================
 // 类型定义（R04：移除 any）
@@ -358,50 +369,6 @@ interface Toast {
   show: boolean
   message: string
   type: 'success' | 'error'
-}
-
-/** 答题明细：单个 question 的作答记录（来自后端 answers[]） */
-interface AnswerDetail {
-  questionId?: string
-  questionNumber?: number
-  userAnswer?: string
-  correctAnswer?: string | number
-  isCorrect?: boolean
-  score?: number
-  submittedAt?: string
-  [key: string]: unknown
-}
-
-/** 文言文维度下，单个学生的聚合答题记录
- *  后端：/api/answers/wen/:wenId 响应 data.students[i]
- */
-interface WenIdAnswerRecord {
-  studentId: string
-  studentName?: string
-  totalQuestions?: number
-  correctCount?: number
-  wrongCount?: number
-  avgScore?: number
-  submittedAt?: string
-  answers?: AnswerDetail[]
-  [key: string]: unknown
-}
-
-/** 学生维度下，单篇文言文的聚合答题记录
- *  后端：/api/answers/student/:studentId 响应 data.wenRecords[i]
- */
-interface StudentIdAnswerRecord {
-  wenId: string
-  wenTitle?: string
-  totalQuestions?: number
-  correctCount?: number
-  wrongCount?: number
-  avgScore?: number
-  submittedAt?: string
-  answers?: AnswerDetail[]
-  studentId?: string
-  studentName?: string
-  [key: string]: unknown
 }
 
 /** 三种 tab 下 allData 的元素类型联合 */
@@ -516,8 +483,19 @@ interface BatchCreateItem {
   phone: string
   success: boolean
   message: string
+  /** 服务端返回的一次性临时口令（仅新建成功后可拿到） */
+  temporaryPassword?: string
 }
 const batchCreateResult = ref<BatchCreateItem[]>([])
+
+/** 创建时用的随机初始口令：创建成功后立即重置为服务端一次性口令，不在前端留固定默认密码 */
+function randomInitialPassword(): string {
+  const bytes = new Uint8Array(12)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, 16)
+}
 
 async function batchCreateTeachers() {
   if (batchCreating.value) return
@@ -531,21 +509,48 @@ async function batchCreateTeachers() {
       body: {
         phone: `a${num}`,
         name: `a${num}`,
-        password: '12345678',
+        password: randomInitialPassword(),
         school_id: 1,
         class_codes: ['000000'],
       },
     }
   })
 
-  const results = await batchPost('/api/admin/teachers', items)
-  batchCreateResult.value = results.map((r) => ({
-    phone: r.key,
-    success: r.success || r.message.includes('已注册'),
-    message: r.message,
-  }))
+  try {
+    const results = await batchPost<{ temporary_password?: string }>('/api/admin/teachers', items)
+    const mapped: BatchCreateItem[] = []
 
-  batchCreating.value = false
+    for (const r of results) {
+      let success = r.success
+      let message = r.message
+      // 已注册不算硬失败（重复执行批处理的常见场景），但不要重置已有账号的口令
+      if (!success && message.includes('已注册')) {
+        success = true
+        message = `${message}（未改动其口令，如需重置请到账号管理控制台操作）`
+      }
+
+      let temporaryPassword = r.data?.temporary_password
+      if (success && !temporaryPassword && !message.includes('已注册')) {
+        // 创建接口不返回口令：创建后立刻调用重置接口，拿服务端生成的一次性口令
+        const reset = await resetTeacherPassword(r.key)
+        if (reset.success && reset.data?.temporary_password) {
+          temporaryPassword = reset.data.temporary_password
+          message = '账号已创建，已生成一次性临时口令'
+        } else {
+          message = `${message}（未能获取临时口令：${reset.message}）`
+        }
+      }
+
+      mapped.push({ phone: r.key, success, message, temporaryPassword })
+    }
+
+    batchCreateResult.value = mapped
+  } catch (err) {
+    debugError('[AnswerQuery] 批量创建教师失败:', err)
+    showToast(err instanceof Error ? err.message : '批量创建教师失败，请重试', 'error')
+  } finally {
+    batchCreating.value = false
+  }
 }
 
 // ============================================================
@@ -584,19 +589,24 @@ const displayStudents = computed<StudentInfo[]>(() => {
 })
 
 /**
- * AnswerTable records 接受 Record<string, any>[]。
- * 把 QueryRow[] 直接转成宽类型，避免模板里三元函数类型交集的报错。
+ * AnswerTable 的 records 入参。
+ * 把 QueryRow[] 收窄为答题记录的联合类型，避免模板里三元函数类型交集的报错。
  */
-const displayAnswerRecords = computed<Array<Record<string, unknown>>>(() => {
+const displayAnswerRecords = computed<AnswerTableRow[]>(() => {
   if (activeTab.value === 'students') return []
-  return displayData.value as Array<Record<string, unknown>>
+  return displayData.value as AnswerTableRow[]
 })
+
+/** 表格模式：模板里直接绑定，避免在模板表达式里写 `as` 联合类型（会被 vue 规则误判为旧式 filter） */
+const answerTableMode = computed<'wenId' | 'studentId'>(() =>
+  activeTab.value === 'studentId' ? 'studentId' : 'wenId',
+)
 
 /**
  * 记录详情点击：把模板里的"三元+两个函数"收敛成一个，避免 TS 做交集类型推断导致参数不兼容。
  * 运行时根据 activeTab 分发到具体处理函数。
  */
-function handleViewDetail(record: Record<string, unknown>) {
+function handleViewDetail(record: AnswerTableRow) {
   if (activeTab.value === 'wenId') {
     viewWenStudentDetail(record as WenIdAnswerRecord)
   } else if (activeTab.value === 'studentId') {
@@ -639,11 +649,44 @@ async function queryByStudentId() {
 }
 
 async function loadAllStudents(classNum?: number) {
-  let url = '/api/students'
-  if (classNum !== undefined) {
-    url += `?class=${classNum}`
+  loading.value = true
+  error.value = ''
+  originalData.value = []
+  allData.value = []
+  statistics.value = null
+
+  try {
+    // 服务层按当前角色走 /api/admin/students 或 /api/teacher/students
+    const students = await getAllStudents(
+      classNum === undefined ? undefined : { class: classNum },
+    )
+    applyStudents(students)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '学生列表加载失败，请重试'
+    debugError('加载学生列表失败:', err)
+  } finally {
+    loading.value = false
   }
-  await fetchData(url, 'students')
+}
+
+/** 学生 tab 的数据落地：原始数据、统计、班级下拉、分页一并更新 */
+function applyStudents(students: StudentInfo[]) {
+  originalData.value = students
+  allData.value = students
+  // R10：根据全部学生动态提取班级列表（按数值升序）
+  refreshAvailableClasses(students)
+  statistics.value = {
+    totalStudents: students.length,
+    totalCorrect: 0,
+    totalWrong: 0,
+    avgScore: 0,
+  }
+  pagination.value = {
+    currentPage: 1,
+    totalPages: Math.max(1, Math.ceil(students.length / DEFAULT_PAGE_SIZE)),
+    pageSize: DEFAULT_PAGE_SIZE,
+    total: students.length,
+  }
 }
 
 async function queryByClass() {
@@ -659,7 +702,7 @@ async function queryByClass() {
  * R05：加载成功后同时写入 originalData + allData
  * R10：students tab 下根据 class 字段动态刷新 availableClasses
  */
-async function fetchData(url: string, type: QueryTab) {
+async function fetchData(url: string, type: 'wenId' | 'studentId') {
   loading.value = true
   error.value = ''
   originalData.value = []
@@ -691,7 +734,7 @@ async function fetchData(url: string, type: QueryTab) {
           totalWrong,
           avgScore: totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0,
         }
-      } else if (type === 'studentId') {
+      } else {
         const wenRecords = (data.wenRecords as StudentIdAnswerRecord[]) || []
         originalData.value = wenRecords
         allData.value = wenRecords
@@ -700,19 +743,6 @@ async function fetchData(url: string, type: QueryTab) {
           totalCorrect: (data.totalAllCorrect as number) || 0,
           totalWrong: (data.totalAllWrong as number) || 0,
           avgScore: (data.overallAvgScore as number) || 0,
-        }
-      } else {
-        // students tab
-        const students = (Array.isArray(data) ? data : []) as StudentInfo[]
-        originalData.value = students
-        allData.value = students
-        // R10：根据全部学生动态提取班级列表（按数值升序）
-        refreshAvailableClasses(students)
-        statistics.value = {
-          totalStudents: students.length,
-          totalCorrect: 0,
-          totalWrong: 0,
-          avgScore: 0,
         }
       }
 
@@ -1211,6 +1241,13 @@ onMounted(() => {
 
 .result-item.error {
   color: #ff4d4f;
+}
+
+/* 一次性临时口令：从状态色里脱离出来，方便复制 */
+.result-password {
+  display: block;
+  color: #333;
+  margin-top: 2px;
 }
 
 .modal-footer {

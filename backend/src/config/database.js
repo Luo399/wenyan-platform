@@ -1,8 +1,10 @@
 const sqlite3 = require('sqlite3').verbose()
 const bcrypt = require('bcryptjs')
+const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const logger = require('../utils/logger')
+const { dbGet } = require('../utils/dbPromise')
 
 /**
  * 数据库文件路径解析：
@@ -92,11 +94,11 @@ function connectToDatabase() {
 connectToDatabase()
 
 /**
- * 顺序串行执行若干条 SQL，方便在 Promise 链里使用
+ * 顺序串行执行若干条 SQL（支持参数），方便在 Promise 链里使用
  */
-function runSql(sql) {
+function runSql(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, (err) => {
+    db.run(sql, params, (err) => {
       if (err) return reject(err)
       resolve()
     })
@@ -188,11 +190,14 @@ function buildInitChain() {
             name TEXT NOT NULL,
             password_hash TEXT NOT NULL,
             role TEXT NOT NULL DEFAULT 'admin',
+            must_reset_password INTEGER NOT NULL DEFAULT 0,
             last_login_at TEXT,
             created_at TEXT NOT NULL DEFAULT (DATETIME('now'))
           )`,
         ),
       )
+      // 2.1 管理员表 schema 升级（补 must_reset_password）
+      .then(() => checkAndUpgradeAdminsTable())
       // 3. 教师表
       .then(() =>
         runSql(
@@ -295,8 +300,8 @@ function buildInitChain() {
       )
       // 9. 种子数据：默认学校（若 schools 为空）
       .then(() => seedDefaultSchool())
-      // 10. 种子数据：默认管理员 admin/admin123（若 admins 为空）
-      .then(() => seedDefaultAdmin())
+      // 10. 初始管理员：仅在显式配置 INITIAL_ADMIN_PASSWORD 时创建（禁止内置弱口令）
+      .then(() => seedInitialAdmin())
       // 11. 种子数据：测试学生 99999999 / 99999999（非生产环境）
       .then(() => seedTestStudent())
       .then(() => {
@@ -364,60 +369,181 @@ function checkAndUpgradeTeachersTable() {
 }
 
 /**
- * 检查并升级 students 表结构
+ * 管理员表 schema 轻量升级：旧库补 must_reset_password 列
  */
-function checkAndUpgradeStudentsTable() {
+function checkAndUpgradeAdminsTable() {
   return new Promise((resolve, reject) => {
-    db.all("PRAGMA table_info(students)", (err, columns) => {
+    db.all("PRAGMA table_info(admins)", (err, columns) => {
       if (err) return reject(err)
+      const existing = new Set((columns || []).map((c) => c.name))
+      if (existing.has('must_reset_password')) return resolve()
 
-      const columnNames = (columns || []).map((c) => c.name)
-      const hasNewColumns =
-        columnNames.includes('password_hash') &&
-        columnNames.includes('must_reset_password') &&
-        columnNames.includes('class_code')
-
-      const createNew = () =>
-        runSql(
-          `CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id TEXT NOT NULL UNIQUE,
-            student_name TEXT NOT NULL,
-            class_code TEXT NOT NULL,
-            school_id INTEGER,
-            password_hash TEXT NOT NULL,
-            must_reset_password INTEGER NOT NULL DEFAULT 1,
-            created_by TEXT,
-            created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
-            updated_at TEXT NOT NULL DEFAULT (DATETIME('now')),
-            FOREIGN KEY (school_id) REFERENCES schools(id)
-          )`,
-        )
-          .then(resolve)
-          .catch(reject)
-
-      // 新库直接创建
-      if (columnNames.length === 0) return createNew()
-      if (hasNewColumns) {
-        return resolve()
-      }
-
-      // 旧结构：先改名为 students_old 再建新表
-      runSql('ALTER TABLE students RENAME TO students_old')
-        .then(() => createNew())
-        .then(() => {
-          logger.info('[database] students 表已升级为新 schema，旧数据保存在 students_old')
+      logger.info('[database] admins 表补列: must_reset_password')
+      db.run(
+        'ALTER TABLE admins ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0',
+        (upgradeErr) => {
+          if (upgradeErr) return reject(upgradeErr)
           resolve()
-        })
-        .catch((err) => {
-          const msg = String((err && err.message) || '')
-          if (msg.includes('already exists') || msg.includes('students')) {
-            return resolve()
-          }
-          reject(err)
-        })
+        },
+      )
     })
   })
+}
+
+// students 表完整字段（新库建表 / 重建迁移共用）
+function buildStudentsTableSql(tableName) {
+  return `CREATE TABLE IF NOT EXISTS ${tableName} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT NOT NULL UNIQUE,
+    student_name TEXT NOT NULL,
+    class_code TEXT NOT NULL,
+    school_id INTEGER,
+    password_hash TEXT NOT NULL,
+    must_reset_password INTEGER NOT NULL DEFAULT 1,
+    created_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+    updated_at TEXT NOT NULL DEFAULT (DATETIME('now')),
+    FOREIGN KEY (school_id) REFERENCES schools(id)
+  )`
+}
+
+// 旧库缺失列 → ALTER TABLE 增量补列
+// 注意：SQLite 的 ADD COLUMN 只允许常量默认值，时间列先用空串占位，再 UPDATE 回填
+const STUDENTS_REQUIRED_COLUMNS = [
+  { name: 'student_name', ddl: "ALTER TABLE students ADD COLUMN student_name TEXT NOT NULL DEFAULT ''" },
+  { name: 'class_code', ddl: "ALTER TABLE students ADD COLUMN class_code TEXT NOT NULL DEFAULT ''" },
+  { name: 'school_id', ddl: 'ALTER TABLE students ADD COLUMN school_id INTEGER' },
+  { name: 'password_hash', ddl: "ALTER TABLE students ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''" },
+  { name: 'must_reset_password', ddl: 'ALTER TABLE students ADD COLUMN must_reset_password INTEGER NOT NULL DEFAULT 0' },
+  { name: 'created_by', ddl: 'ALTER TABLE students ADD COLUMN created_by TEXT' },
+  { name: 'created_at', ddl: "ALTER TABLE students ADD COLUMN created_at TEXT NOT NULL DEFAULT ''" },
+  { name: 'updated_at', ddl: "ALTER TABLE students ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''" },
+]
+
+/**
+ * 查询表字段名集合
+ */
+function getTableColumnNames(tableName) {
+  return new Promise((resolve, reject) => {
+    db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
+      if (err) return reject(err)
+      resolve((columns || []).map((c) => c.name))
+    })
+  })
+}
+
+/**
+ * 回填存量学生数据：
+ * - class_code 缺失时取学号前 6 位
+ * - password_hash 缺失时写入一次性随机口令哈希，并强制首次改密
+ * - created_at / updated_at 缺失时写当前时间
+ * 任何一步失败都会向上抛出，由调用方中止启动
+ */
+async function backfillStudentsColumns() {
+  const now = new Date().toISOString()
+  await runSql(
+    `UPDATE students SET class_code = SUBSTR(student_id, 1, 6)
+      WHERE class_code IS NULL OR class_code = ''`,
+  )
+  await runSql(
+    `UPDATE students SET created_at = ? WHERE created_at IS NULL OR created_at = ''`,
+    [now],
+  )
+  await runSql(
+    `UPDATE students SET updated_at = ? WHERE updated_at IS NULL OR updated_at = ''`,
+    [now],
+  )
+
+  const emptyHash = await dbGet(
+    db,
+    `SELECT COUNT(*) AS c FROM students WHERE password_hash IS NULL OR password_hash = ''`,
+  )
+  if (emptyHash && emptyHash.c > 0) {
+    const legacyHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12)
+    await runSql(
+      `UPDATE students
+          SET password_hash = ?, must_reset_password = 1
+        WHERE password_hash IS NULL OR password_hash = ''`,
+      [legacyHash],
+    )
+    logger.warn(
+      `[database] ${emptyHash.c} 个历史学生账号已回填随机口令哈希，` +
+        '原密码已失效，需管理员重置密码后使用',
+    )
+  }
+}
+
+/**
+ * students 表重建迁移（仅增量补列无法完成时使用）
+ * 用 students_new 承接数据 → 复制 → 删除旧表 → 改名，任何失败都会抛出并中止启动
+ */
+async function rebuildStudentsTable(existingColumns) {
+  const existing = new Set(existingColumns)
+  const pick = (name, fallback) => (existing.has(name) ? name : fallback)
+  const studentNameExpr = existing.has('student_name') ? `COALESCE(student_name, '')` : "''"
+  const classCodeExpr = existing.has('class_code')
+    ? `COALESCE(NULLIF(class_code, ''), SUBSTR(student_id, 1, 6))`
+    : 'SUBSTR(student_id, 1, 6)'
+  const passwordExpr = existing.has('password_hash')
+    ? `CASE WHEN password_hash IS NULL OR password_hash = '' THEN ? ELSE password_hash END`
+    : '?'
+  const createdAtExpr = existing.has('created_at') ? `COALESCE(NULLIF(created_at, ''), ?)` : '?'
+  const updatedAtExpr = existing.has('updated_at') ? `COALESCE(NULLIF(updated_at, ''), ?)` : '?'
+
+  const legacyHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12)
+  const now = new Date().toISOString()
+
+  logger.warn('[database] students 表无法增量补列，改用重建副本迁移（保留全部账号）')
+  await runSql('DROP TABLE IF EXISTS students_new')
+  await runSql(buildStudentsTableSql('students_new'))
+  await runSql(
+    `INSERT INTO students_new
+      (id, student_id, student_name, class_code, school_id, password_hash,
+       must_reset_password, created_by, created_at, updated_at)
+     SELECT ${pick('id', 'NULL')}, student_id, ${studentNameExpr}, ${classCodeExpr},
+       ${pick('school_id', 'NULL')}, ${passwordExpr}, 1, ${pick('created_by', 'NULL')},
+       ${createdAtExpr}, ${updatedAtExpr}
+     FROM students`,
+    [legacyHash, now, now],
+  )
+  await runSql('DROP TABLE students')
+  await runSql('ALTER TABLE students_new RENAME TO students')
+  logger.info('[database] students 表重建迁移完成，历史账号已全部保留')
+}
+
+/**
+ * 检查并升级 students 表结构
+ *
+ * 策略：缺列优先 ALTER TABLE ADD COLUMN 增量补齐（老账号不丢）；
+ * 增量失败才走 students_new 重建迁移。不允许 catch 吞错，失败必须中止启动。
+ */
+async function checkAndUpgradeStudentsTable() {
+  const columnNames = await getTableColumnNames('students')
+
+  // 新库直接创建
+  if (columnNames.length === 0) {
+    await runSql(buildStudentsTableSql('students'))
+    return
+  }
+
+  const existing = new Set(columnNames)
+  const missing = STUDENTS_REQUIRED_COLUMNS.filter((col) => !existing.has(col.name))
+  if (missing.length === 0) return
+
+  try {
+    for (const col of missing) {
+      logger.info(`[database] students 表补列: ${col.name}`)
+      await runSql(col.ddl)
+    }
+    await backfillStudentsColumns()
+    logger.info('[database] students 表增量升级完成')
+  } catch (err) {
+    logger.error('[database] students 表增量升级失败，尝试重建迁移:', {
+      message: err && err.message,
+      stack: err && err.stack,
+    })
+    await rebuildStudentsTable(columnNames)
+  }
 }
 
 /**
@@ -445,24 +571,42 @@ function seedDefaultSchool() {
 }
 
 /**
- * 种子数据：若 admins 表为空，插入默认管理员 admin / admin123
+ * 种子数据：初始管理员
+ *
+ * 安全策略：不再内置 admin/admin123。仅当显式配置 INITIAL_ADMIN_PASSWORD 时，
+ * 且 admins 表为空，才创建初始超级管理员，并强制首次登录改密；
+ * 日志只打印用户名，绝不打印密码明文。
  */
-function seedDefaultAdmin() {
+function seedInitialAdmin() {
+  const password = process.env.INITIAL_ADMIN_PASSWORD
+  if (!password || String(password).trim() === '') {
+    logger.warn(
+      '[database] 未配置 INITIAL_ADMIN_PASSWORD，跳过初始管理员创建；' +
+        '请通过运维脚本手工初始化管理员账号',
+    )
+    return Promise.resolve()
+  }
+
+  const username = String(process.env.INITIAL_ADMIN_USERNAME || 'admin').trim() || 'admin'
+
   return new Promise((resolve, reject) => {
     db.get('SELECT id FROM admins LIMIT 1', (err, row) => {
       if (err) return reject(err)
       if (row) {
-        logger.debug('[database] admins 已有数据，跳过默认管理员初始化')
+        logger.debug('[database] admins 已有数据，跳过初始管理员初始化')
         return resolve()
       }
-      bcrypt.hash('admin123', 10, (hashErr, hash) => {
+      bcrypt.hash(password, 12, (hashErr, hash) => {
         if (hashErr) return reject(hashErr)
         db.run(
-          `INSERT INTO admins (username, name, password_hash, role) VALUES (?, ?, ?, 'super_admin')`,
-          ['admin', '超级管理员', hash],
+          `INSERT INTO admins (username, name, password_hash, role, must_reset_password)
+           VALUES (?, ?, ?, 'super_admin', 1)`,
+          [username, '超级管理员', hash],
           (insertErr) => {
             if (insertErr) return reject(insertErr)
-            logger.info('[database] 已插入默认管理员  username=admin  password=admin123')
+            logger.info(
+              `[database] 已创建初始管理员 username=${username}（密码来自 INITIAL_ADMIN_PASSWORD，首次登录后请修改）`,
+            )
             resolve()
           },
         )

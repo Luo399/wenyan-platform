@@ -6,9 +6,10 @@
  *     将其中的数据逐行迁移到新 students 表，使用默认密码 123456。
  *     对于不符合"学号长度 >= 6"的旧学生（如历史 4 位学号 "1001"），
  *     class_code 用构造占位值 "000000"，标记 created_by = 'migration:legacy-short-id'。
- *  2. 初始化一个默认管理员账号（若 admins 为空）：
- *       username: admin
- *       password: admin123   （首次部署后请立即修改）
+ *  2. 初始化一个默认管理员账号（若 admins 为空且显式提供了 INITIAL_ADMIN_PASSWORD）：
+ *       username: INITIAL_ADMIN_USERNAME || admin
+ *       password: INITIAL_ADMIN_PASSWORD（脚本不再内置任何默认口令）
+ *     该账号会带 must_reset_password=1，首次登录后必须改密。
  *  3. 初始化一个示例学校（若 schools 为空），便于教师注册时选择。
  *
  * 运行：
@@ -45,14 +46,31 @@ async function seedDefaultAdmin() {
     console.log('[migrate] admins 已有数据，跳过默认管理员初始化')
     return
   }
+
+  // 安全：不再内置 admin/admin123。只有显式配置初始口令时才建号，
+  // 与 backend/src/config/database.js 的 seedInitialAdmin 保持同一策略。
+  const initialPassword = process.env.INITIAL_ADMIN_PASSWORD
+  if (!initialPassword) {
+    console.log(
+      '[migrate] 未设置 INITIAL_ADMIN_PASSWORD，跳过管理员初始化（需要时导出该变量后重跑本脚本）',
+    )
+    return
+  }
+  if (initialPassword.length < 10) {
+    throw new Error('INITIAL_ADMIN_PASSWORD 太短，至少 10 位')
+  }
+
+  const username = process.env.INITIAL_ADMIN_USERNAME || 'admin'
   const bcrypt = require('bcryptjs')
-  const hash = await bcrypt.hash('admin123', 10)
+  const hash = await bcrypt.hash(initialPassword, 12)
   await dbRun(
     db,
-    `INSERT INTO admins (username, name, password_hash, role) VALUES (?, ?, ?, 'super_admin')`,
-    ['admin', '超级管理员', hash],
+    `INSERT INTO admins (username, name, password_hash, role, must_reset_password) VALUES (?, ?, ?, 'super_admin', 1)`,
+    [username, '超级管理员', hash],
   )
-  console.log('[migrate] 已插入默认管理员  username=admin  password=admin123  (请立即修改)')
+  console.log(
+    `[migrate] 已创建管理员 username=${username}（口令取自 INITIAL_ADMIN_PASSWORD，首次登录请立即修改）`,
+  )
 }
 
 async function migrateOldStudents() {

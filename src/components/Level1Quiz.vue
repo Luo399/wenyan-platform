@@ -95,7 +95,6 @@ import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
 import { debugLog, debugError, debugWarn } from '@/utils/debug'
-import { appendQuizRecord } from '@/utils/localStorage'
 import { getDataUrlWithVersion } from '@/utils/asset'
 
 // ============================================================
@@ -259,77 +258,7 @@ function handleSubmit() {
 }
 
 /**
- * 保存答题数据到本地存储
- */
-function saveToLocal(answers: Record<number, number>, id: string, studentName: string) {
-  if (!quizList.value?.length) return
-
-  const now = new Date()
-  const submittedAt = now.toISOString()
-
-  const records = quizList.value.map((quiz, index) => {
-    const userAnswer = answers[index]
-    const correctAnswer = normalizeCorrectAnswer(quiz.correct_answer)
-    // R13: 统一用数值比较，避免 String(userAnswer) === String(correctAnswer)
-    // （当类型混乱时字符串比较会出现 "1" !== 1 的伪负例）
-    const isCorrect = Number(userAnswer) === correctAnswer
-    const questionId = `${props.wenId}_level1_q${quiz.question_number || index + 1}`
-
-    return {
-      questionId,
-      questionNumber: quiz.question_number || index + 1,
-      userAnswer,
-      correctAnswer,
-      isCorrect,
-      score: isCorrect ? 100 : 0,
-      submittedAt,
-    }
-  })
-
-  const report = {
-    studentId: id,
-    studentName,
-    wenId: props.wenId,
-    submittedAt,
-    totalQuestions: records.length,
-    correctCount: records.filter((r) => r.isCorrect).length,
-    wrongCount: records.filter((r) => !r.isCorrect).length,
-    totalScore: records.filter((r) => r.isCorrect).length * 100,
-    avgScore: Math.round((records.filter((r) => r.isCorrect).length / records.length) * 100),
-    records,
-  }
-
-  const allRecords = appendQuizRecord(id, report)
-
-  debugLog('[Level1Quiz] 答题数据已保存到本地:', report, '当前共', allRecords.length, '条')
-
-  downloadReport(report, id, studentName)
-
-  return report
-}
-
-/**
- * 下载答题报告
- */
-function downloadReport(report: unknown, id: string, studentName: string) {
-  const filename = `答题报告_${id}_${studentName}_${props.wenId}_${new Date().toISOString().slice(0, 10)}.json`
-  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
-
-  if (typeof URL.createObjectURL === 'function') {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-    debugLog('[Level1Quiz] 报告已下载:', filename)
-  } else {
-    debugLog('[Level1Quiz] 报告生成成功（非浏览器环境跳过下载）:', filename)
-  }
-}
-
-/**
- * 提交答题数据到后端（同时保存本地）
+ * 提交答题数据到后端
  */
 async function submitToBackend(answers: Record<number, number>) {
   const id = studentId.value
@@ -344,9 +273,6 @@ async function submitToBackend(answers: Record<number, number>) {
   }
 
   const name = await getStudentName()
-  // R170: 停用前端 localStorage 本地保存，统一走后端 /api/submit
-  // 函数定义保留作为历史参考
-  // const localReport = saveToLocal(answers, id, name)
 
   try {
     const questions = quizList.value.map((quiz, index) => ({

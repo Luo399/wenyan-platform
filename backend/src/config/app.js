@@ -7,9 +7,16 @@ const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.en
 dotenv.config({ path: path.join(__dirname, '../../', envFile) })
 
 // S02: 生产环境缺少 JWT_SECRET 时直接启动失败，禁止静默回退到可预测弱密钥
+const isProduction = process.env.NODE_ENV === 'production'
 const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret && process.env.NODE_ENV === 'production') {
+if (!jwtSecret && isProduction) {
   throw new Error('JWT_SECRET must be set in production')
+}
+
+// 非生产环境允许固定开发密钥，但必须告警（禁止把该值带进生产）
+const DEV_ONLY_JWT_SECRET = 'dev-only-secret'
+if (!jwtSecret) {
+  console.warn('[config] JWT_SECRET 未设置，使用开发专用密钥 dev-only-secret（仅限本地/测试）')
 }
 
 // F-003: JWT_EXPIRES_IN 支持秒数（3600）与单位写法（60s/30m/12h/7d）。
@@ -62,9 +69,10 @@ const config = {
   },
 
   jwt: {
-    // 开发/测试环境使用显式 dev 密钥；生产环境无 JWT_SECRET 时已在上方抛错
-    secret: jwtSecret || 'wenyan_platform_dev_secret_do_not_use_in_production',
+    // 生产环境必须显式配置 JWT_SECRET（缺失已在上方抛错）；非生产使用 dev-only-secret 并告警
+    secret: jwtSecret || DEV_ONLY_JWT_SECRET,
     expiresIn: jwtExpiresIn,
+    algorithms: ['HS256'],
   },
 
   data: {
@@ -113,7 +121,6 @@ const config = {
 // DEEPSEEK_API_KEY 缺失时不硬阻断启动（AI 是可选功能），但在生产环境打 warn
 // 实际调用时 aiService 会检查 apiKey 并返回 AI_UNAVAILABLE
 if (process.env.NODE_ENV === 'production' && !config.deepseek.apiKey) {
-  // eslint-disable-next-line no-console
   console.warn('[config] DEEPSEEK_API_KEY 未设置，AI 对话功能将返回 503')
 }
 

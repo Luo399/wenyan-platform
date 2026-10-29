@@ -181,7 +181,7 @@ describe('教师注册 + teacher_classes 关系 + 班级权限校验', () => {
 })
 
 describe('学生密码重置 + 审计落库', () => {
-  test('resetStudentPassword：重置后密码为 99999999 且 must_reset_password=1，password_resets 增一条', async () => {
+  test('resetStudentPassword：重置为一次性随机口令且 must_reset_password=1，password_resets 增一条', async () => {
     const sid = '20240977'
     const oldHash = await hashPassword('oldPwd888')
     const now = new Date().toISOString()
@@ -202,21 +202,33 @@ describe('学生密码重置 + 审计落库', () => {
     const r = await resetStudentPassword(sid, 'teacher', '13800001111')
     expect(r.success).toBe(true)
 
+    // 契约变更：不再使用固定 99999999，改为 8 位一次性随机口令，明文只返回一次
+    expect(typeof r.temporary_password).toBe('string')
+    expect(r.temporary_password).toMatch(/^\d{8}$/)
+    expect(r.temporary_password).not.toBe('99999999')
+
     const row = await dbGet(db, 'SELECT * FROM students WHERE student_id = ?', [sid])
     expect(row.must_reset_password).toBe(1)
-    await expect(verifyPassword('99999999', row.password_hash)).resolves.toBe(true)
+    await expect(verifyPassword(r.temporary_password, row.password_hash)).resolves.toBe(true)
+    await expect(verifyPassword('99999999', row.password_hash)).resolves.toBe(false)
     await expect(verifyPassword('oldPwd888', row.password_hash)).resolves.toBe(false)
+
+    // 二次重置必须得到不同口令（一次性/不可预测）
+    const again = await resetStudentPassword(sid, 'teacher', '13800001111')
+    expect(again.success).toBe(true)
+    expect(again.temporary_password).not.toBe(r.temporary_password)
 
     const after = await dbGet(
       db,
       `SELECT COUNT(*) AS c FROM password_resets WHERE target_type='student' AND target_id=?`,
       [sid],
     )
-    expect(after.c - before.c).toBe(1)
+    // 两次重置各写一条审计
+    expect(after.c - before.c).toBe(2)
   })
 
   test('resetStudentPassword：学生不存在时返回 STUDENT_NOT_FOUND', async () => {
-    // 注意：99999999 是预定义测试账号，使用 99999998 来测试不存在的情况
+    // 用未插入过学生的学号验证不存在分支
     const r = await resetStudentPassword('99999998', 'teacher', '13800001111')
     expect(r.success).toBe(false)
     expect(r.reason).toBe('STUDENT_NOT_FOUND')
@@ -243,9 +255,13 @@ describe('教师密码重置（管理员操作）+ 审计落库', () => {
 
     const r = await resetTeacherPasswordByAdmin(phone, 'admin')
     expect(r.success).toBe(true)
-    expect(r.temporary_password).toBe('99999999')
+    // 契约变更：管理员重置教师密码改为一次性随机 8 位口令，且强制首次改密
+    expect(typeof r.temporary_password).toBe('string')
+    expect(r.temporary_password).toMatch(/^\d{8}$/)
+    expect(r.temporary_password).not.toBe('99999999')
 
-    const row = await dbGet(db, 'SELECT password_hash FROM teachers WHERE phone = ?', [phone])
+    const row = await dbGet(db, 'SELECT password_hash, must_reset_password FROM teachers WHERE phone = ?', [phone])
+    expect(row.must_reset_password).toBe(1)
     await expect(verifyPassword(r.temporary_password, row.password_hash)).resolves.toBe(true)
     await expect(verifyPassword('oldTeacherPwd', row.password_hash)).resolves.toBe(false)
 

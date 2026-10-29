@@ -1,0 +1,21 @@
+{
+  "text_id": "WEN_23",
+  "cards": [
+    {
+      "text_id": "WEN_23",
+      "card_id": 1,
+      "card_name": "历史回响",
+      "image_file": "WEN_23_card_paper.mp4",
+      "knowledge_text": "",
+      "unlock_condition": "完成第二关对话及其题目后出现按钮\"我已完成\"，点击\"我已完成\""
+    },
+    {
+      "text_id": "WEN_23",
+      "card_id": 2,
+      "card_name": "历史回响",
+      "image_file": "WEN_23_card_printing.mp4",
+      "knowledge_text": "",
+      "unlock_condition": "完成第三关题目后出现按钮\"我已完成\"，点击\"我已完成\""
+    }
+  ]
+}

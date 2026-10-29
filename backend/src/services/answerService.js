@@ -4,7 +4,7 @@
  */
 
 const { db } = require('../config/database')
-const { dbGet, dbAll, dbRun, stmtRun, dbTransaction } = require('../utils/dbPromise')
+const { dbGet, dbAll, dbTransaction } = require('../utils/dbPromise')
 const { safeParse, getCorrectAnswerFromJson, processAnswerValue } = require('../utils/jsonReader')
 const { info, warn, logOperation } = require('../utils/logger')
 // B04: 答案比较逻辑统一到 utils/answerUtils，消除 controller/service 双份实现
@@ -42,6 +42,50 @@ async function ensureStudentInfo(studentId, studentName) {
 }
 
 /**
+ * 判分只认服务端：从后端 JSON 数据源读取正确答案。
+ * 取不到时直接抛 500，绝不回退到客户端提交的 correctAnswer。
+ * @param {string} questionId
+ * @param {string} wenId
+ * @returns {any}
+ */
+function getServerCorrectAnswer(questionId, wenId) {
+  const answer = getCorrectAnswerFromJson(questionId, wenId)
+  if (answer === undefined || answer === null) {
+    const err = new Error('题目答案不可用')
+    err.statusCode = 500
+    err.error = 'ANSWER_KEY_UNAVAILABLE'
+    throw err
+  }
+  return answer
+}
+
+/**
+ * 构造 400 业务错误（由 controller 统一转成响应）
+ * @param {string} message
+ * @returns {Error}
+ */
+function createBadRequest(message) {
+  const err = new Error(message)
+  err.statusCode = 400
+  err.error = 'VALIDATION_ERROR'
+  return err
+}
+
+/**
+ * 查询学生班级（用于教师后台同步，失败不影响答题结果）
+ * @param {string} studentId
+ * @returns {Promise<string|null>}
+ */
+async function getStudentClassCode(studentId) {
+  try {
+    const row = await dbGet(db, 'SELECT class_code FROM students WHERE student_id = ?', [studentId])
+    return row?.class_code || null
+  } catch {
+    return null
+  }
+}
+
+/**
  * 处理正确答案的值
  * @param {string} correctAnswer - 正确答案（JSON字符串）
  * @param {string} questionId - 题目ID
@@ -64,6 +108,14 @@ function processCorrectAnswerValue(correctAnswer, questionId, wenId) {
 async function submitAnswers(data) {
   const { studentId, studentName, wenId, submittedAt, answers, questions = [] } = data
 
+  // 空题保护：没有题目 / 没有答案直接 400
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw createBadRequest('questions 至少包含 1 道题')
+  }
+  if (!answers || Object.keys(answers).length === 0) {
+    throw createBadRequest('answers 至少包含 1 道题')
+  }
+
   info('开始处理答题提交', {
     studentId,
     studentName,
@@ -78,50 +130,43 @@ async function submitAnswers(data) {
     const inserted = []
     for (const question of questions) {
       const userAnswer = answers[question.id]
-      // B06: correctAnswer 回退到 JSON 数据源，与 controller 行为一致
-      const correctAnswer = question.correctAnswer ?? getCorrectAnswerFromJson(question.id, wenId)
+      // 判分只认服务端 JSON，客户端传入的 correctAnswer 一律忽略
+      const correctAnswer = getServerCorrectAnswer(question.id, wenId)
       const { score, isCorrect } = compareAnswers(userAnswer, correctAnswer)
 
-      // 使用子查询计算 attempt_number，保证并发安全
-      const stmt = db.prepare(`
-        INSERT INTO answers (
+      // 事务内先算 next_attempt 再插入；dbTransaction 已串行化，避免子查询竞态
+      const attemptRow = await tx.dbGet(
+        `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next_attempt
+         FROM answers
+         WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+        [wenId, studentId, question.id],
+      )
+      const attemptNumber = attemptRow?.next_attempt || 1
+
+      await tx.dbRun(
+        `INSERT INTO answers (
           wen_id, student_id, question_id, user_answer, correct_answer,
           is_correct, score, submitted_at, attempt_number
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
-          SELECT COALESCE(MAX(attempt_number), 0) + 1
-          FROM answers
-          WHERE wen_id = ? AND student_id = ? AND question_id = ?
-        ))
-      `)
-
-      await stmtRun(
-        stmt,
-        wenId,
-        studentId,
-        question.id,
-        JSON.stringify(userAnswer ?? null),
-        JSON.stringify(correctAnswer ?? null),
-        isCorrect,
-        score,
-        submittedAt,
-        wenId,
-        studentId,
-        question.id
-      )
-      stmt.finalize()
-
-      // 获取刚插入的 attempt_number
-      const insertRow = await tx.dbGet(
-        `SELECT attempt_number FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1`,
-        [wenId, studentId, question.id]
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          wenId,
+          studentId,
+          question.id,
+          JSON.stringify(userAnswer ?? null),
+          JSON.stringify(correctAnswer ?? null),
+          isCorrect,
+          score,
+          submittedAt,
+          attemptNumber,
+        ],
       )
 
       inserted.push({
         questionId: question.id,
         score,
         isCorrect,
-        attemptNumber: insertRow?.attempt_number || 1,
+        attemptNumber,
       })
     }
     return inserted
@@ -129,7 +174,7 @@ async function submitAnswers(data) {
 
   const totalScore = results.reduce((sum, r) => sum + r.score, 0)
   const correctCount = results.filter((r) => r.isCorrect === 1).length
-  const avgScore = Math.round(totalScore / results.length)
+  const avgScore = results.length > 0 ? Math.round(totalScore / results.length) : 0
 
   const resultData = {
     studentId,
@@ -153,26 +198,24 @@ async function submitAnswers(data) {
     avgScore,
   })
 
-  // R170: 异步推送完整答题记录到教师后台（Fire-and-forget）
-  // - SQLite INSERT 已在事务中成功；这里失败只影响同步，不影响学生本地成绩
+  // R170: 异步推送最小字段到教师后台（Fire-and-forget）
+  // - 只发学生 id/姓名/班级/分数汇总，不整包 answers（减少敏感数据外发）
   // - 未配置 TEACHER_BACKEND_URL 时 syncToTeacherBackend 内部静默跳过，零开销
-  void syncToTeacherBackend({
-    studentId,
-    studentName,
-    wenId,
-    submittedAt,
-    questions: results.map((r) => ({
-      questionId: r.questionId,
-      userAnswer: answers[r.questionId] ?? null,
-      correctAnswer: questions.find((q) => q.id === r.questionId)?.correctAnswer ?? null,
-      isCorrect: r.isCorrect === 1,
-      score: r.score,
-      attemptNumber: r.attemptNumber,
-    })),
-    totalScore,
-    correctCount,
-    wrongCount: results.length - correctCount,
-  })
+  void (async () => {
+    const classCode = await getStudentClassCode(studentId)
+    await syncToTeacherBackend({
+      studentId,
+      studentName,
+      classCode,
+      wenId,
+      submittedAt,
+      questionCount: results.length,
+      totalScore,
+      correctCount,
+      wrongCount: results.length - correctCount,
+      avgScore,
+    })
+  })()
 
   return { success: true, data: resultData }
 }
@@ -337,7 +380,8 @@ async function getAnswersByStudentId(studentId) {
  * @returns {Promise<object>} - 提交结果
  */
 async function submitSingleAnswer(data) {
-  const { studentId, studentName, wenId, questionId, userAnswer, correctAnswer, submittedAt } = data
+  const { studentId, studentName, wenId, questionId, userAnswer } = data
+  const submittedAtValue = data.submittedAt || new Date().toISOString()
 
   info('开始处理单题答题提交', {
     studentId,
@@ -348,46 +392,40 @@ async function submitSingleAnswer(data) {
 
   await ensureStudentInfo(studentId, studentName)
 
-  // B06: correctAnswer 回退到 JSON 数据源
-  const finalCorrectAnswer = correctAnswer ?? getCorrectAnswerFromJson(questionId, wenId)
+  // 判分只认服务端 JSON；客户端传入的 correctAnswer 一律忽略
+  const finalCorrectAnswer = getServerCorrectAnswer(questionId, wenId)
   const { score, isCorrect } = compareAnswers(userAnswer, finalCorrectAnswer)
 
-  // 使用子查询计算 attempt_number，保证并发安全
-  const stmt = db.prepare(`
-    INSERT INTO answers (
-      wen_id, student_id, question_id, user_answer, correct_answer,
-      is_correct, score, submitted_at, attempt_number
+  // 与批量提交共用串行事务：先算 next_attempt 再插入，避免竞态
+  const attemptNumber = await dbTransaction(db, async (tx) => {
+    const attemptRow = await tx.dbGet(
+      `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next_attempt
+       FROM answers
+       WHERE wen_id = ? AND student_id = ? AND question_id = ?`,
+      [wenId, studentId, questionId],
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, (
-      SELECT COALESCE(MAX(attempt_number), 0) + 1
-      FROM answers
-      WHERE wen_id = ? AND student_id = ? AND question_id = ?
-    ))
-  `)
+    const nextAttempt = attemptRow?.next_attempt || 1
 
-  await stmtRun(
-    stmt,
-    wenId,
-    studentId,
-    questionId,
-    JSON.stringify(userAnswer ?? null),
-    JSON.stringify(finalCorrectAnswer ?? null),
-    isCorrect,
-    score,
-    submittedAt,
-    wenId,
-    studentId,
-    questionId
-  )
-  stmt.finalize()
-
-  // 获取刚插入的 attempt_number
-  const insertRow = await dbGet(
-    db,
-    `SELECT attempt_number FROM answers WHERE wen_id = ? AND student_id = ? AND question_id = ? ORDER BY id DESC LIMIT 1`,
-    [wenId, studentId, questionId]
-  )
-  const attemptNumber = insertRow?.attempt_number || 1
+    await tx.dbRun(
+      `INSERT INTO answers (
+        wen_id, student_id, question_id, user_answer, correct_answer,
+        is_correct, score, submitted_at, attempt_number
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        wenId,
+        studentId,
+        questionId,
+        JSON.stringify(userAnswer ?? null),
+        JSON.stringify(finalCorrectAnswer ?? null),
+        isCorrect,
+        score,
+        submittedAtValue,
+        nextAttempt,
+      ],
+    )
+    return nextAttempt
+  })
 
   const result = {
     studentId,
@@ -397,7 +435,7 @@ async function submitSingleAnswer(data) {
     correctAnswer: finalCorrectAnswer,
     isCorrect,
     score,
-    submittedAt,
+    submittedAt: submittedAtValue,
     attemptNumber,
   }
 

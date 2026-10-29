@@ -52,14 +52,14 @@ describe('errorHandler middleware', () => {
       return res
     }
 
-    it('普通 Error：statusCode 默认 500，message 取 err.message，errorCode 默认 INTERNAL_ERROR', () => {
-      const err = new Error('数据库连接失败')
+    it('普通 Error：statusCode 默认 500，5xx 不回显 err.message，返回通用文案 + requestId', () => {
+      const err = new Error('数据库连接失败: /srv/app/data/students.db')
       const req = createMockReq()
       const res = createMockRes()
 
       errorHandler(err, req, res, jest.fn())
 
-      // 调用了 logError
+      // 调用了 logError（内部错误详情只进日志）
       expect(logError).toHaveBeenCalledTimes(1)
       const [firstArg, secondArg] = logError.mock.calls[0]
       expect(firstArg).toBe(err)
@@ -69,14 +69,23 @@ describe('errorHandler middleware', () => {
         query: { id: '1' },
         userId: null,
       })
+      expect(typeof secondArg.requestId).toBe('string')
 
-      // 响应
+      // 响应：5xx 只给通用文案，绝不回显内部异常（可能含路径/SQL）
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.json).toHaveBeenCalledTimes(1)
       const body = res._json
       expect(body.success).toBe(false)
       expect(body.error).toBe('INTERNAL_ERROR')
-      expect(body.message).toBe('数据库连接失败')
+      expect(body.message).toBe('服务器内部错误')
+      expect(body.message).not.toContain('数据库连接失败')
+      expect(body.message).not.toContain('.db')
+      // traceback 字段不应泄漏
+      expect(body.stack).toBeUndefined()
+      // 用于排障关联日志的 requestId
+      expect(typeof body.requestId).toBe('string')
+      expect(body.requestId.length).toBeGreaterThan(0)
+      expect(body.requestId).toBe(secondArg.requestId)
       expect(typeof body.timestamp).toBe('string')
       // timestamp 是 ISO 日期格式
       expect(new Date(body.timestamp).toISOString()).toBe(body.timestamp)

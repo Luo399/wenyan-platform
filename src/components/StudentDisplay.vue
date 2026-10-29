@@ -10,24 +10,35 @@
 <template>
   <div class="student-display">
     <!-- 未登录显示"请登录"，已登录显示"学号：xxx | 姓名：xxx 修改" -->
-    <span class="student-id" @click="handleClick">
+    <button
+      type="button"
+      class="student-id"
+      :aria-label="isLoggedIn ? '查看并修改登录信息' : '登录'"
+      @click="handleClick"
+    >
       <template v-if="isLoggedIn">
         <span class="id-text">学号：{{ studentId }}</span>
         <span v-if="userName" class="name-text">| 姓名：{{ userName }}</span>
         <span class="edit-text"> 修改</span>
       </template>
       <template v-else> 请登录 </template>
-    </span>
+    </button>
 
     <!-- 修改学号弹窗 -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="handleClose">
-      <div class="modal-content">
-        <h3>{{ isLoggedIn ? '修改学号' : '登录' }}</h3>
+      <div
+        class="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="student-display-modal-title"
+      >
+        <h3 id="student-display-modal-title">{{ isLoggedIn ? '修改学号' : '登录' }}</h3>
 
         <div class="input-group">
           <label for="studentIdInput" class="input-label">学号</label>
           <input
             id="studentIdInput"
+            ref="studentIdInputRef"
             v-model="inputId"
             type="text"
             placeholder="请输入学号"
@@ -79,16 +90,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 import { useStudentQuery } from '@/composables/useStudentQuery'
+import { sanitizeRedirect } from '@/utils/api'
 import { debugError, debugLog } from '@/utils/debug'
 
 // 使用新的 auth store
 const authStore = useAuthStore()
-const { user, isLoggedIn, isLoading: authLoading, error: authError } = storeToRefs(authStore)
+const { user, isLoggedIn, error: authError } = storeToRefs(authStore)
 
 // R03: 登录成功后若存在 redirect 查询参数，跳回原目标页
 const router = useRouter()
@@ -108,6 +120,9 @@ const errorMessage = ref('')
 const searchedName = ref('')
 // 当前加载状态
 const isLoading = ref(false)
+// 弹窗内第一个输入框（打开时聚焦、关闭时归还焦点）
+const studentIdInputRef = ref<HTMLInputElement | null>(null)
+let previouslyFocused: HTMLElement | null = null
 
 // 学生查询
 const { queryStudentName } = useStudentQuery()
@@ -135,9 +150,13 @@ function handleClick() {
     router.push({ name: 'student-login', query: { redirect: route.fullPath } })
     return
   }
+  previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
   showEditModal.value = true
   inputId.value = studentId.value || ''
   inputPassword.value = ''
+  void nextTick(() => {
+    studentIdInputRef.value?.focus()
+  })
 }
 
 /**
@@ -187,12 +206,14 @@ async function handleSave() {
     inputId.value = ''
     inputPassword.value = '' // R103: 关闭弹窗时清空密码
     searchedName.value = ''
+    restoreFocus()
 
     // R03: 登录成功后若存在 redirect 查询参数，跳回原目标页
+    // redirect 来自 URL，只允许站内路径（防开放重定向）
     const redirect = route.query.redirect
     if (typeof redirect === 'string' && redirect) {
       debugLog('[StudentDisplay] 登录成功，跳回 redirect:', redirect)
-      router.replace(redirect)
+      router.replace(sanitizeRedirect(redirect, '/'))
     }
   } catch (err) {
     hasError.value = true
@@ -211,10 +232,13 @@ function handleClose() {
   inputId.value = ''
   searchedName.value = ''
   clearError()
+  restoreFocus()
 }
 
 /**
  * 退出登录
+ * - 清空登录态后回到首页：教师/管理员页面若留在原地会被路由守卫弹走，
+ *   原地渲染出「已登出但还在后台页」的错位界面
  */
 function handleLogout() {
   authStore.logout()
@@ -222,6 +246,22 @@ function handleLogout() {
   inputId.value = ''
   searchedName.value = ''
   clearError()
+  restoreFocus()
+  void router.replace('/')
+}
+
+/** 关闭弹窗后把焦点归还给触发按钮，避免焦点丢到 document.body */
+function restoreFocus() {
+  const target = previouslyFocused
+  previouslyFocused = null
+  if (!target) return
+  void nextTick(() => {
+    try {
+      target.focus()
+    } catch {
+      /* ignore */
+    }
+  })
 }
 
 /**
@@ -259,6 +299,10 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-xs);
+  /* 由 span 改为 button 后重置浏览器默认样式，保持原有外观 */
+  background: none;
+  border: none;
+  text-align: left;
 }
 
 .student-id:hover {

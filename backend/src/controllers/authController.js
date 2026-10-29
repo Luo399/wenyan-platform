@@ -3,21 +3,16 @@ const { z } = require('zod')
 const { handleZodError } = require('../middleware/validate')
 const config = require('../config/app')
 const { db } = require('../config/database')
-const { dbGet, dbRun, dbAll, dbTransaction } = require('../utils/dbPromise')
-const logger = require('../utils/logger')
+const { dbGet, dbRun, dbAll } = require('../utils/dbPromise')
 const {
   hashPassword,
   verifyPassword,
-  getDefaultPasswordHash,
-  extractClassCode,
+  getDummyPasswordHash,
 } = require('../services/authService')
 
 // 统一格式正则
 // 学号：严格 8 位纯数字
 const STUDENT_ID_REGEX = /^\d{8}$/
-
-// 班级编码：4 位年级 + 2 位班级序号（01-31）
-const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
 
 /**
  * 生成统一格式的 JWT
@@ -41,7 +36,7 @@ const teacherRegisterSchema = z.object({
   password: z.string().min(6, '密码长度不能少于 6 位'),
   // 可选：注册时同时提交所教班级（简化填写，管理员审批时保留/可修改）
   class_codes: z.array(z.string().regex(/^\d{6}$/, '班级编码应为 6 位数字')).max(50).optional(),
-  can_view_all: z.boolean().optional(),
+  // 注意：can_view_all 只能由管理员接口授予，公开注册一律固定为 0
 })
 
 const teacherLoginSchema = z.object({
@@ -68,6 +63,8 @@ async function studentLogin(req, res) {
       body.student_id,
     ])
     if (!student) {
+      // 陪跑一次哈希校验，避免通过响应耗时枚举学号
+      await verifyPassword(body.password, await getDummyPasswordHash())
       return res.status(401).json({
         success: false,
         error: 'INVALID_CREDENTIALS',
@@ -134,8 +131,8 @@ async function teacherRegister(req, res) {
     const result = await dbRun(
       db,
       `INSERT INTO teachers (phone, name, school_id, password_hash, status, must_reset_password, can_view_all, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, ?)`,
-      [body.phone, body.name, schoolId, passwordHash, body.can_view_all ? 1 : 0, now, now],
+       VALUES (?, ?, ?, ?, 'pending', 0, 0, ?, ?)`,
+      [body.phone, body.name, schoolId, passwordHash, now, now],
     )
 
     // 注册时可选写 teacher_classes（若用户填了所教班级）
@@ -164,6 +161,17 @@ async function teacherLogin(req, res) {
     const body = teacherLoginSchema.parse(req.body)
     const teacher = await dbGet(db, 'SELECT * FROM teachers WHERE phone = ?', [body.phone])
     if (!teacher) {
+      // 陪跑一次哈希校验，避免通过响应耗时枚举手机号
+      await verifyPassword(body.password, await getDummyPasswordHash())
+      return res.status(401).json({
+        success: false,
+        error: 'INVALID_CREDENTIALS',
+        message: '手机号或密码错误',
+      })
+    }
+    // 安全：先校验密码，再判断账号状态，避免未验密时泄露"账号待审批/已禁用"
+    const ok = await verifyPassword(body.password, teacher.password_hash)
+    if (!ok) {
       return res.status(401).json({
         success: false,
         error: 'INVALID_CREDENTIALS',
@@ -182,14 +190,6 @@ async function teacherLogin(req, res) {
         success: false,
         error: 'ACCOUNT_DISABLED',
         message: '账号已被禁用',
-      })
-    }
-    const ok = await verifyPassword(body.password, teacher.password_hash)
-    if (!ok) {
-      return res.status(401).json({
-        success: false,
-        error: 'INVALID_CREDENTIALS',
-        message: '手机号或密码错误',
       })
     }
     // 记录最后登录时间
@@ -218,6 +218,7 @@ async function teacherLogin(req, res) {
           name: teacher.name,
           school_id: teacher.school_id,
           class_codes: classCodes,
+          must_reset_password: !!teacher.must_reset_password,
           role: 'teacher',
         },
       },
@@ -232,6 +233,8 @@ async function adminLogin(req, res) {
     const body = adminLoginSchema.parse(req.body)
     const admin = await dbGet(db, 'SELECT * FROM admins WHERE username = ?', [body.username])
     if (!admin) {
+      // 陪跑一次哈希校验，避免通过响应耗时枚举管理员用户名
+      await verifyPassword(body.password, await getDummyPasswordHash())
       return res.status(401).json({
         success: false,
         error: 'INVALID_CREDENTIALS',
@@ -262,6 +265,7 @@ async function adminLogin(req, res) {
           id: admin.username,
           username: admin.username,
           name: admin.name,
+          must_reset_password: !!admin.must_reset_password,
           role: admin.role || 'admin',
         },
       },
@@ -286,29 +290,21 @@ async function changePassword(req, res) {
     }
 
     let row = null
-    let idKey = null
     let idValue = null
-    let tableName = null
 
     switch (user.role) {
       case 'student':
         row = await dbGet(db, `SELECT * FROM students WHERE student_id = ?`, [user.student_id])
-        idKey = 'student_id'
         idValue = user.student_id
-        tableName = 'students'
         break
       case 'teacher':
         row = await dbGet(db, `SELECT * FROM teachers WHERE phone = ?`, [user.phone])
-        idKey = 'phone'
         idValue = user.phone
-        tableName = 'teachers'
         break
       case 'admin':
       case 'super_admin':
         row = await dbGet(db, `SELECT * FROM admins WHERE username = ?`, [user.username])
-        idKey = 'username'
         idValue = user.username
-        tableName = 'admins'
         break
       default:
         return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '未知角色' })
@@ -341,11 +337,19 @@ async function changePassword(req, res) {
         `UPDATE students SET password_hash = ?, must_reset_password = 0, updated_at = ? WHERE student_id = ?`,
         [newHash, now, idValue],
       )
-    } else {
+    } else if (user.role === 'teacher') {
+      // 教师改密后同样解除强制改密标记
       await dbRun(
         db,
-        `UPDATE ${tableName} SET password_hash = ?, updated_at = ? WHERE ${idKey} = ?`,
+        `UPDATE teachers SET password_hash = ?, must_reset_password = 0, updated_at = ? WHERE phone = ?`,
         [newHash, now, idValue],
+      )
+    } else {
+      // admins 表没有 updated_at 列；初始管理员首次改密后清除强制改密标记
+      await dbRun(
+        db,
+        `UPDATE admins SET password_hash = ?, must_reset_password = 0 WHERE username = ?`,
+        [newHash, idValue],
       )
     }
 
@@ -431,6 +435,7 @@ async function refreshToken(req, res) {
         name: teacher.name,
         school_id: teacher.school_id,
         class_codes: classCodes,
+        must_reset_password: !!teacher.must_reset_password,
         role: 'teacher',
       }
     } else if (user.role === 'admin' || user.role === 'super_admin') {
@@ -447,6 +452,7 @@ async function refreshToken(req, res) {
         id: admin.username,
         username: admin.username,
         name: admin.name,
+        must_reset_password: !!admin.must_reset_password,
         role: admin.role || 'admin',
       }
     } else {

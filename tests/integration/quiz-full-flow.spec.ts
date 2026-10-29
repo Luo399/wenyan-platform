@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
-import StudentLogin from '@/components/StudentLogin.vue'
+import StudentLoginView from '@/views/StudentLoginView.vue'
 import Level1Quiz from '@/components/Level1Quiz.vue'
 import BlockQuiz from '@/components/BlockQuiz.vue'
 import AnswerQueryView from '@/views/AnswerQueryView.vue'
@@ -12,18 +12,39 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { post, get } from '@/utils/api'
 
 vi.mock('@/composables/useDataLoader')
-vi.mock('@/utils/api', () => ({
-  post: vi.fn(),
-  get: vi.fn(),
+
+// vi.mock 会被提升到文件顶部，工厂里引用的变量必须走 vi.hoisted
+const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {}, params: {}, fullPath: '/student-login' }),
+  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
 }))
 
-vi.mock('@/utils/studentApi', () => ({
-  createStudent: vi.fn(),
-  updateStudent: vi.fn(),
-  deleteStudent: vi.fn(),
-  validateStudentId: vi.fn(() => ({ valid: true })),
-  validateStudentName: vi.fn(() => ({ valid: true })),
-}))
+vi.mock('@/utils/api', () => {
+  class ApiError extends Error {
+    status: number
+    errorCode: string
+    constructor(status: number, errorCode: string, message: string) {
+      super(message)
+      this.name = 'ApiError'
+      this.status = status
+      this.errorCode = errorCode
+    }
+  }
+  return {
+    request: vi.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    del: vi.fn(),
+    upload: vi.fn(),
+    batchPost: vi.fn(),
+    ApiError,
+    // 登录页的 redirect 校验：测试里不涉及 query.redirect，回落到默认目标即可
+    sanitizeRedirect: (target: string | null | undefined, fallback = '/') => target ?? fallback,
+  }
+})
 
 const mockPost = vi.mocked(post)
 const mockGet = vi.mocked(get)
@@ -57,6 +78,60 @@ const mockQuizData = [
   },
 ]
 
+/**
+ * 构造一个"看起来合法"的 JWT：authStore.initialize() 会用 atob 解 exp，
+ * 纯字符串 'mock-token' 会被判为已过期并把刚登录的状态清掉。
+ */
+function makeFakeJwt(expiresInSeconds = 3600): string {
+  const b64url = (obj: unknown) =>
+    btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  const header = b64url({ alg: 'HS256', typ: 'JWT' })
+  const payload = b64url({ exp: Math.floor(Date.now() / 1000) + expiresInSeconds })
+  return `${header}.${payload}.test-signature`
+}
+
+const TEST_TOKEN = makeFakeJwt()
+
+/**
+ * 登录响应：post() 返回的是 ApiResponse 信封 { success, message, data }
+ */
+function loginEnvelope(token = TEST_TOKEN, role = 'student') {
+  return {
+    success: true,
+    message: '登录成功',
+    data: {
+      token,
+      user: { id: '1', username: '张三', student_id: '2024001', role },
+    },
+  }
+}
+
+/**
+ * 提交响应：后端 /api/submit 的 data 里再套一层 result 信封（见 answerController.submitAnswers），
+ * apiService.submitAnswers 返回的就是这层内信封。
+ */
+function submitEnvelope() {
+  return {
+    success: true,
+    message: '答案提交成功',
+    data: {
+      success: true,
+      message: '提交成功',
+      data: {
+        studentId: '2024001',
+        wenId: 'WEN_01',
+        submittedAt: new Date().toISOString(),
+        questionCount: 2,
+        correctCount: 1,
+        wrongCount: 1,
+        totalScore: 50,
+        avgScore: 50,
+        details: [],
+      },
+    },
+  }
+}
+
 describe('题目组件全流程集成测试', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -71,43 +146,37 @@ describe('题目组件全流程集成测试', () => {
   })
 
   describe('学生登录流程', () => {
-    it('学生应该能够输入学号并登录', async () => {
-      mockPost.mockResolvedValue({
-        success: true,
-        data: {
-          token: 'mock-token',
-          user: { id: '1', username: '张三', student_id: '2024001', role: 'student' },
-        },
-      })
+    it('学生应该能够输入学号和密码登录', async () => {
+      mockPost.mockResolvedValue(loginEnvelope())
 
-      const wrapper = mount(StudentLogin)
-      const input = wrapper.find('input')
-      const submitBtn = wrapper.find('button')
-
-      await input.setValue('2024001')
+      const wrapper = mount(StudentLoginView)
+      await wrapper.find('#studentId').setValue('2024001')
+      await wrapper.find('#password').setValue('123456')
       await flushPromises()
 
-      expect(submitBtn.element.disabled).toBe(false)
-      await submitBtn.trigger('click')
+      expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
+
+      await wrapper.find('form').trigger('submit')
       await flushPromises()
 
       const authStore = useAuthStore()
       expect(authStore.user?.studentId).toBe('2024001')
       expect(authStore.isLoggedIn).toBe(true)
-      expect(localStorage.getItem('auth_token')).toBe('mock-token')
+      expect(localStorage.getItem('auth_token')).toBe(TEST_TOKEN)
+      // 按角色跳转：学生默认去 /rules/1
+      expect(mockPush).toHaveBeenCalledWith('/rules/1')
     })
 
     it('空学号应该显示错误', async () => {
-      const wrapper = mount(StudentLogin)
-      const input = wrapper.find('input')
-      await input.setValue('')
+      const wrapper = mount(StudentLoginView)
+      await wrapper.find('#studentId').setValue('')
       await flushPromises()
 
-      wrapper.vm.handleSubmit()
+      await wrapper.find('form').trigger('submit')
       await flushPromises()
 
       expect(wrapper.find('.error-message').exists()).toBe(true)
-      expect(wrapper.find('.error-message').text()).toBe('学号不能为空')
+      expect(wrapper.find('.error-message').text()).toBe('请输入学号')
     })
   })
 
@@ -242,19 +311,7 @@ describe('题目组件全流程集成测试', () => {
       }
       authStore.token = 'mock-token'
 
-      mockPost.mockResolvedValue({
-        success: true,
-        message: '提交成功',
-        data: {
-          studentId: '2024001',
-          wenId: 'WEN_01',
-          questionCount: 2,
-          correctCount: 1,
-          totalScore: 50,
-          avgScore: 50,
-          details: [],
-        },
-      })
+      mockPost.mockResolvedValue(submitEnvelope())
     })
 
     it('应该能够收集和提交答题数据', async () => {
@@ -302,14 +359,14 @@ describe('题目组件全流程集成测试', () => {
 
       const result = await submitter.submitAnswers('WEN_01')
 
-      expect(mockPost).toHaveBeenCalledWith(
-        '/api/submit',
-        expect.objectContaining({
-          studentId: '2024001',
-          wenId: 'WEN_01',
-          answers: { Q1: 2, Q2: 1 },
-        }),
-      )
+      // apiService.submitAnswers 会带第三个参数 { timeout }，这里只校验收到的请求体
+      const [url, payload] = mockPost.mock.calls[0] as [string, Record<string, unknown>]
+      expect(url).toBe('/api/submit')
+      expect(payload).toMatchObject({
+        studentId: '2024001',
+        wenId: 'WEN_01',
+        answers: { Q1: 2, Q2: 1 },
+      })
 
       expect(result.success).toBe(true)
       expect(result.message).toBe('提交成功')
@@ -328,9 +385,10 @@ describe('题目组件全流程集成测试', () => {
   })
 
   describe('教师端数据展示流程', () => {
-    const mockStudents = [
-      { student_id: '2024001', name: '张三', class: 9, created_at: '2024-01-01' },
-      { student_id: '2024002', name: '李四', class: 9, created_at: '2024-01-02' },
+    // 后端原始行：学生管理接口返回 snake_case（student_name / class_code）
+    const mockStudentRows = [
+      { student_id: '2024001', student_name: '张三', class_code: '240109', created_at: '2024-01-01' },
+      { student_id: '2024002', student_name: '李四', class_code: '240109', created_at: '2024-01-02' },
     ]
 
     const mockWenAnswers = [
@@ -346,14 +404,31 @@ describe('题目组件全流程集成测试', () => {
     ]
 
     beforeEach(() => {
-      mockGet.mockResolvedValue({ success: true, data: mockStudents })
+      const authStore = useAuthStore()
+      authStore.user = { id: '9', username: '李老师', studentId: '13800000000', role: 'teacher' }
+      authStore.token = 'teacher-token'
+
+      mockGet.mockImplementation((url: string) => {
+        if (url === '/api/teacher/students') {
+          return Promise.resolve({ success: true, message: 'ok', data: mockStudentRows })
+        }
+        if (url === '/api/answers/wen/WEN_01') {
+          return Promise.resolve({
+            success: true,
+            message: 'ok',
+            data: { students: mockWenAnswers, studentCount: 1 },
+          })
+        }
+        return Promise.resolve({ success: true, message: 'ok', data: [] })
+      })
     })
 
     it('教师应该能够查看学生列表', async () => {
       const wrapper = mount(AnswerQueryView)
       await flushPromises()
 
-      expect(mockGet).toHaveBeenCalledWith('/api/students')
+      // P1：学生管理接口按角色分流，教师走 /api/teacher/students
+      expect(mockGet).toHaveBeenCalledWith('/api/teacher/students', undefined)
 
       const tableRows = wrapper.findAll('.data-table tbody tr')
       expect(tableRows.length).toBe(2)
@@ -361,11 +436,6 @@ describe('题目组件全流程集成测试', () => {
     })
 
     it('教师应该能够按文言文ID查询答题数据', async () => {
-      mockGet.mockResolvedValue({
-        success: true,
-        data: { students: mockWenAnswers, studentCount: 1 },
-      })
-
       const wrapper = mount(AnswerQueryView)
       await flushPromises()
 
@@ -400,49 +470,52 @@ describe('题目组件全流程集成测试', () => {
         load: vi.fn(),
       })
 
-      const mockStudents = [{ student_id: '2024001', name: '张三', class: 9 }]
+      const mockStudentRows = [
+        { student_id: '2024001', student_name: '张三', class_code: '240109', created_at: '2024-01-01' },
+      ]
       const mockWenAnswers = [
         {
           studentId: '2024001',
           studentName: '张三',
           totalQuestions: 2,
           correctCount: 1,
+          wrongCount: 1,
           avgScore: 50,
           answers: [],
         },
       ]
 
-      mockGet.mockResolvedValue({ success: true, data: mockStudents })
-
-      mockPost.mockResolvedValue({
-        success: true,
-        data: {
-          token: 'mock-token',
-          user: { id: '1', username: '张三', student_id: '2024001', role: 'student' },
-        },
+      mockGet.mockImplementation((url: string) => {
+        if (url === '/api/teacher/students') {
+          return Promise.resolve({ success: true, message: 'ok', data: mockStudentRows })
+        }
+        if (url === '/api/answers/wen/WEN_01') {
+          return Promise.resolve({
+            success: true,
+            message: 'ok',
+            data: { students: mockWenAnswers, studentCount: 1 },
+          })
+        }
+        return Promise.resolve({ success: true, message: 'ok', data: [] })
       })
 
-      const loginWrapper = mount(StudentLogin)
-      await loginWrapper.find('input').setValue('2024001')
-      await loginWrapper.find('button').trigger('click')
+      mockPost.mockImplementation((url: string) => {
+        if (url === '/api/auth/student/login') return Promise.resolve(loginEnvelope())
+        if (url === '/api/submit') return Promise.resolve(submitEnvelope())
+        return Promise.resolve({ success: true, message: 'ok' })
+      })
+
+      // ---- 1. 学生登录 ----
+      const loginWrapper = mount(StudentLoginView)
+      await loginWrapper.find('#studentId').setValue('2024001')
+      await loginWrapper.find('#password').setValue('123456')
+      await loginWrapper.find('form').trigger('submit')
       await flushPromises()
 
       const authStore = useAuthStore()
       expect(authStore.user?.studentId).toBe('2024001')
 
-      mockPost.mockResolvedValue({
-        success: true,
-        message: '提交成功',
-        data: {
-          studentId: '2024001',
-          wenId: 'WEN_01',
-          questionCount: 2,
-          correctCount: 1,
-          avgScore: 50,
-          details: [],
-        },
-      })
-
+      // ---- 2. 答题并提交 ----
       const quizWrapper = mount(Level1Quiz, { props: { wenId: 'WEN_01' } })
 
       const firstOptions = quizWrapper.findAll('.quiz-item')[0].findAll('.option-btn')
@@ -456,11 +529,12 @@ describe('题目组件全流程集成测试', () => {
       await flushPromises()
 
       expect(quizWrapper.emitted('submit')).toBeTruthy()
+      // 登录态仍在时提交应真的打到后端（而不是退回本地判分）
+      expect(mockPost).toHaveBeenCalledWith('/api/submit', expect.anything(), expect.anything())
 
-      mockGet.mockResolvedValue({
-        success: true,
-        data: { students: mockWenAnswers, studentCount: 1 },
-      })
+      // ---- 3. 换成教师会话，按文言文查看答题数据 ----
+      authStore.user = { id: '9', username: '李老师', studentId: '13800000000', role: 'teacher' }
+      authStore.token = 'teacher-token'
 
       const answerQueryWrapper = mount(AnswerQueryView)
       await flushPromises()

@@ -281,13 +281,6 @@ function showToast(message: string, type: 'success' | 'error' = 'success'): void
 }
 
 /** 解析班级编码文本：逗号/空格分隔，过滤空值 */
-function parseClassCodes(text: string): string[] {
-  return text
-    .split(/[,，\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-}
-
 async function loadTeachers(): Promise<void> {
   try {
     teachers.value = await listTeachers(teacherFilter.value || undefined)
@@ -372,7 +365,7 @@ function editTeacher(t: AdminTeacher): void {
   teacherForm.name = t.name
   teacherForm.password = ''
   teacherForm.schoolId = t.school_id || 1
-  teacherForm.canViewAll = Boolean((t as any).can_view_all)
+  teacherForm.canViewAll = Boolean(t.can_view_all)
   teacherForm.classCodes = teacherForm.canViewAll ? [] : [...(t.class_codes || [])]
   teacherForm.status = t.status
 }

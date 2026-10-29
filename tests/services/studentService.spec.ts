@@ -12,7 +12,27 @@ import {
   searchStudents,
   checkStudentExists,
 } from '@/services/studentService'
+import { useAuthStore, type Role } from '@/stores/auth'
 import { ApiError } from '@/utils/api'
+
+/** 后端学生行的真实字段（student_name / class_code），service 会映射成 name / class */
+const rawRow = (student_id: string, student_name: string, class_code: string) => ({
+  student_id,
+  student_name,
+  class_code,
+})
+
+/** 设置当前登录角色（学生接口按角色分流，无角色会被 403） */
+function loginAs(role: Role | null) {
+  const store = useAuthStore()
+  if (role === null) {
+    store.user = null
+    store.token = null
+    return
+  }
+  store.token = 'test-token'
+  store.user = { id: '1', username: role, studentId: '1', role }
+}
 
 describe('services/studentService', () => {
   let fetchMock: vi.Mock
@@ -21,6 +41,9 @@ describe('services/studentService', () => {
     setActivePinia(createPinia())
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
+    // 旧 /api/students 已下线：服务层按角色走 teacher/admin 端点，
+    // 默认以教师身份运行；角色路由相关用例会单独覆盖
+    loginAs('teacher')
   })
 
   afterEach(() => {
@@ -129,20 +152,69 @@ describe('services/studentService', () => {
   })
 
   // ============================================================
+  // 角色路由（后端 /api/students 已下线）
+  // ============================================================
+  describe('端点按角色分流', () => {
+    const okList = { ok: true, json: vi.fn().mockResolvedValue({ success: true, data: [] }) }
+
+    it('teacher → /api/teacher/students', async () => {
+      fetchMock.mockResolvedValue(okList)
+      await getAllStudents()
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/teacher/students')
+    })
+
+    it('admin → /api/admin/students', async () => {
+      loginAs('admin')
+      fetchMock.mockResolvedValue(okList)
+      await getAllStudents()
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/students')
+    })
+
+    it('super_admin → /api/admin/students', async () => {
+      loginAs('super_admin')
+      fetchMock.mockResolvedValue(okList)
+      await getAllStudents()
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/students')
+    })
+
+    it('未登录 / 学生角色：抛 403 且不发请求', async () => {
+      loginAs(null)
+      await expect(getAllStudents()).rejects.toMatchObject({ status: 403 })
+      await expect(getStudent('20240001')).rejects.toMatchObject({ status: 403 })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('班级筛选转换成后端 6 位 class_code 参数', async () => {
+      fetchMock.mockResolvedValue(okList)
+      await getAllStudents({ class: 9 })
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/teacher/students?class_code=000009')
+    })
+
+    it('请求带上 Bearer token', async () => {
+      fetchMock.mockResolvedValue(okList)
+      await getAllStudents()
+      const headers = (fetchMock.mock.calls[0][1] as { headers: Headers }).headers
+      expect(headers.get('Authorization')).toBe('Bearer test-token')
+    })
+  })
+
+  // ============================================================
   // getStudent - R101: 404 与其他错误区分
   // ============================================================
   describe('getStudent (R101: 404 与其他错误区分)', () => {
-    it('学生存在时返回学生信息', async () => {
+    it('学生存在时返回映射后的学生信息', async () => {
       fetchMock.mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({
           success: true,
-          data: { student_id: '20240001', name: '张三', class: 1 },
+          data: rawRow('20240001', '张三', '000001'),
         }),
       })
 
       const result = await getStudent('20240001')
+      // 后端 student_name / class_code → 前端 name / class
       expect(result).toEqual({ student_id: '20240001', name: '张三', class: 1 })
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/teacher/students/20240001')
     })
 
     it('R101: 404（学生不存在）时返回 null 而非抛错', async () => {
@@ -179,7 +251,7 @@ describe('services/studentService', () => {
         ok: true,
         json: vi.fn().mockResolvedValue({
           success: true,
-          data: { student_id: '20240001', name: '张三' },
+          data: rawRow('20240001', '张三', '000001'),
         }),
       })
       expect(await checkStudentExists('20240001')).toBe(true)
@@ -200,9 +272,9 @@ describe('services/studentService', () => {
   // ============================================================
   describe('getAllStudents', () => {
     const mockStudents = [
-      { student_id: '20240003', name: '丙', class: 1 },
-      { student_id: '20240001', name: '甲', class: 1 },
-      { student_id: '20240002', name: '乙', class: 1 },
+      rawRow('20240003', '丙', '000001'),
+      rawRow('20240001', '甲', '000001'),
+      rawRow('20240002', '乙', '000001'),
     ]
 
     it('默认按学号升序排序', async () => {
@@ -233,12 +305,20 @@ describe('services/studentService', () => {
       ])
     })
 
-    it('响应 data 为空时返回空数组', async () => {
+    it('空列表（data: []）返回空数组', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      })
+      expect(await getAllStudents()).toEqual([])
+    })
+
+    it('响应缺少 data 时抛错（不再静默当成空列表）', async () => {
       fetchMock.mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({ success: true }),
       })
-      expect(await getAllStudents()).toEqual([])
+      await expect(getAllStudents()).rejects.toBeInstanceOf(ApiError)
     })
   })
 
@@ -264,18 +344,53 @@ describe('services/studentService', () => {
       expect(fetchMock).not.toHaveBeenCalled()
     })
 
-    it('合法参数 + 请求成功返回 success', async () => {
+    it('合法参数 + 请求成功返回 success（教师端只提交学号+姓名）', async () => {
       fetchMock.mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({
           success: true,
           message: '学生添加成功',
-          data: { student_id: '20240001', name: '张三' },
+          data: { student_id: '20240001', student_name: '张三' },
         }),
       })
       const result = await createStudent({ studentId: '20240001', name: '张三', class: 1 })
       expect(result.success).toBe(true)
       expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/teacher/students')
+      expect(fetchMock.mock.calls[0][1].method).toBe('POST')
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+        student_id: '20240001',
+        student_name: '张三',
+      })
+    })
+
+    it('管理员新增学生时额外提交 class_code', async () => {
+      loginAs('admin')
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ success: true, message: '学生添加成功' }),
+      })
+      const result = await createStudent({ studentId: '20240001', name: '张三', class: 9 })
+      expect(result.success).toBe(true)
+      expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/students')
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+        student_id: '20240001',
+        student_name: '张三',
+        class_code: '000009',
+      })
+    })
+
+    it('后端返回一次性临时口令时应透出给调用方', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          success: true,
+          data: { student_id: '20240001', student_name: '张三', temporary_password: 'Abc12345' },
+        }),
+      })
+      const result = await createStudent({ studentId: '20240001', name: '张三', class: 1 })
+      expect(result.success).toBe(true)
+      expect(result.message).toContain('Abc12345')
     })
   })
 
@@ -320,18 +435,38 @@ describe('services/studentService', () => {
       expect(fetchMock).not.toHaveBeenCalled()
     })
 
-    it('全部合法 + 请求成功', async () => {
+    it('全部合法 + 逐个 DELETE 成功（后端无批量接口）', async () => {
       fetchMock.mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue({
-          success: true,
-          data: { deletedCount: 3 },
-        }),
+        json: vi.fn().mockResolvedValue({ success: true }),
       })
       const result = await batchDeleteStudents(['20240001', '20240002', '20240003'])
       expect(result.success).toBe(true)
       expect(result.deletedCount).toBe(3)
-      expect(fetchMock).toHaveBeenCalledTimes(1)
+      // 旧 /api/students/batch-delete 已下线：退化为逐条 DELETE
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
+        '/api/teacher/students/20240001',
+        '/api/teacher/students/20240002',
+        '/api/teacher/students/20240003',
+      ])
+      expect(fetchMock.mock.calls.every((c) => c[1].method === 'DELETE')).toBe(true)
+    })
+
+    it('部分失败时如实回报成功/失败条数', async () => {
+      fetchMock
+        .mockResolvedValueOnce({ ok: true, json: vi.fn().mockResolvedValue({ success: true }) })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          json: vi.fn().mockResolvedValue({ message: '无权删除' }),
+        })
+
+      const result = await batchDeleteStudents(['20240001', '20240002'])
+      expect(result.success).toBe(false)
+      expect(result.deletedCount).toBe(1)
+      expect(result.message).toContain('成功删除 1 条')
+      expect(result.message).toContain('20240002: 无权删除')
     })
   })
 

@@ -87,8 +87,8 @@ export interface VideoBlockData {
  * 通用块数据接口
  */
 export interface BlockData {
-  // 通用的可选属性
-  [key: string]: any
+  // 通用的可选属性：具体块的数据结构由各 Block 组件自行收窄
+  [key: string]: unknown
 }
 
 /**

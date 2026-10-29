@@ -4,12 +4,12 @@ const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll } = require('../utils/dbPromise')
 const logger = require('../utils/logger')
 const {
-  getDefaultPasswordHash,
+  hashPassword,
+  generateTempPassword,
   extractClassCode,
   teacherCanManageClass,
-  getTeacherClassCodes,
+  getTeacherClassScope,
   resetStudentPassword,
-  DEFAULT_STUDENT_PASSWORD,
 } = require('../services/authService')
 
 // 统一格式正则
@@ -54,10 +54,11 @@ async function resolveTeacherId(req) {
 }
 
 /**
- * 获取当前登录教师所教班级编码集合
+ * 获取当前登录教师的班级范围 { all, codes }
+ * all=true 时不做班级过滤；codes 仅用于具体班级过滤（禁止把 '*' 拼进 IN）
  */
-async function getMyClassCodes(teacherId) {
-  return getTeacherClassCodes(teacherId)
+async function getMyClassScope(teacherId) {
+  return getTeacherClassScope(teacherId)
 }
 
 /**
@@ -70,22 +71,25 @@ async function listStudents(req, res) {
     if (!teacherId) {
       return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
     }
-    const classCodes = await getMyClassCodes(teacherId)
-    if (classCodes.length === 0) {
+    const scope = await getMyClassScope(teacherId)
+    const { class_code } = req.query
+
+    if (!scope.all && class_code && !scope.codes.includes(class_code)) {
+      // 越权请求不属于自己的班级
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该班级学生' })
+    }
+    if (!scope.all && !class_code && scope.codes.length === 0) {
       return res.status(200).json({ success: true, data: [] })
     }
-    const { class_code } = req.query
-    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE class_code IN (${classCodes
-      .map(() => '?')
-      .join(',')})`
-    const params = [...classCodes]
+
+    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students`
+    const params = []
     if (class_code) {
-      if (!classCodes.includes(class_code)) {
-        // 越权请求不属于自己的班级
-        return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该班级学生' })
-      }
-      sql += ` AND class_code = ?`
+      sql += ' WHERE class_code = ?'
       params.push(class_code)
+    } else if (!scope.all) {
+      sql += ` WHERE class_code IN (${scope.codes.map(() => '?').join(',')})`
+      params.push(...scope.codes)
     }
     sql += ` ORDER BY class_code ASC, student_id ASC`
     const rows = await dbAll(db, sql, params)
@@ -154,7 +158,8 @@ async function createStudent(req, res) {
       return res.status(403).json({ success: false, error: perm.code, message: perm.msg })
     }
     const now = new Date().toISOString()
-    const passwordHash = await getDefaultPasswordHash()
+    const temporaryPassword = generateTempPassword()
+    const passwordHash = await hashPassword(temporaryPassword)
     try {
       await dbRun(
         db,
@@ -184,7 +189,15 @@ async function createStudent(req, res) {
       }
       throw insertErr
     }
-    res.status(201).json({ success: true, message: `学生添加成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}` })
+    res.status(201).json({
+      success: true,
+      message: '学生添加成功，请将一次性口令告知学生（仅显示一次）',
+      data: {
+        student_id: body.student_id,
+        class_code: perm.classCode,
+        temporary_password: temporaryPassword,
+      },
+    })
   } catch (err) {
     return handleZodError(res, err, '教师添加学生失败')
   }
@@ -202,7 +215,9 @@ async function batchCreateStudents(req, res) {
     }
     const list = batchCreateSchema.parse(req.body.students || req.body)
     const now = new Date().toISOString()
-    const passwordHash = await getDefaultPasswordHash()
+    // 批量导入共用一个一次性口令，避免逐条生成 bcrypt 哈希拖慢导入；明文仅本次返回
+    const temporaryPassword = generateTempPassword()
+    const passwordHash = await hashPassword(temporaryPassword)
     const results = []
     for (const item of list) {
       const perm = await _enforceClassPermission(teacherId, item.student_id)
@@ -234,7 +249,12 @@ async function batchCreateStudents(req, res) {
         if (msg.includes('UNIQUE') || msg.includes('unique')) {
           results.push({ ...item, success: false, error: '学号已存在' })
         } else {
-          results.push({ ...item, success: false, error: msg || '数据库错误' })
+          logger.error('[teacher] 批量添加学生单条失败:', {
+            student_id: item.student_id,
+            message: insertErr && insertErr.message,
+            stack: insertErr && insertErr.stack,
+          })
+          results.push({ ...item, success: false, error: '数据库错误' })
         }
       }
     }
@@ -245,7 +265,8 @@ async function batchCreateStudents(req, res) {
         total: list.length,
         success_count: successCount,
         fail_count: list.length - successCount,
-        initial_password: DEFAULT_STUDENT_PASSWORD,
+        initial_password: temporaryPassword,
+        temporary_password: temporaryPassword,
         details: results,
       },
     })
@@ -284,7 +305,7 @@ async function updateStudent(req, res) {
 }
 
 /**
- * 教师重置学生密码为 DEFAULT_STUDENT_PASSWORD (99999999)
+ * 教师重置学生密码为一次性随机口令（明文仅返回一次）
  */
 async function resetStudent(req, res) {
   try {
@@ -314,8 +335,8 @@ async function resetStudent(req, res) {
     }
     res.status(200).json({
       success: true,
-      message: `密码已重置为 ${DEFAULT_STUDENT_PASSWORD}`,
-      data: { temporary_password: DEFAULT_STUDENT_PASSWORD },
+      message: '密码已重置，请将一次性口令告知学生（仅显示一次）',
+      data: { temporary_password: r.temporary_password },
     })
   } catch (err) {
     logger.error('[teacher] 重置学生密码失败:', err)
@@ -377,26 +398,31 @@ async function getStudentsCompletion(req, res) {
     if (!teacherId) {
       return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '请先登录' })
     }
-    const classCodes = await getMyClassCodes(teacherId)
-    if (classCodes.length === 0) {
+    const scope = await getMyClassScope(teacherId)
+    const { class_code } = req.query
+
+    if (!scope.all && class_code && !scope.codes.includes(class_code)) {
+      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该班级学生' })
+    }
+    if (!scope.all && !class_code && scope.codes.length === 0) {
       return res.status(200).json({
         success: true,
         data: { metrics_ready: true, summary: { student_count: 0, avg_accuracy: 0 }, students: [] },
       })
     }
 
-    const { class_code } = req.query
-    if (class_code && !classCodes.includes(class_code)) {
-      return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该班级学生' })
+    // 全权限教师不带 class_code 时不加班级过滤；否则按具体班级/班级集合过滤
+    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students`
+    const params = []
+    if (class_code) {
+      sql += ' WHERE class_code = ?'
+      params.push(class_code)
+    } else if (!scope.all) {
+      sql += ` WHERE class_code IN (${scope.codes.map(() => '?').join(',')})`
+      params.push(...scope.codes)
     }
-
-    const effectiveClasses = class_code ? [class_code] : classCodes
-
-    let sql = `SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE class_code IN (${effectiveClasses
-      .map(() => '?')
-      .join(',')})`
     sql += ` ORDER BY class_code ASC, student_id ASC`
-    const rows = await dbAll(db, sql, effectiveClasses)
+    const rows = await dbAll(db, sql, params)
 
     // 收集所有 student_id，用子查询去重算每道题 attempt_number 最大的那一行
     const studentIds = rows.map((r) => r.student_id)
@@ -438,50 +464,11 @@ async function getStudentsCompletion(req, res) {
       }
     })
 
-    // summary: 覆盖所有教师所教班级（未指定 class_code 时）
-    let summary
-    if (class_code) {
-      summary = {
-        student_count: students.length,
-        avg_accuracy: students.length === 0 ? 0
-          : Math.round(students.reduce((s, x) => s + (x.accuracy || 0), 0) / students.length * 10) / 10,
-      }
-    } else {
-      const allRows = await dbAll(
-        db,
-        `SELECT student_id FROM students WHERE class_code IN (${classCodes.map(() => '?').join(',')})`,
-        classCodes,
-      )
-      const allStatsMap = {}
-      const allStudentIds = allRows.map((r) => r.student_id)
-      if (allStudentIds.length > 0) {
-        const allAgg = await dbAll(
-          db,
-          `SELECT a.student_id,
-            COUNT(*) AS answered_questions,
-            SUM(a.is_correct) AS correct_count,
-            ROUND(AVG(a.is_correct) * 100, 1) AS accuracy
-           FROM answers a
-           INNER JOIN (
-             SELECT student_id, question_id, MAX(attempt_number) AS max_attempt
-             FROM answers
-             WHERE student_id IN (${allStudentIds.map(() => '?').join(',')})
-             GROUP BY student_id, question_id
-           ) top ON a.student_id = top.student_id AND a.question_id = top.question_id
-                AND a.attempt_number = top.max_attempt
-           WHERE a.student_id IN (${allStudentIds.map(() => '?').join(',')})
-           GROUP BY a.student_id`,
-          [...allStudentIds, ...allStudentIds],
-        )
-        for (const r of allAgg) allStatsMap[r.student_id] = r
-      }
-      summary = {
-        student_count: allRows.length,
-        avg_accuracy: allRows.length === 0 ? 0
-          : Math.round(
-              allRows.reduce((s, x) => s + (allStatsMap[x.student_id]?.accuracy || 0), 0) / allRows.length * 10,
-            ) / 10,
-      }
+    // summary 直接基于本次查询到的学生统计，避免再查一遍全量名单
+    const summary = {
+      student_count: students.length,
+      avg_accuracy: students.length === 0 ? 0
+        : Math.round(students.reduce((s, x) => s + (x.accuracy || 0), 0) / students.length * 10) / 10,
     }
 
     res.status(200).json({
@@ -489,7 +476,8 @@ async function getStudentsCompletion(req, res) {
       data: {
         metrics_ready: true,
         summary,
-        class_codes: classCodes,
+        // 保持旧契约：全权限教师返回 ['*']
+        class_codes: scope.all ? ['*'] : scope.codes,
         students,
       },
     })

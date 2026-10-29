@@ -81,12 +81,22 @@ function getTextList(req, res) {
 function getTextsBatch(req, res) {
   try {
     const { text_ids } = req.body
+    // 单次批量查询上限，避免一次请求放大成大量文件读取
+    const MAX_BATCH_TEXT_IDS = 50
 
     if (!Array.isArray(text_ids) || text_ids.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'INVALID_REQUEST',
         message: 'text_ids 必须是非空数组',
+      })
+    }
+
+    if (text_ids.length > MAX_BATCH_TEXT_IDS) {
+      return res.status(400).json({
+        success: false,
+        error: 'INVALID_REQUEST',
+        message: `text_ids 单次最多 ${MAX_BATCH_TEXT_IDS} 个`,
       })
     }
 

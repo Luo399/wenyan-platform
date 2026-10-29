@@ -17,6 +17,9 @@ const request = require('supertest')
 
 process.env.DB_PATH = ':memory:'
 process.env.JWT_SECRET = 'ci-test-secret'
+// 安全加固后不再内置 admin/admin123：初始管理员需显式配置（必须在 require database 之前）
+process.env.INITIAL_ADMIN_USERNAME = 'admin'
+process.env.INITIAL_ADMIN_PASSWORD = 'AdminInit#2024'
 
 const { db, initAllTables } = require('../src/config/database')
 const { dbGet, dbRun } = require('../src/utils/dbPromise')
@@ -60,7 +63,7 @@ beforeAll(async () => {
 
   const adminLogin = await request(app)
     .post('/api/auth/admin/login')
-    .send({ username: 'admin', password: 'admin123' })
+    .send({ username: 'admin', password: process.env.INITIAL_ADMIN_PASSWORD })
   adminToken = adminLogin.body.data.token
 
   const school = await dbGet(db, 'SELECT id FROM schools LIMIT 1')
@@ -68,12 +71,15 @@ beforeAll(async () => {
   const teacherHash = await bcrypt.hash('pw12345678', 10)
 
   // supertest 的 .set() 只能挂在动词之后：request(app).post(url).set(...)
+  // 安全加固后新建学生拿到的是**一次性随机口令**（data.initial_password），不再是固定 99999999，
+  // 所以这里把口令接住，供下面的学生登录用。
   const createStudent = (studentId, name, classCode) =>
     request(app)
       .post('/api/admin/students')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ student_id: studentId, student_name: name, class_code: classCode })
-  await createStudent('20260101', '甲', '202601')
+      .then((res) => res.body?.data?.initial_password)
+  const studentPassword = await createStudent('20260101', '甲', '202601')
   await createStudent('20260102', '乙', '202601')
   await createStudent('20260301', '丁', '202603')
 
@@ -91,7 +97,7 @@ beforeAll(async () => {
 
   const studentLogin = await request(app)
     .post('/api/auth/student/login')
-    .send({ student_id: '20260101', password: '99999999' })
+    .send({ student_id: '20260101', password: studentPassword })
   studentToken = studentLogin.body.data.token
 
   const wen = inventory.buildInventory(true).texts[0].wen_id

@@ -12,17 +12,26 @@
 #   bash scripts/check-video-inventory.sh https://test.classicalab.cn
 # ============================================================
 
-set -e
+set -euo pipefail
 
 BASE="${1:-https://www.classicalab.cn}"
 # 只探前 N 篇可以用 POEM_COUNT=5 bash scripts/check-video-inventory.sh 快速自检
 POEM_COUNT="${POEM_COUNT:-37}"
 VIDEO_KEYS="bg 1 2 3"
 
+if ! [[ "$POEM_COUNT" =~ ^[0-9]+$ ]] || [ "$POEM_COUNT" -lt 1 ]; then
+  echo "ERROR: POEM_COUNT 必须是正整数: $POEM_COUNT" >&2
+  exit 1
+fi
+if ! command -v curl >/dev/null 2>&1; then
+  echo "ERROR: 需要 curl" >&2
+  exit 1
+fi
+
 # 单个文件是否存在（HTTP 200 才算在）
 exists() {
   local code
-  code=$(curl -o /dev/null -s -w '%{http_code}' -I -L --max-time 20 --retry 2 "$1")
+  code=$(curl -o /dev/null -s -w '%{http_code}' -I -L --max-time 20 --retry 2 "$1" || true)
   [ "$code" = "200" ]
 }
 

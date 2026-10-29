@@ -18,17 +18,26 @@
 #   bash scripts/check-card-references.sh https://test.classicalab.cn
 # ============================================================
 
-set -e
+set -euo pipefail
 
 BASE="${1:-https://www.classicalab.cn}"
 POEM_COUNT="${POEM_COUNT:-37}"
+
+if ! [[ "$POEM_COUNT" =~ ^[0-9]+$ ]] || [ "$POEM_COUNT" -lt 1 ]; then
+  echo "ERROR: POEM_COUNT 必须是正整数: $POEM_COUNT" >&2
+  exit 1
+fi
+if ! command -v curl >/dev/null 2>&1; then
+  echo "ERROR: 需要 curl" >&2
+  exit 1
+fi
 
 broken=()     # 引用了但取不到
 suspect=()    # 取不到，但换个扩展名/大小写能取到 → 命名错位
 checked=0
 
 probe() {
-  curl -o /dev/null -s -w '%{http_code}' -I -L --max-time 20 --retry 2 "$1"
+  curl -o /dev/null -s -w '%{http_code}' -I -L --max-time 20 --retry 2 "$1" || true
 }
 
 # 前端把 mp4 归到 /video/，其余图片归到 /images/culture_cards/{text_id}/
@@ -49,8 +58,8 @@ for i in $(seq 1 "$POEM_COUNT"); do
 
   # text_id 在每张卡片里都带，按 image_file / background_image 逐个取
   for field in image_file background_image poster_file; do
-    refs=$(grep -o "\"$field\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$tmp" \
-      | sed 's/.*:[[:space:]]*"//; s/"$//' | sort -u)
+    refs=$( { grep -o "\"$field\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$tmp" \
+      | sed 's/.*:[[:space:]]*"//; s/"$//' | sort -u; } || true)
     for ref in $refs; do
       # "文字" 是数据里表示「这张卡只有文字」的占位值，不是文件名
       [ "$ref" = "文字" ] && continue
