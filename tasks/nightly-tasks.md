@@ -352,3 +352,11 @@
   quiz / explanation / summary / cultural_card / video 五类切片无任何组件消费。
 - 建议：先标注不急着删；挂头像先填 `icon_dialog`；题目/解析插图先定 schema；`data/texts` 归为内容底稿；
   增加发布前资产引用审计（数据字段 → URL → HEAD 200）。
+
+### [x] Figma 扫描资产接入前端 (figma-screen-integration)
+
+- 新增 `src/config/figmaScreenCatalog.ts`（6,049 个扫描文件 → 37 篇 / 775 条角色记录）与
+  `scripts/gen-figma-screen-catalog.mjs`；`figmaAssets.ts` 增加标题/角色/选项/文本框/头像/名牌 URL 读取，
+  统一走 OSS `images/screens`。
+- `DetailView` 标题、`AdaptQuiz` 选项底图已直接读取扫描图，加载失败回退文字/CSS。
+- 背景与立绘（2.8–18MB）暂不直接渲染，需先做衍生图；说明见 `docs/figma-scan-integration.md`。
