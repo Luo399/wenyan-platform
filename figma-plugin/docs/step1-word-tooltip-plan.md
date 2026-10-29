@@ -18,7 +18,7 @@
 onMounted(async () => {
   const contentEl = contentRef.value
   if (contentEl) {
-    contentEl.addEventListener('mousemove', throttledMouseMove)   // ← 挂载时 contentRef 是 null
+    contentEl.addEventListener('mousemove', throttledMouseMove) // ← 挂载时 contentRef 是 null
   }
   await nextTick()
 })
@@ -36,12 +36,12 @@ onMounted(async () => {
 
 数据侧（通的）：
 
-| 课文 | 词条数 | `basic_meaning` 最长 | `follow_up_questions` 非空条数 |
-|------|-------|--------------------|------------------------------|
-| WEN_01 | 83 | 84 字（发闾左適戍渔阳） | 0 |
-| WEN_02 | 17 | 53 字 | 0 |
-| WEN_03 | 50 | **174 字**（岳阳楼出处注）¹ | 0 |
-| WEN_04 | 5 | 23 字 | 0 |
+| 课文   | 词条数 | `basic_meaning` 最长        | `follow_up_questions` 非空条数 |
+| ------ | ------ | --------------------------- | ------------------------------ |
+| WEN_01 | 83     | 84 字（发闾左適戍渔阳）     | 0                              |
+| WEN_02 | 17     | 53 字                       | 0                              |
+| WEN_03 | 50     | **174 字**（岳阳楼出处注）¹ | 0                              |
+| WEN_04 | 5      | 23 字                       | 0                              |
 
 ¹ 这条 174 字是**数据里的最长**，不是**页面上的最长**：它的词形是「岳阳楼记」，不在 `original_text` 里，适配器匹配不到 ⇒ 页面上永远出不来。页面实际最长的是 WEN_01 那 84 字，详见 §十·事实修正。
 
@@ -122,9 +122,19 @@ timer = setTimeout(() => { ...; if (lastArgs) fn.apply(this, lastArgs) }, remain
 **修法**：在事件派发的同步阶段抓一个纯数据快照，再交给节流器。
 
 ```ts
-interface PointerProbe { x: number; y: number; isWord: boolean; word: string; def: string | null }
-function probeFromEvent(e: MouseEvent): PointerProbe { /* 同步读 target/clientX/clientY */ }
-function onMouseMove(e: MouseEvent) { throttledMouseMove(probeFromEvent(e)) }
+interface PointerProbe {
+  x: number
+  y: number
+  isWord: boolean
+  word: string
+  def: string | null
+}
+function probeFromEvent(e: MouseEvent): PointerProbe {
+  /* 同步读 target/clientX/clientY */
+}
+function onMouseMove(e: MouseEvent) {
+  throttledMouseMove(probeFromEvent(e))
+}
 ```
 
 `handleMouseMove(probe: PointerProbe)` 只碰纯数据，trailing 延迟执行也安全。模板绑 `@mousemove="onMouseMove"`。
@@ -163,14 +173,14 @@ function onMouseMove(e: MouseEvent) { throttledMouseMove(probeFromEvent(e)) }
 
 ## 七、工时
 
-| 项 | 估时 |
-|----|------|
+| 项                                      | 估时    |
+| --------------------------------------- | ------- |
 | 3.1 根因修复（模板绑定 + 清理生命周期） | 15 分钟 |
-| 3.2 长注释定位与样式 | 30 分钟 |
-| §五 追问字段结构预留 + 单测 | 30 分钟 |
-| 自测（WEN_01/WEN_03、埋点、lint/test） | 0.5 天 |
-| 插件 / 后端 / 资源同步 | 0 |
-| （可选）§四 单例浮层升级 | 1 天 |
+| 3.2 长注释定位与样式                    | 30 分钟 |
+| §五 追问字段结构预留 + 单测             | 30 分钟 |
+| 自测（WEN_01/WEN_03、埋点、lint/test）  | 0.5 天  |
+| 插件 / 后端 / 资源同步                  | 0       |
+| （可选）§四 单例浮层升级                | 1 天    |
 
 ## 八、遗留的产品问题（不在本轮）
 
@@ -183,16 +193,16 @@ function onMouseMove(e: MouseEvent) { throttledMouseMove(probeFromEvent(e)) }
 
 分支 `feature/step1/word-tooltip`（基线 `origin/feature-1`），改动文件：
 
-| 文件 | 内容 |
-|------|------|
-| `src/components/WordList.vue` | 模板 `@mousemove` 绑定（删掉 `onMounted` 手动绑定与 `contentRef`）、`PointerProbe` 快照（§3.4）、`cursor: pointer`、`.tooltip` 限宽换行、`correctWithRealSize` 首帧校正；`throttle` 泛型签名 `any[]` → `never[]` |
-| `src/utils/tooltipPosition.ts` | **新增**：`computeTooltipPosition` / `isInsideViewport` / `TOOLTIP_OFFSET` / `VIEWPORT_EDGE_GAP` 抽成无 DOM 依赖的纯函数，可单测 |
-| `src/utils/adapterUtils.ts` | `WordAnnotation.followUpQuestions?` + `buildFollowUpAttribute`（空即不写属性） |
-| `src/adapters/wordListAdapter.ts` | 透传 `w.follow_up_questions` |
-| `src/utils/__tests__/adapterUtils.test.ts` | **新增** 7 例：基本形态、属性转义、`data-follow-up` 条件写入与过滤、174 字长注释不改结构 |
-| `src/utils/__tests__/tooltipPosition.test.ts` | **新增** 7 例：默认右下、右翻左、下翻上、左上 clamp、1366×768 与 375×667 下光标扫过整页的视口包含性遍历、浮层高于视口的极端用例 |
-| `src/components/__tests__/WordList.test.ts` | **新增** 4 例：注释词渲染、悬停出浮层且内容等于 `data-def`（根因回归）、`search_word` 上报一次、移出后收起（这条逼出了 §3.4） |
-| `figma-plugin/docs/step1-word-tooltip-plan.md` | 本文档 |
+| 文件                                           | 内容                                                                                                                                                                                                             |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/WordList.vue`                  | 模板 `@mousemove` 绑定（删掉 `onMounted` 手动绑定与 `contentRef`）、`PointerProbe` 快照（§3.4）、`cursor: pointer`、`.tooltip` 限宽换行、`correctWithRealSize` 首帧校正；`throttle` 泛型签名 `any[]` → `never[]` |
+| `src/utils/tooltipPosition.ts`                 | **新增**：`computeTooltipPosition` / `isInsideViewport` / `TOOLTIP_OFFSET` / `VIEWPORT_EDGE_GAP` 抽成无 DOM 依赖的纯函数，可单测                                                                                 |
+| `src/utils/adapterUtils.ts`                    | `WordAnnotation.followUpQuestions?` + `buildFollowUpAttribute`（空即不写属性）                                                                                                                                   |
+| `src/adapters/wordListAdapter.ts`              | 透传 `w.follow_up_questions`                                                                                                                                                                                     |
+| `src/utils/__tests__/adapterUtils.test.ts`     | **新增** 7 例：基本形态、属性转义、`data-follow-up` 条件写入与过滤、174 字长注释不改结构                                                                                                                         |
+| `src/utils/__tests__/tooltipPosition.test.ts`  | **新增** 7 例：默认右下、右翻左、下翻上、左上 clamp、1366×768 与 375×667 下光标扫过整页的视口包含性遍历、浮层高于视口的极端用例                                                                                  |
+| `src/components/__tests__/WordList.test.ts`    | **新增** 4 例：注释词渲染、悬停出浮层且内容等于 `data-def`（根因回归）、`search_word` 上报一次、移出后收起（这条逼出了 §3.4）                                                                                    |
+| `figma-plugin/docs/step1-word-tooltip-plan.md` | 本文档                                                                                                                                                                                                           |
 
 与 §三 设计稿的差异只有一处：定位算法从 SFC 内部提到了 `src/utils/tooltipPosition.ts`，因为它需要被单测覆盖，而 happy-dom 不做布局、`getBoundingClientRect` 恒为 0，留在组件里就只能靠浏览器肉眼验。
 
@@ -213,12 +223,12 @@ function onMouseMove(e: MouseEvent) { throttledMouseMove(probeFromEvent(e)) }
 
 §九 那三个测试文件只覆盖了「根因回归」和「属性条件写入」，本轮把它补成一套能拦住回退的网：18 例 → 78 例，新增一个适配器测试文件。
 
-| 文件 | 例数 | 覆盖点 |
-|------|------|--------|
-| `src/components/__tests__/WordList.test.ts` | 4 → **25** | 三态渲染（loading / error+点「重试」拉起两个数据源 / 空态）、两份数据都到齐才出正文、**数据到达后**才创建的正文节点照样能触发浮层（根因主用例）、释义为空的条目被适配器丢掉所以不存在"点了没反应"的生词、`role`/`aria-live`、事件不冒泡不触发、空白处收起、**节流窗口内连发 24 次事件**（§3.4 的回归锁）、交替悬停切内容、估算定位 + 实测校正（`getBoundingClientRect` 打桩后翻到左上）、卸载不抛错、埋点字段齐全 / 同词只报一次 / 换词再报 / 上报失败不影响浮层 / 非生词不报、样式契约三条 |
-| `src/adapters/__tests__/wordListAdapter.test.ts` | **新增 24** | 过滤缺字段、词长降序、长词吃掉短词、`basicInfo` 透传、每次命中一个 span、弯引号↔直引号匹配、`removeSlashes`+`wrapParagraphs` 由适配器固定开启、`data-follow-up` 条件写入、无注释时退化为纯转义；**真实数据契约**：读 `public/data/word_list` + `text_basic_info` 里成对的 `WEN_xx.json`，断言条目齐字段、每个 span 的 `data-def` 非空且不含裸引号/尖括号、解码后逐字等于某条原始释义、原文里独立出现的词都有 span、不残留 `__ANNOTATION_` 占位符、`data-follow-up` 条数与数据一致 |
-| `src/utils/__tests__/adapterUtils.test.ts` | 7 → **22** | 上面之外补：长短词叠加顺序、content 空、annotations 为 null/undefined/[]、`removeSlashes` 只吃半角 `/`、`\n`/`\n\n` 只在显式开启时转换、三选项叠加的最终 HTML 逐字节断言、词形与释义同时带标签的 XSS、幂等；以及 `escapeHtml`/`escapeRegex`/`normalizeQuotes`/`getSafe` 四个基础函数的边界（非字符串入参、falsy 既有值不回退默认值） |
-| `src/utils/__tests__/tooltipPosition.test.ts` | 7 | 未增删用例，只把 320×240 那一档的来源说明改准（见下面的事实修正） |
+| 文件                                             | 例数        | 覆盖点                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/__tests__/WordList.test.ts`      | 4 → **25**  | 三态渲染（loading / error+点「重试」拉起两个数据源 / 空态）、两份数据都到齐才出正文、**数据到达后**才创建的正文节点照样能触发浮层（根因主用例）、释义为空的条目被适配器丢掉所以不存在"点了没反应"的生词、`role`/`aria-live`、事件不冒泡不触发、空白处收起、**节流窗口内连发 24 次事件**（§3.4 的回归锁）、交替悬停切内容、估算定位 + 实测校正（`getBoundingClientRect` 打桩后翻到左上）、卸载不抛错、埋点字段齐全 / 同词只报一次 / 换词再报 / 上报失败不影响浮层 / 非生词不报、样式契约三条 |
+| `src/adapters/__tests__/wordListAdapter.test.ts` | **新增 24** | 过滤缺字段、词长降序、长词吃掉短词、`basicInfo` 透传、每次命中一个 span、弯引号↔直引号匹配、`removeSlashes`+`wrapParagraphs` 由适配器固定开启、`data-follow-up` 条件写入、无注释时退化为纯转义；**真实数据契约**：读 `public/data/word_list` + `text_basic_info` 里成对的 `WEN_xx.json`，断言条目齐字段、每个 span 的 `data-def` 非空且不含裸引号/尖括号、解码后逐字等于某条原始释义、原文里独立出现的词都有 span、不残留 `__ANNOTATION_` 占位符、`data-follow-up` 条数与数据一致           |
+| `src/utils/__tests__/adapterUtils.test.ts`       | 7 → **22**  | 上面之外补：长短词叠加顺序、content 空、annotations 为 null/undefined/[]、`removeSlashes` 只吃半角 `/`、`\n`/`\n\n` 只在显式开启时转换、三选项叠加的最终 HTML 逐字节断言、词形与释义同时带标签的 XSS、幂等；以及 `escapeHtml`/`escapeRegex`/`normalizeQuotes`/`getSafe` 四个基础函数的边界（非字符串入参、falsy 既有值不回退默认值）                                                                                                                                                        |
+| `src/utils/__tests__/tooltipPosition.test.ts`    | 7           | 未增删用例，只把 320×240 那一档的来源说明改准（见下面的事实修正）                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 样式那两条是**源码级断言**（读 `WordList.vue` 的 `<style>` 块正则匹配）：scoped CSS 在单测里不会真的应用到 DOM，但 `cursor: help → pointer` 和 `.tooltip` 限宽换行是这轮的两个产品决策，不该被无声改回去。
 
@@ -250,6 +260,44 @@ function onMouseMove(e: MouseEvent) { throttledMouseMove(probeFromEvent(e)) }
 2. `.tooltip` 的 `position: fixed` 坐标写进 `style` 属性这一层验了，但滚动容器、缩放、页面缩放比下的表现没验。
 3. `search_word` 是否落库、追问区有没有消费者（本来就没有）、WEN_05~08 无数据。
 4. "卸载时不抛错"那条只是把生命周期契约钉住，`cancel()` 缺失时它没有独立的失败信号——真正兜住 §3.4 的是那条 24 连发用例。
+
+## 十一、命中率的两层含义与逐 span 实测（v5 · 2026-10-29）
+
+PR #204 已把 v3/v4 的修复送上 `main`（`850d97b`，`Deploy Frontend to Aliyun OSS` 成功，线上 `meta[name=build-id]` 与页脚都是 `850d97b`，`StepView` 产物里能看到 `max-width:min(320px,100vw - 16px);position:fixed` 与 `aria-live` / `data-follow-up` 标记）。这一节回答的是「**所有 span 注释都要 100% 命中**」这句话——它其实有两层，第一层做到了，第二层是生成侧的问题。
+
+### 11.1 第一层：已经成 span 的词，悬浮必须出注释 —— 190/190
+
+线上 4 篇课文逐个验过，不是抽查：
+
+| 课文         | `.annotated-word` 数 | 悬浮命中且文本 === `data-def` | 移到非词节点即收起 |
+| ------------ | -------------------- | ----------------------------- | ------------------ |
+| `/stepone/1` | 122                  | 122                           | 抽查 6 次全对      |
+| `/stepone/2` | 14                   | 14                            | —                  |
+| `/stepone/3` | 49                   | 49                            | 抽查 2 次全对      |
+| `/stepone/4` | 5                    | 5                             | —                  |
+| 合计         | **190**              | **190（100%）**               | ✅                 |
+
+测法记清楚，免得下次误判成 bug：内嵌浏览器 surface 未 attach，`window.innerWidth/innerHeight` 全是 0，且**隐藏标签页里 `setTimeout` 被钳到 1 秒**——第一版脚本用 `await sleep(45)` 逐个等，15 秒只跑到第 15 个词，超时后还留下一个假阴性（第 7 个词「怅恨」读到的是上一个词的浮层，因为那一拍走的是节流的 trailing 分支，而 trailing 的定时器正被钳着）。改成**同步 spin 到 ≥45ms 再派发 `mousemove`（走 leading edge，处理器同步写完状态）+ 连续 6 个 `await Promise.resolve()` 让 Vue 冲刷**，全程不碰定时器，一遍跑完 122 个词。`MouseEvent` 必须带 `bubbles: true`（监听在容器上），和第十节那条 24 连发用例同一个道理。
+
+没能同时验的是**几何**：视口 0×0 时布局退化，`getBoundingClientRect` 拿不到真实宽高，浮层的实际位置/换行只能靠 `tooltipPosition.test.ts` 的视口遍历断言 + 上线后肉眼看。线上现存最长注释 84 字（WEN_01），在单测覆盖的 `LONG_NOTE_84` 之内。
+
+### 11.2 第二层：有注释却压根没生成 span —— 9 条，5 补 4 记
+
+100% 命中只保证「能悬停的都悬得起来」。把 `public/data/word_list/WEN_xx.json` 逐条对着正文点，另有 9 条词条从未变成 span，鼠标再准也命中不了，分三类：
+
+- **括号注音**（`鲦（tiáo）鱼`、`槽枥(lì)`、`外见(xiàn)`、`食(sì)`）：词条里写死了拼音，正文里没有那对括号；
+- **标点/空格断开**（`乃丹书帛曰陈胜王` 正文实为 `乃丹书帛曰"陈胜王"`；`其必曰 "先天下之忧而忧，后天下之乐而乐" 乎`）：字序对得上，中间夹着引号逗号空格；
+- **篇名类出处**（`马说`、`岳阳楼记`、`史记`）：释义其实是「选自《……》」，`word` 是篇名，正文 `original_text` 里没这个词形。
+
+已定的处理（用户拍板「只做安全的一半」）：`buildContentHtmlWithAnnotations` 改成逐级降级的三级匹配——① 词条原文整串（历史行为，命中即止，所以现有 HTML 逐字节不变）；② 剥掉括号注音后再匹配，span 用正文里的写法，`data-def` 仍是整条释义；③ 汉字数 ≥4 的长短语允许两个字之间夹最多 4 个非汉字字符整段命中。排序键同时从字符串长度改成汉字数（带注音的词条原始长度虚高，按汉字数排才是正文里的实际占比，长语整段优先于其中的短词）。
+
+**故意不做的两件事**：`食(sì)` 剥完只剩单字，正文里 5 个「食」只有部分是 sì 读法，全标就是错标；篇名类不该由前端硬造悬停点。这 4 条已登记到 `docs/素材缺失清单.md` 第十一节，并写了双向断言（清单外的漏标会红，清单里的条目被误标也会红）。
+
+结果：span 总数 190 → 194（新出 鲦鱼 / 槽枥 / 外见 / 两段长短语）。有一处「变少」是修正不是回归——WEN_01 的「陈」从 18 个 span 变 17 个，少的那个在「陈胜王」内部，原先挂着「古地名，今河南淮阳」本就是错标，现在整段归长短语。
+
+### 11.3 新旧算法逐 span 对照的做法
+
+改匹配规则最怕「顺手改坏了本来对的标注」。做法是在临时测试里把**改造前的算法原样重写一遍**（排序键 + 整串替换 + 占位符回填，约 15 行），对 4 篇真实课文同时跑新旧两版，把 span 的 `(文本, data-def)` 做成多重集合求差：要求 `removed` 恒为空、`added` 逐条肉眼过。本轮验证完即删掉该临时文件，但它值得下次复用——比「断言条数等于某个魔数」结实得多，素材继续补也不会脆。
 
 ## 附：v1 的错误与错在哪
 
