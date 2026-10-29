@@ -360,3 +360,45 @@
   统一走 OSS `images/screens`。
 - `DetailView` 标题、`AdaptQuiz` 选项底图已直接读取扫描图，加载失败回退文字/CSS。
 - 背景与立绘（2.8–18MB）暂不直接渲染，需先做衍生图；说明见 `docs/figma-scan-integration.md`。
+
+---
+
+## [x] 前端覆盖率环境 + 本机工具链 + 23 号位确认 (coverage-python-slot23)
+
+- 目标：把上一批留下的三个「跑不了 / 没确认」口子关掉——前端覆盖率缺 provider、`generate-inventory.py` 没有 python、
+  23 号位归属未确认；另外清掉 `origin` URL 里的明文凭据。
+- 关联文件：见各子功能；细节记在 `docs/maintenance/changelog/changelog-20261029.md` 第四批（CR-20261029-19 ~ 22）。
+  号段从 19 起是因为第三批已占用 16 / 17 / 18，本批与它并行、编号跟着当前 `feature-1` 头顺延。
+- 红线：全程不 `checkout` / 不 `stash` / 不动共享工作区与 HEAD（git plumbing 落提交）；
+  校验在 `git archive` 出的干净树里跑（`mklink /J` 把 `node_modules` 指回仓库）；不碰 `main`。
+- 分支 / commit / PR：`feature-1` 从 `eca26c4` 推到 `3c19c03`（三个 PR 各 6 项检查全绿才合）；
+  本节的文档改动在 PR #223，因与第三批 / #224 追加位置相同冲突两轮，用「把 `feature-1` 头合进本分支 + 人工重排」解决，
+  没有 force-push。
+
+### [x] 前端覆盖率 provider 与阈值 (frontend-coverage-v8)
+
+- 分支 / commit / CI：`feature/quality-gate/frontend-coverage-v8` @ `28cbdd6` → PR #220 → 合并提交 `387b9b3`；CI 6 项全绿。
+- 落点：`@vitest/coverage-v8@4.1.10`（vitest 4 已删 `c8`）+ `vitest.config.ts` 的 `coverage` 段，
+  阈值 statements 14 / functions 16 / branches 11 / lines 14（当时实测 14.93 / 16.76 / 11.49 / 14.09 往下取整）。
+- 未做：CI 的 `quality-check` 仍跑 `npm run test`、**不带 `--coverage`**，阈值只在本地生效；要不要钉进 CI 等你定。
+
+### [x] 23 号位确认为《活板》(slot-23-huoban)
+
+- 分支 / commit / CI：`feature/asset-numbering/slot-23-huoban` @ `845b33b` → PR #221 → `5dfe95c`；CI 6 项全绿。
+- 落点：`NUMBERING_CONFIRMED_POEM_IDS` 与 `poemMap` 加 23，backend / figma-plugin 两份标题表同步，
+  两份素材文档计数跟着改（已确认 24 → 25、待确认 13 → 12、学生可进入 21 → 22）。
+- 校验：本机 `vitest run --coverage` 14 文件 251 例全过、`vue-tsc --build` 0 错误。
+
+### [x] 本机 Python 与资源清单重跑 (python-and-inventory)
+
+- 分支 / commit / CI：`feature/asset-inventory/regenerate-snapshot` @ `02f1b3f` → PR #222 → `3c19c03`；CI 6 项全绿。
+- 本机装 Python 3.12.10（`python -X utf8` 跑，否则中文输出乱码）；输入取自线上 `GET /api/assets/version`
+  （`production_version.json` 未被 git 跟踪，测试环境的 `test_version.json` 因 502 没拿到）。
+- 清单从 2026-08-21 的 1947 资源刷到 6077，标题表由「37 条推测」换成「25 条确认 + 12 条占位」。
+
+### [x] origin remote URL 去掉明文令牌 (remote-url-credential)
+
+- 机器侧改动（`.git/config` + 全局凭据助手），不进仓库：URL 里嵌的就是 `gh` 当前在用的那枚 `gho_` 令牌（sha256 比对确认）。
+- 改法：`gh auth setup-git` 把 `credential.https://github.com.helper` 指向 `gh.exe auth git-credential`，
+  URL 清成 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树已扫不到该令牌字节，fetch / push 均正常。
+- **待你本人做**：轮换那枚令牌（`gh auth refresh-token`，或在 GitHub 设置里撤销后 `gh auth login`）。
