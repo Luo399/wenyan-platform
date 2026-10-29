@@ -237,3 +237,68 @@
 
 - 目标：定义进度数据结构与适配器签名，返回占位数据，后续替换为真实接口。
 - 验收：数据访问走 `src/adapters/` + `src/utils/` 封装，**组件内禁止直接 `fetch('/data/...')`**；补 `tests/adapters/` 单测。
+
+
+---
+
+## [x] 共享工作区积压改动按修复内容拆分入库 (shared-worktree-pr-split)
+
+- 目标：`feature/continue-nav-stuck` 工作区攒了 103 条未提交改动（另一条会话同时在用这个工作区），
+  按「一个修复一个分支一个 PR」拆开依次并入 `feature-1`，不 `checkout` / 不 `stash` / 不动工作区与 HEAD。
+- 关联文件：见各子功能；细节与遗留记在 `docs/maintenance/changelog/changelog-20261029.md` 第二批。
+- 红线：全程 git plumbing 落提交（`read-tree` → `update-index --cacheinfo` LF blob → `write-tree` → `commit-tree` → `update-ref`）；
+  每个 PR 轮询到 6 项检查全绿才 `--merge`；不碰 `main`（`feature-1` → `main` 只走人工审批的 PR #209）。
+- 分支 / commit / CI：见下 8 个子功能；`feature-1` 从 `c7911a3` 推到 `2299edf`。
+
+### [x] 角色门禁支持多角色与 super_admin (auth-role-gate)
+
+- 分支 / commit / CI：`feature/auth-session/super-admin-role` @ `34c4caa` → PR #207 → 合并提交 `e5aa54b`；CI 6 项全绿。
+- 落点：`Role` 加 `super_admin`、`normalizeRequiredRoles` / `isRoleAllowed` 两个纯函数、4 个路由的 `meta.role` 改成集合。
+
+### [x] 教师注册改走 apiService (teacher-register-api)
+
+- 分支 / commit / CI：`feature/auth-session/teacher-register-api` @ `8478a4b` → PR #208 → `d8220fa`；
+  首推 CI 报 `TS2322` + `TS1005`，修返回类型与闭合尖括号后转绿。
+
+### [x] 后端覆盖率范围与阈值 (backend-coverage-thresholds)
+
+- 分支 / commit / CI：`feature/quality-gate/backend-coverage-thresholds` @ `bcf23d9` → PR #210 → `b2a71ff`；CI 6 项全绿。
+- 未做：前端 `test:coverage` 需要 `@vitest/coverage-v8`（vitest 4 已删 `c8`），要改 lockfile，留待决定。
+
+### [x] zod 校验收敛到 middleware/validate (zod-validation-middleware)
+
+- 分支 / commit / CI：`feature/backend-api/zod-validation` @ `62f67ca` → PR #211 → `00c06cd`；CI 6 项全绿。
+- 找回：`backend/src/middleware/validate.js` 被 7 个 controller `require` 但仓库里从来没有，从 `feature/data-dashboard/backend-api` 取回。
+
+### [x] 看板聚合接口移植 (dashboard-api)
+
+- 分支 / commit / CI：`feature/data-dashboard/api` @ `dcdd46c` → PR #212 → `c7911a3`；CI 6 项全绿。
+- 来源：10-23 那条未合并的本地分支；`routes/index.js` 三方合并，未拖入 10-23 的 ClassPicker 改动（已由 PR #200 以另一套实现落库）。
+
+### [x] 看板前端页面与入口 (dashboard-pages)
+
+- 分支 / commit / CI：`feature/data-dashboard/pages` @ `c3d2080` → PR #213 → `4a3e9b4`；CI 6 项全绿。
+- 本机校验：便携 Node + `git archive` 出分支树 + junction 指回 `node_modules`，`vue-tsc --build` 0 错误后才推（首推 8 处 `noUncheckedIndexedAccess` 报错）。
+
+### [x] 编号↔篇目确认表同步后端与插件脚本 (asset-numbering-confirmed)
+
+- 分支 / commit / CI：`feature/asset-inventory/confirmed-numbering` @ `c41ad52` → PR #214 → `d08fca9`；CI 6 项全绿。
+- 未做：`figma-plugin/resource-inventory.json` 仍是旧推测标题的离线快照，本机无 python 重跑不了 `generate-inventory.py`。
+
+### [x] 三份技术文档落库 (tech-docs)
+
+- 分支 / commit / CI：`feature/docs/tech-docs` @ `6635547` → PR #215 → `2299edf`；CI 6 项全绿（含 secret-scan）。
+- 未做：`docs/document_index.csv` 未登记，该表要「创建日期」而这三份没有可靠原始日期。
+
+### 与既有小节的关系（本轮没改动它们的勾选状态）
+
+`admin-credential-management`、`teacher-student-credential`、`student-progress-view` 三节仍是 `[ ]`：
+本轮落的 #212 / #213 是**看板**（聚合指标 + 明细表 + 薄弱题），与这三节的验收口径（账密增删查改、
+越权单测、占位适配层）不是同一件事，不能拿来勾掉。`ci-quality-baseline` 那节记的是转绿工作，
+覆盖率阈值与 zod 收敛属其「改进建议」，同样不回填勾选。
+
+### 故意没提交（工作区里留着）
+
+`NUL`（Windows 重定向垃圾文件）、`tmp-vitest.mjs` / `tmp-vitest-report.json`（临时跑测产物）、
+`.vscode/extensions.json` 的删除（工作区删了推荐扩展，不是仓库决策）、
+`docs/maintenance/release-freshness-plan.md`（`feature-1` 上版本更新，覆盖会回退）。
