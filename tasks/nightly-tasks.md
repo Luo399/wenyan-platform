@@ -408,3 +408,23 @@
 - 改法：`gh auth setup-git` 把 `credential.https://github.com.helper` 指向 `gh.exe auth git-credential`，
   URL 清成 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树已扫不到该令牌字节，fetch / push 均正常。
 - **待你本人做**：轮换那枚令牌（`gh auth refresh-token`，或在 GitHub 设置里撤销后 `gh auth login`）。
+
+---
+
+## [x] main 窗口发布与上线状态回填（PR #226） (main-release-20261029b)
+
+- 目标：把 `feature-1`@`79555e5` 的 18 个提交（PR #220 – #225、第一关选择题 `2a46603`）经人工审批合入 `main`，
+  并回填 changelog 的上线状态与发布事实。
+- 分支 / commit / PR：发布 PR #226（`feature-1` → `main`）于 13:13:32 人工合并为 `main`@`8db7a6e`（`--merge`）；
+  `compare main...feature-1` 为 `ahead_by: 0`，两分支内容一致。回填改动在本分支
+  `feature/maintenance/release-facts-20261029-pm`，纯 `docs/**` + `tasks/**`。
+- CI / 发布：PR 的 `CI Checks` run `40821727685` 六项全绿；`main` push 三条 workflow 全绿 ——
+  Deploy Frontend `40822145669`、Deploy Backend `40822145647`、Sync Figma Plugin `40822145869`。
+- 线上实测：`index.html` build-id = `8db7a6e`；`DetailView-D04MQhuW.js` 引用 `figmaAssets-CE8hWh-2.js`，
+  内含 `WEN_02/summary/article_title_WEN_02.png` / `WEN_02/quiz/option_a_01.png`；
+  `GET /api/assets/inventory` 返回 `"wen_id":"WEN_23","title":"活板"`（后端 23 号位改动已上线）。
+- 回填：changelog 第三批 CR-16 / 17、第四批 CR-19 / 20 改为「已上线（`8db7a6e`）」；CR-21 记「不发布」
+  （清单不在插件同步的 8 文件白名单）；补「发布事实（2026-10-29 下午复核）」一节。
+  回填 PR 不在 deploy `paths` 白名单，合入 `main` 不触发发布。
+- 未纳入本批：`feature/continue-nav-stuck` 的导航失败判定与 OSS 上传链路修复仍未并入 `feature-1`，
+  需先走子分支 PR 再等下一班 `main` 窗口。
