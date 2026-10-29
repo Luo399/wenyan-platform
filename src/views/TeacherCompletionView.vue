@@ -118,6 +118,7 @@ async function loadData(): Promise<void> {
 }
 
 function goBack(): void {
+  // 完成后回到教师后台——auth 流程分支例外，不走 useNavigation
   router.push('/answer-query')
 }
 

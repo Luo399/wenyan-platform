@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+import type { Role } from '@/stores/auth'
+
 // 首屏组件同步加载
 import NewHomeView from '@/views/NewHomeView.vue'
 
@@ -7,8 +9,13 @@ import NewHomeView from '@/views/NewHomeView.vue'
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
-    /** 可选：限定访问角色，如 'admin' / 'teacher' / 'student' */
-    role?: 'admin' | 'teacher' | 'student'
+    /**
+     * 可选：限定访问角色。单个值或数组，数组表示「命中其中任一角色即可」。
+     *
+     * 取值要和后端接口的 requireRole 对齐，否则前端放进去了、
+     * 接口回来 403，页面只剩一片加载失败。
+     */
+    role?: Role | Role[]
   }
 }
 
@@ -97,7 +104,8 @@ export const routes: RouteRecordRaw[] = [
     path: '/answer-query',
     name: 'answer-query',
     component: AnswerQueryView,
-    meta: { requiresAuth: true },
+    // 后端 /api/answers/* 只放 teacher/admin/super_admin，学生进来只会拿到 403
+    meta: { requiresAuth: true, role: ['teacher', 'admin', 'super_admin'] },
   },
   {
     path: '/admin-login',
@@ -108,19 +116,21 @@ export const routes: RouteRecordRaw[] = [
     path: '/admin-console',
     name: 'admin-console',
     component: () => import('@/views/AdminConsoleView.vue'),
-    meta: { requiresAuth: true, role: 'admin' },
+    meta: { requiresAuth: true, role: ['admin', 'super_admin'] },
   },
   {
     path: '/teacher-completion',
     name: 'teacher-completion',
     component: () => import('@/views/TeacherCompletionView.vue'),
-    meta: { requiresAuth: true },
+    // 后端 /api/teacher/completion/* 用 requireRole('teacher')，管理员也不放行
+    meta: { requiresAuth: true, role: 'teacher' },
   },
   {
     path: '/resource-upload',
     name: 'resource-upload',
     component: () => import('@/views/ResourceUploadTool.vue'),
-    meta: { requiresAuth: true },
+    // 后端 /api/upload/resource 用 requireRole(['teacher', 'admin'])
+    meta: { requiresAuth: true, role: ['teacher', 'admin'] },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -139,9 +149,8 @@ const router = createRouter({
   scrollBehavior(to, from, savedPosition) {
     // 浏览器前进/后退：用它自己存的位置，保持原生手感
     if (savedPosition) return savedPosition
-    // 锚点跳转优先
+    // 同一个页面只换篇目（/rules/1 → /rules/2）：留在顶部即可，不必锚点跳转
     if (to.hash) return { el: to.hash, behavior: 'smooth' }
-    // 换页面回到顶部；同一路由只换 :id 时保持现状，别打断正在读的内容
     if (to.name !== from.name) return { top: 0 }
     return false
   },
