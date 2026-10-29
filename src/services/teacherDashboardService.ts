@@ -226,9 +226,10 @@ export async function getTeacherTextMatrix(classCode?: string): Promise<TeacherT
 export async function getTeacherStudents(
   query: StudentQuery = {},
 ): Promise<TeacherStudentsResult> {
+  const pageSize = query.page_size ?? 20
   const params: Record<string, string | number> = {
     page: query.page ?? 1,
-    page_size: query.page_size ?? 20,
+    page_size: pageSize,
     sort: query.sort ?? 'student_id',
     order: query.order ?? 'asc',
   }
@@ -239,7 +240,7 @@ export async function getTeacherStudents(
     res.data || {
       scope: { all_access: false, class_codes: [], requested_class_code: null },
       summary: { student_count: 0, answered_student_count: 0, untouched_student_count: 0, active_students_7d: 0, submissions_7d: 0 },
-      pagination: { page: 1, page_size: params.page_size, total: 0, total_pages: 1 },
+      pagination: { page: 1, page_size: pageSize, total: 0, total_pages: 1 },
       students: [],
     }
   )
