@@ -49,7 +49,7 @@ jobs:
           echo "Files synced successfully"
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           path: wenyan-asset-sync
           token: ${{ secrets.ASSET_SYNC_REPO_TOKEN }}
