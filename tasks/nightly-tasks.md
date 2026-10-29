@@ -361,6 +361,12 @@
 - `DetailView` 标题、`AdaptQuiz` 选项底图已直接读取扫描图，加载失败回退文字/CSS。
 - 背景与立绘（2.8–18MB）暂不直接渲染，需先做衍生图；说明见 `docs/figma-scan-integration.md`。
 
+### [x] Figma 资产接入补测试 (figma-screen-test-coverage)
+
+- 单元 9 例：OSS 地址拼接/编码、HEAD 缓存与并发去重、200/404、目录读取与 null 兜底。
+- 集成 6 例：DetailView 标题图渲染/失败回退/无图回退；AdaptQuiz 四选项底图/无素材回退/答题状态。
+- 全量 19 个文件 274 个用例通过；`vue-tsc` 0 错误；新文件 lint / prettier 通过。
+
 ---
 
 ## [x] 前端覆盖率环境 + 本机工具链 + 23 号位确认 (coverage-python-slot23)
