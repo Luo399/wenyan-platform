@@ -4,9 +4,30 @@
  * GET  /api/ai/quota —— 查询当前配额
  */
 
+const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const logger = require('../utils/logger')
 const aiService = require('../services/aiService')
 const aiAlerts = require('../services/aiAlerts')
+
+// ===== Zod 参数校验 Schema =====
+const aiMessageSchema = z.object({
+  role: z.enum(['user', 'assistant'], {
+    errorMap: () => ({ message: '仅允许 role 为 user 或 assistant' }),
+  }),
+  content: z.string().min(1, 'content 不能为空').max(2000, '单条 content 最长 2000 字符'),
+})
+
+const aiChatSchema = z.object({
+  wenId: z.string().min(1, 'wenId 不能为空').max(100, 'wenId 长度异常'),
+  // zod 默认 strip: true，自动移除 system role 等多余字段
+  messages: z
+    .array(aiMessageSchema, 'messages 必须是数组')
+    .min(1, 'messages 至少包含一条')
+    .max(20, 'messages 最多 20 条'),
+})
+
+// handleZodError 已收敛到 ../middleware/validate.js
 
 const INJECTION_KEYWORDS = [
   '忽略之前的提示',
@@ -45,46 +66,17 @@ async function chat(req, res) {
 
   const studentId = req.user.student_id
 
-  // 2. 请求体校验
-  const body = req.body || {}
+  // 2. 请求体校验（zod 自动 strip system role 等多余字段）
+  let body
+  try {
+    body = aiChatSchema.parse(req.body || {})
+  } catch (err) {
+    return handleZodError(res, err, 'AI 对话参数校验失败')
+  }
+
   const { wenId, messages } = body
 
-  if (typeof wenId !== 'string' || wenId.trim().length === 0) {
-    return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'wenId 不能为空字符串' })
-  }
-
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 必须是非空数组' })
-  }
-
-  if (messages.length > 20) {
-    return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 最多 20 条' })
-  }
-
-  for (const msg of messages) {
-    if (!msg || typeof msg !== 'object') {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'messages 每一项必须是对象' })
-    }
-    // system role 禁止在客户端传入（后端注入）—— 必须先于 role 合法性检查返回专属错误码
-    if (msg.role === 'system') {
-      return res.status(400).json({
-        success: false,
-        error: 'SYSTEM_ROLE_FORBIDDEN',
-        message: '禁止在 messages 中指定 system 角色',
-      })
-    }
-    if (msg.role !== 'user' && msg.role !== 'assistant') {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: '仅允许 role 为 user 或 assistant' })
-    }
-    if (typeof msg.content !== 'string' || msg.content.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: 'content 不能为空字符串' })
-    }
-    if (msg.content.length > 2000) {
-      return res.status(400).json({ success: false, error: 'INVALID_PARAM', message: '单条 content 最长 2000 字符' })
-    }
-  }
-
-  // 3. Prompt injection 检测
+  // 2.5 Prompt injection 检测
   if (detectInjection(messages)) {
     logger.warn('[aiController] Prompt injection 拦截', { studentId })
     return res.status(400).json({
