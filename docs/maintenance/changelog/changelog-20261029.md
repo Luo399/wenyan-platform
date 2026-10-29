@@ -124,10 +124,11 @@
   `.vscode/extensions.json` 的删除（工作区把推荐扩展删了，不是仓库决策）、
   `docs/maintenance/release-freshness-plan.md`（`feature-1` 上已有更新版本，用工作区这份覆盖会回退）。
 - **遗留（不静默绕过）**：
-  前端 `test:coverage` 仍缺 provider——vitest 4 已移除 `c8`，要装 `@vitest/coverage-v8` 并改 lockfile，留给你决定；
-  `figma-plugin/resource-inventory.json` 是脚本离线快照、仍带旧推测标题，本机无 python 跑不了 `generate-inventory.py`，需在装了 python 的机器上重跑；
+  ~~前端 `test:coverage` 仍缺 provider~~——已解决，见「第三批」CR-20261029-16；
+  ~~本机无 python 跑不了 `generate-inventory.py`~~——本机已装 Python 3.12.10，脚本已跑通，清单重跑见 CR-20261029-18；
   `docs/document_index.csv` 未登记 CR-20261029-15 那三份文档，因为该表要求「创建日期」而这三份没有可靠原始日期；
-  内容侧待确认的 13 个号位（20、21、23、28–37）与 23 号位两条未挂载视频，状态不变。
+  内容侧待确认号位当时记 13 个（20、21、23、28–37），**23 已由用户 2026-10-29 确认为《活板》**，剩 12 个，见 CR-20261029-17；
+  23 号位两条卡片视频（`card_paper` / `card_printing`）**仍是孤儿**——挂载障碍只剩「还没生成 `WEN_23.json`」。
 
 ### 发布事实（2026-10-29 中午复核）
 
@@ -149,3 +150,45 @@
   因单元格里改了文案，第一批那张表的 prettier 列对齐已放宽，不影响渲染。
 - **本条发布事实自身**只是 `docs/**` 改动，不在两个 deploy workflow 的 `paths` 白名单里，
   合进 `main` 不会触发任何发布；它先落 `feature-1`，随下一个 `main` 窗口走。
+
+---
+
+## 第三批：覆盖率环境、本机工具链与 23 号位确认（PR #220 – #222）
+
+> 这一批的起因是三个「本机跑不了 / 号位没确认」的口子：前端 `test:coverage` 缺 provider、
+> `generate-inventory.py` 没有 python 可跑、23 号位归属未确认。三者都补上了，另外清了一条凭据外泄。
+
+| 变更编号 | 变更类型 | 影响范围 | 变更描述 | 测试状态 | 上线状态 |
+| --- | --- | --- | --- | --- | --- |
+| CR-20261029-16 | chore | `package.json`、`package-lock.json`、`vitest.config.ts` | 前端覆盖率环境落地：vitest 4 已删 `c8` provider，改装 `@vitest/coverage-v8@4.1.10`（lock 489 → 506 条，只增不减；`ast-v8-to-istanbul` 依赖的 `js-tokens@10` / `estree-walker@3` 按 npm 解析嵌套安装，摊平到顶层会让 `getIgnoreHints` 崩）；`vitest.config.ts` 加 `coverage` 段，阈值按本机实测值往下取整（statements 14.93→14 / functions 16.76→16 / branches 11.49→11 / lines 14.09→14） | 已通过（本机 `vitest run --coverage` 14 文件 250 例全过；CI 6 项） | 未上线（`feature-1`@`387b9b3`，等下一个 `main` 窗口） |
+| CR-20261029-17 | fix | `src/config/poemAssets.ts`、`src/utils/wenUtils.ts`、`src/config/__tests__/poemAssets.test.ts`、`backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 用户确认 **23 号位 = 《活板》**，四处编号表 + 两份文档同步：已确认号位 24 → 25、待确认 13 → 12（20、21、28–37）、学生可进入 21 → 22 篇。旧推测表两头都错（23 写《湖心亭看雪》、37 写《活板》），回归断言拆成两条反向检查。23 号位 4 段 rule 视频线上实测 200，确认即放行 | 已通过（本机 vitest 251 例 + `vue-tsc --build` 0 错误；CI 6 项） | 未上线（`feature-1`@`5dfe95c`，等下一个 `main` 窗口） |
+| CR-20261029-18 | chore | `figma-plugin/resource-inventory.json` | 本机装上 Python 3.12.10 后重跑 `generate-inventory.py`，清单从 2026-08-21 的离线快照刷到当前：输入是 `GET https://api.classicalab.cn/api/assets/version` 的返回（`production_version.json`，未被 git 跟踪），6077 个资源、`lastSyncAt` 2026-09-29；标题表由「37 条推测」换成「25 条确认 + 12 条占位」；状态统计 完整 0 → 14、缺数据文件 8 → 12、缺 OSS 4 → 1、未配置 25 → 10 | 已通过（脚本退出码 0、产物可 `json.load`；CI 6 项） | 未上线（`figma-plugin/**` 不在 deploy 白名单，本就不发布） |
+| CR-20261029-19 | chore | 本机 `.git/config`、`~/.gitconfig`（**不进仓库**） | `origin` 的 remote URL 里嵌着**明文 GitHub 令牌**，经哈希比对确认就是 `gh` 当前在用的那枚（`gho_` 开头、40 字符，sha256 前 12 位一致），不是历史遗留 PAT。改成 `gh auth setup-git` 走凭据助手（全局写入 `credential.https://github.com.helper = '!'C:\Program Files\GitHub CLI\gh.exe' auth git-credential`，指向 Windows 凭据管理器里的 gh 令牌），URL 只留 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树扫描已无该令牌字节，`ls-remote` / `fetch` / `push` 均照常 | 已验证（fetch + 本 PR 的真实 push） | 不适用（机器侧配置） |
+
+### 明细
+
+- **分支 / commit / PR / 合并提交**：
+  `feature/quality-gate/frontend-coverage-v8` @ `28cbdd6` → PR #220（`387b9b3`）；
+  `feature/asset-numbering/slot-23-huoban` @ `845b33b` → PR #221（`5dfe95c`）；
+  `feature/asset-inventory/regenerate-snapshot` @ `02f1b3f` → PR #222（`3c19c03`）。
+  `feature-1` 从 `eca26c4` 推到 `3c19c03`；三个 PR 都是 6 项检查全绿才 `--merge`，分支不删。
+  本条 changelog 与台账自身是 `docs/**` + `tasks/**` 改动，另开一个 PR。
+- **本机校验已经能当发版前的门**：`git archive origin/feature-1` 出干净树 + `mklink /J node_modules` 指回仓库，
+  在树外跑 `vitest run --coverage`（251 例）与 `vue-tsc --build`（0 错误），共享工作区一个字节没动。
+  这批三次 PR 的头两次失败都在本机先复现，没有再靠 CI 来回试。
+- **23 号位「放行」到底改变了什么**：`isPoemReady = hasRuleVideo && isNumberingConfirmed`，
+  两条现在都满足 → 首页选篇多出《活板》。它的八类页面数据 JSON 仍全缺，属于**内容组还没产出**那一类
+  （`public/data/` 里根本没有 `WEN_23.json`，线上 `data/*/WEN_23.json` 404），
+  与「仓库里有、线上没发」（如 `culture_cards/WEN_22.json` 仓库有、线上 200）不是一回事。
+- **仍然没做的**：
+  CI 的 `quality-check` 跑的是 `npm run test`，**不带 `--coverage`**，所以 CR-16 的阈值只在本地 `npm run test:coverage` 生效，
+  要把门槛真正钉进 CI 还得改 workflow（未改，等你定）；
+  23 号位那 2 条孤儿卡片视频仍未挂载（`ORPHAN_CARD_VIDEO_POEM_IDS` 保持 `['23']`），挂载需要新建
+  `public/data/culture_cards/WEN_23.json`，而 `public/data/` 被 .gitignore 忽略、要 `git add -f`，且卡文案得内容组给；
+  `test_version.json` 没拿到——`test-api.classicalab.cn` 的 `/api/assets/version` 当前 502（测试后端没起），
+  所以清单里 `test_last_sync` 仍是 `null`，与被替换的旧快照一致；
+  内容侧还剩 12 个号位待确认、21 张卡的 `knowledge_text` 等复核、08/11 库尔班大叔重复与 08 台标版权未定。
+- **CR-19 的后续动作（需要你本人做）**：那枚令牌在 `.git/config` 里明文躺过、也在本次会话的命令行输出里出现过，
+  虽然它只在你这台机器上，仍建议轮换：`gh auth refresh-token` 或到 `https://github.com/settings/tokens` 撤销后 `gh auth login`。
+  轮换不影响本次改动——远端 URL 已经不含凭据，git 会自己向凭据助手要。
+
