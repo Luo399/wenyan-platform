@@ -161,8 +161,8 @@
 
 | 变更编号       | 变更类型 | 影响范围                                                                                                | 变更描述                                                                                                                                             | 测试状态                         | 上线状态                                      |
 | -------------- | -------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------- |
-| CR-20261029-16 | fix      | `src/views/StepView.vue`、`src/composables/quiz/useQuizFlow.ts`、`src/views/__tests__/StepView.test.ts` | 第二关最后一题提交后解析 dialogue 恢复显示；第一关接入 `level1_quiz` 选择题（A 关题号、`module: A`、统一提交出口），完成记录 key 与后端 `wenId` 解耦 | 已通过（本机 252/252 + CI 6 项） | 已进 `feature-1`（`2a46603`），等 `main` 窗口 |
-| CR-20261029-17 | docs     | `docs/素材使用审计-20261029.md`                                                                         | 按生产 OSS 清单与代码引用交叉审计 Figma 插件产物：6,075 项插件产物运行时引用为 0，真正在用的通用图只有 3 张                                          | 不适用                           | 同左                                          |
+| CR-20261029-16 | fix      | `src/views/StepView.vue`、`src/composables/quiz/useQuizFlow.ts`、`src/views/__tests__/StepView.test.ts` | 第二关最后一题提交后解析 dialogue 恢复显示；第一关接入 `level1_quiz` 选择题（A 关题号、`module: A`、统一提交出口），完成记录 key 与后端 `wenId` 解耦 | 已通过（本机 252/252 + CI 6 项） | 已上线（`8db7a6e`） |
+| CR-20261029-17 | docs     | `docs/素材使用审计-20261029.md`                                                                         | 按生产 OSS 清单与代码引用交叉审计 Figma 插件产物：6,075 项插件产物运行时引用为 0，真正在用的通用图只有 3 张                                          | 不适用                           | 已上线（`8db7a6e`） |
 
 ### CR-20261029-16 第二关末题解析对话 + 第一关选择题
 
@@ -230,6 +230,8 @@
   文本框图等待总结页 schema。逐项原因见 `docs/figma-scan-integration.md`。
 - **校验**：新增 7 个单测（覆盖 37 篇、路径均为 `images/screens` 相对路径、标题取整篇版本、
   URL 拼接与 null 兜底）；生产桶抽 4 条 URL HEAD 200；`vue-tsc` 与改动文件 `eslint` 通过。
+- **上线**：随 PR #226 进 `main`（`8db7a6e`）；生产 `figmaAssets-CE8hWh-2.js` 内含
+  `WEN_02/summary/article_title_WEN_02.png` 与 `WEN_02/quiz/option_a_01.png`，由 `DetailView-D04MQhuW.js` 引用。
 
 ### 遗留与风险（本轮不静默绕过）
 
@@ -253,9 +255,9 @@
 
 | 变更编号       | 变更类型 | 影响范围                                                                                                                                                                                                                           | 变更描述                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 测试状态                                                               | 上线状态                                                   |
 | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
-| CR-20261029-19 | chore    | `package.json`、`package-lock.json`、`vitest.config.ts`                                                                                                                                                                            | 前端覆盖率环境落地：vitest 4 已删 `c8` provider，改装 `@vitest/coverage-v8@4.1.10`（lock 489 → 506 条，只增不减；`ast-v8-to-istanbul` 依赖的 `js-tokens@10` / `estree-walker@3` 按 npm 解析嵌套安装，摊平到顶层会让 `getIgnoreHints` 崩）；`vitest.config.ts` 加 `coverage` 段，阈值按当时本机实测值往下取整（statements 14.93→14 / functions 16.76→16 / branches 11.49→11 / lines 14.09→14）                                                                                       | 已通过（当时本机 `vitest run --coverage` 14 文件 250 例全过；CI 6 项） | 未上线（`feature-1`@`387b9b3`，等下一个 `main` 窗口）      |
-| CR-20261029-20 | fix      | `src/config/poemAssets.ts`、`src/utils/wenUtils.ts`、`src/config/__tests__/poemAssets.test.ts`、`backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 用户确认 **23 号位 = 《活板》**，四处编号表 + 两份文档同步：已确认号位 24 → 25、待确认 13 → 12（20、21、28–37）、学生可进入 21 → 22 篇。旧推测表两头都错（23 写《湖心亭看雪》、37 写《活板》），回归断言拆成两条反向检查。23 号位 4 段 rule 视频线上实测 200，确认即放行                                                                                                                                                                                                            | 已通过（本机 vitest 251 例 + `vue-tsc --build` 0 错误；CI 6 项）       | 未上线（`feature-1`@`5dfe95c`，等下一个 `main` 窗口）      |
-| CR-20261029-21 | chore    | `figma-plugin/resource-inventory.json`                                                                                                                                                                                             | 本机装上 Python 3.12.10 后重跑 `generate-inventory.py`，清单从 2026-08-21 的离线快照刷到当前：输入是 `GET https://api.classicalab.cn/api/assets/version` 的返回（`production_version.json`，未被 git 跟踪），6077 个资源、`lastSyncAt` 2026-09-29；标题表由「37 条推测」换成「25 条确认 + 12 条占位」；状态统计 完整 0 → 14、缺数据文件 8 → 12、缺 OSS 4 → 1、未配置 25 → 10                                                                                                        | 已通过（脚本退出码 0、产物可 `json.load`；CI 6 项）                    | 未上线（`figma-plugin/**` 不在 deploy 白名单，本就不发布） |
+| CR-20261029-19 | chore    | `package.json`、`package-lock.json`、`vitest.config.ts`                                                                                                                                                                            | 前端覆盖率环境落地：vitest 4 已删 `c8` provider，改装 `@vitest/coverage-v8@4.1.10`（lock 489 → 506 条，只增不减；`ast-v8-to-istanbul` 依赖的 `js-tokens@10` / `estree-walker@3` 按 npm 解析嵌套安装，摊平到顶层会让 `getIgnoreHints` 崩）；`vitest.config.ts` 加 `coverage` 段，阈值按当时本机实测值往下取整（statements 14.93→14 / functions 16.76→16 / branches 11.49→11 / lines 14.09→14）                                                                                       | 已通过（当时本机 `vitest run --coverage` 14 文件 250 例全过；CI 6 项） | 已上线（`8db7a6e`）      |
+| CR-20261029-20 | fix      | `src/config/poemAssets.ts`、`src/utils/wenUtils.ts`、`src/config/__tests__/poemAssets.test.ts`、`backend/src/controllers/assetController.js`、`figma-plugin/generate-inventory.py`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 用户确认 **23 号位 = 《活板》**，四处编号表 + 两份文档同步：已确认号位 24 → 25、待确认 13 → 12（20、21、28–37）、学生可进入 21 → 22 篇。旧推测表两头都错（23 写《湖心亭看雪》、37 写《活板》），回归断言拆成两条反向检查。23 号位 4 段 rule 视频线上实测 200，确认即放行                                                                                                                                                                                                            | 已通过（本机 vitest 251 例 + `vue-tsc --build` 0 错误；CI 6 项）       | 已上线（`8db7a6e`）      |
+| CR-20261029-21 | chore    | `figma-plugin/resource-inventory.json`                                                                                                                                                                                             | 本机装上 Python 3.12.10 后重跑 `generate-inventory.py`，清单从 2026-08-21 的离线快照刷到当前：输入是 `GET https://api.classicalab.cn/api/assets/version` 的返回（`production_version.json`，未被 git 跟踪），6077 个资源、`lastSyncAt` 2026-09-29；标题表由「37 条推测」换成「25 条确认 + 12 条占位」；状态统计 完整 0 → 14、缺数据文件 8 → 12、缺 OSS 4 → 1、未配置 25 → 10                                                                                                        | 已通过（脚本退出码 0、产物可 `json.load`；CI 6 项）                    | 不发布（清单不在插件同步的 8 文件白名单；同步 run `40822145869` 成功） |
 | CR-20261029-22 | chore    | 本机 `.git/config`、`~/.gitconfig`（**不进仓库**）                                                                                                                                                                                 | `origin` 的 remote URL 里嵌着**明文 GitHub 令牌**，经哈希比对确认就是 `gh` 当前在用的那枚（`gho_` 开头、40 字符，sha256 前 12 位一致），不是历史遗留 PAT。改成 `gh auth setup-git` 走凭据助手（全局写入 `credential.https://github.com.helper = '!'C:\Program Files\GitHub CLI\gh.exe' auth git-credential`，指向 Windows 凭据管理器里的 gh 令牌），URL 只留 `https://github.com/Luo399/wenyan-platform.git`；`.git/` 全树扫描已无该令牌字节，`ls-remote` / `fetch` / `push` 均照常 | 已验证（fetch + 本 PR 的真实 push）                                    | 不适用（机器侧配置）                                       |
 
 ### 明细
@@ -313,6 +315,26 @@
 - **结果**：全量 `vitest run` 19 个文件 / 274 个用例通过（新增 15 例）；`vue-tsc --build` 0 错误；
   新文件 ESLint / oxlint / prettier 通过。
 - **说明**：测试文件都在 `src/**/__tests__`，走 `vitest.config.ts` 的 include，不需要改配置或依赖。
+
+### 发布事实（2026-10-29 下午复核）
+
+- **PR #226 已把这一批全部带进 `main`**：`feature-1`@`79555e5`（18 个提交：PR #220 – #225、第一关选择题
+  `2a46603`、两轮 changelog 合并）于 13:13:32 人工合并，`main`@`8db7a6e`；
+  `compare main...feature-1` 显示 `ahead_by: 0`，两分支内容一致（只差这条合并提交本身）。
+- **发布前 CI**：PR #226 的 `CI Checks` run `40821727685` 六项全绿
+  （quality-check / backend-check / circular-check / pipeline-test / figma-plugin-check / secret-scan），
+  head 就是 `79555e5`。
+- **`main` push 触发的三条 workflow 全绿**：`Deploy Frontend to Aliyun OSS`（run `40822145669`）、
+  `Deploy Backend to Aliyun Server`（run `40822145647`）、`Sync Figma Plugin to wenyan-asset-sync`（run `40822145869`）。
+- **前端线上实测**：`https://www.classicalab.cn/index.html` 的 build-id 为 `8db7a6e`；entry chunk
+  `index-D4n_tJX2.js` 的懒加载项指向 `DetailView-D04MQhuW.js`，后者 import `figmaAssets-CE8hWh-2.js`
+  （60,471 B），chunk 内可检索到 `WEN_02/summary/article_title_WEN_02.png` 与 `WEN_02/quiz/option_a_01.png`。
+- **后端线上实测**：`GET https://api.classicalab.cn/api/assets/inventory` 返回
+  `{"wen_id":"WEN_23","title":"活板",…}`，CR-20261029-20 的 23 号位改动确实进了生产。
+- **状态回填**：第三批 CR-16 / 17 与第四批 CR-19 / 20 的「等 `main` 窗口」改为「已上线（`8db7a6e`）」；
+  CR-21 的清单文件不在插件同步的 8 文件白名单内，状态改记为「不发布」并注明本次同步 run 成功。
+- **本条发布事实自身**只是 `docs/**` + `tasks/**` 改动，不在 deploy workflow 的 `paths` 白名单里，
+  合进 `main` 不会触发发布。
 
 ---
 

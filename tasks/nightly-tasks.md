@@ -412,6 +412,26 @@
 
 ---
 
+## [x] main 窗口发布与上线状态回填（PR #226） (main-release-20261029b)
+
+- 目标：把 `feature-1`@`79555e5` 的 18 个提交（PR #220 – #225、第一关选择题 `2a46603`）经人工审批合入 `main`，
+  并回填 changelog 的上线状态与发布事实。
+- 分支 / commit / PR：发布 PR #226（`feature-1` → `main`）于 13:13:32 人工合并为 `main`@`8db7a6e`（`--merge`）；
+  `compare main...feature-1` 为 `ahead_by: 0`，两分支内容一致。回填改动在本分支
+  `feature/maintenance/release-facts-20261029-pm`，纯 `docs/**` + `tasks/**`。
+- CI / 发布：PR 的 `CI Checks` run `40821727685` 六项全绿；`main` push 三条 workflow 全绿 ——
+  Deploy Frontend `40822145669`、Deploy Backend `40822145647`、Sync Figma Plugin `40822145869`。
+- 线上实测：`index.html` build-id = `8db7a6e`；`DetailView-D04MQhuW.js` 引用 `figmaAssets-CE8hWh-2.js`，
+  内含 `WEN_02/summary/article_title_WEN_02.png` / `WEN_02/quiz/option_a_01.png`；
+  `GET /api/assets/inventory` 返回 `"wen_id":"WEN_23","title":"活板"`（后端 23 号位改动已上线）。
+- 回填：changelog 第三批 CR-16 / 17、第四批 CR-19 / 20 改为「已上线（`8db7a6e`）」；CR-21 记「不发布」
+  （清单不在插件同步的 8 文件白名单）；补「发布事实（2026-10-29 下午复核）」一节。
+  回填 PR 不在 deploy `paths` 白名单，合入 `main` 不触发发布。
+- 未纳入本批：`feature/continue-nav-stuck` 的导航失败判定与 OSS 上传链路修复仍未并入 `feature-1`，
+  需先走子分支 PR 再等下一班 `main` 窗口。
+
+---
+
 ## [x] 覆盖率门禁进 CI + 23 号位卡片挂载 (ci-coverage-gate-slot23-mount)
 
 - 目标：执行用户两条口径——**「CI 的进 workflow」**把 CR-19 的覆盖率阈值真正接到 CI（此前 CI 跑 `npm run test`，阈值没人执行）；
@@ -572,4 +592,3 @@
   **#238（根 vitest 4 → 5）有 1 条红**。全绿不等于能合——major 的兼容性要按接口面看，不是看测试跑过。
 - 待你定：要不要给三个 npm 生态加 `ignore: update-types: ["version-update:semver-major"]` 只留 minor/patch + 安全更新；
   代价是「CVE 需要 major 才能修」时不会自动开 PR，得人工发起。
-
