@@ -138,20 +138,11 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { debugLog, debugError } from '@/utils/debug'
 import { parseTimeRange, parseSecondsToTime } from '@/utils/timeUtils'
 
-// 段落数据类型定义
-export interface MultiRoleSegment {
-  sentence_index: number
-  time_range: string
-  role_name: string
-  dialogue: string
-}
-
-// 课文数据类型
-export interface MultiRoleData {
-  text_id: string
-  audio_file: string
-  segments: MultiRoleSegment[]
-}
+// 段落/课文数据类型定义
+// 类型放 @/types/multiRole：子组件只 import 类型，若类型写在父组件里
+// 父子组件会形成 import 循环（circular-dependency-scanner 门禁）
+import type { MultiRoleData } from '@/types/multiRole'
+export type { MultiRoleSegment, MultiRoleData } from '@/types/multiRole'
 
 // Props 类型定义
 interface Props {
