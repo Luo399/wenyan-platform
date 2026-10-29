@@ -11,6 +11,8 @@ on:
       - 'trae/agent-*'
       - 'feature/**'
       - 'feature-1'
+      # main 合并后也必须跑 CI，否则主干无门禁
+      - 'main'
     paths:
       - 'src/**'
       - 'backend/**'
@@ -21,6 +23,10 @@ on:
       - 'vitest.config.ts'
       - 'vite.config.ts'
       - '.github/workflows/ci-checks.yml'
+
+# CI 只读仓库内容
+permissions:
+  contents: read
 
 jobs:
   quality-check:
@@ -43,8 +49,11 @@ jobs:
         run: npm run type-check
 
       - name: Lint
-        run: npm run lint
-        continue-on-error: true
+        # 门禁：lint 失败即失败，不再 continue-on-error。
+        # CI 绝不能调用带 --fix 的 lint 脚本（会改写工作区、掩盖问题）。
+        # 等价于 package.json 的 lint:ci（oxlint . && eslint . --cache）；
+        # 若 lint:ci 已存在可替换为 `npm run lint:ci`。
+        run: npx oxlint . && npx eslint . --cache
 
       - name: Run frontend unit tests (vitest)
         run: npm run test

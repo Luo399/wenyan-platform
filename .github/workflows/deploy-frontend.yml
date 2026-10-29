@@ -14,9 +14,18 @@ on:
       - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
 
+# 部署只需要读仓库；不授予写权限
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # 生产部署需要人工批准（GitHub Environment: production）
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -42,16 +51,52 @@ jobs:
           wget https://gosspublic.alicdn.com/ossutil/1.7.18/ossutil64
           chmod +x ossutil64
 
-      - name: Deploy to Aliyun OSS (main bucket)
+      # 缓存策略分组（此前整目录 max-age=31536000, immutable，导致 data/*.json 与
+      # index.html 一年不更新）：
+      #   1) 其余静态资源         → 1 天
+      #   2) dist/assets/**（带 hash）→ 1 年 immutable
+      #   3) dist/data/**          → no-cache（数据更新必须立刻生效）
+      #   4) index.html / favicon.ico / fonts/** → no-cache
+      # 先传「其余」，再用后两组覆盖对应路径，即使 exclude 规则失效，
+      # 最终这些路径的缓存头也会被后传的请求修正。
+      - name: Deploy static files (1 day cache)
         run: |
-          # 先上传所有资源文件（带 hash 的 JS/CSS 等），设置长缓存
           ./ossutil64 cp -r ./dist oss://${{ secrets.OSS_BUCKET }}/ --force \
             -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
             -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
             -e oss-cn-zhongwei.aliyuncs.com \
             --acl public-read \
-            --meta "Cache-Control:public,max-age=31536000"
-          # 再单独上传 index.html，设置不缓存，确保用户总能获取最新版本
+            --exclude "assets/*" \
+            --exclude "data/*" \
+            --exclude "fonts/*" \
+            --exclude "index.html" \
+            --exclude "favicon.ico" \
+            --meta "Cache-Control:public,max-age=86400"
+
+      - name: Deploy hashed assets (1 year immutable)
+        run: |
+          ./ossutil64 cp -r ./dist/assets oss://${{ secrets.OSS_BUCKET }}/assets/ --force \
+            -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
+            -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
+            -e oss-cn-zhongwei.aliyuncs.com \
+            --acl public-read \
+            --meta "Cache-Control:public,max-age=31536000,immutable"
+
+      - name: Deploy data JSON (always revalidate)
+        run: |
+          if [ -d ./dist/data ]; then
+            ./ossutil64 cp -r ./dist/data oss://${{ secrets.OSS_BUCKET }}/data/ --force \
+              -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
+              -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
+              -e oss-cn-zhongwei.aliyuncs.com \
+              --acl public-read \
+              --meta "Cache-Control:no-cache"
+          else
+            echo "dist/data not found, skipping"
+          fi
+
+      - name: Deploy entry files (no-cache)
+        run: |
           ./ossutil64 cp ./dist/index.html oss://${{ secrets.OSS_BUCKET }}/index.html \
             -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
             -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
@@ -59,6 +104,24 @@ jobs:
             --acl public-read \
             --meta "Cache-Control:no-cache" \
             --force
+          if [ -f ./dist/favicon.ico ]; then
+            ./ossutil64 cp ./dist/favicon.ico oss://${{ secrets.OSS_BUCKET }}/favicon.ico \
+              -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
+              -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
+              -e oss-cn-zhongwei.aliyuncs.com \
+              --acl public-read \
+              --meta "Cache-Control:no-cache" \
+              --force
+          fi
+          if [ -d ./dist/fonts ]; then
+            ./ossutil64 cp -r ./dist/fonts oss://${{ secrets.OSS_BUCKET }}/fonts/ \
+              -i ${{ secrets.OSS_ACCESS_KEY_ID }} \
+              -k ${{ secrets.OSS_ACCESS_KEY_SECRET }} \
+              -e oss-cn-zhongwei.aliyuncs.com \
+              --acl public-read \
+              --meta "Cache-Control:no-cache" \
+              --force
+          fi
 
       - name: Deploy internal dashboard to needed-data bucket
         run: |
@@ -82,9 +145,13 @@ jobs:
             tar xzf aliyun-cli-linux-latest-amd64.tgz
             chmod +x aliyun
             ./aliyun configure set --access-key-id ${{ secrets.OSS_ACCESS_KEY_ID }} --access-key-secret ${{ secrets.OSS_ACCESS_KEY_SECRET }} --region cn-zhongwei
-            # 刷新 www 域名的根目录缓存
+            # 根目录 + data/ + index.html：入口与数据必须立即失效
             ./aliyun cdn RefreshObjectCaches --ObjectPath "https://www.classicalab.cn/" --ObjectType Directory || \
-              echo "Warning: CDN refresh failed, user may need to clear browser cache manually"
+              echo "Warning: CDN refresh failed for /"
+            ./aliyun cdn RefreshObjectCaches --ObjectPath "https://www.classicalab.cn/data/" --ObjectType Directory || \
+              echo "Warning: CDN refresh failed for /data/"
+            ./aliyun cdn RefreshObjectCaches --ObjectPath "https://www.classicalab.cn/index.html" --ObjectType File || \
+              echo "Warning: CDN refresh failed for /index.html"
           else
             echo "OSS_ACCESS_KEY_ID not set, skipping CDN cache refresh"
           fi

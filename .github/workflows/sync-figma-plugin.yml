@@ -10,6 +10,10 @@ on:
       - '.github/workflows/sync-figma-plugin.yml'
   workflow_dispatch:
 
+# 只读本仓库；写目标仓库使用 PAT（ASSET_SYNC_REPO_TOKEN），不依赖 GITHUB_TOKEN 权限
+permissions:
+  contents: read
+
 jobs:
   sync:
     runs-on: ubuntu-latest

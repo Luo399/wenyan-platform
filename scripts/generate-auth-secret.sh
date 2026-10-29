@@ -1,44 +1,48 @@
-#!/bin/bash
-# ============================================================
-# HMAC 鉴权密钥生成脚本
-# 用于生成前后端共享的 AUTH_SECRET
-# ============================================================
+#!/usr/bin/env bash
+#
+# generate-auth-secret.sh —— 生成后端 JWT 密钥
+#
+# 鉴权使用 JWT Bearer token，服务端密钥只存在于后端。
+# 本脚本只生成 JWT_SECRET，写入服务器上的 backend/.env。
+#
+# 用法：
+#   bash scripts/generate-auth-secret.sh
+#   JWT_EXPIRES_IN=12h bash scripts/generate-auth-secret.sh   # 仅影响提示文本
 
-set -e
+set -euo pipefail
 
-echo "=== HMAC 鉴权密钥生成脚本 ==="
+if ! command -v openssl >/dev/null 2>&1; then
+  echo "ERROR: 未找到 openssl，请先安装后再运行本脚本" >&2
+  exit 1
+fi
+
+JWT_EXPIRES_IN="${JWT_EXPIRES_IN:-12h}"
+
+echo "=== JWT 密钥生成脚本 ==="
 echo ""
 
 # 生成 256 位（32 字节）的十六进制密钥
-AUTH_SECRET=$(openssl rand -hex 32)
+JWT_SECRET="$(openssl rand -hex 32)"
 
-echo "已生成新的 AUTH_SECRET："
-echo ""
-echo "$AUTH_SECRET"
-echo ""
-
-echo "请将此密钥配置到以下位置："
-echo ""
-echo "【后端】/www/wwwroot/wenyan-platform/backend/.env"
-echo "AUTH_SECRET=$AUTH_SECRET"
-echo ""
-echo "【前端构建时】GitHub Actions Secrets"
-echo "VITE_AUTH_SECRET=$AUTH_SECRET"
-echo ""
-echo "【本地开发】.env.development"
-echo "VITE_AUTH_SECRET=$AUTH_SECRET"
-echo ""
-
-echo "注意："
-echo "1. 此密钥必须前后端保持一致"
-echo "2. 不要将密钥提交到 git 仓库"
-echo "3. 更换密钥后需要重启后端服务：pm2 reload wenyan-backend --update-env"
-echo ""
-
-# 验证密钥格式
-if [[ ! "$AUTH_SECRET" =~ ^[a-f0-9]{64}$ ]]; then
-    echo "警告：生成的密钥格式异常，请重新运行脚本"
-    exit 1
+# 输出前先校验格式，避免把异常值贴进 .env
+if [[ ! "$JWT_SECRET" =~ ^[a-f0-9]{64}$ ]]; then
+  echo "ERROR: 生成的密钥格式异常（应为 64 位十六进制），请重新运行" >&2
+  exit 1
 fi
 
-echo "密钥格式验证通过（64 位十六进制）"
+echo "已生成新的 JWT_SECRET："
+echo ""
+echo "$JWT_SECRET"
+echo ""
+echo "请写入后端 .env（例如服务器 /www/wwwroot/<项目目录>/backend/.env，禁止提交 git）："
+echo ""
+echo "JWT_SECRET=$JWT_SECRET"
+echo "JWT_EXPIRES_IN=$JWT_EXPIRES_IN"
+echo ""
+echo "注意："
+echo "1. 该密钥只属于后端；前端构建不需要、也不允许持有它"
+echo "2. 修改密钥会让所有已签发的登录 token 立即失效"
+echo "3. 写入后重启后端：pm2 reload wenyan-backend --update-env"
+echo "4. 不要将密钥粘贴到聊天、工单或任何会入库的文档里"
+echo ""
+echo "密钥格式校验通过（64 位十六进制）"
