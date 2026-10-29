@@ -208,6 +208,62 @@ function followUpCount(item: RawWordItem): number {
     .length
 }
 
+// ============================================================
+// span ↔ 词条 的追溯判定（与 adapterUtils 的三级策略一一对应）
+//   改造后 span 文本不再必然等于词条原文：剥注音得到「鲦鱼」，标点容错得到
+//   「乃丹书帛曰"陈胜王"」。所以这里问的是"这条 span 能不能追溯回某个词条"，
+//   而不是"span 文本在不在词表里"。
+// ============================================================
+const PAREN_PRON_RE = /[（(][^）)]*[)）]/g
+const CJK_ONE_RE = /[\u4e00-\u9fff]/
+
+function stripPronunciation(word: string): string {
+  return word.replace(PAREN_PRON_RE, '').trim()
+}
+
+/** 只留汉字骨架，用来判定"整段命中的长短语"来自哪条词条 */
+function cjkSkeleton(word: string): string {
+  return Array.from(word)
+    .filter((ch) => CJK_ONE_RE.test(ch))
+    .join('')
+}
+
+/** span 文本能追溯到的词条（可能多条），一个都对不上就是适配器凭空造了个注释 */
+function entriesBehindSpan(spanText: string, rawWords: RawWordItem[]): RawWordItem[] {
+  const text = normalizeQuotes(spanText)
+  const textSkeleton = cjkSkeleton(text)
+  return rawWords.filter((item) => {
+    const word = normalizeQuotes(item.word)
+    if (word === text) return true
+    if (stripPronunciation(word) === text && cjkSkeleton(text).length >= 2) return true
+    return textSkeleton.length >= 4 && cjkSkeleton(word) === textSkeleton
+  })
+}
+
+/** 词条是否已经在正文里成了某个 span（三种命中形态任一即可） */
+function isAnnotated(item: RawWordItem, spanTexts: Set<string>): boolean {
+  const word = normalizeQuotes(item.word)
+  if (spanTexts.has(word)) return true
+  const stripped = stripPronunciation(word)
+  if (stripped !== word && cjkSkeleton(stripped).length >= 2 && spanTexts.has(stripped)) return true
+  const skeleton = cjkSkeleton(word)
+  if (skeleton.length < 4) return false
+  for (const text of spanTexts) if (cjkSkeleton(text) === skeleton) return true
+  return false
+}
+
+/**
+ * 已登记的"这条词条注定成不了 span"清单，按 lesson 记录原始 word：
+ * - 史记 / 马说 / 岳阳楼记：basic_meaning 其实是出处说明，词条是篇名，正文里没有这个词形；
+ * - 食(sì)：单字音注，剥完只剩「食」，而正文里 5 个食只有部分是 sì 读法，全标就是错标。
+ * 新数据再出现清单外的漏标，这个测试会红 ⇒ 逼着当场判断"是匹配策略漏了，还是素材得改"。
+ */
+const KNOWN_UNANNOTATABLE: Record<string, string[]> = {
+  WEN_01: ['史记'],
+  WEN_02: ['马说', '食(sì)'],
+  WEN_03: ['岳阳楼记'],
+}
+
 const REAL_IDS = realTextIds()
 
 describe('真实数据契约（public/data/**）', () => {
@@ -229,7 +285,6 @@ describe('真实数据契约（public/data/**）', () => {
     expect(list.length, `${id} 一个注释都没生成`).toBeGreaterThan(0)
 
     const meanings = new Set(rawWords.map((w) => w.basic_meaning))
-    const knownWords = new Set(rawWords.map((w) => normalizeQuotes(w.word)))
 
     for (const [attrs, wordText] of list) {
       const word = decodeEntities(wordText)
@@ -239,8 +294,13 @@ describe('真实数据契约（public/data/**）', () => {
       // 属性值里没有裸引号/裸尖括号 ⇒ 转义生效，注释再长也不会截断属性
       expect(def).not.toContain('"')
       expect(def).not.toContain('<')
-      expect(knownWords.has(word), `${id} span 文本「${word}」不在词表里`).toBe(true)
-      // data-def 解码后必须逐字等于某条原始释义（长注释不允许被改）
+      // 每条 span 都必须追溯得到词条（原形 / 剥注音 / 标点容错的长短语），
+      // 追溯不到就是适配器凭空造了注释
+      expect(
+        entriesBehindSpan(word, rawWords).length,
+        `${id} span 文本「${word}」对不上任何词条`,
+      ).toBeGreaterThan(0)
+      // 反向也要成立：span 上的释义必须逐字来自某条词条
       expect(meanings.has(decodeEntities(def!)), `${id}/${word} 注释解码后与释义不一致`).toBe(true)
     }
 
@@ -303,5 +363,48 @@ describe('真实数据契约（public/data/**）', () => {
     }
     // 短注释（几字）根本不会触发 max-width/clamp；≥60 字才需要限宽换行
     expect(maxRendered).toBeGreaterThanOrEqual(60)
+  })
+
+  it.each(REAL_IDS)('%s：每条词条要么已成 span，要么在已登记的“标不了”清单里', (id) => {
+    const { rawWords, rawInfo } = loadReal(id)
+    const html = adaptWordList(rawInfo, rawWords).basicInfo.contentHtml
+    const spanTexts = new Set(spans(html).map(([, word]) => decodeEntities(word)))
+    const allowlist = KNOWN_UNANNOTATABLE[id] ?? []
+
+    // 正向：没成 span 的词条必须是登记过的，否则说明匹配策略又漏了一类
+    for (const item of rawWords) {
+      if (!item.word || !item.basic_meaning) continue
+      if (isAnnotated(item, spanTexts)) continue
+      expect(allowlist, `${id}「${item.word}」既没成 span、也不在“标不了”清单里`).toContain(
+        item.word,
+      )
+    }
+
+    // 反向：清单里的条目确实不该有 span（食(sì) 一旦被全量标注，就是错标）
+    for (const word of allowlist) {
+      const item = rawWords.find((w) => w.word === word)
+      expect(item, `${id}“标不了”清单里的「${word}」已不在数据里，请把清单项删掉`).toBeTruthy()
+      expect(isAnnotated(item!, spanTexts), `${id}「${word}」本不该有 span`).toBe(false)
+    }
+  })
+
+  it('注音与标点两类漏标都已被兜住：鲦鱼 / 槽枥 / 外见 / 长短语都能悬停到', () => {
+    const annotated = new Map<string, Set<string>>()
+    for (const id of REAL_IDS) {
+      const { rawWords, rawInfo } = loadReal(id)
+      const html = adaptWordList(rawInfo, rawWords).basicInfo.contentHtml
+      annotated.set(id, new Set(spans(html).map(([, word]) => decodeEntities(word))))
+    }
+    expect(annotated.get('WEN_02')).toContain('槽枥')
+    expect(annotated.get('WEN_02')).toContain('外见')
+    expect(annotated.get('WEN_04')).toContain('鲦鱼')
+    const phrase01 = [...(annotated.get('WEN_01') ?? [])].find((w) =>
+      cjkSkeleton(w).startsWith('乃丹书帛'),
+    )
+    expect(phrase01, 'WEN_01 的「乃丹书帛曰陈胜王」应整段成 span').toBeTruthy()
+    const phrase03 = [...(annotated.get('WEN_03') ?? [])].find((w) =>
+      cjkSkeleton(w).startsWith('其必曰'),
+    )
+    expect(phrase03, 'WEN_03 的「其必曰“……”乎」应整段成 span').toBeTruthy()
   })
 })

@@ -197,3 +197,101 @@ describe('adapterUtils 的基础工具函数', () => {
     expect(getSafe(42, 'a', 9)).toBe(9)
   })
 })
+
+describe('buildContentHtmlWithAnnotations 的三级匹配兜底', () => {
+  /**
+   * 真实 word_list 里有两类词条和正文对不上，只用「词条原文整串替换」就会漏标：
+   * 词条里带括号注音（鲦（tiáo）鱼 / 槽枥(lì)），长短语被标点断开（乃丹书帛曰陈胜王）。
+   * 下面按策略逐级验证，其中「不该标的」比「该标的」更重要。
+   */
+
+  it('一级：词条原文能整串命中时，产出与改造前逐字节一致', () => {
+    const html = buildContentHtmlWithAnnotations('尝与人佣耕', [annotation('尝', '曾经')])
+    expect(html).toBe('<span class="annotated-word" data-def="曾经">尝</span>与人佣耕')
+  })
+
+  it('一级优先：正文里真带括号的写法（阳夏（jiǎ））按原样标注，不降级成剥音形式', () => {
+    const html = buildContentHtmlWithAnnotations('阳夏（jiǎ）人也', [
+      annotation('阳夏（jiǎ）', '古地名，今河南太康'),
+    ])
+    expect(html).toContain('>阳夏（jiǎ）</span>')
+  })
+
+  it('二级：全角括号注音被剥掉，span 显示正文写法、data-def 保留整条释义', () => {
+    const html = buildContentHtmlWithAnnotations('鲦鱼出游从容，是鱼之乐也', [
+      annotation('鲦（tiáo）鱼', '鲦（tiáo）鱼,一种白色小鱼'),
+    ])
+    expect(html).toContain(
+      '<span class="annotated-word" data-def="鲦（tiáo）鱼,一种白色小鱼">鲦鱼</span>',
+    )
+  })
+
+  it('二级：半角括号注音同样能剥（真实数据里两种括号混用）', () => {
+    const html = buildContentHtmlWithAnnotations('骈死于槽枥之间', [
+      annotation('槽枥(lì)', '马槽。'),
+    ])
+    expect(html).toContain('<span class="annotated-word" data-def="马槽。">槽枥</span>')
+  })
+
+  it('二级：剥完只剩一个字的音注绝不标——「食(sì)」会把正文里 5 个食全误标', () => {
+    const html = buildContentHtmlWithAnnotations('食马者不知其能千里而食也', [
+      annotation('食(sì)', '同“饲”，喂。'),
+    ])
+    expect(html).not.toContain('annotated-word')
+    expect(html).toBe('食马者不知其能千里而食也')
+  })
+
+  it('三级：≥4 个汉字的短语允许中间夹标点整段命中，匹配范围止于最后一个汉字', () => {
+    const html = buildContentHtmlWithAnnotations('乃丹书帛曰"陈胜王"，置人所罾鱼腹中', [
+      annotation('乃丹书帛曰陈胜王', '就用丹砂在丝帛上写"陈胜称王"'),
+    ])
+    expect(html).toContain('data-def="就用丹砂在丝帛上写&quot;陈胜称王&quot;">')
+    // 起始的「乃」到结尾的「王」整段进 span，中间那个引号一并包住；段尾的闭引号不属于词条，留在 span 外
+    expect(html).toContain('>乃丹书帛曰&quot;陈胜王</span>&quot;，置人所罾鱼腹中')
+  })
+
+  it('三级：弯引号先规范化再匹配，命中片段里的引号照样被转义', () => {
+    const html = buildContentHtmlWithAnnotations('其必曰：“先天下之忧而忧，后天下之乐而乐”乎', [
+      annotation('其必曰 “先天下之忧而忧，后天下之乐而乐” 乎', '大概一定会说……吧。'),
+    ])
+    // ： 是全角冒号，normalizeQuotes 不动它；“” 被规范成直引号后仍按标点跳过，所以整段命中
+    expect(html).toContain('>其必曰：&quot;先天下之忧而忧，后天下之乐而乐&quot;乎</span>')
+  })
+
+  it('三级：不足 4 个汉字的片段不做标点容错（防止跨句误配）', () => {
+    const html = buildContentHtmlWithAnnotations('丹、书帛', [annotation('丹书帛', '红漆书写')])
+    expect(html).not.toContain('annotated-word')
+  })
+
+  it('三级：非汉字间隔超过 4 个字符就放弃，宁可漏标不可错位跨半篇', () => {
+    const html = buildContentHtmlWithAnnotations('子曰————————学而时习之', [
+      annotation('子曰学而', '老师又说又学'),
+    ])
+    expect(html).not.toContain('annotated-word')
+  })
+
+  it('排序按汉字数而非字符串长度：长语整段优先于其中的短词，不产生嵌套 span', () => {
+    const html = buildContentHtmlWithAnnotations('鲦鱼出游从容', [
+      annotation('鲦（tiáo）鱼', '一种白色小鱼'),
+      annotation('鲦鱼出游从容', '鲦鱼在水中从容地游动'),
+    ])
+    expect(html).toContain('>鲦鱼出游从容</span>')
+    expect(html).not.toContain('>鲦鱼</span>')
+    expect((html.match(/annotated-word/g) || []).length).toBe(1)
+  })
+
+  it('同一短语在正文里出现两次就产出两个 span，占位符之间不互相吞掉', () => {
+    const html = buildContentHtmlWithAnnotations('乃丹书帛曰"陈胜王"，复乃丹书帛曰"陈胜王"', [
+      annotation('乃丹书帛曰陈胜王', '用丹砂在绸子上写陈胜王'),
+    ])
+    expect((html.match(/annotated-word/g) || []).length).toBe(2)
+    expect(html).not.toContain('__ANNOTATION_')
+  })
+
+  it('三级都不命中的条目（篇名类出处，正文里根本没有这个词）不产生 span', () => {
+    const html = buildContentHtmlWithAnnotations('庆历四年春，滕子京谪守巴陵郡', [
+      annotation('岳阳楼记', '选自《范仲淹全集》'),
+    ])
+    expect(html).not.toContain('annotated-word')
+  })
+})

@@ -1,4 +1,5 @@
 const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll } = require('../utils/dbPromise')
 const logger = require('../utils/logger')
@@ -185,15 +186,7 @@ async function createStudent(req, res) {
     }
     res.status(201).json({ success: true, message: `学生添加成功，初始密码 ${DEFAULT_STUDENT_PASSWORD}` })
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.issues.map((i) => i.message).join('；'),
-      })
-    }
-    logger.error('[teacher] 添加学生失败:', err)
-    res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '创建失败' })
+    return handleZodError(res, err, '教师添加学生失败')
   }
 }
 
@@ -257,15 +250,7 @@ async function batchCreateStudents(req, res) {
       },
     })
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.issues.map((i) => i.message).join('；'),
-      })
-    }
-    logger.error('[teacher] 批量添加学生失败:', err)
-    res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '批量创建失败' })
+    return handleZodError(res, err, '教师批量添加学生失败')
   }
 }
 
@@ -294,15 +279,7 @@ async function updateStudent(req, res) {
     ])
     res.status(200).json({ success: true, message: '学生信息更新成功' })
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.issues.map((i) => i.message).join('；'),
-      })
-    }
-    logger.error('[teacher] 更新学生失败:', err)
-    res.status(500).json({ success: false, error: 'DATABASE_ERROR', message: '更新失败' })
+    return handleZodError(res, err, '教师更新学生信息失败')
   }
 }
 

@@ -1,6 +1,7 @@
 # 夜间任务清单
 
 > **格式约定（夜间自动化脚本依赖，请勿改动结构）**
+>
 > - `##` = 父功能，`###` = 子功能；标题行尾的 `(slug)` 为分支名片段（全小写 + 连字符）。
 > - `[ ]` = 未完成，`[x]` = 已完成。完成后在标题下方追加「分支 / commit / CI」记录行。
 > - 分支规则：父功能从 `feature-1` 拉 `feature/<父slug>/main`；子功能从父分支拉 `feature/<父slug>/<子slug>`。
@@ -114,6 +115,28 @@
 
 ---
 
+## [x] Step One 生字注释悬浮层 (step1-word-tooltip)
+
+- 目标：`https://www.classicalab.cn/stepone/{id}` 正文里的 `.annotated-word` 必须悬浮就出注释、长注释不冲出视口，并且这套行为要有拦得住回退的测试。
+- 方案与根因全在 `figma-plugin/docs/step1-word-tooltip-plan.md`（现已到 v5）。
+- 红线：监听器不许写回 `onMounted`——正文容器在 `v-if / v-else-if / v-else` 分支里，组件挂载时那份 JSON 还在加载、节点还不存在；节流只能吃纯数据快照，不能吃 `MouseEvent`（派发结束后 `e.target` 按规范变 `null`）。
+
+### [x] 监听绑定时序 + 节流失效事件修复与测试回退网 (word-tooltip-binding-fix)
+
+- 分支 / commit / CI：`feature/step1/word-tooltip` @ `adc0108`（修复）+ `03df798`（单测 18 → 78 例）；`--no-ff` 并入 `feature-1`（`cced00c`）；同步 `main` 进 `feature-1`（`19492d6`，为满足分支保护的 strict 状态检查）后开 PR #204 → `main`（`850d97b`），6 项检查全绿，`Deploy Frontend to Aliyun OSS` 成功，线上 `meta[name=build-id]` 与页脚都是 `850d97b`。
+- 验收（2026-10-29 线上实测）：4 篇课文共 190 个 `.annotated-word`，逐个派发 `mousemove` 后 **190/190 出浮层、文本与 `data-def` 逐字一致**，光标移到非词节点即收起（每 20–30 个抽查一次）。
+- 本机校验（推翻「本机没有 node 只能靠 CI」这条老前提）：便携 Node 20.18.0 + 仓库现有 `node_modules`，全量 `vitest run` 194/194、`vue-tsc --build` 0 错、`eslint`（只跑改动文件、不带 `--fix`）0 错、`prettier --check` 通过。
+
+### [x] 词条匹配三级兜底：注音与标点不再漏标 (word-list-match-fallback)
+
+- 目标：浮层本身 100% 命中之后，剩下的洞在生成侧——9 条词条压根没变成 span，鼠标再准也命中不了。
+- 分支 / commit：`feature/step1/annotation-matching` @ `5aad28b`（`src/utils/adapterUtils.ts` 三级匹配 + 63 例测试）、本文档所在提交（台账 / 变更记录 / 方案 v5 / 素材清单）。
+- 验收：三级策略（词条原文整串 → 剥括号注音 → ≥4 汉字允许夹标点的长短语）使 鲦鱼 / 槽枥 / 外见 / `乃丹书帛曰"陈胜王"` / `其必曰："…"乎` 共 5 条开始成 span；「食(sì)」与篇名出处（马说 / 岳阳楼记 / 史记）按决策**不标**，登记在 `docs/素材缺失清单.md` 第十一节。span 总数 190 → 194。
+- 事实修正：WEN_01 的「陈」span 18 → 17，少的那个在「陈胜王」内部，原先挂「古地名，今河南淮阳」是错标，现归长短语。
+- 拦回退的方式：`wordListAdapter.test.ts` 里「每条词条要么已成 span，要么在已登记的『标不了』清单里」双向断言——新素材再冒出清单外的漏标就红，清单里的条目一旦被误标（例如放开单字音注）也红。
+
+---
+
 ## [ ] 继续按钮点击延迟优化 (continue-button-latency)
 
 - 目标：统计不同浏览器环境下点击「继续」按钮的响应延迟，并把响应时间优化到 0.5 秒以内。
@@ -214,3 +237,68 @@
 
 - 目标：定义进度数据结构与适配器签名，返回占位数据，后续替换为真实接口。
 - 验收：数据访问走 `src/adapters/` + `src/utils/` 封装，**组件内禁止直接 `fetch('/data/...')`**；补 `tests/adapters/` 单测。
+
+
+---
+
+## [x] 共享工作区积压改动按修复内容拆分入库 (shared-worktree-pr-split)
+
+- 目标：`feature/continue-nav-stuck` 工作区攒了 103 条未提交改动（另一条会话同时在用这个工作区），
+  按「一个修复一个分支一个 PR」拆开依次并入 `feature-1`，不 `checkout` / 不 `stash` / 不动工作区与 HEAD。
+- 关联文件：见各子功能；细节与遗留记在 `docs/maintenance/changelog/changelog-20261029.md` 第二批。
+- 红线：全程 git plumbing 落提交（`read-tree` → `update-index --cacheinfo` LF blob → `write-tree` → `commit-tree` → `update-ref`）；
+  每个 PR 轮询到 6 项检查全绿才 `--merge`；不碰 `main`（`feature-1` → `main` 只走人工审批的 PR #209）。
+- 分支 / commit / CI：见下 8 个子功能；`feature-1` 从 `c7911a3` 推到 `2299edf`。
+
+### [x] 角色门禁支持多角色与 super_admin (auth-role-gate)
+
+- 分支 / commit / CI：`feature/auth-session/super-admin-role` @ `34c4caa` → PR #207 → 合并提交 `e5aa54b`；CI 6 项全绿。
+- 落点：`Role` 加 `super_admin`、`normalizeRequiredRoles` / `isRoleAllowed` 两个纯函数、4 个路由的 `meta.role` 改成集合。
+
+### [x] 教师注册改走 apiService (teacher-register-api)
+
+- 分支 / commit / CI：`feature/auth-session/teacher-register-api` @ `8478a4b` → PR #208 → `d8220fa`；
+  首推 CI 报 `TS2322` + `TS1005`，修返回类型与闭合尖括号后转绿。
+
+### [x] 后端覆盖率范围与阈值 (backend-coverage-thresholds)
+
+- 分支 / commit / CI：`feature/quality-gate/backend-coverage-thresholds` @ `bcf23d9` → PR #210 → `b2a71ff`；CI 6 项全绿。
+- 未做：前端 `test:coverage` 需要 `@vitest/coverage-v8`（vitest 4 已删 `c8`），要改 lockfile，留待决定。
+
+### [x] zod 校验收敛到 middleware/validate (zod-validation-middleware)
+
+- 分支 / commit / CI：`feature/backend-api/zod-validation` @ `62f67ca` → PR #211 → `00c06cd`；CI 6 项全绿。
+- 找回：`backend/src/middleware/validate.js` 被 7 个 controller `require` 但仓库里从来没有，从 `feature/data-dashboard/backend-api` 取回。
+
+### [x] 看板聚合接口移植 (dashboard-api)
+
+- 分支 / commit / CI：`feature/data-dashboard/api` @ `dcdd46c` → PR #212 → `c7911a3`；CI 6 项全绿。
+- 来源：10-23 那条未合并的本地分支；`routes/index.js` 三方合并，未拖入 10-23 的 ClassPicker 改动（已由 PR #200 以另一套实现落库）。
+
+### [x] 看板前端页面与入口 (dashboard-pages)
+
+- 分支 / commit / CI：`feature/data-dashboard/pages` @ `c3d2080` → PR #213 → `4a3e9b4`；CI 6 项全绿。
+- 本机校验：便携 Node + `git archive` 出分支树 + junction 指回 `node_modules`，`vue-tsc --build` 0 错误后才推（首推 8 处 `noUncheckedIndexedAccess` 报错）。
+
+### [x] 编号↔篇目确认表同步后端与插件脚本 (asset-numbering-confirmed)
+
+- 分支 / commit / CI：`feature/asset-inventory/confirmed-numbering` @ `c41ad52` → PR #214 → `d08fca9`；CI 6 项全绿。
+- 未做：`figma-plugin/resource-inventory.json` 仍是旧推测标题的离线快照，本机无 python 重跑不了 `generate-inventory.py`。
+
+### [x] 三份技术文档落库 (tech-docs)
+
+- 分支 / commit / CI：`feature/docs/tech-docs` @ `6635547` → PR #215 → `2299edf`；CI 6 项全绿（含 secret-scan）。
+- 未做：`docs/document_index.csv` 未登记，该表要「创建日期」而这三份没有可靠原始日期。
+
+### 与既有小节的关系（本轮没改动它们的勾选状态）
+
+`admin-credential-management`、`teacher-student-credential`、`student-progress-view` 三节仍是 `[ ]`：
+本轮落的 #212 / #213 是**看板**（聚合指标 + 明细表 + 薄弱题），与这三节的验收口径（账密增删查改、
+越权单测、占位适配层）不是同一件事，不能拿来勾掉。`ci-quality-baseline` 那节记的是转绿工作，
+覆盖率阈值与 zod 收敛属其「改进建议」，同样不回填勾选。
+
+### 故意没提交（工作区里留着）
+
+`NUL`（Windows 重定向垃圾文件）、`tmp-vitest.mjs` / `tmp-vitest-report.json`（临时跑测产物）、
+`.vscode/extensions.json` 的删除（工作区删了推荐扩展，不是仓库决策）、
+`docs/maintenance/release-freshness-plan.md`（`feature-1` 上版本更新，覆盖会回退）。

@@ -21,13 +21,23 @@ import { resetSessionId } from '@/utils/tracking'
 import { resetFirstEnterSet } from '@/composables/useTracking'
 
 /**
+ * 平台角色
+ *
+ * 取值与后端三张账号表的 role 列对齐：students 恒为 'student'，
+ * teachers 恒为 'teacher'，admins 可能是 'admin' 或 'super_admin'
+ * （见 backend/scripts/migrate_auth.js 与 database.js 的种子数据）。
+ * super_admin 早先被漏掉，导致超管登录后过不了角色判断。
+ */
+export type Role = 'student' | 'teacher' | 'admin' | 'super_admin'
+
+/**
  * 用户信息接口
  */
 export interface User {
   id: string
   username: string
   studentId: string
-  role: 'student' | 'teacher' | 'admin'
+  role: Role
 }
 
 /** R35: 后端返回 user 的原始字段（下划线命名） */
@@ -37,7 +47,7 @@ interface RawBackendUser {
   student_name?: string
   student_id?: string
   studentId?: string
-  role?: 'student' | 'teacher' | 'admin'
+  role?: Role
 }
 
 /** R91: 登录/刷新令牌响应的数据结构（替代 unknown 默认推断，恢复类型安全） */
