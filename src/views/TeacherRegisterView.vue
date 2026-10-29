@@ -188,6 +188,7 @@ import ClassPicker from '@/components/ClassPicker.vue'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 import { track } from '@/utils/tracking'
+import { teacherRegister } from '@/services/apiService'
 
 const PHONE_REGEX = /^1[3-9]\d{9}$/
 
@@ -288,36 +289,33 @@ async function handleSubmit(): Promise<void> {
   serverError.value = ''
 
   try {
-    const response = await fetch('/api/auth/teacher/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: name.value.trim(),
-        phone: phone.value.trim(),
-        password: password.value,
-        class_codes: canViewAll.value ? undefined : classCodes.value,
-        can_view_all: canViewAll.value,
-      }),
+    await teacherRegister({
+      name: name.value.trim(),
+      phone: phone.value.trim(),
+      password: password.value,
+      class_codes: canViewAll.value ? undefined : classCodes.value,
+      can_view_all: canViewAll.value,
     })
-
-    const data = await response.json()
-    if (response.ok && data.success) {
-      success.value = true
-      setTimeout(() => {
-        router.push('/teacher-login')
-      }, 2000)
-    } else {
-      serverError.value = data.message || '注册失败，请稍后重试'
-    }
-  } catch (err) {
+    // post() 非 2xx 已由 api.ts 抛 ApiError，到此即为成功
+    success.value = true
+    setTimeout(() => {
+      router.push('/teacher-login')
+    }, 2000)
+  } catch (err: unknown) {
+    // ApiError: 后端返回的业务错误（如手机号已被占用）
+    // 其他: 网络异常（断网/DNS/超时）
+    const message = err instanceof Error ? err.message : '注册失败'
     debugError('教师注册请求失败:', err)
-    serverError.value = '网络异常，请检查网络后重试'
+    serverError.value = message.includes('网络') || message.includes('fetch')
+      ? '网络异常，请检查网络后重试'
+      : message || '注册失败，请稍后重试'
   } finally {
     isSubmitting.value = false
   }
 }
 
 function goBack(): void {
+  // 回登录页——auth 流程分支例外，不走 useNavigation
   router.push('/teacher-login')
 }
 
