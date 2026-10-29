@@ -149,3 +149,75 @@
   因单元格里改了文案，第一批那张表的 prettier 列对齐已放宽，不影响渲染。
 - **本条发布事实自身**只是 `docs/**` 改动，不在两个 deploy workflow 的 `paths` 白名单里，
   合进 `main` 不会触发任何发布；它先落 `feature-1`，随下一个 `main` 窗口走。
+
+---
+
+## 第三批：Step 三关答题闭环与 Figma 资产审计（CR-20261029-16 / 17）
+
+> 甲方两条功能反馈 + 一条资产质询：① 第一关只有字词注释与多角色朗读，要补选择题；
+> ② 第二关第二题答完后，用于讲解答案的 dialogue 不显示；③ Figma 插件扫描上传的东西是否全部用上。
+> 本轮只改前端与文档，不动后端接口、不改内容 JSON 的答案字段。
+
+| 变更编号       | 变更类型 | 影响范围                                                                                                | 变更描述                                                                                                                                             | 测试状态                         | 上线状态                                      |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | --------------------------------------------- |
+| CR-20261029-16 | fix      | `src/views/StepView.vue`、`src/composables/quiz/useQuizFlow.ts`、`src/views/__tests__/StepView.test.ts` | 第二关最后一题提交后解析 dialogue 恢复显示；第一关接入 `level1_quiz` 选择题（A 关题号、`module: A`、统一提交出口），完成记录 key 与后端 `wenId` 解耦 | 已通过（本机 252/252 + CI 6 项） | 已进 `feature-1`（`2a46603`），等 `main` 窗口 |
+| CR-20261029-17 | docs     | `docs/素材使用审计-20261029.md`                                                                         | 按生产 OSS 清单与代码引用交叉审计 Figma 插件产物：6,075 项插件产物运行时引用为 0，真正在用的通用图只有 3 张                                          | 不适用                           | 同左                                          |
+
+### CR-20261029-16 第二关末题解析对话 + 第一关选择题
+
+- **变更类型**：fix（缺陷修复 + 功能补齐）
+- **分支 / commit**：`feature/step12-quiz-fixes` @ `2bfa324`（本地 `5750dd8`，树 `4ac8243` 与服务端逐字节一致）；
+  `--no-ff` 语义并入 `feature-1`（合并提交 `2a46603`）。
+- **分支起点与父分支前移**：子分支从 `feature-1`@`387b9b3` 开出；合并前另一条会话把 PR #221
+  （23 号位《活板》）合进父分支，头变成 `5dfe95c`。比较 `387b9b3...5dfe95c` 的 7 个文件
+  （`assetController.js` / 三份素材文档 / `generate-inventory.py` / `poemAssets.ts` / `wenUtils.ts`）与本次三个文件零重叠，
+  因此合并树以 `5dfe95c` 的树为基线、只替换本次三个 blob，父提交记为 `[5dfe95c, 2bfa324]`。
+- **第二关根因**：`useQuizFlow.submit()` 在最后一题不会把 `currentIndex` 往前推
+  （实测日志 `prevIndex: 0 → newIndex: 0, isCompleted: true`），而 `isQuizBlockVisible()` 用
+  `quizBlockIndices[currentIndex]` 当可见上界；于是「最后一题之后的解析 dialogue」永远 `show=false`。
+  修复为 `step2Flow.isCompleted` 时全部解锁——解析对话本来就是答完才该看的内容，不属于防剧透范围。
+- **第一关做法**：不挂载历史 `Level1Quiz.vue`（它用旧题号 `${wenId}_level1_q{n}` 且直接批量提交），
+  改为 `useDataLoader` 读 `level1_quiz/{WEN}.json` → `adaptLevel1Quiz()`（题号 `WEN_nn_A{n}`、`module A`）
+  → `QuizCard` 逐题渲染 → `useQuizFlow.submit()` 走 `useQuizSubmitter` 单题提交。
+  `normalizeCorrectIndex()` 同时接受字母（`"C"`）、数字与 0 基索引；A 关 JSON 没有 `question_id`，
+  后端 `getCorrectAnswerFromJson()` 查不到，所以提交必须带 `correctAnswer`（已由 `useQuizFlow` 传入）。
+  无数据（WEN_05 起没有 `level1_quiz` 文件）时整段隐藏，不报错、不阻塞「继续」。
+- **完成记录 key 与后端 `wenId` 解耦**：`completionKey` 从 `string` 改为 `MaybeRefOrGetter<string>`，
+  三关分别用 `stepone:`/`steptwo:`/`stepthree:` 前缀，避免 localStorage 完成记录串关；
+  新增可选 `wenId`（`MaybeRefOrGetter`）单独供后端提交，缺省回退 `completionKey` 兼容旧调用。
+  getter 形式同时修掉「切篇后 key 冻结」的旧问题。
+- **测试**：`src/views/__tests__/StepView.test.ts` 两个回归用例。其一用 5 块夹具
+  （dialogue / quiz / dialogue / quiz / dialogue）断言初始末块隐藏、第一题后中间两块显示、第二题后末块显示
+  （修复前此例必红）；其二断言第一关渲染题目与 4 个选项、提交后出现解析与完成态，
+  且 `submitSingleAnswer` 收到 `wenId: WEN_01` / `questionId: WEN_01_A1` / `userAnswer: 2` / `correctAnswer: 2`，
+  `questionId` 不含 `stepone:` 前缀。
+- **本机校验**：便携 Node 20.18.0，全量 `vitest run` 252/252（15 个文件）、`vue-tsc --build` 0 错误、
+  改动文件 `eslint` 0 错误、`oxlint` 0 warning、`prettier --check` 通过。
+- **CI**：子分支 `CI Checks` run `40816371706` 6 项全绿；合并后 `feature-1` 的 `CI Checks` run `40816528148`
+  6 项全绿，`Deploy Frontend to Test OSS` run `40816528133` 成功。
+
+### CR-20261029-17 Figma 扫描资产使用审计
+
+- **变更类型**：docs（审计结论，无代码改动）
+- **结论**：没有全部用上，**运行时使用率接近于零**。插件产物共 6,075 项
+  （`images/screens/**` 6,049 + `data/texts/**` 26，`styles/**` 为空）；生产 OSS 文件合计 7,797 项。
+- **切片**：`images/screens` 按类型为 dialogue 3,026 / quiz 1,741 / video 823 / explanation 224 /
+  summary 162 / cultural_card 73，运行时引用 **0**。唯一有消费逻辑的是 `DialogueCard` 对
+  `icon_dialog` 的 `resolveScreenAsset()` 探测，但现有 25 个 `icon_dialog` 字段全部为空；
+  quiz / explanation / summary / cultural_card / video 五类没有任何组件读取。
+- **通用图**：真正在用的只有 `images/login_bg.png`、`images/general/article_list_bg.png`、
+  `images/general/article_list_title.png` 3 张；`card_scroll.png` 只有注释提到、代码未引用。
+- **数据侧**：`data/texts` 前端与后端运行时均零消费，更像内容组整理页面 JSON 时的文字底稿；
+  `illustration` 8 个字段全空；`image_file` 35 个里 24 个是 mp4（走 `/video/`）、11 个是「文字」占位。
+- **建议**：先标注不急着删；要挂头像先填 `icon_dialog`；题目/解析插图需先定 schema 与渲染位置；
+  把 `data/texts` 明确为内容底稿；加一条发布前「数据字段 → URL → HEAD 200」的资产引用审计。
+  复算命令与分类表见 `docs/素材使用审计-20261029.md`。
+
+### 遗留与风险（本轮不静默绕过）
+
+- **WEN_04 内容矛盾**：`pages_level2_dialog_quiz/WEN_04.json` 的 B2 `correct_answer` 是 `"A"`，
+  但题目后的解析 dialogue 写「答案是B」并解释「以退为进，反守为攻」；B1 则完全没有 `correct_answer`。
+  这是内容数据问题，本轮没有擅自改答案，需内容组确认后修 JSON。
+- **WEN_05 起没有 `level1_quiz` 数据**：第一关选择题会按设计整段隐藏；若后续篇目也要练习，
+  需内容侧补 `public/data/level1_quiz/WEN_xx.json`（当前只有 01–04）。
+- **Figma 切片仍未挂载**：审计只回答「有没有用上」，没有替内容组决定哪些该挂；6,049 张切片仍在生产桶。
