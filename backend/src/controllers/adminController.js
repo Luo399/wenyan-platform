@@ -1,3 +1,5 @@
+const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll, dbTransaction } = require('../utils/dbPromise')
 const logger = require('../utils/logger')
@@ -11,11 +13,37 @@ const {
 } = require('../services/authService')
 
 // 统一格式正则
-// 学号：严格 8 位纯数字
 const STUDENT_ID_REGEX = /^\d{8}$/
-
 // 班级编码：4 位年级 + 2 位班级序号（01-31）
 const CLASS_CODE_REGEX = /^\d{4}(0[1-9]|[1-2]\d|3[0-1])$/
+
+// ===== Zod 参数校验 Schema =====
+const createTeacherSchema = z
+  .object({
+    phone: z.string().min(1, '手机号/用户名必填').max(50, '手机号/用户名过长'),
+    name: z.string().min(1, '姓名必填').max(20, '姓名最长 20 字符'),
+    password: z.string().min(6, '密码长度不能少于 6 位'),
+    school_id: z.number({ required_error: '学校 ID 必填', invalid_type_error: '学校 ID 必须是数字' }),
+    class_codes: z
+      .array(z.string().regex(CLASS_CODE_REGEX, '班级编码格式不正确（应为 4 位年级 + 2 位班级序号）'))
+      .max(50)
+      .optional(),
+    can_view_all: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // can_view_all=true 时不需要具体班级；否则 class_codes 必填且非空
+    if (!data.can_view_all) {
+      if (!data.class_codes || data.class_codes.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '至少选择一个所教班级（6 位数字编码）',
+          path: ['class_codes'],
+        })
+      }
+    }
+  })
+
+// handleZodError 已收敛到 ../middleware/validate.js
 
 // 安全：查询学生时剔除 password_hash（哈希不应暴露给前端）
 const STUDENT_SAFE_COLUMNS =
@@ -312,33 +340,15 @@ async function listPasswordResets(req, res) {
  */
 async function createTeacher(req, res) {
   try {
-    const { phone, name, password, school_id, class_codes, can_view_all } = req.body
+    let body
+    try {
+      body = createTeacherSchema.parse(req.body || {})
+    } catch (err) {
+      return handleZodError(res, err, '创建教师参数校验失败')
+    }
 
-    // 参数校验
-    if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ success: false, error: 'INVALID_PHONE', message: '手机号/用户名必填' })
-    }
-    if (!name || typeof name !== 'string' || name.length > 20) {
-      return res.status(400).json({ success: false, error: 'INVALID_NAME', message: '姓名必填，最长 20 字符' })
-    }
-    if (!password || password.length < 6) {
-      return res.status(400).json({ success: false, error: 'INVALID_PASSWORD', message: '密码长度不能少于 6 位' })
-    }
-    if (!school_id || typeof school_id !== 'number') {
-      return res.status(400).json({ success: false, error: 'INVALID_SCHOOL', message: '学校 ID 必填且为数字' })
-    }
-    // can_view_all=true 时不需要具体班级；否则至少选一个
+    const { phone, name, password, school_id, class_codes, can_view_all } = body
     const isFullAccess = Boolean(can_view_all)
-    if (!isFullAccess) {
-      if (!Array.isArray(class_codes) || class_codes.length === 0) {
-        return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODES', message: '至少选择一个所教班级（6 位数字编码）' })
-      }
-      for (const cc of class_codes) {
-        if (!CLASS_CODE_REGEX.test(cc)) {
-          return res.status(400).json({ success: false, error: 'INVALID_CLASS_CODE', message: `班级编码 ${cc} 不是合法的 6 位编码（格式 YYYYCC，CC 范围 01-31）` })
-        }
-      }
-    }
 
     // 学校是否存在
     const school = await dbGet(db, 'SELECT id FROM schools WHERE id = ?', [school_id])

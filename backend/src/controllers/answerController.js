@@ -1,4 +1,5 @@
 const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const {
   submitAnswers: serviceSubmitAnswers,
   submitSingleAnswer: serviceSubmitSingleAnswer,
@@ -57,21 +58,6 @@ const submitSingleAnswerSchema = z.object({
   submittedAt: z.string().min(1, '提交时间必填').max(40, '提交时间长度异常').optional(),
 })
 
-/** 统一解析 zod 校验错误，转换为 400 VALIDATION_ERROR */
-function parseWithZod(schema, body) {
-  try {
-    return schema.parse(body)
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      const message = err.issues?.[0]?.message || '参数校验失败'
-      const error = new Error(message)
-      error.validationFailed = true
-      throw error
-    }
-    throw err
-  }
-}
-
 // R90 已移除 HMAC 签名校验（AUTH_SECRET/AUTH_ENABLED/generateHmacSignature/verifyHmacSignature）
 // P0: 提交鉴权由路由层 requireAuthMiddleware（JWT Bearer token）强制，禁止匿名提交
 // 旧实现的问题：前端从不发送 signature 字段，导致 AUTH_SECRET 非空时 /api/submit 直接 401
@@ -82,8 +68,8 @@ function parseWithZod(schema, body) {
 
 async function submitAnswers(req, res) {
   try {
-    // P0: zod 白名单校验，多余字段自动丢弃，校验失败抛 validationFailed
-    const body = parseWithZod(submitAnswersSchema, req.body)
+    // P0: zod 白名单校验，多余字段自动丢弃；校验失败直接抛 ZodError → 被 handleZodError 捕获
+    const body = submitAnswersSchema.parse(req.body || {})
 
     const result = await serviceSubmitAnswers({
       studentId: body.studentId,
@@ -100,13 +86,9 @@ async function submitAnswers(req, res) {
       data: result.data,
     })
   } catch (err) {
-    // P0: 校验类错误返回 400，避免被误判为服务端异常
-    if (err.validationFailed) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.message || '参数校验失败',
-      })
+    // zod 校验错误 → 400 VALIDATION_ERROR；其他错误 → 500
+    if (err instanceof z.ZodError) {
+      return handleZodError(res, err)
     }
     logger.error('处理答题批量提交请求失败', {
       error: err.message,
@@ -123,8 +105,8 @@ async function submitAnswers(req, res) {
 
 async function submitSingleAnswer(req, res) {
   try {
-    // P0: zod 白名单校验，多余字段自动丢弃，校验失败抛 validationFailed
-    const body = parseWithZod(submitSingleAnswerSchema, req.body)
+    // P0: zod 白名单校验，多余字段自动丢弃；校验失败直接抛 ZodError
+    const body = submitSingleAnswerSchema.parse(req.body || {})
 
     const result = await serviceSubmitSingleAnswer({
       studentId: body.studentId,
@@ -142,13 +124,8 @@ async function submitSingleAnswer(req, res) {
       data: result,
     })
   } catch (err) {
-    // P0: 校验类错误返回 400，避免被误判为服务端异常
-    if (err.validationFailed) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.message || '参数校验失败',
-      })
+    if (err instanceof z.ZodError) {
+      return handleZodError(res, err)
     }
     logger.error('处理单题提交请求失败', {
       error: err.message,

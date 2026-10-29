@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken')
 const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const config = require('../config/app')
 const { db } = require('../config/database')
 const { dbGet, dbRun, dbAll, dbTransaction } = require('../utils/dbPromise')
@@ -101,7 +102,7 @@ async function studentLogin(req, res) {
       },
     })
   } catch (err) {
-    return handleAuthError(res, err, '学生登录失败')
+    return handleZodError(res, err, '学生登录失败')
   }
 }
 
@@ -154,7 +155,7 @@ async function teacherRegister(req, res) {
       data: { pending: true, teacher_id: result.lastID },
     })
   } catch (err) {
-    return handleAuthError(res, err, '教师注册失败')
+    return handleZodError(res, err, '教师注册失败')
   }
 }
 
@@ -222,7 +223,7 @@ async function teacherLogin(req, res) {
       },
     })
   } catch (err) {
-    return handleAuthError(res, err, '教师登录失败')
+    return handleZodError(res, err, '教师登录失败')
   }
 }
 
@@ -266,7 +267,7 @@ async function adminLogin(req, res) {
       },
     })
   } catch (err) {
-    return handleAuthError(res, err, '管理员登录失败')
+    return handleZodError(res, err, '管理员登录失败')
   }
 }
 
@@ -350,7 +351,7 @@ async function changePassword(req, res) {
 
     res.status(200).json({ success: true, message: '密码修改成功' })
   } catch (err) {
-    return handleAuthError(res, err, '密码修改失败')
+    return handleZodError(res, err, '密码修改失败')
   }
 }
 
@@ -458,26 +459,11 @@ async function refreshToken(req, res) {
       data: { token, user: profile },
     })
   } catch (err) {
-    return handleAuthError(res, err, '刷新令牌失败')
+    return handleZodError(res, err, '刷新令牌失败')
   }
 }
 
-// ===== 工具：统一错误处理 =====
-function handleAuthError(res, err, defaultMsg) {
-  if (err && err instanceof z.ZodError) {
-    return res.status(400).json({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      message: err.issues.map((i) => i.message).join('；'),
-    })
-  }
-  logger.error(defaultMsg + ':', err)
-  return res.status(500).json({
-    success: false,
-    error: 'INTERNAL_ERROR',
-    message: '服务器内部错误',
-  })
-}
+// ===== 工具：handleZodError 已收敛到 ../middleware/validate.js，通过顶部 import 使用 =====
 
 module.exports = {
   studentLogin,
