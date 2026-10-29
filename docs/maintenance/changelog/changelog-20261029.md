@@ -213,6 +213,23 @@
   把 `data/texts` 明确为内容底稿；加一条发布前「数据字段 → URL → HEAD 200」的资产引用审计。
   复算命令与分类表见 `docs/素材使用审计-20261029.md`。
 
+### CR-20261029-18 Figma 扫描资产接入前端
+
+- **变更类型**：feat（`src/config`、`DetailView`、`AdaptQuiz`、脚本、文档）
+- **目录**：新增 `src/config/figmaScreenCatalog.ts`（自动生成），把生产清单里的 6,049 个扫描文件折叠成
+  37 篇 / 775 条「篇目 × 角色」记录；生成脚本 `scripts/gen-figma-screen-catalog.mjs`，
+  输入为 `GET https://api.classicalab.cn/api/assets/oss-list` 的快照。
+- **读取**：`figmaAssets.ts` 新增 `normalizeWenId`、`getWenScreenCatalog` 与
+  title / role / option / textBox / avatar / characterCard 六个 URL 读取函数，
+  统一走 `VITE_OSS_BASE_URL/images/screens/...`；目录来自 OSS 清单，读取时不再逐张 HEAD。
+- **渲染**：`DetailView` 标题改用整篇书法图（`article_title_*`，17–29KB；有图时 `h1` 收进 `.sr-only`，
+  图片 `@error` 回退文字）；`AdaptQuiz` 选项 A–D 使用 `option_a..d_01.png`（4–10KB）作底图，
+  选中/正确/错误态仍由 CSS 覆盖。
+- **未接**：背景/立绘单张 2.8–18MB，需先做 WebP 衍生图；按钮图文字已烘焙；`card_bamboo` 20.8MP 解码过重；
+  文本框图等待总结页 schema。逐项原因见 `docs/figma-scan-integration.md`。
+- **校验**：新增 7 个单测（覆盖 37 篇、路径均为 `images/screens` 相对路径、标题取整篇版本、
+  URL 拼接与 null 兜底）；生产桶抽 4 条 URL HEAD 200；`vue-tsc` 与改动文件 `eslint` 通过。
+
 ### 遗留与风险（本轮不静默绕过）
 
 - **WEN_04 内容矛盾**：`pages_level2_dialog_quiz/WEN_04.json` 的 B2 `correct_answer` 是 `"A"`，
