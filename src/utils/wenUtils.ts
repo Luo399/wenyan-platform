@@ -4,7 +4,7 @@
  * 提供课文相关的公共工具函数，供多个组件和页面复用
  */
 
-import { hasRuleVideo } from '@/config/poemAssets'
+import { ALL_POEM_IDS, isPoemReady } from '@/config/poemAssets'
 
 /**
  * 诗文条目类型
@@ -15,85 +15,90 @@ export interface PoemEntry {
   wenId: string
   /** 纯数字 poemId 字符串，如 '1' */
   poemId: string
-  /** 篇目标题（UI 显示用，长标题做简写处理） */
+  /** 篇目标题（UI 显示用，长标题做简写处理；编号未确认时为「编号待确认」） */
   title: string
   /**
-   * 素材是否已就绪（rule 视频齐备）。
-   * false 时选篇要置灰标「制作中」，不要让学生点进 404 黑屏，
-   * 判据来自 src/config/poemAssets.ts（按 OSS 实测结果维护）。
+   * 素材是否已就绪（rule 视频齐备 **且** 编号对应关系已确认）。
+   * false 时选篇要置灰标「制作中」，不要让学生点进 404 黑屏或播到别的课文，
+   * 判据来自 src/config/poemAssets.ts（按 OSS 实测结果 + 内容组对照表维护）。
    */
   ready: boolean
 }
 
 /**
- * 篇目数据映射
- * 用于根据 poemId 获取篇目标题
- * key 为纯数字字符串（'1' ~ 'n'），顺序与真实 WEN_XX 数据文件一致
- */
-/**
- * 37 篇古文完整映射
- * 按部编版教材顺序排列，与 WEN_01 ~ WEN_37 一一对应
+ * 编号 ↔ 篇目映射（**只收录内容组已确认的号位**，2026-10-28 对照表）
+ * key 为纯数字字符串（'1' ~ 'n'），与 OSS 上素材用的编号一致。
+ *
+ * 历史背景：这张表原先是 37 条，05 往后是按部编版教材顺序**推测**出来的，
+ * 实测与 OSS 上美术/内容侧的编号从 05 起整体错位（旧表把《湖心亭看雪》排在 23，
+ * 确认表里它是 10）。推测值留着等于把素材配错课文，所以整段删掉，
+ * 只保留已确认的 24 个号（01–19、22、24–27）；其余 13 个号（20、21、23、28–37）待确认后加进来。
+ *
+ * 未确认的号位不要凭教材顺序或标题图识别结果补写——书法标题图实测识别错过 6 处
+ * （08 读成「醉翁」实为《咏雪》、22 读成「秋」实为《狼》、24–27 读成
+ * 孟子三章/虽有佳肴/大道之行/鱼我所欲也，实为 送东阳马生序/出师表/三峡/答谢中书书）。
+ *
+ * 标题按 UI 惯例做简写（全称「庄子与惠子游于濠梁之上」存为「庄子与惠子」）。
  */
 export const poemMap: Record<string, { title: string }> = {
-  // 前4篇按 Excel 数据（text_basic_info.json）顺序排列，与 WEN_01~WEN_04 数据文件一致
   '1': { title: '陈涉世家' },
   '2': { title: '马说' },
   '3': { title: '岳阳楼记' },
   '4': { title: '庄子与惠子' },
-  // 后续篇目保持原有相对顺序，暂无数据文件
-  '5': { title: '论语十二章' },
-  '6': { title: '诫子书' },
-  '7': { title: '陋室铭' },
-  '8': { title: '爱莲说' },
-  '9': { title: '孟子三章' },
-  '10': { title: '虽有嘉肴' },
-  '11': { title: '大道之行' },
-  '12': { title: '鱼我所欲也' },
-  '13': { title: '送东阳马生序' },
-  '14': { title: '出师表' },
-  '15': { title: '三峡' },
-  '16': { title: '答谢中书书' },
-  '17': { title: '记承天寺夜游' },
-  '18': { title: '与朱元思书' },
-  '19': { title: '桃花源记' },
-  '20': { title: '小石潭记' },
-  '21': { title: '核舟记' },
-  '22': { title: '醉翁亭记' },
-  '23': { title: '湖心亭看雪' },
-  '24': { title: '孙权劝学' },
-  '25': { title: '卖油翁' },
-  '26': { title: '周亚夫军细柳' },
-  '27': { title: '唐雎不辱使命' },
-  '28': { title: '曹刿论战' },
-  '29': { title: '邹忌讽齐王纳谏' },
-  '30': { title: '穿井得一人' },
-  '31': { title: '杞人忧天' },
-  '32': { title: '愚公移山' },
-  '33': { title: '北冥有鱼' },
-  '34': { title: '咏雪' },
-  '35': { title: '陈太丘与友期行' },
-  '36': { title: '狼' },
-  '37': { title: '活板' },
+  '5': { title: '唐雎不辱使命' },
+  '6': { title: '醉翁亭记' },
+  '7': { title: '周亚夫军细柳' },
+  '8': { title: '咏雪' },
+  '9': { title: '卖油翁' },
+  '10': { title: '湖心亭看雪' },
+  '11': { title: '孙权劝学' },
+  '12': { title: '邹忌讽齐王纳谏' },
+  '13': { title: '曹刿论战' },
+  '14': { title: '《论语》十二章' },
+  '15': { title: '诫子书' },
+  '16': { title: '穿井得一人' },
+  '17': { title: '杞人忧天' },
+  '18': { title: '愚公移山' },
+  '19': { title: '陈太丘与友期行' },
+  '22': { title: '狼' },
+  '24': { title: '送东阳马生序' },
+  '25': { title: '出师表' },
+  '26': { title: '三峡' },
+  '27': { title: '答谢中书书' },
+}
+
+/** 编号未确认的号位在素材上传工具里展示的占位标题 */
+export const UNCONFIRMED_POEM_TITLE = '编号待确认'
+
+function toEntry(poemId: string): PoemEntry {
+  return {
+    poemId,
+    wenId: `WEN_${poemId.padStart(2, '0')}`,
+    title: poemMap[poemId]?.title ?? UNCONFIRMED_POEM_TITLE,
+    ready: isPoemReady(poemId),
+  }
 }
 
 /**
- * 获取全部诗文列表（按 poemId 升序）
- * 供组件 v-for 直接使用，避免硬编码重复维护
+ * 获取全部**已确认篇目**的诗文列表（按 poemId 升序）
+ *
+ * 学生侧选篇用这个：编号没确认的号位不进去，避免点进去播的是别的课文。
  * @returns 按 poemId 升序排列的诗文数组
  */
 export function getAllPoems(): PoemEntry[] {
   // poemMap key 为数字字符串，按升序排序生成稳定的列表顺序
   const sortedKeys = Object.keys(poemMap).sort((a, b) => Number(a) - Number(b))
-  return sortedKeys.map((poemId) => {
-    const entry = poemMap[poemId]
-    return {
-      poemId,
-      wenId: `WEN_${poemId.padStart(2, '0')}`,
-      // entry 由 Object.keys(poemMap) 枚举，必定存在，使用非空断言
-      title: entry!.title,
-      ready: hasRuleVideo(poemId),
-    }
-  })
+  return sortedKeys.map((poemId) => toEntry(poemId))
+}
+
+/**
+ * 获取全部号位（1–37，含编号未确认的号）
+ *
+ * 素材上传/清单类工具用这个：美术是按号交付的，号位本身要能选到，
+ * 只是没确认的号显示「编号待确认」且 ready 为 false。
+ */
+export function getAllPoemSlots(): PoemEntry[] {
+  return ALL_POEM_IDS.map((poemId) => toEntry(poemId))
 }
 
 /**

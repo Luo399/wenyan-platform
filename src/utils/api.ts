@@ -123,6 +123,9 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 通用 request 封装（JSON body）
+ */
 export async function request<T = unknown>(
   url: string,
   config: RequestConfig = {},
@@ -144,6 +147,29 @@ export async function request<T = unknown>(
     }
     throw err
   }
+}
+
+/**
+ * FormData 文件上传 helper
+ * 绕过 buildFetchConfig 的 JSON.stringify + Content-Type 硬编码，
+ * 让浏览器自动处理 multipart/form-data 边界。
+ */
+export async function upload<T = unknown>(
+  url: string,
+  formData: FormData,
+  extraHeaders: Record<string, string> = {},
+): Promise<ApiResponse<T>> {
+  const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
+  const response = await fetch(fullUrl, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      ...extraHeaders,
+      // 注意：不设置 Content-Type，让浏览器自动加 boundary
+    },
+    body: formData,
+  })
+  return handleResponse<T>(response)
 }
 
 /**
