@@ -60,8 +60,13 @@ vi.mock('@/utils/tracking', () => ({
   markNextEnterFromBackButton: vi.fn(),
 }))
 
+const { mockGoNext, mockGoPrev } = vi.hoisted(() => ({
+  mockGoNext: vi.fn(),
+  mockGoPrev: vi.fn(),
+}))
+
 vi.mock('@/composables/useNavigation', () => ({
-  useNavigation: () => ({ goNext: vi.fn(), goPrev: vi.fn() }),
+  useNavigation: () => ({ goNext: mockGoNext, goPrev: mockGoPrev }),
 }))
 
 vi.mock('@/composables/useTracking', () => ({
@@ -153,13 +158,24 @@ const BlockRendererStub = defineComponent({
   `,
 })
 
+const BackContinueStub = defineComponent({
+  name: 'BackContinue',
+  props: {
+    backText: { type: String, default: '返回' },
+    continueText: { type: String, default: '继续' },
+    showContinue: { type: Boolean, default: true },
+  },
+  emits: ['back', 'continue'],
+  template: '<div class="back-continue-stub"></div>',
+})
+
 function mountStep() {
   return mount(StepView, {
     global: {
       stubs: {
         WordList: true,
         MultiRoleReading: true,
-        BackContinue: true,
+        BackContinue: BackContinueStub,
         CultureCards: true,
         PageScaffold: PageScaffoldStub,
         BlockRenderer: BlockRendererStub,
@@ -174,6 +190,8 @@ describe('StepView', () => {
     h.loggedIn = false
     h.pageError = null
     h.loaderUrls.length = 0
+    mockGoNext.mockReset()
+    mockGoPrev.mockReset()
     apiMock.submitSingleAnswer.mockReset()
     apiMock.submitSingleAnswer.mockResolvedValue({})
   })
@@ -193,6 +211,12 @@ describe('StepView', () => {
     expect(wrapper.find('.block-stub').exists()).toBe(false)
     // 三个 loader 的 URL 都应被空串短路，不产生 HTTP 404
     expect(h.loaderUrls.filter((url) => url !== '')).toEqual([])
+
+    // 占位页不得吞掉「继续」：后续关卡可能已经交付
+    const nav = wrapper.findComponent(BackContinueStub)
+    expect(nav.props('showContinue')).toBe(true)
+    nav.vm.$emit('continue')
+    expect(mockGoNext).toHaveBeenCalledTimes(1)
   })
 
   it('第二关页面数据已交付的 WEN_05 不再被第一关缺失挡成「制作中」', async () => {
@@ -212,6 +236,12 @@ describe('StepView', () => {
 
     expect(wrapper.find('.step-not-ready').exists()).toBe(true)
     expect(h.loaderUrls.filter((url) => url !== '')).toEqual([])
+
+    // 第一关缺数据时，第二、三关可能已交付，继续按钮必须仍在且可跳转
+    const nav = wrapper.findComponent(BackContinueStub)
+    expect(nav.props('showContinue')).toBe(true)
+    nav.vm.$emit('continue')
+    expect(mockGoNext).toHaveBeenCalledTimes(1)
   })
 
   it('第二关加载失败时仍保留底部导航（可以返回）', async () => {
