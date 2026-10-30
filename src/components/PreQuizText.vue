@@ -46,6 +46,7 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptScenarioText, getScenarioTextByQuestion } from '@/adapters/scenarioAdapter'
 import type { ProcessedScenarioText, RawScenarioText } from '@/adapters/scenarioAdapter'
 import { debugError } from '@/utils/debug'
+import { getDataUrl } from '@/utils/asset'
 
 interface Props {
   questionNumber?: number
@@ -89,7 +90,7 @@ async function loadData() {
   error.value = null
 
   try {
-    const url = `/data/level3_scenario_text/${props.wenId}.json`
+    const url = getDataUrl('level3_scenario_text', `${props.wenId}.json`)
     const { data: rawData, error: loadError } = useDataLoader<RawScenarioText[]>(() => url)
 
     if (loadError.value) {
