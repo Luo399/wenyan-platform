@@ -100,9 +100,9 @@ describe('StepView.vue（step 3 / stepthree）', () => {
       expect(wrapper.find('.back-btn').text()).toContain('返回')
     })
 
-    it('初始状态不应该显示继续按钮（未答完）', () => {
+    it('未答完也显示继续按钮（文化卡仍只在完成后再出现）', () => {
       const wrapper = mountStep()
-      expect(wrapper.find('.continue-btn').exists()).toBe(false)
+      expect(wrapper.find('.continue-btn').exists()).toBe(true)
     })
 
     it('应该按 items 渲染题目并显示进度', () => {

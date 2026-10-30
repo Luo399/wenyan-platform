@@ -93,6 +93,11 @@
 
   <!-- ========== Step 2: Figma blocks + BlockRenderer + useQuizFlow ========== -->
   <div v-else-if="stepNumber === 2" class="step-2-view">
+    <!--
+      继续常驻：答题是解锁解析/文化卡的条件，不是离开本页的前提。
+      从第一关「制作中」占位页过来的学生不会答第二关的题，若按钮等到
+      全部答完才出现，就永远走不到第三关。
+    -->
     <PageScaffold
       :title="meta?.title || pageConfig?.title || '课文研读'"
       :loading="loading"
@@ -100,7 +105,7 @@
       :is-empty="!pageConfig"
       empty-text="暂无内容"
       :show-navigation="showNavigation"
-      :show-continue="step2Flow.isCompleted.value"
+      :show-continue="true"
       @retry="retry"
       @back="handleGoPrev"
       @continue="handleGoNext"
@@ -127,7 +132,7 @@
       :is-empty="!pageData || pageData.items.length === 0"
       empty-text="暂无测验数据"
       :show-navigation="true"
-      :show-continue="step3Flow.isCompleted.value"
+      :show-continue="true"
       @retry="retryPage"
       @back="handleGoPrev"
       @continue="handleGoNext"
