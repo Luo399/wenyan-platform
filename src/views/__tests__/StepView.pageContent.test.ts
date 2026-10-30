@@ -171,6 +171,20 @@ function letterToIndex(letter: string): number {
   return letter.charCodeAt(0) - 65
 }
 
+/** 读取第二关全部 quiz 的标准答案（按 blocks 顺序） */
+async function readAllLevel2Answers(wenId: string): Promise<string[]> {
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  const raw = fs.readFileSync(
+    path.resolve(process.cwd(), 'public/data/pages_level2_dialog_quiz', `${wenId}.json`),
+    'utf8',
+  )
+  const page = JSON.parse(raw) as RawLevel2Page
+  return page.blocks
+    .filter((block) => block.type === 'quiz')
+    .map((block) => block.data.correct_answer)
+}
+
 describe('StepView + 真实页面数据', () => {
   beforeEach(() => {
     h.route = { name: 'steptwo', params: { id: '05' } }
@@ -219,6 +233,31 @@ describe('StepView + 真实页面数据', () => {
     expect(dialogues[0].props('pre_dialog')).toContain('唐雎：答案是B')
   })
 
+  it('第二关 WEN_05：内容加载后继续键常驻，答题前后都可前进', async () => {
+    const answers = await readAllLevel2Answers('WEN_05')
+    expect(answers).toHaveLength(2)
+
+    const wrapper = mountStep()
+    await flushPromises()
+    const scaffold = wrapper.findComponent(PageScaffoldStub)
+    // 用户 2026-10-30：答题只是解锁解析，不是离开本页的前提
+    expect(scaffold.props('showContinue')).toBe(true)
+
+    async function answerNth(nth: number): Promise<void> {
+      const quiz = wrapper.findAll('.adapt-quiz')[nth]
+      if (!quiz) throw new Error(`第 ${nth + 1} 题未渲染`)
+      await quiz.findAll('.option-btn')[letterToIndex(answers[nth]!)]!.trigger('click')
+      await quiz.find('.submit-btn').trigger('click')
+      await flushPromises()
+    }
+
+    await answerNth(0)
+    expect(scaffold.props('showContinue')).toBe(true)
+
+    await answerNth(1)
+    expect(scaffold.props('showContinue')).toBe(true)
+  })
+
   it('第二关 WEN_27：正确项在 D（换位后），点第四个选项判对', async () => {
     h.route = { name: 'steptwo', params: { id: '27' } }
     const answer = await readAnswer('pages_level2_dialog_quiz', 'WEN_27')
@@ -256,6 +295,8 @@ describe('StepView + 真实页面数据', () => {
 
     expect(wrapper.find('.step-not-ready').exists()).toBe(false)
     expect(wrapper.text()).toContain('唐雎出使秦国归来')
+    // 继续键常驻：第三关答题前也能离开，文化卡仍只在答完后出现
+    expect(wrapper.findComponent(PageScaffoldStub).props('showContinue')).toBe(true)
 
     const card = wrapper.find('.quiz-card')
     expect(card.exists()).toBe(true)

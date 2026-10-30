@@ -21,6 +21,7 @@ import {
   CULTURE_CARD_DATA_POEM_IDS,
   LEVEL2_PAGE_DATA_POEM_IDS,
   LEVEL3_PAGE_DATA_POEM_IDS,
+  MULTI_ROLE_AUDIO_POEM_IDS,
   NUMBERING_CONFIRMED_POEM_IDS,
   ORPHAN_CARD_VIDEO_POEM_IDS,
   TEXT_DATA_POEM_IDS,
@@ -28,6 +29,7 @@ import {
   hasCultureCardData,
   hasLevel2PageData,
   hasLevel3PageData,
+  hasMultiRoleAudio,
   hasRuleVideo,
   hasTextData,
   isNumberingConfirmed,
@@ -39,15 +41,37 @@ describe('poemAssets 编号确认表', () => {
   it('已确认 25 个号：01–19 连续 + 22–27', () => {
     expect(NUMBERING_CONFIRMED_POEM_IDS).toHaveLength(25)
     expect([...NUMBERING_CONFIRMED_POEM_IDS].sort((a, b) => Number(a) - Number(b))).toEqual([
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
-      '11', '12', '13', '14', '15', '16', '17', '18', '19', '22',
-      '23', '24', '25', '26', '27',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      '11',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
+      '17',
+      '18',
+      '19',
+      '22',
+      '23',
+      '24',
+      '25',
+      '26',
+      '27',
     ])
   })
 
   it('poemMap 的 key 与已确认号位完全一致（两张表不许漂移）', () => {
     expect(Object.keys(poemMap).sort((a, b) => Number(a) - Number(b))).toEqual(
-      NUMBERING_CONFIRMED_POEM_IDS
+      NUMBERING_CONFIRMED_POEM_IDS,
     )
   })
 
@@ -67,12 +91,75 @@ describe('poemAssets 编号确认表', () => {
 })
 
 describe('isPoemReady 放行判据', () => {
-  it('文本数据表当前只有 01–04（2026-10-30 线上逐号探测）', () => {
-    expect(TEXT_DATA_POEM_IDS).toEqual(['1', '2', '3', '4'])
+  it('文本数据已覆盖 20 个号位（01–05、07–19、22、23）', () => {
+    expect([...TEXT_DATA_POEM_IDS].sort((a, b) => Number(a) - Number(b))).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '7',
+      '8',
+      '9',
+      '10',
+      '11',
+      '12',
+      '13',
+      '14',
+      '15',
+      '16',
+      '17',
+      '18',
+      '19',
+      '22',
+      '23',
+    ])
     expect(hasTextData('1')).toBe(true)
     expect(hasTextData('WEN_04')).toBe(true)
-    expect(hasTextData('05')).toBe(false)
+    expect(hasTextData('05')).toBe(true)
+    expect(hasTextData('23')).toBe(true)
+    // 06 没有原始文字资源；24–27 的 Figma 资源内嵌编号与确认表冲突，脚本拒绝生成
+    expect(hasTextData('06')).toBe(false)
+    expect(hasTextData('24')).toBe(false)
     expect(hasTextData(undefined)).toBe(false)
+  })
+
+  it('字词/原文 JSON 与常量表一一对应（常量说有就必须真有文件）', () => {
+    for (const dir of ['text_basic_info', 'word_list'] as const) {
+      for (const id of TEXT_DATA_POEM_IDS) {
+        const file = resolve(process.cwd(), 'public/data', dir, `WEN_${id.padStart(2, '0')}.json`)
+        expect(existsSync(file), `${dir}/WEN_${id} 缺失`).toBe(true)
+      }
+      // 反向：目录里除了 01–04 的聚合文件，不应出现未登记号位的页面 JSON
+      const stems = readdirSync(resolve(process.cwd(), 'public/data', dir))
+        .filter((name) => /^WEN_\d{2}\.json$/.test(name))
+        .map((name) => String(Number(name.slice(4, 6))))
+      for (const id of stems) {
+        expect(TEXT_DATA_POEM_IDS, `${dir} 里的 WEN_${id} 未登记`).toContain(id)
+      }
+    }
+  })
+
+  it('音频表是文本表的子集，且每篇都有朗读 JSON 与音频文件名', () => {
+    for (const id of MULTI_ROLE_AUDIO_POEM_IDS) {
+      expect(TEXT_DATA_POEM_IDS, `${id} 有音频但没文本数据`).toContain(id)
+      const file = resolve(
+        process.cwd(),
+        'public/data/multi_role_reading',
+        `WEN_${id.padStart(2, '0')}.json`,
+      )
+      expect(existsSync(file), `multi_role_reading/WEN_${id} 缺失`).toBe(true)
+      const reading = JSON.parse(readFileSync(file, 'utf8'))
+      expect(reading.text_id).toBe(`WEN_${id.padStart(2, '0')}`)
+      expect(reading.audio_file).toMatch(/^WEN_\d{2}_multi_role\.mp3$/)
+      expect(reading.segments.length).toBeGreaterThan(0)
+    }
+    // 13/16/17 音频未交付、14 音频与 WEN_05 内容错配——都不能进音频表
+    for (const id of ['13', '14', '16', '17']) {
+      expect(hasMultiRoleAudio(id), `${id} 的音频不可用，不应放行`).toBe(false)
+    }
+    expect(hasMultiRoleAudio('WEN_05')).toBe(true)
+    expect(hasMultiRoleAudio(undefined)).toBe(false)
   })
 
   it('第二、三关页面数据已覆盖全部 25 个已确认号位', () => {
@@ -112,7 +199,8 @@ describe('isPoemReady 放行判据', () => {
   })
 
   it('文本数据没交付不挡入口（用户 2026-10-30 口径：制作中只拦未确认编号）', () => {
-    for (const id of ['5', '6', '10', '18', '22', '27']) {
+    // 06 无原始文字资源；24–27 的 Figma 资源编号冲突未生成页面 JSON
+    for (const id of ['6', '24', '25', '26', '27']) {
       expect(hasRuleVideo(id)).toBe(true)
       expect(isNumberingConfirmed(id)).toBe(true)
       expect(hasTextData(id)).toBe(false)
@@ -173,9 +261,10 @@ describe('编号 ↔ 篇目映射', () => {
     expect(isNumberingConfirmed('23')).toBe(true)
     expect(getPoemTitle('WEN_23')).toBe('活板')
     // 该号 4 段 rule 视频线上都在（实测 /video/WEN_23_rule_bg|1|2|3.mp4 全 200），
-    // 所以首页可点、规则页可播；文本数据 JSON 还没交付，进页后显示「制作中」占位。
+    // 所以首页可点、规则页可播；文本/字词/朗读已由 Figma 文字资源生成。
     expect(canPlayRuleVideo('23')).toBe(true)
-    expect(hasTextData('23')).toBe(false)
+    expect(hasTextData('23')).toBe(true)
+    expect(hasMultiRoleAudio('23')).toBe(true)
     expect(isPoemReady('23')).toBe(true)
   })
 
@@ -195,7 +284,9 @@ describe('选篇列表与号位列表', () => {
   it('getAllPoems 只返回已确认的 25 篇，按编号升序', () => {
     const poems = getAllPoems()
     expect(poems).toHaveLength(25)
-    expect(poems.map((p) => p.poemId)).toEqual([...NUMBERING_CONFIRMED_POEM_IDS].sort((a, b) => Number(a) - Number(b)))
+    expect(poems.map((p) => p.poemId)).toEqual(
+      [...NUMBERING_CONFIRMED_POEM_IDS].sort((a, b) => Number(a) - Number(b)),
+    )
     expect(poems[0].wenId).toBe('WEN_01')
     expect(poems.every((p) => isNumberingConfirmed(p.poemId))).toBe(true)
   })
@@ -205,12 +296,35 @@ describe('选篇列表与号位列表', () => {
       expect(p.ready).toBe(isPoemReady(p.poemId))
     }
     // 学生侧可见入口 = 编号已确认 ∩ rule 视频齐备。
-    // 文本数据缺失不挡入口（05–27 第一关/详情页显示「制作中」，第二、三关按页面数据独立放行）；
+    // 文本数据缺失不挡入口（06、24–27 第一关/详情页显示「制作中」，第二、三关按页面数据独立放行）；
     // 13/16/17 因 rule 视频未交付被挡。补齐视频后要同步更新这条名单。
-    expect(getAllPoems().filter((p) => p.ready).map((p) => p.wenId)).toEqual([
-      'WEN_01', 'WEN_02', 'WEN_03', 'WEN_04', 'WEN_05', 'WEN_06', 'WEN_07', 'WEN_08',
-      'WEN_09', 'WEN_10', 'WEN_11', 'WEN_12', 'WEN_14', 'WEN_15', 'WEN_18', 'WEN_19',
-      'WEN_22', 'WEN_23', 'WEN_24', 'WEN_25', 'WEN_26', 'WEN_27',
+    expect(
+      getAllPoems()
+        .filter((p) => p.ready)
+        .map((p) => p.wenId),
+    ).toEqual([
+      'WEN_01',
+      'WEN_02',
+      'WEN_03',
+      'WEN_04',
+      'WEN_05',
+      'WEN_06',
+      'WEN_07',
+      'WEN_08',
+      'WEN_09',
+      'WEN_10',
+      'WEN_11',
+      'WEN_12',
+      'WEN_14',
+      'WEN_15',
+      'WEN_18',
+      'WEN_19',
+      'WEN_22',
+      'WEN_23',
+      'WEN_24',
+      'WEN_25',
+      'WEN_26',
+      'WEN_27',
     ])
   })
 

@@ -28,7 +28,13 @@
       <span class="divider-text">音频学习</span>
     </div>
     <section class="audio-section">
+      <!--
+        朗读音频单独降级：文本/字词已交付但音频还没交付（13/16/17 线上 404、
+        14 的 mp3 与 WEN_05 内容错配）时，只把这一块换成占位，
+        不能让整关退回「制作中」——原文和注释本来就是第一关的主体。
+      -->
       <MultiRoleReading
+        v-if="hasAudio"
         :wen-id="wenId"
         :auto-load="true"
         @load-success="debugLog('音频数据加载成功')"
@@ -38,6 +44,10 @@
         @pause="trackModule.trackInteraction('朗读', '暂停', 0)"
         @ended="trackModule.trackInteraction('朗读', '完成', 0)"
       />
+      <div v-else class="audio-pending">
+        <i class="fas fa-headphones audio-pending-icon" aria-hidden="true"></i>
+        <p class="audio-pending-text">朗读音频正在制作中，可先阅读原文和字词注释</p>
+      </div>
     </section>
 
     <!-- 随堂练习：只在 level1_quiz 有数据时出现，缺数据不阻塞继续 -->
@@ -93,6 +103,11 @@
 
   <!-- ========== Step 2: Figma blocks + BlockRenderer + useQuizFlow ========== -->
   <div v-else-if="stepNumber === 2" class="step-2-view">
+    <!--
+      继续常驻：答题是解锁解析/文化卡的条件，不是离开本页的前提。
+      从第一关「制作中」占位页过来的学生不会答第二关的题，若按钮等到
+      全部答完才出现，就永远走不到第三关。
+    -->
     <PageScaffold
       :title="meta?.title || pageConfig?.title || '课文研读'"
       :loading="loading"
@@ -100,7 +115,7 @@
       :is-empty="!pageConfig"
       empty-text="暂无内容"
       :show-navigation="showNavigation"
-      :show-continue="step2Flow.isCompleted.value"
+      :show-continue="true"
       @retry="retry"
       @back="handleGoPrev"
       @continue="handleGoNext"
@@ -127,7 +142,7 @@
       :is-empty="!pageData || pageData.items.length === 0"
       empty-text="暂无测验数据"
       :show-navigation="true"
-      :show-continue="step3Flow.isCompleted.value"
+      :show-continue="true"
       @retry="retryPage"
       @back="handleGoPrev"
       @continue="handleGoNext"
@@ -204,6 +219,7 @@ import {
   ASSET_NOT_READY_TEXT,
   hasLevel2PageData,
   hasLevel3PageData,
+  hasMultiRoleAudio,
   hasTextData,
 } from '@/config/poemAssets'
 import { resolveQuestionId } from '@/utils/questionId'
@@ -236,10 +252,12 @@ const wenId = computed(() => getWenId(poemId.value))
 
 /**
  * 按关卡判断页面数据是否就绪：
- * - 第一关（字词 + 朗读 + 随堂练习）依赖完整文本数据，当前只有 01–04；
+ * - 第一关（字词 + 朗读 + 随堂练习）依赖完整文本数据；2026-10-30 由 Figma 文字资源
+ *   生成后补到 20 个号位（01–05、07–19、22、23），06 与 24–27 仍缺（原因见 poemAssets）；
  * - 第二关只看 pages_level2_dialog_quiz，第三关只看 pages_level3_adaptive_quiz，
  *   2026-10-30 已补齐 05–19、22–27，不能因为第一关/详情页缺数据就被一起挡成「制作中」。
  * 缺数据的关卡直接展示「制作中」占位，不再让 loader 打 404。
+ * 音频另行按 hasMultiRoleAudio 降级，只影响朗读区块。
  */
 const contentReady = computed(() => {
   if (stepNumber.value === 2) return hasLevel2PageData(wenId.value)
@@ -247,6 +265,9 @@ const contentReady = computed(() => {
   return hasTextData(wenId.value)
 })
 const notReadyText = ASSET_NOT_READY_TEXT
+
+/** 第一关朗读音频是否已交付；缺音频只降级音频区块，不影响整关放行 */
+const hasAudio = computed(() => hasMultiRoleAudio(wenId.value))
 
 // R140: 不再传快照值 —— useNavigation 内部实时读当前路由。
 // 旧注释写的「内部自动 unwrap」并不成立：useNavigation 当时只是把参数存进闭包，
@@ -597,6 +618,25 @@ onMounted(() => {
   background-color: var(--color-bg-highlight);
   border-radius: var(--radius-card);
   padding: var(--spacing-md);
+}
+/* 音频未交付时的区块内占位（不替换整关） */
+.step-1-view .audio-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-lg) var(--spacing-md);
+  color: var(--color-text-secondary, #666);
+  text-align: center;
+}
+.step-1-view .audio-pending-icon {
+  font-size: 2rem;
+  opacity: 0.6;
+}
+.step-1-view .audio-pending-text {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-family: var(--font-family-serif);
 }
 
 /* ============ Step 2 样式 ============ */
