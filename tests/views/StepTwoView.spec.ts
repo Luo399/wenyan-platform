@@ -81,9 +81,9 @@ describe('StepView.vue（step 2 / steptwo）', () => {
       expect(wrapper.find('.back-btn').text()).toContain('返回')
     })
 
-    it('未完成答题前不应显示继续按钮', () => {
+    it('未完成答题也显示继续按钮（答题只解锁解析，不拦导航）', () => {
       const wrapper = mountStep()
-      expect(wrapper.find('.continue-btn').exists()).toBe(false)
+      expect(wrapper.find('.continue-btn').exists()).toBe(true)
     })
   })
 
