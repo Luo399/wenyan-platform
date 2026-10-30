@@ -21,7 +21,10 @@ const createTeacherSchema = z
     phone: z.string().min(1, '手机号/用户名必填').max(50, '手机号/用户名过长'),
     name: z.string().min(1, '姓名必填').max(20, '姓名最长 20 字符'),
     password: z.string().min(6, '密码长度不能少于 6 位'),
-    school_id: z.number({ required_error: '学校 ID 必填', invalid_type_error: '学校 ID 必须是数字' }),
+    school_id: z.number({
+      // zod v4 不再读取 required_error / invalid_type_error；用 error 回调保留两种中文提示
+      error: (issue) => (issue.input === undefined ? '学校 ID 必填' : '学校 ID 必须是数字'),
+    }),
     class_codes: z
       .array(z.string().regex(CLASS_CODE_REGEX, '班级编码格式不正确（应为 4 位年级 + 2 位班级序号）'))
       .max(50)
@@ -33,7 +36,7 @@ const createTeacherSchema = z
     if (!data.can_view_all) {
       if (!data.class_codes || data.class_codes.length === 0) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           message: '至少选择一个所教班级（6 位数字编码）',
           path: ['class_codes'],
         })
