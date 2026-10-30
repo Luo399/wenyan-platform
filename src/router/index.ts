@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-import type { Role } from '@/stores/auth'
+import type { Role } from '@/types/auth'
+import { ADMIN_ROLES, STAFF_ROLES } from '@/utils/roles'
 
 // 首屏组件同步加载
 import NewHomeView from '@/views/NewHomeView.vue'
@@ -14,8 +15,10 @@ declare module 'vue-router' {
      *
      * 取值要和后端接口的 requireRole 对齐，否则前端放进去了、
      * 接口回来 403，页面只剩一片加载失败。
+     * 多角色的组合优先用 utils/roles 的 ADMIN_ROLES / STAFF_ROLES，
+     * 不要在路由表里重打一遍角色名。
      */
-    role?: Role | Role[]
+    role?: Role | readonly Role[]
   }
 }
 
@@ -105,7 +108,7 @@ export const routes: RouteRecordRaw[] = [
     name: 'answer-query',
     component: AnswerQueryView,
     // 后端 /api/answers/* 只放 teacher/admin/super_admin，学生进来只会拿到 403
-    meta: { requiresAuth: true, role: ['teacher', 'admin', 'super_admin'] },
+    meta: { requiresAuth: true, role: STAFF_ROLES },
   },
   {
     path: '/admin-login',
@@ -116,13 +119,13 @@ export const routes: RouteRecordRaw[] = [
     path: '/admin-console',
     name: 'admin-console',
     component: () => import('@/views/AdminConsoleView.vue'),
-    meta: { requiresAuth: true, role: ['admin', 'super_admin'] },
+    meta: { requiresAuth: true, role: ADMIN_ROLES },
   },
   {
     path: '/admin-dashboard',
     name: 'admin-dashboard',
     component: () => import('@/views/AdminDashboardView.vue'),
-    meta: { requiresAuth: true, role: ['admin', 'super_admin'] },
+    meta: { requiresAuth: true, role: ADMIN_ROLES },
   },
   {
     path: '/teacher-completion',
@@ -143,7 +146,7 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/ResourceUploadTool.vue'),
     // 路由层放开 super_admin（其权限含 admin）；后端 /api/upload/resource
     // 已同步为 requireRole(['teacher', 'admin', 'super_admin'])，两侧口径一致
-    meta: { requiresAuth: true, role: ['teacher', 'admin', 'super_admin'] },
+    meta: { requiresAuth: true, role: STAFF_ROLES },
   },
   {
     path: '/:pathMatch(.*)*',

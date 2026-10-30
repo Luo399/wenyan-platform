@@ -347,7 +347,8 @@ import {
 } from '@/services/studentService'
 import { resetTeacherPassword } from '@/services/adminService'
 import { debugError } from '@/utils/debug'
-import { useAuthStore, type Role } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
+import { isAdminRole, isTeacherRole } from '@/utils/roles'
 import StudentTable from '@/components/StudentTable.vue'
 import AnswerTable from '@/components/AnswerTable.vue'
 import StudentFormModal from '@/components/StudentFormModal.vue'
@@ -383,15 +384,11 @@ const TOAST_DURATION_MS = 3000 as const
 /** 当前登录的 auth store */
 const authStore = useAuthStore()
 
-/** 管理员侧入口：后端 adminAuth 同时放 admin 与 super_admin，这里要对齐 */
-const ADMIN_ROLES: Role[] = ['admin', 'super_admin']
-const isAdmin = computed(() => {
-  const role = authStore.user?.role
-  return !!role && ADMIN_ROLES.includes(role)
-})
+/** 管理员侧入口：后端 adminAuth 同时放 admin 与 super_admin，判定用 utils/roles */
+const isAdmin = computed(() => isAdminRole(authStore.user?.role))
 
 /** 教师侧入口：数据看板与学生完成情况的后端接口只认 teacher */
-const isTeacher = computed(() => authStore.user?.role === 'teacher')
+const isTeacher = computed(() => isTeacherRole(authStore.user?.role))
 
 // ============================================================
 // 基础状态
