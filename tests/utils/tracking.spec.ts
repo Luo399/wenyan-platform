@@ -13,6 +13,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // mock 依赖，避免模块加载时的副作用和 pinia 依赖
+// 解耦后 tracking 不再 import stores/auth，而是读 AuthBridge
+// （auth store 实例化时注册）。所以下面不再 mock store，
+// 直接用真实 pinia + 真实 store 驱动「未登录 / 已登录」两条分支。
 vi.mock('@/utils/api', () => ({
   post: vi.fn().mockResolvedValue(undefined),
 }))
@@ -20,13 +23,6 @@ vi.mock('@/utils/api', () => ({
 vi.mock('@/utils/debug', () => ({
   debugLog: vi.fn(),
   debugWarn: vi.fn(),
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    isLoggedIn: false,
-    user: null,
-  }),
 }))
 
 // 必须在 mock 之后 import
@@ -43,6 +39,8 @@ import {
   trackSessionStart,
 } from '@/utils/tracking'
 import { post } from '@/utils/api'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
 
 const mockPost = vi.mocked(post)
 
@@ -203,11 +201,34 @@ describe('tracking - track 函数', () => {
   })
 
   it('未登录时 user_id 为空字符串', async () => {
+    // 新 pinia 实例、还没创建过 auth store → AuthBridge 为 null
+    setActivePinia(createPinia())
+
     track('step_enter', 'step1')
     vi.advanceTimersByTime(500)
 
     const callArgs = mockPost.mock.calls[0][1] as { events: Array<Record<string, unknown>> }
     expect(callArgs.events[0].user_id).toBe('')
+  })
+
+  it('登录态下 user_id 取学号（走 AuthBridge，不是 tracking 自己读 store）', async () => {
+    // 迁移前这段判断在 track() 与 session_end 里各抄了一份，
+    // 这里把「登录 ⇒ events[0].user_id === studentId」钉住，防止解耦时改错取值优先级
+    setActivePinia(createPinia())
+    const authStore = useAuthStore()
+    authStore.token = 'jwt-token'
+    authStore.user = {
+      id: '2024009',
+      username: '李四',
+      studentId: '2024009',
+      role: 'student',
+    }
+
+    track('step_enter', 'step1')
+    vi.advanceTimersByTime(500)
+
+    const callArgs = mockPost.mock.calls[0][1] as { events: Array<Record<string, unknown>> }
+    expect(callArgs.events[0].user_id).toBe('2024009')
   })
 
   it('连续多次 track 在 500ms 内合并为一次批量发送', async () => {
