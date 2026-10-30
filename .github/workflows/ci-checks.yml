@@ -1,5 +1,9 @@
 name: CI Checks
 
+# Node 版本单一来源：仓库根 .nvmrc（本文件与两个前端部署工作流都用
+# node-version-file 读取，与 Dockerfile 的 node:22-slim 对齐）。
+# 改版本只改 .nvmrc 一处。
+
 on:
   workflow_dispatch:
   pull_request:
@@ -39,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -50,10 +54,9 @@ jobs:
 
       - name: Lint
         # 门禁：lint 失败即失败，不再 continue-on-error。
-        # CI 绝不能调用带 --fix 的 lint 脚本（会改写工作区、掩盖问题）。
-        # 等价于 package.json 的 lint:ci（oxlint . && eslint . --cache）；
-        # 若 lint:ci 已存在可替换为 `npm run lint:ci`。
-        run: npx oxlint . && npx eslint . --cache
+        # 必须走 package.json 的 lint:ci（= oxlint . && eslint . --cache，都不带 --fix）：
+        # 之前这里内联了一份等价命令，改 lint 参数要同时改两处，必然漂移。
+        run: npm run lint:ci
 
       - name: Run frontend unit tests with coverage gate (vitest)
         # 2026-10-29：覆盖率门槛从「只在本机 npm run test:coverage 生效」挪进 CI。
@@ -83,7 +86,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -119,7 +122,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install circular-dep scanner
@@ -171,7 +174,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: figma-plugin/package-lock.json
 
