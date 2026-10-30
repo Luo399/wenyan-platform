@@ -28,7 +28,7 @@
 
 import { post } from '@/utils/api'
 import { debugLog, debugWarn } from '@/utils/debug'
-import { useAuthStore } from '@/stores/auth'
+import { activeAuthBridge } from '@/utils/authBridge'
 
 // ============================================================
 // session_id 管理
@@ -78,6 +78,18 @@ export function isFirstEnter(stepId: string): boolean {
   if (firstEnterSet.has(stepId)) return false
   firstEnterSet.add(stepId)
   return true
+}
+
+/**
+ * 埋点事件里的 user_id：登录态下取学号，否则空串。
+ *
+ * 原来这段判断在 track() 与 session_end 两处各抄了一遍（8 行 × 2），
+ * 且都直接 `useAuthStore()`，让 utils 反向依赖 store。现在只有一份，
+ * 并通过 AuthBridge 读取——桥为 null（Pinia 未就绪 / 该实例未建过 auth store）
+ * 时返回空串，与原 try/catch 兜底一致。
+ */
+function currentUserId(): string {
+  return activeAuthBridge()?.getUserId() ?? ''
 }
 
 /**
@@ -247,15 +259,7 @@ export function track(
   immediate = false,
 ): void {
   try {
-    let userId = ''
-    try {
-      const authStore = useAuthStore()
-      if (authStore.isLoggedIn && authStore.user) {
-        userId = authStore.user.studentId || authStore.user.id || ''
-      }
-    } catch {
-      // Pinia 未就绪时使用空 user_id
-    }
+    const userId = currentUserId()
 
     const event: TrackEvent = {
       event_type: eventType,
@@ -341,15 +345,7 @@ if (typeof window !== 'undefined') {
     // beforeunload 中异步 fetch 会被浏览器中止，必须走 sendBeacon
     // 将 session_end 加入 buffer，由 flushOnUnload 统一用 sendBeacon 发送
     try {
-      let userId = ''
-      try {
-        const authStore = useAuthStore()
-        if (authStore.isLoggedIn && authStore.user) {
-          userId = authStore.user.studentId || authStore.user.id || ''
-        }
-      } catch {
-        // Pinia 未就绪
-      }
+      const userId = currentUserId()
       eventBuffer.push({
         event_type: 'session_end',
         user_id: userId,

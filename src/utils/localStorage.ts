@@ -14,7 +14,7 @@
 // ============================================================
 
 import { debugLog } from './debug'
-import type { User } from '@/stores/auth'
+import type { User } from '@/types/auth'
 
 /** localStorage key 前缀：答题记录 */
 const STORAGE_KEY_PREFIX_QUIZ = 'quiz_records_'

@@ -12,33 +12,24 @@
  * R36: 移除 response.data! 非空断言，改用 ?. + 显式 null 检查
  */
 
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { ref, computed } from 'vue'
 import { post, ApiError } from '@/utils/api'
+import { registerAuthBridge } from '@/utils/authBridge'
+import type { Role, User } from '@/types/auth'
 import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
 import type { AuthPersistTarget } from '@/utils/localStorage'
 import { resetSessionId } from '@/utils/tracking'
 
 /**
- * 平台角色
+ * 平台角色 / 用户信息
  *
- * 取值与后端三张账号表的 role 列对齐：students 恒为 'student'，
- * teachers 恒为 'teacher'，admins 可能是 'admin' 或 'super_admin'
- * （见 backend/scripts/migrate_auth.js 与 database.js 的种子数据）。
- * super_admin 早先被漏掉，导致超管登录后过不了角色判断。
+ * 权威定义在 `src/types/auth.ts`：`utils/localStorage.ts` 也按同一份契约读写
+ * 登录态，类型留在本文件会让 utils 反向 import store。这里 re-export 是为了
+ * 已有的 `import type { Role } from '@/stores/auth'` 调用方不受影响。
  */
-export type Role = 'student' | 'teacher' | 'admin' | 'super_admin'
-
-/**
- * 用户信息接口
- */
-export interface User {
-  id: string
-  username: string
-  studentId: string
-  role: Role
-}
+export type { Role, User }
 
 /** R35: 后端返回 user 的原始字段（下划线命名） */
 interface RawBackendUser {
@@ -348,6 +339,25 @@ export const useAuthStore = defineStore('auth', () => {
     setAuthData(token.value, user.value, rememberMe.value)
     debugLog('[AuthStore] 用户信息已更新:', user.value)
   }
+
+  /**
+   * 把登录态注入 utils 层（api 取 token / 401 登出，tracking 取 user_id）。
+   *
+   * 这一步是方向掰正的关键：那两个 util 原本直接 import 本 store，
+   * 而本 store 又 import 它们（发登录请求、切割会话），构成两条静态循环。
+   * 现在只有 store → util 一个方向，util 认 AuthBridge 接口。
+   *
+   * 按 pinia 实例注册：读到的永远是「当前 active pinia 上的这份登录态」，
+   * 与原先每次调用 useAuthStore() 的取值语义逐字一致（测试里换 pinia 也不会串）。
+   */
+  registerAuthBridge(getActivePinia(), {
+    getToken: () => token.value,
+    isLoggedIn: () => isLoggedIn.value,
+    // 与迁移前的判断保持同一个条件：登录态齐备才带 user_id，取学号优先
+    getUserId: () =>
+      isLoggedIn.value && user.value ? user.value.studentId || user.value.id || '' : '',
+    logout: () => logout(),
+  })
 
   return {
     user,
