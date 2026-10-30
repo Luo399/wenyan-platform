@@ -1,12 +1,14 @@
 // ============================================================
 // 学生信息管理 Service
 // 说明：学生相关的业务 API 统一放在 services 层；旧的
-//       utils/studentApi.ts 作为 re-export 兼容层存在。
+//       utils/studentApi.ts 兼容层已在解耦轮次删除（当时已无调用方）。
 // 学生相关类型统一在 @/types/student 声明。
 // ============================================================
 
 import { get, post, put, del, ApiError } from '@/utils/api'
-import { useAuthStore, type Role } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
+import { isAdminRole, isTeacherRole } from '@/utils/roles'
+import type { Role } from '@/types/auth'
 import { getAuthData } from '@/utils/localStorage'
 import type {
   StudentInfo,
@@ -48,8 +50,9 @@ function currentRole(): Role | null {
  */
 function studentEndpoint(): { base: string; role: Role } {
   const role = currentRole()
-  if (role === 'teacher') return { base: '/api/teacher/students', role }
-  if (role === 'admin' || role === 'super_admin') return { base: '/api/admin/students', role }
+  if (role === null) throw new ApiError(403, 'FORBIDDEN', '当前角色无权管理学生')
+  if (isTeacherRole(role)) return { base: '/api/teacher/students', role }
+  if (isAdminRole(role)) return { base: '/api/admin/students', role }
   throw new ApiError(403, 'FORBIDDEN', '当前角色无权管理学生')
 }
 

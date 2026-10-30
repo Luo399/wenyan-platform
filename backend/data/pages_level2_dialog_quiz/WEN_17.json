@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_17",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_17",
+        "question_id": "WEN_17_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "杞人终日忧心的是（）",
+        "option_a": "国家将要灭亡，自己无家可归",
+        "option_b": "粮食不够吃，全家挨饿",
+        "option_c": "儿子不孝顺，无人养老",
+        "option_d": "天崩地坠，自己无处安身",
+        "correct_answer": "D",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "杞人：天若崩坠，地若陷落，我该怎么办？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_17",
+        "pre_dialog": "杞人：答案是D。我忧的是天会崩塌、地会陷落，自己无处寄身，因此寝食难安。B、C、A都是现实中的具体困难，与文中“天地崩坠”的忧虑不是一回事。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_17",
+        "question_id": "WEN_17_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "晓之者开导杞人的主要道理是（）",
+        "option_a": "让杞人多读书，明白事理",
+        "option_b": "劝杞人搬到别处居住，避开危险",
+        "option_c": "天是积气，地是积块，不会崩坠",
+        "option_d": "带杞人去看医生，治疗忧思",
+        "correct_answer": "C",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "晓之者：你终日忧心天崩地坠，我用什么道理开导你？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_17",
+        "pre_dialog": "晓之者：答案是C。我告诉杞人：天不过是积气，地不过是积块，日月星辰、山川草木都在其中，不会突然崩坠。B、A、D都是现实中的劝解方式，与文中“积气”“积块”的说理不同。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

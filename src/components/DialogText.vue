@@ -90,7 +90,7 @@ import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { adaptDialogData, getAllDialogs } from '@/adapters/dialogAdapter'
 import type { ProcessedDialogItem, RawDialogItem } from '@/adapters/dialogAdapter'
-import { getAssetUrl } from '@/utils/asset'
+import { getAssetUrl, getDataUrl } from '@/utils/asset'
 import { debugError, debugWarn } from '@/utils/debug'
 
 interface Props {
@@ -183,7 +183,7 @@ async function loadData() {
   error.value = null
 
   try {
-    const url = `/data/level2_dialog/${props.textId}.json`
+    const url = getDataUrl('level2_dialog', `${props.textId}.json`)
     const { data: rawData, error: loadError } = useDataLoader<RawDialogItem[]>(() => url)
 
     if (loadError.value) {

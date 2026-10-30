@@ -1,5 +1,6 @@
 # ============ 构建阶段（Docker 化部署重构）============
-# 与 package.json engines（^20.19.0 || >=22.12.0）对齐，使用 Node 22 LTS
+# Node 大版本要跟仓库根 .nvmrc 保持一致（CI 与两个前端部署工作流读 .nvmrc）；
+# 满足 package.json engines（^20.19.0 || >=22.12.0），此处取 Node 22 LTS。
 # 编译 sqlite3 等原生模块所需的 gcc/python3/make
 FROM node:22-slim AS builder
 

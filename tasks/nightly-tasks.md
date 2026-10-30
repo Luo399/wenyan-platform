@@ -429,6 +429,7 @@
   回填 PR 不在 deploy `paths` 白名单，合入 `main` 不触发发布。
 - 未纳入本批：`feature/continue-nav-stuck` 的导航失败判定与 OSS 上传链路修复仍未并入 `feature-1`，
   需先走子分支 PR 再等下一班 `main` 窗口。
+  → **已闭合（当晚）**：该分支经 PR #231 并入 `feature-1`@`5e4886c`，随下一班 `main`@`8760894`（PR #253）上线。
 
 ---
 
@@ -592,3 +593,78 @@
   **#238（根 vitest 4 → 5）有 1 条红**。全绿不等于能合——major 的兼容性要按接口面看，不是看测试跑过。
 - 待你定：要不要给三个 npm 生态加 `ignore: update-types: ["version-update:semver-major"]` 只留 minor/patch + 安全更新；
   代价是「CVE 需要 major 才能修」时不会自动开 PR，得人工发起。
+
+---
+
+## [x] main 窗口发布：第六批 + 第七批上生产（PR #252 / #253） (main-release-20261029-evening)
+
+- 目标：执行用户「合并main」——把 `feature-1`@`1b62516`（第六批覆盖率门禁与 23 号位卡片、第七批 70 项审查修复、
+  CR-33 的部署回归修复）经发布 PR 合入 `main` 并发到生产。
+- 分支 / commit / PR：先 PR #252（`feature/maintenance/sync-main-into-feature-1`@`c85e0a5` → `feature-1`，合并提交 `1b62516`）
+  把 `main` 上两个 docs-only 提交合回来，消解 `changelog-20261029.md` / `nightly-tasks.md` 的追加冲突
+  （两边文字一句没删，只按真实时序重排位置）；再发布 PR #253（`feature-1` → `main`）于 19:09:08 `--merge` 为 `main`@`8760894`。
+  两条 PR 的六项检查各自全绿（`40862376523` / `40862429517` / `40862897607`）。
+- 发布：`main` push 四条 run 全绿 —— CI Checks `40863153667`、Deploy Frontend to Aliyun OSS `40863153680`、
+  Deploy Backend to Aliyun Server `40863153617`、Sync Figma Plugin `40863153595`；前端线上 build-id 已是 `8760894`。
+- **新发现（要记进约定）**：`environment: production` 是本轮 CR-30 新引用的，仓库里原本只有 `test`；
+  GitHub 在本次 run 自动建了 `production`，发布后实测 `protection_rules: []`、`reviewers: null`
+  ⇒ **合进 `main` 就是自动上生产，没有人工闸口**。这和「feature-1 → main 只走人工审批 PR」的实际强度不一致，
+  要不要给 `production` 加 Required reviewers 由你定（Settings → Environments → production，我没动）。
+- 线上黑盒对照（合并前 `8db7a6e` vs 合并后 `8760894`，逐条实测）记在
+  `docs/maintenance/changelog/changelog-20261029.md` 文末「发布事实（2026-10-29 晚）」。
+- 更正：PR #253 正文里我写「`/api/v1/texts` 合并后应为 200」是错的——别名是 `/v1/...`（`app.js` 在 app 级改写 URL），
+  `/api/v1/texts` 两环境都 404；实测成立的是 `GET /v1/texts` → 200、`GET /v1/api/texts` → 200。
+
+## [ ] 生产 `backend/.env` 缺 DASHBOARD_PASSWORD 与 DEEPSEEK_API_KEY（看板与 AI 对话 503） (prod-missing-optional-keys)
+
+- 目标：把生产这两个功能从 fail-closed 503 恢复成可用，并且**这次写了能留住**。
+- 事实来源：run `40863153617` 日志 `[2/5]` 实抄
+  `WARNING: 以下可选密钥未配置，对应接口将 fail-closed 返回 503（不影响本次部署）: DASHBOARD_PASSWORD DEEPSEEK_API_KEY`；
+  生产实测 `GET /api/home/dashboard`、`/api/home/dashboard/raw`、`/api/tracking/funnel` 全部 503 `DASHBOARD_AUTH_NOT_CONFIGURED`。
+- 影响：内部数据看板打不开——这是审查定的 fail-closed 口径，不是回归（发布前这三个口是**匿名 200 且返回真实汇总**）；
+  AI 对话同样 503。**后者不是本次发布弄坏的**：旧版部署脚本 `echo "PORT=3000" > backend/.env` 每次截断重建，
+  这把键历史上每部署一次就被抹一次，所以生产 AI 对话早就不可用，只是现在变成明确的 503 而不是静默 500。
+- 待你本人做（我没有 SSH 权限，也不该有）：往生产 `backend/.env` 追加 `DASHBOARD_PASSWORD=<强口令>` 与
+  `DEEPSEEK_API_KEY=<sk-...>`，然后 `pm2 restart wenyan-backend --update-env`；或建同名 GitHub Actions Secret
+  让 `inject_if_missing` 在 `.env` 缺值时补。新版脚本保留旧值，写进去就不会再用一次就没。
+- 红线：`JWT_SECRET` 在生产**绝不自动生成**（静默换密钥会一次性作废全网 token）。本次发布没动它，存量 token 仍有效。
+
+## [x] 第八批：解耦轮，五个 PR 按子功能分别拉分支 (decouple-round-8)
+
+- 目标：用户口径「**继续审查且拉分支修复**」+「**但是不要没事找事过度，是要做有用的东西，比如做解耦合**」。
+  因此本轮只审耦合面，不改行为；选题按「真实收益 ÷ 影响面」排序，明确拒绝风格/命名挑刺与为假想需求的抽象。
+- 产出（全部 `feature/<父>/<子>` 分支 → `--no-ff` 并入 `feature-1`，详见 `docs/maintenance/changelog/changelog-20261030.md`）：
+  - PR #255 `db8f637` `feature/decouple/composable-boundaries` — 会话切割收进 `utils/tracking` 单一入口，断开 `stores → composables`；删 6 个空引用桶文件与 `studentApi.ts` 兼容层
+  - PR #256 `fcfc3df` `feature/decouple/ci-single-source` — `.nvmrc` 作为 Node 版本单一来源（6 处 `setup-node`），CI lint 改 `lint:ci`（不带 `--fix`）
+  - PR #257 `1306a74` `feature/decouple/auth-bridge` — `authBridge.ts` 断开 `utils → stores` 两条静态边；`Role` / `User` 迁进 `types/auth.ts`
+  - PR #258 `deb4d59` `feature/decouple/data-url-builder` — 四处内联 `/data/...` 路径统一 `getDataUrl()`
+  - PR #259 `2de6881` `feature/decouple/role-check` — `utils/roles.ts` 叶子模块承接角色集合与判定，路由表不再引用 store
+- 行为不变的证明口径：Vitest 64 files / 967（基线）→ 968（#257 +1）→ 974（#259 +6），文件数恒定 64；
+  Jest 27 suites / 527 tests 全程不变；`vue-tsc --build` 0 错误；oxlint 0/0（302 → 298 files，删文件所致）；eslint 0。
+  每条分支都在**合入 feature-1 之后**的树上重跑一遍再提 PR。
+- 工作区纪律：本轮全程用 `git worktree` 隔离（`wt-decouple-*`），没有在共享工作区 `stash` / `switch`——
+  上一轮那次 `git checkout feature-1` 是违规操作，本轮没有重犯。
+- 未做（刻意）：`audio_file` 的 `/audio/` 路径（审查报告的「到不了 OSS」在同源下不成立，改它属于修 bug）、
+  四个组件的 `baseUrl` 覆盖缝（假想需求）、VideoPlayer 抽取与 toast/`mm:ss` 去重（收益低于协调成本）、
+  `src/adapters/level*QuizAdapter`（与陈旧 draft PR #50 碰撞）、`stores/auth` 的 `VALID_ROLES` 并入 roles 模块（语义不同类）。
+
+## [ ] `circular-check` 不解析 `@/` 别名，本轮拆掉的环其实没进门禁 (ci-circular-check-alias-blind)
+
+- 现象：CI 的 `circular-check` job 全绿，但 #255 / #257 拆的是 `@/` 别名引入的环——它看不见，
+  所以「CI 绿」不构成「无环」的证据，回归也没有闸口。
+- 本轮的分层与环检查是仓库外脚本（`src/utils` 传递闭包 → `src/stores` 路径数）跑的，不属于门禁。
+- 待做：让检查解析 tsconfig `paths` 后重新启用为真门禁；单独一个 PR，不要混进内容改动。
+
+## [ ] 生产 PM2 的 Node 大版本未验证（`.nvmrc` 这条线未闭合） (prod-pm2-node-version-unverified)
+
+- 事实：#256 解决的是「CI 写死 20 vs `Dockerfile` node:22」。生产 PM2 实跑版本我没有 SSH 无从核对，
+  提交 `80b4796` 信息里那句「线上 PM2 跑的是 Node 22」是未验证声称，已在 changelog 文末更正留档。
+- 需要你确认（任一即可）：服务器上 `pm2 describe wenyan-backend | grep -i node`，或 `pm2 env <id> | grep NVM\|PATH`；
+  或授权把版本探测加进部署 workflow 的日志（只读、不改状态）。
+- 若结果是 20：CI 与生产仍不一致，`.nvmrc` 只对齐了 CI 与构建镜像，需要再动生产运行时。
+
+## [ ] 第八批解耦成果只在 `feature-1`，未上生产 (decouple-round-8-not-released)
+
+- `main` 仍是昨晚的 `8760894`；五个合并各自触发 CI Checks + Deploy Frontend to Test OSS 全绿（测试环境已生效）。
+- 要上生产需走 `feature-1 → main` 人工审批 PR；另外 `environment: production` 目前 `protection_rules: []`、
+  `reviewers: null`，合 `main` 即自动上生产，是否补 Required reviewers 仍未定（见前一条台账）。

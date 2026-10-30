@@ -19,10 +19,17 @@ import { resolve } from 'node:path'
 import {
   ALL_POEM_IDS,
   CULTURE_CARD_DATA_POEM_IDS,
+  LEVEL2_PAGE_DATA_POEM_IDS,
+  LEVEL3_PAGE_DATA_POEM_IDS,
   NUMBERING_CONFIRMED_POEM_IDS,
   ORPHAN_CARD_VIDEO_POEM_IDS,
+  TEXT_DATA_POEM_IDS,
+  canPlayRuleVideo,
   hasCultureCardData,
+  hasLevel2PageData,
+  hasLevel3PageData,
   hasRuleVideo,
+  hasTextData,
   isNumberingConfirmed,
   isPoemReady,
 } from '@/config/poemAssets'
@@ -60,9 +67,58 @@ describe('poemAssets 编号确认表', () => {
 })
 
 describe('isPoemReady 放行判据', () => {
-  it('编号已确认且 rule 视频齐备 → 放行', () => {
-    for (const id of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']) {
+  it('文本数据表当前只有 01–04（2026-10-30 线上逐号探测）', () => {
+    expect(TEXT_DATA_POEM_IDS).toEqual(['1', '2', '3', '4'])
+    expect(hasTextData('1')).toBe(true)
+    expect(hasTextData('WEN_04')).toBe(true)
+    expect(hasTextData('05')).toBe(false)
+    expect(hasTextData(undefined)).toBe(false)
+  })
+
+  it('第二、三关页面数据已覆盖全部 25 个已确认号位', () => {
+    expect([...LEVEL2_PAGE_DATA_POEM_IDS].sort((a, b) => Number(a) - Number(b))).toEqual(
+      NUMBERING_CONFIRMED_POEM_IDS,
+    )
+    expect([...LEVEL3_PAGE_DATA_POEM_IDS].sort((a, b) => Number(a) - Number(b))).toEqual(
+      NUMBERING_CONFIRMED_POEM_IDS,
+    )
+    expect(hasLevel2PageData('WEN_05')).toBe(true)
+    expect(hasLevel3PageData('WEN_05')).toBe(true)
+    expect(hasLevel2PageData('WEN_20')).toBe(false)
+    expect(hasLevel3PageData(undefined)).toBe(false)
+  })
+
+  it('页面数据清单里的每个号位都有可解析的 JSON，且 pageId 对得上', () => {
+    for (const [dir, ids] of [
+      ['pages_level2_dialog_quiz', LEVEL2_PAGE_DATA_POEM_IDS],
+      ['pages_level3_adaptive_quiz', LEVEL3_PAGE_DATA_POEM_IDS],
+    ] as const) {
+      for (const id of ids) {
+        const file = resolve(process.cwd(), 'public/data', dir, `WEN_${id.padStart(2, '0')}.json`)
+        expect(existsSync(file), `${dir}/WEN_${id} 缺失`).toBe(true)
+        const page = JSON.parse(readFileSync(file, 'utf8'))
+        expect(page.pageId).toBe(`WEN_${id.padStart(2, '0')}`)
+      }
+    }
+  })
+
+  it('编号确认 + rule 视频齐备即放行：1–4 可走完整流程', () => {
+    for (const id of ['1', '2', '3', '4']) {
+      expect(hasRuleVideo(id)).toBe(true)
+      expect(isNumberingConfirmed(id)).toBe(true)
+      expect(hasTextData(id)).toBe(true)
       expect(isPoemReady(id)).toBe(true)
+    }
+  })
+
+  it('文本数据没交付不挡入口（用户 2026-10-30 口径：制作中只拦未确认编号）', () => {
+    for (const id of ['5', '6', '10', '18', '22', '27']) {
+      expect(hasRuleVideo(id)).toBe(true)
+      expect(isNumberingConfirmed(id)).toBe(true)
+      expect(hasTextData(id)).toBe(false)
+      // 首页照常可点，进入步骤页/详情页后由 hasTextData 换成「制作中」占位
+      expect(isPoemReady(id)).toBe(true)
+      expect(canPlayRuleVideo(id)).toBe(true)
     }
   })
 
@@ -70,6 +126,7 @@ describe('isPoemReady 放行判据', () => {
     expect(hasRuleVideo('20')).toBe(true)
     expect(isNumberingConfirmed('20')).toBe(false)
     expect(isPoemReady('20')).toBe(false)
+    expect(canPlayRuleVideo('20')).toBe(false)
     expect(isPoemReady('28')).toBe(false)
   })
 
@@ -78,6 +135,7 @@ describe('isPoemReady 放行判据', () => {
       expect(isNumberingConfirmed(id)).toBe(true)
       expect(hasRuleVideo(id)).toBe(false)
       expect(isPoemReady(id)).toBe(false)
+      expect(canPlayRuleVideo(id)).toBe(false)
     }
   })
 })
@@ -115,7 +173,9 @@ describe('编号 ↔ 篇目映射', () => {
     expect(isNumberingConfirmed('23')).toBe(true)
     expect(getPoemTitle('WEN_23')).toBe('活板')
     // 该号 4 段 rule 视频线上都在（实测 /video/WEN_23_rule_bg|1|2|3.mp4 全 200），
-    // 所以确认编号即放行；数据 JSON 仍缺，与其他已确认号位情况一致。
+    // 所以首页可点、规则页可播；文本数据 JSON 还没交付，进页后显示「制作中」占位。
+    expect(canPlayRuleVideo('23')).toBe(true)
+    expect(hasTextData('23')).toBe(false)
     expect(isPoemReady('23')).toBe(true)
   })
 
@@ -144,8 +204,9 @@ describe('选篇列表与号位列表', () => {
     for (const p of getAllPoems()) {
       expect(p.ready).toBe(isPoemReady(p.poemId))
     }
-    // 学生侧可见入口 = 编号已确认 ∩ rule 视频齐备（13/16/17 缺视频被挡在外面）。
-    // 交付了某篇的 rule 视频后，要同步更新 RULE_VIDEO_MISSING_POEM_IDS 和这条名单。
+    // 学生侧可见入口 = 编号已确认 ∩ rule 视频齐备。
+    // 文本数据缺失不挡入口（05–27 第一关/详情页显示「制作中」，第二、三关按页面数据独立放行）；
+    // 13/16/17 因 rule 视频未交付被挡。补齐视频后要同步更新这条名单。
     expect(getAllPoems().filter((p) => p.ready).map((p) => p.wenId)).toEqual([
       'WEN_01', 'WEN_02', 'WEN_03', 'WEN_04', 'WEN_05', 'WEN_06', 'WEN_07', 'WEN_08',
       'WEN_09', 'WEN_10', 'WEN_11', 'WEN_12', 'WEN_14', 'WEN_15', 'WEN_18', 'WEN_19',
@@ -163,7 +224,7 @@ describe('选篇列表与号位列表', () => {
       ready: false,
     })
     expect(slots[0].title).toBe('陈涉世家')
-    // 素材上传工具要能选到未交付/未确认的号：37 个号位里只有 22 个可进
+    // 素材上传工具要能选到未交付/未确认的号：37 个号位里 22 个首页可点
     expect(slots.filter((s) => !s.ready).length).toBe(37 - 22)
   })
 })

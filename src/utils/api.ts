@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/stores/auth'
+import { activeAuthBridge } from '@/utils/authBridge'
 import { getAuthData } from '@/utils/localStorage'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL as string
@@ -20,23 +20,20 @@ function getBaseUrl(): string {
 /**
  * 获取鉴权请求头
  * R95: 包裹 try/catch，避免 Pinia 安装前调用抛 getActivePinia 错误
+ *
+ * 解耦说明：这里不再 `import { useAuthStore }`（那会让 utils 反向依赖 store，
+ * 并和 stores/auth.ts → api.ts 构成循环）。改为读取 auth store 实例化时注册的
+ * AuthBridge；没有 active pinia、或该实例还没建过 auth store 时拿到 null，
+ * 与原来 try/catch 捕获 Pinia 未安装异常后走回退是同一分支。
  */
 function getAuthHeaders(): Record<string, string> {
-  let token: string | null = null
+  // store 尚未就绪（Pinia 未安装或 initialize() 未执行）时先取桥，取不到再看持久化
+  const tokenFromStore = activeAuthBridge()?.getToken() ?? null
 
-  try {
-    token = useAuthStore().token
-  } catch {
-    // Pinia 尚未安装：继续走下面的持久化回退，而不是直接放弃鉴权头
-    token = null
-  }
-
-  // F-005: store 尚未就绪（Pinia 未安装或 initialize() 未执行）时回退到持久化登录态。
+  // F-005: store 里没有 token 时回退到持久化登录态。
   // 原实现直接返回空 header，会把"初始化竞态"变成一次匿名请求，
   // 后端按 AUTH_REQUIRED 拒绝后又被前端显示成"登录已过期"，既误导用户也误导排查。
-  if (!token) {
-    token = getAuthData().token
-  }
+  const token = tokenFromStore || getAuthData().token
 
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
@@ -275,24 +272,17 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
 
 /**
  * R104: 安全读取登录态（Pinia 未安装时视为未登录）
+ * 桥为 null（无 active pinia / 该实例未建过 auth store）等价于原来的 try/catch 兜底
  */
 function isLoggedInSafely(): boolean {
-  try {
-    return useAuthStore().isLoggedIn
-  } catch {
-    return false
-  }
+  return activeAuthBridge()?.isLoggedIn() ?? false
 }
 
 /**
  * R104: 安全登出（Pinia 未安装时忽略）
  */
 function logoutSafely(): void {
-  try {
-    useAuthStore().logout()
-  } catch {
-    // 忽略：无 Pinia 实例时无需清理
-  }
+  activeAuthBridge()?.logout()
 }
 
 export async function get<T = unknown>(

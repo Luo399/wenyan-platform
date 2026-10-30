@@ -1,10 +1,10 @@
 const path = require('path')
-const dotenv = require('dotenv')
 const { parseDuration } = require('../utils/duration')
 
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
-
-dotenv.config({ path: path.join(__dirname, '../../', envFile) })
+// 环境变量装载与日志切片各自成模块：logger 只要 logSettings 那五个值，
+// 不该因为 require 到本文件而被拽进下面的 JWT 启动校验。
+require('./env')
+const logSettings = require('./logSettings')
 
 // S02: 生产环境缺少 JWT_SECRET 时直接启动失败，禁止静默回退到可预测弱密钥
 const isProduction = process.env.NODE_ENV === 'production'
@@ -79,13 +79,7 @@ const config = {
     basePath: process.env.DATA_BASE_PATH || path.join(__dirname, '../../data'),
   },
 
-  logger: {
-    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'INFO' : 'DEBUG'),
-    format: process.env.LOG_FORMAT || (process.env.NODE_ENV === 'production' ? 'json' : 'console'),
-    outputDir: process.env.LOG_DIR || path.join(__dirname, '../../logs'),
-    maxFileSize: process.env.LOG_MAX_FILE_SIZE || '10MB',
-    maxFiles: process.env.LOG_MAX_FILES || 30,
-  },
+  logger: logSettings,
 
   rateLimit: {
     submitRequests: toNumber(process.env.RATE_LIMIT_SUBMIT, 10),

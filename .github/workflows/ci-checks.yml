@@ -1,5 +1,9 @@
 name: CI Checks
 
+# Node 版本单一来源：仓库根 .nvmrc（本文件与两个前端部署工作流都用
+# node-version-file 读取，与 Dockerfile 的 node:22-slim 对齐）。
+# 改版本只改 .nvmrc 一处。
+
 on:
   workflow_dispatch:
   pull_request:
@@ -39,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
@@ -50,10 +54,9 @@ jobs:
 
       - name: Lint
         # 门禁：lint 失败即失败，不再 continue-on-error。
-        # CI 绝不能调用带 --fix 的 lint 脚本（会改写工作区、掩盖问题）。
-        # 等价于 package.json 的 lint:ci（oxlint . && eslint . --cache）；
-        # 若 lint:ci 已存在可替换为 `npm run lint:ci`。
-        run: npx oxlint . && npx eslint . --cache
+        # 必须走 package.json 的 lint:ci（= oxlint . && eslint . --cache，都不带 --fix）：
+        # 之前这里内联了一份等价命令，改 lint 参数要同时改两处，必然漂移。
+        run: npm run lint:ci
 
       - name: Run frontend unit tests with coverage gate (vitest)
         # 2026-10-29：覆盖率门槛从「只在本机 npm run test:coverage 生效」挪进 CI。
@@ -83,7 +86,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -110,6 +113,14 @@ jobs:
   circular-check:
     # 循环依赖检测：防止 barrel 文件导致的模块循环初始化
     # Vue SFC + TypeScript 均支持；发现循环依赖时 CI 失败
+    #
+    # 2026-10-30 换成仓库内的 scripts/check-circular.mjs，因为实测旧门禁根本不会红：
+    #   1) 它装的 circular-dependency-scanner 没加 `-t`，而该工具默认「发现环也 exit 0」
+    #      （夹具实测：不带 -t 退出码 0，带 -t 退出码 1），`||` 分支永远走不到；
+    #   2) 它只读根 tsconfig.json 的 paths，本仓根 tsconfig.json 是
+    #      `{files: [], references: [...]}`，别名 `@/*` 定义在 tsconfig.app.json，
+    #      所以 src 的 300 条静态边里 262 条（87%）`@/` 引入对它是不透明的边。
+    # 现在前端 src 与后端 backend/src 一起扫，后端此前没有任何环检查。
     runs-on: ubuntu-latest
 
     steps:
@@ -119,19 +130,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install circular-dep scanner
-        # 独立安装，不污染 package.json
-        run: npm install circular-dependency-scanner@3.0.1 --no-save
+          node-version-file: '.nvmrc'
 
       - name: Circular dependency scan
-        # circular-dependency-scanner 默认发现循环时 exit code 非零
-        # 原生支持 .vue + .ts + <script setup>
-        run: |
-          npx circular-dependency-scanner src/ || \
-            { echo "::error::检测到循环依赖，请修复后再提交"; exit 1; }
+        # 检查器零依赖（只用 node 内置模块），不需要 npm install
+        run: node scripts/check-circular.mjs src backend/src
 
   pipeline-test:
     # 数据管道（data-pipeline/python）Python 单元测试
@@ -171,7 +174,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: figma-plugin/package-lock.json
 

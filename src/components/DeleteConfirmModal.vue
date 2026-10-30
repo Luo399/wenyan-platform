@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StudentInfo } from '@/utils/studentApi'
+import type { StudentInfo } from '@/services/studentService'
 
 defineProps<{
   /** 待删除学生，可能为 null（关闭时） */

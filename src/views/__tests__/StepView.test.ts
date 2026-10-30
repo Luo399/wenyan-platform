@@ -16,6 +16,8 @@ import StepView from '../StepView.vue'
 const h = vi.hoisted(() => ({
   route: { name: 'steptwo', params: { id: '01' } } as { name: string; params: { id: string } },
   loggedIn: false,
+  pageError: null as string | null,
+  loaderUrls: [] as string[],
   pageConfig: {
     title: '测试课文',
     blocks: [
@@ -50,6 +52,8 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/utils/asset', () => ({
   getDataUrlWithVersion: (dir: string, file: string) => `/data/${dir}/${file}`,
+  // 与 utils/asset 的 getDataUrl 在「ossBase 未配置」时的拼法一致
+  getDataUrl: (dir: string, file: string) => `/data/${dir}/${file}`,
 }))
 
 vi.mock('@/utils/tracking', () => ({
@@ -91,15 +95,21 @@ vi.mock('@/composables/useDataLoader', async () => {
   return {
     useDataLoader: (urlGetter: () => string | Promise<string>) => {
       const url = urlGetter()
+      h.loaderUrls.push(url)
       const data = ref<unknown>(null)
+      const error = ref<string | null>(null)
       if (typeof url === 'string') {
-        if (url.includes('pages_level2_dialog_quiz')) data.value = h.pageConfig
-        else if (url.includes('level1_quiz')) data.value = h.level1Quiz
+        if (url.includes('pages_level2_dialog_quiz')) {
+          if (h.pageError) error.value = h.pageError
+          else data.value = h.pageConfig
+        } else if (url.includes('level1_quiz')) {
+          data.value = h.level1Quiz
+        }
       }
       return {
         data,
         loading: ref(false),
-        error: ref<string | null>(null),
+        error,
         isTimeout: ref(false),
         retry: vi.fn(),
         load: vi.fn(),
@@ -162,12 +172,56 @@ describe('StepView', () => {
   beforeEach(() => {
     h.route = { name: 'steptwo', params: { id: '01' } }
     h.loggedIn = false
+    h.pageError = null
+    h.loaderUrls.length = 0
     apiMock.submitSingleAnswer.mockReset()
     apiMock.submitSingleAnswer.mockResolvedValue({})
   })
 
   afterEach(() => {
     localStorage.clear()
+  })
+
+  it('第二关页面数据未交付的编号显示「制作中」占位，不再发数据请求', async () => {
+    // 20 号位篇目未确认，也没有 pages_level2_dialog_quiz/WEN_20.json
+    h.route = { name: 'steptwo', params: { id: '20' } }
+    const wrapper = mountStep()
+    await flushPromises()
+
+    expect(wrapper.find('.step-not-ready').exists()).toBe(true)
+    expect(wrapper.text()).toContain('本篇素材正在制作中，敬请期待')
+    expect(wrapper.find('.block-stub').exists()).toBe(false)
+    // 三个 loader 的 URL 都应被空串短路，不产生 HTTP 404
+    expect(h.loaderUrls.filter((url) => url !== '')).toEqual([])
+  })
+
+  it('第二关页面数据已交付的 WEN_05 不再被第一关缺失挡成「制作中」', async () => {
+    h.route = { name: 'steptwo', params: { id: '05' } }
+    const wrapper = mountStep()
+    await flushPromises()
+
+    expect(wrapper.find('.step-not-ready').exists()).toBe(false)
+    expect(wrapper.findAll('.block-stub')).toHaveLength(5)
+    expect(h.loaderUrls).toContain('/data/pages_level2_dialog_quiz/WEN_05.json')
+  })
+
+  it('第一关仍按完整文本数据放行：WEN_05 缺字词/朗读数据时显示「制作中」', async () => {
+    h.route = { name: 'stepone', params: { id: '05' } }
+    const wrapper = mountStep()
+    await flushPromises()
+
+    expect(wrapper.find('.step-not-ready').exists()).toBe(true)
+    expect(h.loaderUrls.filter((url) => url !== '')).toEqual([])
+  })
+
+  it('第二关加载失败时仍保留底部导航（可以返回）', async () => {
+    h.pageError = 'HTTP 404'
+    const wrapper = mountStep()
+    await flushPromises()
+
+    const scaffold = wrapper.findComponent(PageScaffoldStub)
+    expect(scaffold.props('showNavigation')).toBe(true)
+    expect(scaffold.props('error')).toBe('HTTP 404')
   })
 
   it('第二关最后一题提交后，末尾解析 dialogue 必须显示', async () => {

@@ -12,6 +12,10 @@ import type { QuizItem } from '@/adapters/quizAdapter'
 
 vi.mock('@/utils/asset', () => ({
   ossBase: 'https://oss.example.com',
+  // AdaptQuiz 取题目 JSON 走 utils/asset 的 getDataUrl。这里按「ossBase 未配置」
+  // 时的真实拼法给出同名函数，保证测试里请求的 URL 与改造前内联模板一致；
+  // 上面的 ossBase 只用于 figmaAssets 拼选项底图。
+  getDataUrl: (dir: string, file: string) => `/data/${dir}/${file}`,
 }))
 
 const quiz: QuizItem = {

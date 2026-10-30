@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StudentInfo } from '@/utils/studentApi'
+import type { StudentInfo } from '@/services/studentService'
 import { formatDate } from '@/utils/format'
 
 defineProps<{

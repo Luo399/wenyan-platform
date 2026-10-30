@@ -3,10 +3,14 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 
 // mock tracking 模块，避免模块加载时的副作用（visibilitychange/beforeunload 监听）
-// 并允许 spy resetSessionId / resetFirstEnterSet 的调用
+// 并允许 spy resetSessionId 的调用
+//
+// 「切割会话」现在只有一个入口：utils/tracking 的 resetSessionId() 同时重置
+// session_id 与 step 首次进入去重集合（stores 不再绕过 utils 去调 composable）。
+// 两者成对生效由 tests/composables/useTracking.spec.ts 用真实实现验证。
 vi.mock('@/utils/tracking', () => ({
   resetSessionId: vi.fn(),
-  resetFirstEnterSet: vi.fn(),
+  isFirstEnter: vi.fn(() => true),
   getSessionId: vi.fn(() => 'test-session-id'),
   track: vi.fn(),
   trackSessionStart: vi.fn(),
@@ -21,14 +25,6 @@ vi.mock('@/utils/tracking', () => ({
 
 // 引入 mock 函数用于断言
 import { resetSessionId } from '@/utils/tracking'
-import { resetFirstEnterSet } from '@/composables/useTracking'
-
-// resetFirstEnterSet 在 store 里是从 composables/useTracking 引入的（不是 utils/tracking），
-// 必须 mock 同一个模块，否则断言的是另一个函数的调用记录
-vi.mock('@/composables/useTracking', () => ({
-  resetFirstEnterSet: vi.fn(),
-  useTracking: vi.fn(),
-}))
 
 /** 生成一个 exp 在未来的合法 JWT（initialize() 现在会校验 token 的 exp） */
 function makeJwt(expSecondsFromNow = 3600): string {
@@ -65,7 +61,6 @@ describe('useAuthStore', () => {
 
     // 清理 tracking mock 调用记录
     vi.mocked(resetSessionId).mockClear()
-    vi.mocked(resetFirstEnterSet).mockClear()
   })
 
   describe('初始化测试', () => {
@@ -221,8 +216,8 @@ describe('useAuthStore', () => {
       const authStore = useAuthStore()
       await authStore.login('2024002')
 
+      // resetSessionId 内部同时清 session_id 与首次进入去重集合
       expect(resetSessionId).toHaveBeenCalledTimes(1)
-      expect(resetFirstEnterSet).toHaveBeenCalledTimes(1)
     })
 
     it('登录失败应该设置错误信息', async () => {
@@ -262,15 +257,15 @@ describe('useAuthStore', () => {
     })
 
     it('登出应同步重置 session_id 和首次进入记录（会话切割）', () => {
-      // 回归测试：resetFirstEnterSet 之前未被调用，导致跨用户会话的 is_first_enter 标记错误
+      // 回归测试：切割会话曾漏掉首次进入去重集合，导致跨用户会话的 is_first_enter 标记错误
       const authStore = useAuthStore()
       authStore.token = 'jwt-token'
       authStore.user = { id: '2024001', username: '张三', studentId: '2024001', role: 'student' }
 
       authStore.logout()
 
+      // resetSessionId 内部同时清 session_id 与首次进入去重集合
       expect(resetSessionId).toHaveBeenCalledTimes(1)
-      expect(resetFirstEnterSet).toHaveBeenCalledTimes(1)
     })
   })
 

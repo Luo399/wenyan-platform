@@ -143,8 +143,16 @@ import { sanitizeRedirect } from '@/utils/api'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 import { track } from '@/utils/tracking'
+import type { Role as AuthRole } from '@/types/auth'
 
-type Role = 'student' | 'teacher' | 'admin'
+/**
+ * 登录页可自助登录的身份，不含 super_admin。
+ *
+ * 原本是本地重打一遍字符串字面量，与 @/types/auth 的 Role 各改各的：
+ * 权威类型加值或改名，这里不会报错，只会静默漏掉一个身份。
+ * 改成 Extract 后，'student'/'teacher'/'admin' 任一从 Role 消失都会编译失败。
+ */
+type Role = Extract<AuthRole, 'student' | 'teacher' | 'admin'>
 
 interface RoleOption {
   value: Role

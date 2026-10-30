@@ -103,6 +103,7 @@ import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapt
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
 import { debugError } from '@/utils/debug'
+import { getDataUrl } from '@/utils/asset'
 import { getWenScreenOptionUrl } from '@/config/figmaAssets'
 import type { FigmaOptionKey } from '@/config/figmaScreenCatalog'
 
@@ -159,7 +160,7 @@ const results = ref<{ quiz: QuizItem; answer: string; isCorrect: boolean }[]>([]
 // props.level/textId 变化时通过 watch 触发 loader 重新加载。
 // ============================================================
 type RawQuizData = RawLevel1QuizItem[] | RawLevel2QuizItem[] | RawLevel3QuizItem[]
-const quizUrl = computed(() => `/data/${props.level}_quiz/${props.textId}.json`)
+const quizUrl = computed(() => getDataUrl(`${props.level}_quiz`, `${props.textId}.json`))
 const loader = useDataLoader<RawQuizData>(() => quizUrl.value, {
   autoLoad: false,
   cacheEnabled: true,

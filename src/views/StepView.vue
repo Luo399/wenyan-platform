@@ -6,8 +6,17 @@
   路由路径、route.name、pageSequence 顺序**保持原样**。
 -->
 <template>
+  <!-- ========== 文本数据未就绪：三关统一降级，深链进来不再看到 HTTP 404 ========== -->
+  <div v-if="!contentReady" class="step-not-ready">
+    <div class="not-ready-box">
+      <i class="fas fa-hourglass-half not-ready-icon" aria-hidden="true"></i>
+      <p class="not-ready-text">{{ notReadyText }}</p>
+    </div>
+    <BackContinue back-text="返回" :show-continue="false" @back="handleGoPrev" />
+  </div>
+
   <!-- ========== Step 1: 字词学习 + 多角色朗读（静态，无 PageScaffold） ========== -->
-  <div v-if="stepNumber === 1" class="step-1-view">
+  <div v-else-if="stepNumber === 1" class="step-1-view">
     <section class="annotated-section">
       <WordList :wen-id="wenId" />
     </section>
@@ -111,7 +120,7 @@
       subtitle="完成以下测验，检验你的学习成果"
       :loading="pageLoading"
       :error="pageError"
-      :is-empty="!pageData"
+      :is-empty="!pageData || pageData.items.length === 0"
       empty-text="暂无测验数据"
       :show-navigation="true"
       :show-continue="step3Flow.isCompleted.value"
@@ -120,7 +129,7 @@
       @continue="handleGoNext"
     >
       <!-- 进度条 -->
-      <div class="progress-bar-container" v-if="pageData">
+      <div class="progress-bar-container" v-if="pageData && pageData.items.length">
         <div class="progress-bar">
           <div
             class="progress-fill"
@@ -133,7 +142,7 @@
       </div>
 
       <!-- 测验内容 -->
-      <template v-if="pageData">
+      <template v-if="pageData && pageData.items.length">
         <div class="quiz-list">
           <div
             v-for="(item, index) in pageData.items"
@@ -148,7 +157,7 @@
               <span class="quiz-number">第 {{ index + 1 }} 题</span>
             </div>
             <QuizCard
-              :data="item.quiz as any"
+              :data="item.quiz"
               :submitted="isQuestionSubmitted(index)"
               @submit="
                 (option: number | null) => option !== null && handleStep3Submit(index, option)
@@ -187,9 +196,20 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizFlow } from '@/composables/quiz/useQuizFlow'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
+import {
+  ASSET_NOT_READY_TEXT,
+  hasLevel2PageData,
+  hasLevel3PageData,
+  hasTextData,
+} from '@/config/poemAssets'
 import { resolveQuestionId } from '@/utils/questionId'
-import { getDataUrlWithVersion } from '@/utils/asset'
+import { getDataUrl, getDataUrlWithVersion } from '@/utils/asset'
 import { adaptLevel1Quiz, type RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
+import {
+  adaptAdaptiveQuizPage,
+  type RawAdaptiveQuizPage,
+  type AdaptiveQuizPage,
+} from '@/adapters/adaptiveQuizPageAdapter'
 import type { PageBlock } from '@/types/pageConfig'
 import { debugLog, debugError } from '@/utils/debug'
 
@@ -210,6 +230,20 @@ const stepNumber = computed(() => stepMap[route.name as string] ?? 1)
 const poemId = computed(() => route.params.id as string)
 const wenId = computed(() => getWenId(poemId.value))
 
+/**
+ * 按关卡判断页面数据是否就绪：
+ * - 第一关（字词 + 朗读 + 随堂练习）依赖完整文本数据，当前只有 01–04；
+ * - 第二关只看 pages_level2_dialog_quiz，第三关只看 pages_level3_adaptive_quiz，
+ *   2026-10-30 已补齐 05–19、22–27，不能因为第一关/详情页缺数据就被一起挡成「制作中」。
+ * 缺数据的关卡直接展示「制作中」占位，不再让 loader 打 404。
+ */
+const contentReady = computed(() => {
+  if (stepNumber.value === 2) return hasLevel2PageData(wenId.value)
+  if (stepNumber.value === 3) return hasLevel3PageData(wenId.value)
+  return hasTextData(wenId.value)
+})
+const notReadyText = ASSET_NOT_READY_TEXT
+
 // R140: 不再传快照值 —— useNavigation 内部实时读当前路由。
 // 旧注释写的「内部自动 unwrap」并不成立：useNavigation 当时只是把参数存进闭包，
 // stepone → steptwo 复用实例时冻结在 'stepone'，点继续会跳回上一页。
@@ -227,8 +261,9 @@ function handleGoNext() {
 // ======== Step 2 & 3 共用：Figma 注册表 + 数据加载 ========
 const meta = computed(() => getFigmaPageMeta(route.name as string))
 const pageUrl = computed(() => {
-  if (!meta.value?.dataDir) return ''
-  return `/data/${meta.value.dataDir}/${wenId.value}.json`
+  // 未就绪时给空 URL：useDataLoader 会静默跳过，不产生 404 与错误态
+  if (!contentReady.value || !meta.value?.dataDir) return ''
+  return getDataUrl(meta.value.dataDir, `${wenId.value}.json`)
 })
 
 // ======== Step 1: 随堂练习（A 关，level1_quiz） ========
@@ -245,7 +280,7 @@ interface Step1QuizCard {
 }
 
 const step1QuizUrl = computed(() => {
-  if (stepNumber.value !== 1 || !wenId.value) return ''
+  if (stepNumber.value !== 1 || !contentReady.value || !wenId.value) return ''
   return getDataUrlWithVersion('level1_quiz', `${wenId.value}.json`)
 })
 
@@ -341,26 +376,6 @@ interface PageConfig {
   blocks: PageBlock[]
 }
 
-// Step 3 的数据类型
-interface QuizItem {
-  question_id?: string
-  module?: string
-  question_type: 'radio' | 'checkbox'
-  question_text: string
-  options: string[]
-  correct_answer: number
-  explanation: string
-  difficulty: string
-}
-interface PageItem {
-  text?: string
-  quiz: QuizItem
-}
-interface PageData {
-  pageId?: string
-  items: PageItem[]
-}
-
 const {
   data: pageConfig,
   loading,
@@ -369,11 +384,19 @@ const {
 } = useDataLoader<PageConfig>(() => (stepNumber.value === 2 ? pageUrl.value : ''))
 // StepThree 独立的 loading/error（不能共用 StepTwo 的，否则 stepNumber 切换时空 URL 会污染 error 显示）
 const {
-  data: pageData,
+  data: rawPageData,
   loading: pageLoading,
   error: pageError,
   retry: retryPage,
-} = useDataLoader<PageData>(() => (stepNumber.value === 3 ? pageUrl.value : ''))
+} = useDataLoader<RawAdaptiveQuizPage>(() => (stepNumber.value === 3 ? pageUrl.value : ''))
+
+/**
+ * Step 3 渲染用数据：原始 JSON 的题干/选项/答案有错位（见 adaptiveQuizPageAdapter），
+ * 必须过一遍适配器再交给 QuizCard，否则题干会变成可选选项、WEN_04 还会标题干为正确答案。
+ */
+const pageData = computed<AdaptiveQuizPage | null>(() =>
+  rawPageData.value ? adaptAdaptiveQuizPage(rawPageData.value) : null,
+)
 
 // ======== Step 2: quiz 进度（useQuizFlow） ========
 const step2QuizCount = ref(0)
@@ -392,7 +415,12 @@ const step2Flow = useQuizFlow({
   wenId: () => wenId.value,
 })
 
-const showNavigation = computed(() => Boolean(!loading.value && !error.value && pageConfig.value))
+/**
+ * 第二关底部导航：只要加载结束就显示（含错误态和空态）。
+ * 旧判据还要求 !error && pageConfig，404 时整条底栏连同「返回」一起消失，
+ * 学生只剩一个「重试」按钮，没路可退。
+ */
+const showNavigation = computed(() => !loading.value)
 
 // Step 2: 统计 quiz 块索引，实现 Block 可见性控制
 const quizBlockIndices = computed(() => {
@@ -502,7 +530,40 @@ onMounted(() => {
   padding: var(--spacing-md);
   max-width: 900px;
   margin: 0 auto;
-  padding-bottom: 5rem;
+  /* 底部固定导航加高后仍要留出操作区，避免最后一道题被挡住 */
+  padding-bottom: var(--spacing-bottom-safe);
+}
+
+/* ============ 文本数据未就绪（三关共用降级页） ============ */
+.step-not-ready {
+  min-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl) var(--spacing-md) var(--spacing-bottom-safe);
+  box-sizing: border-box;
+}
+
+.step-not-ready .not-ready-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  color: var(--color-text-secondary, #666);
+  text-align: center;
+  padding: var(--spacing-xl);
+}
+
+.step-not-ready .not-ready-icon {
+  font-size: 3rem;
+  opacity: 0.6;
+}
+
+.step-not-ready .not-ready-text {
+  margin: 0;
+  font-family: var(--font-family-serif);
+  font-size: var(--font-size-body);
 }
 .step-1-view .annotated-section {
   margin-bottom: var(--spacing-md);

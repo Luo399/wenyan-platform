@@ -28,7 +28,7 @@
 
 import { post } from '@/utils/api'
 import { debugLog, debugWarn } from '@/utils/debug'
-import { useAuthStore } from '@/stores/auth'
+import { activeAuthBridge } from '@/utils/authBridge'
 
 // ============================================================
 // session_id 管理
@@ -61,10 +61,46 @@ export function getSessionId(): string {
   }
 }
 
+// ============================================================
+// 会话级去重：每个 session 每个 step 只记录一次"首次进入"
+// ============================================================
+
+/** 记录当前 session 已首次进入的 step_id 集合 */
+const firstEnterSet = new Set<string>()
+
 /**
- * 重置 session_id（用户主动退出登录时调用，切割会话）
+ * 是否为当前 session 中该 step 的首次进入
+ *
+ * 有状态：首次调用登记并返回 true，之后同 step_id 返回 false。
+ * resetSessionId() 会清空，使新会话重新计一次 first_enter。
+ */
+export function isFirstEnter(stepId: string): boolean {
+  if (firstEnterSet.has(stepId)) return false
+  firstEnterSet.add(stepId)
+  return true
+}
+
+/**
+ * 埋点事件里的 user_id：登录态下取学号，否则空串。
+ *
+ * 原来这段判断在 track() 与 session_end 两处各抄了一遍（8 行 × 2），
+ * 且都直接 `useAuthStore()`，让 utils 反向依赖 store。现在只有一份，
+ * 并通过 AuthBridge 读取——桥为 null（Pinia 未就绪 / 该实例未建过 auth store）
+ * 时返回空串，与原 try/catch 兜底一致。
+ */
+function currentUserId(): string {
+  return activeAuthBridge()?.getUserId() ?? ''
+}
+
+/**
+ * 重置 session_id（用户主动退出登录、新用户登录时调用，切割会话）
+ *
+ * 同一次切割会话必须同时清掉「首次进入」去重集合，否则新 session 会继承旧 session 的
+ * step 去重记录，first_enter 事件永久丢失。两件事原本散落在 utils 与 composables
+ * 两个模块、由调用方（stores/auth.ts）手动成对调用，现在收进同一个函数里。
  */
 export function resetSessionId(): void {
+  firstEnterSet.clear()
   try {
     const newSid = generateSessionId()
     localStorage.setItem(STORAGE_KEY_SESSION_ID, newSid)
@@ -223,15 +259,7 @@ export function track(
   immediate = false,
 ): void {
   try {
-    let userId = ''
-    try {
-      const authStore = useAuthStore()
-      if (authStore.isLoggedIn && authStore.user) {
-        userId = authStore.user.studentId || authStore.user.id || ''
-      }
-    } catch {
-      // Pinia 未就绪时使用空 user_id
-    }
+    const userId = currentUserId()
 
     const event: TrackEvent = {
       event_type: eventType,
@@ -317,15 +345,7 @@ if (typeof window !== 'undefined') {
     // beforeunload 中异步 fetch 会被浏览器中止，必须走 sendBeacon
     // 将 session_end 加入 buffer，由 flushOnUnload 统一用 sendBeacon 发送
     try {
-      let userId = ''
-      try {
-        const authStore = useAuthStore()
-        if (authStore.isLoggedIn && authStore.user) {
-          userId = authStore.user.studentId || authStore.user.id || ''
-        }
-      } catch {
-        // Pinia 未就绪
-      }
+      const userId = currentUserId()
       eventBuffer.push({
         event_type: 'session_end',
         user_id: userId,

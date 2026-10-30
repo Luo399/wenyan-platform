@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_15",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_15",
+        "question_id": "WEN_15_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "诸葛亮认为修身养德的关键是（）",
+        "option_a": "静以修身，俭以养德",
+        "option_b": "多交朋友，广结人脉",
+        "option_c": "追求名利，光宗耀祖",
+        "option_d": "终日读书，不问世事",
+        "correct_answer": "A",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "诸葛瞻：父亲临终前告诫我“静以修身，俭以养德”，其中“静”“俭”为何重要？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_15",
+        "pre_dialog": "诸葛亮：答案是A。内心宁静专一，才能修养身心；生活节俭，才能培养品德。B、C、D都把心思引向外部名利或与人交往，与“静”“俭”背道而驰，也不是我临终告诫的本意。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_15",
+        "question_id": "WEN_15_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "“非淡泊无以明志，非宁静无以致远”的含义是（）",
+        "option_a": "志向越远大，越不需要宁静",
+        "option_b": "只有隐居山林，才能立下志向",
+        "option_c": "淡泊就是什么都不做，宁静就是沉默寡言",
+        "option_d": "不追求名利才能明确志向，内心宁静才能实现远大目标",
+        "correct_answer": "D",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "晚辈：先生，“非淡泊无以明志，非宁静无以致远”该如何理解？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_15",
+        "pre_dialog": "诸葛亮：答案是D。“淡泊”是不慕名利，“宁静”是内心专一。不被名利牵扰，志向才清楚；不被杂念扰乱，才能走得更远。B、C、A都把“淡泊”“宁静”理解成了消极避世或沉默不语。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

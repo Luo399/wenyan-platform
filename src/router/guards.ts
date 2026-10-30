@@ -12,7 +12,8 @@
 import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-router'
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useAuthStore, type Role } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth'
+import { isRoleAllowed } from '@/utils/roles'
 import { debugLog } from '@/utils/debug'
 
 /**
@@ -21,27 +22,6 @@ import { debugLog } from '@/utils/debug'
  */
 function requiresAuth(to: RouteLocationNormalized): boolean {
   return !!to.meta.requiresAuth
-}
-
-/**
- * meta.role 归一化成数组（单值写起来更顺手，判定时统一按集合看）
- */
-export function normalizeRequiredRoles(role: Role | Role[] | undefined): Role[] {
-  if (role === undefined) return []
-  return Array.isArray(role) ? role : [role]
-}
-
-/**
- * 当前角色是否命中路由要求
- *
- * 未声明 role 的路由一律放行；未登录（current 为空）访问受角色限制的路由
- * 一律拒绝。super_admin 之前不在类型里，任何 admin 页都会被它挡掉，
- * 所以这里必须按「角色集合是否包含」而不是「字符串是否相等」判定。
- */
-export function isRoleAllowed(required: Role | Role[] | undefined, current?: Role): boolean {
-  const roles = normalizeRequiredRoles(required)
-  if (roles.length === 0) return true
-  return current !== undefined && roles.includes(current)
 }
 
 /**
@@ -88,12 +68,10 @@ export function setupAuthGuard(router: Router): void {
       }
 
       // 角色检查（可选）：路由 meta 上声明 role 时校验 authStore.user.role
-      const requiredRole = to.meta.role as Role | Role[] | undefined
+      const requiredRole = to.meta.role
       const currentRole = authStore.user?.role
       if (requiresAuth(to) && !isRoleAllowed(requiredRole, currentRole)) {
         debugLog('[AuthGuard] 角色不匹配：需要', requiredRole, '当前', currentRole)
-        // 用 sessionStorage 暂存一个小提示，home 页或全局可读取
-        try { sessionStorage.setItem('__role_guard_warn', '无权访问该页面') } catch { /* ignore */ }
         next({ path: '/' })
         return
       }

@@ -284,6 +284,7 @@ import { ref, computed } from 'vue'
 import { getAllPoemSlots, getWenId } from '@/utils/wenUtils'
 import { upload } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
+import { isStaffRole } from '@/utils/roles'
 
 // ============ 类型定义 ============
 interface UploadLog {
@@ -298,14 +299,9 @@ interface CultureSlot {
 // ============ 数据 ============
 const authStore = useAuthStore()
 const userRole = computed(() => authStore.user?.role)
-// 路由 meta.role 已放开 super_admin（其权限含 admin），页面内授权判断必须与其对齐，
-// 否则会出现"能进页面但整页显示未授权"的割裂状态。
-const isAuthorized = computed(
-  () =>
-    userRole.value === 'teacher' ||
-    userRole.value === 'admin' ||
-    userRole.value === 'super_admin',
-)
+// 路由 meta.role 用的是 utils/roles 的 STAFF_ROLES，页面内授权判定取同一集合，
+// 避免「能进页面但整页显示未授权」的割裂状态。
+const isAuthorized = computed(() => isStaffRole(userRole.value))
 
 // 上传工具要能选到全部号位（含编号未确认的 20/21/23/28–37）：
 // 美术是按号交付的，这里只做「把文件挂到这个号上」，不判断该号对应哪篇课文。

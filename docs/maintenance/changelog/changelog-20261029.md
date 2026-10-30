@@ -347,8 +347,8 @@
 
 | 变更编号       | 变更类型   | 影响范围                                                                                                                                                                       | 变更描述                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 测试状态                                                                       | 上线状态                                                  |
 | -------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------- |
-| CR-20261029-24 | ci         | `.github/workflows/ci-checks.yml`、`package.json`、`vitest.config.ts`                                                                                                          | 把覆盖率门禁真正接进 CI：`quality-check` 的前端测试步骤由 `npm run test` 改为 `npm run test:coverage`（该步骤无 `continue-on-error`，不达标直接非零退出），并补上此前**根本不存在**的 `test:coverage` 脚本。阈值按当日两次实测的下界定为 lines 18 / functions 20 / branches 13 / statements 18。前置核对：`@vitest/coverage-v8@^4.1.10` 已在 devDependencies 且在 `package-lock.json`，CI 的 `npm install` 装得到；三个文件都命中 `on.push.paths`                                                                                                                       | 已通过（CI job 日志实测 `Coverage enabled with v8`、19 文件全过、覆盖率 23.06/16.84/25.04/22.45）    | 未上线（`feature-1`@`20e03c4`；CI 配置对 `main` 分支生效） |
-| CR-20261029-25 | feat(素材) | `public/data/culture_cards/WEN_23.json`、`backend/data/culture_cards/WEN_23.json`、`src/config/poemAssets.ts`、`src/config/__tests__/poemAssets.test.ts`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 23 号位《活板》的两张卡片视频按既有口径挂载。`public` 与 `backend` 两份 JSON 是**同一个 blob**（`bba4ac7`，606 字节 LF）；`card_name` 沿用「历史回响」、`image_file` 写交付原名、`unlock_condition` 照 01–04 文案、`knowledge_text` **两张都留空串**（画面未抽帧验证，不编造学生可见文案，组件 `v-if="card.knowledge_text"` 不渲染空字幕）。`CULTURE_CARD_DATA_POEM_IDS` 15 → 16 个号，`ORPHAN_CARD_VIDEO_POEM_IDS` 由 `['23']` 清空；两份素材文档的孤儿计数同步（24 个孤儿文件清零）。测试新增三条锁，`poemAssets.test.ts` 21 → 24 例 | 已通过（本机合并态导出树 19 文件 278 例、覆盖率 23.08/16.84/25.11/22.46；`vue-tsc --build` 0 错误；CI 12 项全绿） | 未上线（数据文件要随前端构建发布；发版前线上仍 404）       |
+| CR-20261029-24 | ci         | `.github/workflows/ci-checks.yml`、`package.json`、`vitest.config.ts`                                                                                                          | 把覆盖率门禁真正接进 CI：`quality-check` 的前端测试步骤由 `npm run test` 改为 `npm run test:coverage`（该步骤无 `continue-on-error`，不达标直接非零退出），并补上此前**根本不存在**的 `test:coverage` 脚本。阈值按当日两次实测的下界定为 lines 18 / functions 20 / branches 13 / statements 18。前置核对：`@vitest/coverage-v8@^4.1.10` 已在 devDependencies 且在 `package-lock.json`，CI 的 `npm install` 装得到；三个文件都命中 `on.push.paths`                                                                                                                       | 已通过（CI job 日志实测 `Coverage enabled with v8`、19 文件全过、覆盖率 23.06/16.84/25.04/22.45）    | 已上线（`main`@`8760894`；覆盖率门禁从此在主干 CI 真正生效） |
+| CR-20261029-25 | feat(素材) | `public/data/culture_cards/WEN_23.json`、`backend/data/culture_cards/WEN_23.json`、`src/config/poemAssets.ts`、`src/config/__tests__/poemAssets.test.ts`、`docs/素材缺失清单.md`、`docs/素材对应核查.md` | 23 号位《活板》的两张卡片视频按既有口径挂载。`public` 与 `backend` 两份 JSON 是**同一个 blob**（`bba4ac7`，606 字节 LF）；`card_name` 沿用「历史回响」、`image_file` 写交付原名、`unlock_condition` 照 01–04 文案、`knowledge_text` **两张都留空串**（画面未抽帧验证，不编造学生可见文案，组件 `v-if="card.knowledge_text"` 不渲染空字幕）。`CULTURE_CARD_DATA_POEM_IDS` 15 → 16 个号，`ORPHAN_CARD_VIDEO_POEM_IDS` 由 `['23']` 清空；两份素材文档的孤儿计数同步（24 个孤儿文件清零）。测试新增三条锁，`poemAssets.test.ts` 21 → 24 例 | 已通过（本机合并态导出树 19 文件 278 例、覆盖率 23.08/16.84/25.11/22.46；`vue-tsc --build` 0 错误；CI 12 项全绿） | 已上线（`main`@`8760894`；生产实测 `/data/culture_cards/WEN_23.json` → 200） |
 
 ### 明细
 
@@ -391,14 +391,14 @@
 
 | 变更编号 | 变更类型 | 影响范围 | 变更描述 | 测试状态 | 上线状态 |
 | --- | --- | --- | --- | --- | --- |
-| CR-20261029-26 | fix(security) | `backend/src/middleware/{authMiddleware,validate,assetAuthMiddleware,dashboardAuthMiddleware}.js`、`backend/src/controllers/{authController,adminController}.js`、`backend/src/services/authService.js`、`backend/init_db.js` | 补回被摘掉的 zod 校验中间件；登录改成先验密码再判账号状态（消掉用户名枚举的时序差）；注册路径不接受 `can_view_all`；admin 重置口令改随机 + 写 `must_reset_password` + 落 `password_resets` 审计；内置 `admin/admin123` 取消，初始管理员必须由 `INITIAL_ADMIN_PASSWORD` 显式配置；内部看板在无 `DASHBOARD_PASSWORD` 时 fail-closed 返回 503 | 已通过 | 未上线（`feature-1`@`5e4886c`） |
-| CR-20261029-27 | fix(backend) | `backend/src/controllers/{answerController,studentController,teacherController,assetController,trackingController}.js`、`backend/src/services/{answerService,assetService}.js`、`backend/src/utils/{jsonReader,dbPromise,logger}.js` | 答题归属与判分：提交加 IDOR 守卫 `authorizeSubmit`，越权代答直接拒；资产上传与预签名 URL 补角色/归属校验，`/api/upload/resource` 与前端路由口径统一（含 `super_admin`）；埋点接口忽略 body 里的 `user_id`、只信登录态，并加 32KB payload 上限与 24h 时间戳偏移校验；日志与事务安全收口 | 已通过 | 未上线 |
-| CR-20261029-28 | fix(frontend) | `src/utils/api.ts`（`sanitizeRedirect`、上传超时与 `signal`）、`src/stores/auth.ts`、`src/router/{index,guards}.ts`、`src/components/{LoginModal,StudentDisplay}.vue`、`src/views/{StudentLoginView,TeacherLoginView,AnswerQueryView}.vue` | 登录态与失效接口修正；越权入口按路由 `meta.role` 门禁拦截；`sanitizeRedirect`（在 `api.ts`）把 `route.query.redirect` 收敛到站内路径白名单，防开放重定向；上传单独 60s 超时并支持外部 `signal` 中止 | 已通过 | 未上线 |
-| CR-20261029-29 | refactor(frontend) | `vite.config.ts`、`eslint.config.ts`、`src/components/**`、`src/composables/index.ts`、`src/mock/**`（删除） | 删首页桶文件、mock 目录与过期文档；修 `MultiRoleReading` 父子组件循环依赖；无障碍（`aria-live`、焦点可见、label 关联）与死代码清理。顺带补回此前只存在于工作区、导致 HEAD 干净克隆构建不出来的 `src/utils/tooltipPosition.ts` 与看板视图/图表组件 | 已通过 | 未上线 |
-| CR-20261029-30 | ci | `.github/workflows/*`、`.github/{CODEOWNERS,dependabot.yml,PULL_REQUEST_TEMPLATE.md}`、`scripts/*.sh`、`Dockerfile`、`docker-compose.yml`、`ecosystem.config.js` | 部署与环境变量、OSS 工具链、脚本健壮性：workflow 全部 `permissions: contents: read`、生产部署挂 `environment: production` + `concurrency`；脚本统一 `set -euo pipefail` 与显式错误退出；`package.json` 的 `lint` 拆成 `lint:oxlint` + `lint:eslint` 并加不带 `--fix` 的 `lint:ci` | 已通过（12 项检查 + 测试环境部署） | 已部署测试环境；生产待发版 |
-| CR-20261029-31 | chore(repo) | `.gitignore`、`backend/data/students.json`、`backend/data/answer_records.json`、`backend/database/answers.db`、`data-pipeline/source/*.xlsx`、`*.zip`、`SECURITY.md`、`CONTRIBUTING.md`、`LICENSE`、`README.md` | 移除误提交的 sqlite 数据库、真实学生名单与压缩包（PII 不再入库，本地文件保留所以数据管线照跑）；新增仓库治理文件。**`xlsx` 依赖删除**：npm 上 0.18.5 停在有原型污染通告的版本、官方修复只发在 SheetJS 自己的 CDN，导出改标准 CSV（UTF-8 BOM + RFC 4180 引号转义），内部看板下载名同步 `.csv` | 已通过 | 未上线 |
+| CR-20261029-26 | fix(security) | `backend/src/middleware/{authMiddleware,validate,assetAuthMiddleware,dashboardAuthMiddleware}.js`、`backend/src/controllers/{authController,adminController}.js`、`backend/src/services/authService.js`、`backend/init_db.js` | 补回被摘掉的 zod 校验中间件；登录改成先验密码再判账号状态（消掉用户名枚举的时序差）；注册路径不接受 `can_view_all`；admin 重置口令改随机 + 写 `must_reset_password` + 落 `password_resets` 审计；内置 `admin/admin123` 取消，初始管理员必须由 `INITIAL_ADMIN_PASSWORD` 显式配置；内部看板在无 `DASHBOARD_PASSWORD` 时 fail-closed 返回 503 | 已通过 | 已上线（`main`@`8760894`；生产匿名看板三口由 200 收敛为 503，见发布事实） |
+| CR-20261029-27 | fix(backend) | `backend/src/controllers/{answerController,studentController,teacherController,assetController,trackingController}.js`、`backend/src/services/{answerService,assetService}.js`、`backend/src/utils/{jsonReader,dbPromise,logger}.js` | 答题归属与判分：提交加 IDOR 守卫 `authorizeSubmit`，越权代答直接拒；资产上传与预签名 URL 补角色/归属校验，`/api/upload/resource` 与前端路由口径统一（含 `super_admin`）；埋点接口忽略 body 里的 `user_id`、只信登录态，并加 32KB payload 上限与 24h 时间戳偏移校验；日志与事务安全收口 | 已通过 | 已上线（`main`@`8760894`） |
+| CR-20261029-28 | fix(frontend) | `src/utils/api.ts`（`sanitizeRedirect`、上传超时与 `signal`）、`src/stores/auth.ts`、`src/router/{index,guards}.ts`、`src/components/{LoginModal,StudentDisplay}.vue`、`src/views/{StudentLoginView,TeacherLoginView,AnswerQueryView}.vue` | 登录态与失效接口修正；越权入口按路由 `meta.role` 门禁拦截；`sanitizeRedirect`（在 `api.ts`）把 `route.query.redirect` 收敛到站内路径白名单，防开放重定向；上传单独 60s 超时并支持外部 `signal` 中止 | 已通过 | 已上线（`main`@`8760894`） |
+| CR-20261029-29 | refactor(frontend) | `vite.config.ts`、`eslint.config.ts`、`src/components/**`、`src/composables/index.ts`、`src/mock/**`（删除） | 删首页桶文件、mock 目录与过期文档；修 `MultiRoleReading` 父子组件循环依赖；无障碍（`aria-live`、焦点可见、label 关联）与死代码清理。顺带补回此前只存在于工作区、导致 HEAD 干净克隆构建不出来的 `src/utils/tooltipPosition.ts` 与看板视图/图表组件 | 已通过 | 已上线（`main`@`8760894`；生产 `/v1/texts` 别名实测 200） |
+| CR-20261029-30 | ci | `.github/workflows/*`、`.github/{CODEOWNERS,dependabot.yml,PULL_REQUEST_TEMPLATE.md}`、`scripts/*.sh`、`Dockerfile`、`docker-compose.yml`、`ecosystem.config.js` | 部署与环境变量、OSS 工具链、脚本健壮性：workflow 全部 `permissions: contents: read`、生产部署挂 `environment: production` + `concurrency`；脚本统一 `set -euo pipefail` 与显式错误退出；`package.json` 的 `lint` 拆成 `lint:oxlint` + `lint:eslint` 并加不带 `--fix` 的 `lint:ci` | 已通过（12 项检查 + 测试环境部署） | 已上线（`main`@`8760894`；生产部署 run `40863153617` 成功，`environment: production` 首次生效且**无审批人**） |
+| CR-20261029-31 | chore(repo) | `.gitignore`、`backend/data/students.json`、`backend/data/answer_records.json`、`backend/database/answers.db`、`data-pipeline/source/*.xlsx`、`*.zip`、`SECURITY.md`、`CONTRIBUTING.md`、`LICENSE`、`README.md` | 移除误提交的 sqlite 数据库、真实学生名单与压缩包（PII 不再入库，本地文件保留所以数据管线照跑）；新增仓库治理文件。**`xlsx` 依赖删除**：npm 上 0.18.5 停在有原型污染通告的版本、官方修复只发在 SheetJS 自己的 CDN，导出改标准 CSV（UTF-8 BOM + RFC 4180 引号转义），内部看板下载名同步 `.csv` | 已通过 | 已上线（`main`@`8760894`） |
 | CR-20261029-32 | test | `backend/tests/{security-hardening,export-format,answer-p0-security,admin-dashboard,teacher-dashboard}.test.js`、`tests/**`、`src/**/__tests__/*`、`vitest.config.ts` | 后端新增 `security-hardening.test.js`（30 例）与 `export-format.test.js`（8 例）；前端新增 open redirect、路由角色门禁、WordList 浮层、图表工具等用例；两张看板测试改按新鉴权契约（显式配 `INITIAL_ADMIN_PASSWORD`、学生登录用创建接口返回的一次性口令）；`vitest.config.ts` 的 `include` 恢复 `tests/**/*.spec.ts` + `setupFiles`，覆盖率门槛按合并后实测重定 | 已通过 | 不适用 |
-| CR-20261029-33 | fix(ci) | `.github/workflows/{deploy-backend-test,deploy-backend}.yml` | 修本轮 E 组带回的测试部署回归：`.env` 门禁由「四把密钥全必需」改成「只对 `JWT_SECRET` 判红、其余三把 WARN 并写明哪个功能 503」；测试环境 `JWT_SECRET` 按旧值 > Secret > 现场生成一次并持久化补齐；剔除阶段顺带丢掉这四把的空值行。生产仍绝不自动生成密钥 | 已通过（本机抽出 `.env` 重建段跑三种机器状态 + `bash -n` + YAML parse；PR #250 六项检查全绿；合并后 run `40858018689` 部署成功、健康检查第 2 次通过） | 已部署测试环境；生产待发版 |
+| CR-20261029-33 | fix(ci) | `.github/workflows/{deploy-backend-test,deploy-backend}.yml` | 修本轮 E 组带回的测试部署回归：`.env` 门禁由「四把密钥全必需」改成「只对 `JWT_SECRET` 判红、其余三把 WARN 并写明哪个功能 503」；测试环境 `JWT_SECRET` 按旧值 > Secret > 现场生成一次并持久化补齐；剔除阶段顺带丢掉这四把的空值行。生产仍绝不自动生成密钥 | 已通过（本机抽出 `.env` 重建段跑三种机器状态 + `bash -n` + YAML parse；PR #250 六项检查全绿；合并后 run `40858018689` 部署成功、健康检查第 2 次通过） | 已上线（`main`@`8760894`；生产 `.env` 门禁实跑：旧 `JWT_SECRET` 保留未轮换，缺两把可选键只 WARN） |
 
 ### 合并后暴露的部署回归（同一轮内修掉，CR-20261029-33）
 
@@ -479,6 +479,8 @@
   `/api/tracking/funnel` → 200，三者都**不带任何凭据**；`/api/admin/students` → 401（管理端一直是保护的）。
   也就是说内部看板那几个代理接口此刻对公网匿名开放，修它的代码已经在 `feature-1`，
   **只有走 `main` 的发布 PR 才会生效**（本批没有那个权限，也不该自动合）。
+  → **本条已闭合**：当晚 PR #253 合入 `main`@`8760894`，三口在生产实测收敛为 503、`/v1/texts` 恢复 200，
+  见文末「发布事实（2026-10-29 晚）」。
 
 ### 本批新增的 dependabot 配置立刻开了 18 个 PR（待你处置，我没合任何一个）
 
@@ -488,3 +490,66 @@ PR #232–#249 共 18 条，正好每个生态顶到 5 条上限。抽查：#242
 major 升级要人工判断（zod 4 会动所有 schema、vitest 5 会动配置），所以**本批一条都没合**。
 要少受这个干扰可以把三个 npm 生态加 `ignore: update-types: ["version-update:semver-major"]`，
 只留 minor/patch + 安全更新；但那样 CVE 需要 major 才能修时依赖更新不会自动来，得人工发起——要不要收紧由你定。
+
+### 发布事实（2026-10-29 晚：第六批 + 第七批上 `main`@`8760894`）
+
+> 触发口径是用户的一句话「**合并main**」。这一班把第六批（覆盖率门禁接进 CI、23 号位卡片）与第七批
+> （70 项全站审查修复 + 它自己带回的测试部署回归）一起发进生产。
+
+- **前置：先把 `main` 合回 `feature-1`**。`main` 上有两个 `feature-1` 没有的提交（#226 发布后的状态回填 `2bcec3e`
+  与其合并提交 `07a823c`，纯 `docs/**` + `tasks/**`），直接开发布 PR 会在 `changelog-20261029.md`、`nightly-tasks.md`
+  撞冲突——两条会话都往文件尾追加。PR #252（合并提交 `1b62516`）只做这件事：两边文字一句没删，
+  只把 `### 发布事实（2026-10-29 下午复核）` 按真实时序放回第五批之后、第六批之前（13:13:31 发布 → 13:19:33 回填 →
+  13:28/13:29 第六批并进 `feature-1`）。合完 `compare main...feature-1` = `ahead_by: 37 / behind_by: 0`，
+  `main` 成为 `feature-1` 的祖先，发布 PR 的 `mergeStateStatus` 才变 CLEAN。
+- **发布 PR #253**（`feature-1`@`1b62516` → `main`）：`CI Checks` run `40862897607` 六项全绿
+  （quality-check 48s / backend-check 27s / circular-check / figma-plugin-check / pipeline-test / secret-scan），
+  19:09:08（UTC+8）`--merge` 为 `main`@`8760894`。
+- **`main` push 触发的四条 run 全绿**：`CI Checks` `40863153667`、`Deploy Frontend to Aliyun OSS` `40863153680`、
+  `Deploy Backend to Aliyun Server` `40863153617`、`Sync Figma Plugin to wenyan-asset-sync` `40863153595`。
+- **`environment: production` 第一次被真正使用，且它没有任何闸口**：仓库此前只有 `test` 一个 environment，
+  GitHub 在本次 run 里自动建了 `production`；发布后实测 `GET /repos/.../environments` 返回
+  `production: {protection_rules: [], reviewers: null, can_admins_bypass: true}`
+  ⇒ **合进 `main` 就是自动部署生产，没有人工审批步骤**。要恢复人工闸口得在 Settings → Environments → `production`
+  加 Required reviewers；那是账号权限设置，我没有动，也不该由我给自己开。
+- **生产部署日志实抄**（run `40863153617` 的 `[2/5]` 之后）：
+  `WARNING: 以下可选密钥未配置，对应接口将 fail-closed 返回 503（不影响本次部署）: DASHBOARD_PASSWORD DEEPSEEK_API_KEY`。
+  `JWT_SECRET` 走「旧值优先」被完整保留 ⇒ **本次没有轮换密钥，已签发的生产 token 不失效**；`ASSET_SYNC_TOKEN` 有值
+  （仓库里确实建了这把 Secret）。新版脚本这次没有截断 `.env`——旧版是 `echo "PORT=3000" > backend/.env` 重建，
+  会把手工键连根抹掉，这正是 CR-20261029-30 改成「保留旧值 + 只覆盖受管键」的原因，现在写进 `.env` 的键能留住。
+
+#### 线上黑盒对照（合并前 `8db7a6e` → 合并后 `8760894`，全部不带任何凭据）
+
+| 探针                                       | 合并前（实测）                       | 合并后（实测）                          | 判定                                                     |
+| ------------------------------------------ | ------------------------------------ | --------------------------------------- | -------------------------------------------------------- |
+| 前端 `index.html` 的 build-id              | `8db7a6e`                            | **`8760894`**                           | 新版前端确实发布到生产 OSS                               |
+| `GET /v1/texts`                            | 404                                  | **200**                                 | R7 别名修复生效（`app.js` 的 app 级 URL 改写）           |
+| `GET /v1/api/texts`                        | 未测                                 | 200                                     | 没被改写成 `/api/api/texts`                              |
+| `GET /api/home/dashboard`                  | **200 且返回真实汇总**（`studentCount:1 / submissionCount:0 / passRate:0`） | **503** `DASHBOARD_AUTH_NOT_CONFIGURED` | 公网匿名口子闭合；代价见下方「要补的两把键」             |
+| `GET /api/home/dashboard/raw`              | 200                                  | 503                                     | 同上                                                     |
+| `GET /api/tracking/funnel`                 | 200                                  | 503                                     | 同上                                                     |
+| `GET /api/admin/students`                  | 401                                  | 401                                     | 管理端一直受保护，无回归                                 |
+| `POST /api/auth/student/login`（空 body）   | 400                                  | 400 `VALIDATION_ERROR`                  | zod 校验中间件回来了，且没有过拒                         |
+| `POST /api/auth/student/login`（错凭据）    | 401                                  | 401 `INVALID_CREDENTIALS`               | bcrypt 对**存量**用户行仍可比对（没有 500，改密逻辑没伤到既有账号） |
+| `GET /api/texts` / `/api/assets/inventory` / `/api/health` | 200 / 200 / 200        | 200 / 200 / 200                         | 读接口无回归                                             |
+| `GET /data/culture_cards/WEN_23.json`      | 发版前记录 404（本轮未复测）         | **200**（`text_id: WEN_23`，两张卡）    | 23 号位卡片数据随本次构建上线                            |
+
+#### 因此要在服务器上补两把键（否则这两个功能在生产是 503）
+
+1. **`DASHBOARD_PASSWORD`**：不写就没有任何人能看到内部数据看板（上面三口全 503）。这是审查里定的 fail-closed 口径，
+   不是回归——之前那个 200 是把学生答题汇总对公网匿名开放。
+2. **`DEEPSEEK_API_KEY`**：不写则 AI 对话 503。**这一把不是本次发布弄坏的**：旧版部署脚本每次 `> backend/.env` 截断重建，
+   它历史上每部署一次就被抹一次，所以生产 AI 对话早就不可用；新版只是把这件事变成一条明确的 503 加一行 WARNING，
+   而不是静默 500。
+
+做法（我没有 SSH 权限，也不该有，需要你本人在服务器执行）：往生产的 `backend/.env` 追加
+`DASHBOARD_PASSWORD=<强口令>` 与 `DEEPSEEK_API_KEY=<sk-...>`，然后 `pm2 restart wenyan-backend --update-env`。
+下次部署不会再覆盖它们；也可以建同名 GitHub Actions Secret，让 `inject_if_missing` 在 `.env` 缺值时补上——
+但对 `JWT_SECRET` 生产**仍然绝不自动生成**，静默换密钥会一次性作废全网 token。
+
+#### 更正我写在 PR #253 正文里的一句
+
+PR #253 描述写「`/api/v1/texts` 现在是 404，合并后应为 200」——**路径口径错了**。别名是 `/v1/...`
+（`backend/src/app.js` 在 app 级判断前缀再改写 URL，注释里就写了不能挂 `app.use('/v1', fn)`），
+`/api/v1/texts` 这个路径本来就不存在，生产与测试都 404。实测成立的是 `GET /v1/texts` → 200、
+`GET /v1/api/texts` → 200。上面表格按实测写。

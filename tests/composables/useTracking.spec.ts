@@ -4,7 +4,7 @@
  * 覆盖范围：
  * 1. buildStepId 逻辑（poemId 拼接 / 无 poemId）
  * 2. isFirstEnter 去重逻辑
- * 3. resetFirstEnterSet 清除去重记录
+ * 3. resetSessionId 清除去重记录（切割会话时 session_id 与首次进入记录一起重置）
  * 4. 主动埋点方法（trackInteraction / trackSearchWord / trackQuizSubmit）
  * 5. setFromBackButton / setNextStepId 状态设置
  */
@@ -45,7 +45,8 @@ vi.mock('vue', async () => {
   }
 })
 
-import { useTracking, resetFirstEnterSet } from '@/composables/useTracking'
+import { useTracking } from '@/composables/useTracking'
+import { resetSessionId } from '@/utils/tracking'
 import { post } from '@/utils/api'
 
 const mockPost = vi.mocked(post)
@@ -61,7 +62,7 @@ describe('useTracking', () => {
     unmountedCallbacks.length = 0
     activatedCallbacks.length = 0
     deactivatedCallbacks.length = 0
-    resetFirstEnterSet()
+    resetSessionId()
   })
 
   afterEach(() => {
@@ -241,13 +242,13 @@ describe('useTracking', () => {
       expect(body.events[0].properties.is_first_enter).toBe(true)
     })
 
-    it('resetFirstEnterSet 后重新标记为首次进入', () => {
+    it('resetSessionId 后重新标记为首次进入', () => {
       useTracking('home', '')
       mountedCallbacks.forEach((cb) => cb())
 
       vi.advanceTimersByTime(500)
 
-      resetFirstEnterSet()
+      resetSessionId()
 
       // 重新创建 useTracking 实例
       mockPost.mockReset()
