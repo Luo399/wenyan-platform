@@ -50,6 +50,9 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/utils/asset', () => ({
   getDataUrlWithVersion: (dir: string, file: string) => `/data/${dir}/${file}`,
+  // 与 utils/asset 的 getDataUrl 在「ossBase 未配置」时的拼法逐字一致：
+  // StepView 的 pageUrl 走的就是这条，测试里请求到的 URL 与改造前相同。
+  getDataUrl: (dir: string, file: string) => `/data/${dir}/${file}`,
 }))
 
 vi.mock('@/utils/tracking', () => ({

@@ -188,7 +188,7 @@ import { useQuizFlow } from '@/composables/quiz/useQuizFlow'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
 import { resolveQuestionId } from '@/utils/questionId'
-import { getDataUrlWithVersion } from '@/utils/asset'
+import { getDataUrl, getDataUrlWithVersion } from '@/utils/asset'
 import { adaptLevel1Quiz, type RawLevel1QuizItem } from '@/adapters/level1QuizAdapter'
 import type { PageBlock } from '@/types/pageConfig'
 import { debugLog, debugError } from '@/utils/debug'
@@ -228,7 +228,7 @@ function handleGoNext() {
 const meta = computed(() => getFigmaPageMeta(route.name as string))
 const pageUrl = computed(() => {
   if (!meta.value?.dataDir) return ''
-  return `/data/${meta.value.dataDir}/${wenId.value}.json`
+  return getDataUrl(meta.value.dataDir, `${wenId.value}.json`)
 })
 
 // ======== Step 1: 随堂练习（A 关，level1_quiz） ========
