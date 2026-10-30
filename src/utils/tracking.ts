@@ -61,10 +61,34 @@ export function getSessionId(): string {
   }
 }
 
+// ============================================================
+// 会话级去重：每个 session 每个 step 只记录一次"首次进入"
+// ============================================================
+
+/** 记录当前 session 已首次进入的 step_id 集合 */
+const firstEnterSet = new Set<string>()
+
 /**
- * 重置 session_id（用户主动退出登录时调用，切割会话）
+ * 是否为当前 session 中该 step 的首次进入
+ *
+ * 有状态：首次调用登记并返回 true，之后同 step_id 返回 false。
+ * resetSessionId() 会清空，使新会话重新计一次 first_enter。
+ */
+export function isFirstEnter(stepId: string): boolean {
+  if (firstEnterSet.has(stepId)) return false
+  firstEnterSet.add(stepId)
+  return true
+}
+
+/**
+ * 重置 session_id（用户主动退出登录、新用户登录时调用，切割会话）
+ *
+ * 同一次切割会话必须同时清掉「首次进入」去重集合，否则新 session 会继承旧 session 的
+ * step 去重记录，first_enter 事件永久丢失。两件事原本散落在 utils 与 composables
+ * 两个模块、由调用方（stores/auth.ts）手动成对调用，现在收进同一个函数里。
  */
 export function resetSessionId(): void {
+  firstEnterSet.clear()
   try {
     const newSid = generateSessionId()
     localStorage.setItem(STORAGE_KEY_SESSION_ID, newSid)

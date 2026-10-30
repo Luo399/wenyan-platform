@@ -92,8 +92,6 @@ export function setupAuthGuard(router: Router): void {
       const currentRole = authStore.user?.role
       if (requiresAuth(to) && !isRoleAllowed(requiredRole, currentRole)) {
         debugLog('[AuthGuard] 角色不匹配：需要', requiredRole, '当前', currentRole)
-        // 用 sessionStorage 暂存一个小提示，home 页或全局可读取
-        try { sessionStorage.setItem('__role_guard_warn', '无权访问该页面') } catch { /* ignore */ }
         next({ path: '/' })
         return
       }

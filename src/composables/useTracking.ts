@@ -18,30 +18,11 @@
  */
 
 import { onMounted, onUnmounted, onActivated, onDeactivated, ref } from 'vue'
-import { track, consumeBackButtonFlag, consumeExitType } from '@/utils/tracking'
+import { track, consumeBackButtonFlag, consumeExitType, isFirstEnter } from '@/utils/tracking'
 
-// ============================================================
-// 会话级去重：每个 session 每个 step 只记录一次"首次进入"
-// ============================================================
-
-/** 记录当前 session 已首次进入的 step_id 集合 */
-const firstEnterSet = new Set<string>()
-
-/**
- * 是否为当前 session 中该 step 的首次进入
- */
-function isFirstEnter(stepId: string): boolean {
-  if (firstEnterSet.has(stepId)) return false
-  firstEnterSet.add(stepId)
-  return true
-}
-
-/**
- * 重置首次进入记录（在 session 重置时调用）
- */
-export function resetFirstEnterSet(): void {
-  firstEnterSet.clear()
-}
+// 「首次进入」去重是会话状态，不属于 composable 层，已下沉到 utils/tracking.ts
+// （isFirstEnter）。这样 stores/auth.ts 只需调 resetSessionId() 一处，
+// 不再出现「store 依赖 composable」的反向依赖。
 
 // ============================================================
 // useTracking composable
