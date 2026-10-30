@@ -125,11 +125,12 @@ describe('StepView.vue', () => {
     })
 
     it('路由参数为 WEN_xx 格式时应直接使用', async () => {
-      await router.push('/stepone/WEN_05')
+      // 用 04（当前文本数据齐备的最后一篇）；05 起会走「制作中」降级页，子组件不挂载
+      await router.push('/stepone/WEN_04')
       await router.isReady()
       const wrapper = mountWith()
       const multiRole = wrapper.findComponent({ name: 'MultiRoleReading' })
-      expect(multiRole.props('wenId')).toBe('WEN_05')
+      expect(multiRole.props('wenId')).toBe('WEN_04')
     })
 
     it('路由参数无效时应回退到 WEN_01', async () => {
