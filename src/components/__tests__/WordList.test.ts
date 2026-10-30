@@ -304,6 +304,35 @@ describe('WordList 渲染分支', () => {
     expect(wrapper.find('.tooltip').exists()).toBe(true)
     wrapper.unmount()
   })
+
+  it('作者行按非空字段拼接：无朝代时不出现「 · 作者」的前导分隔符', async () => {
+    // Figma 文字资源没有朝代字段，出处（book）单独存，不能塞进 author
+    setLoaders(
+      { data: WORD_LIST },
+      { data: { ...BASIC_INFO, author: '', dynasty: '', book: '《战国策》' } },
+    )
+    const { wrapper } = factory()
+    await flushPromises()
+
+    const meta = wrapper.find('.article-meta')
+    expect(meta.exists()).toBe(true)
+    expect(meta.text()).toBe('《战国策》')
+    wrapper.unmount()
+  })
+
+  it('朝代/作者/出处都齐时按「朝代 · 作者 · 出处」展示；全空则整行不渲染', async () => {
+    setLoaders({ data: WORD_LIST }, { data: { ...BASIC_INFO, book: '《史记》' } })
+    const withMeta = factory().wrapper
+    await flushPromises()
+    expect(withMeta.find('.article-meta').text()).toBe('西汉 · 司马迁 · 《史记》')
+    withMeta.unmount()
+
+    setLoaders({ data: WORD_LIST }, { data: { ...BASIC_INFO, dynasty: '', author: '' } })
+    const emptyMeta = factory().wrapper
+    await flushPromises()
+    expect(emptyMeta.find('.article-meta').exists()).toBe(false)
+    emptyMeta.unmount()
+  })
 })
 
 describe('WordList 生字注释浮层', () => {
