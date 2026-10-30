@@ -13,7 +13,7 @@
  *   2. 懒加载不误伤（动态 `import()` 不构成加载期环）；
  *   3. 图不完整时不许假绿（解析不到的本仓引入直接失败）。
  */
-import { execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -42,22 +42,17 @@ function makeFixture(name: string, files: Record<string, string>) {
   return root
 }
 
+/** 用 spawnSync：成功与失败都要能同时拿到 stdout 与 stderr（有些判定只写在 stderr 上） */
 function runChecker(root: string, args: string[]) {
-  try {
-    const stdout = execFileSync(
-      process.execPath,
-      [path.join(root, 'scripts', 'check-circular.mjs'), ...args],
-      {
-        cwd: root,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      },
-    )
-    return { code: 0, output: stdout }
-  } catch (err) {
-    const e = err as { status?: number; stdout?: string; stderr?: string }
-    return { code: e.status ?? -1, output: `${e.stdout ?? ''}${e.stderr ?? ''}` }
-  }
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, 'scripts', 'check-circular.mjs'), ...args],
+    {
+      cwd: root,
+      encoding: 'utf8',
+    },
+  )
+  return { code: result.status ?? -1, output: `${result.stdout ?? ''}${result.stderr ?? ''}` }
 }
 
 beforeAll(() => {
@@ -149,6 +144,18 @@ describe('check-circular 的环检测', () => {
     })
     const result = runChecker(root, ['src', '--min-modules', '1'])
     expect(result.code).toBe(0)
+  })
+
+  it('tsconfig 里没有 paths 时退回默认别名并打警告，不是静默失效', () => {
+    const root = makeFixture('no-paths', {
+      'tsconfig.app.json': JSON.stringify({ compilerOptions: {} }),
+      'src/a.ts': "import { b } from '@/b'\nexport const a = b\n",
+      'src/b.ts': 'export const b = 1\n',
+    })
+    const result = runChecker(root, ['src', '--min-modules', '1'])
+    expect(result.code).toBe(0)
+    expect(result.output).toContain('没有 compilerOptions.paths')
+    expect(result.output).toContain('别名边 1 条')
   })
 
   it('模块数低于下限时判为图不完整（防止扫描器静默失效）', () => {

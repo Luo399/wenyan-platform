@@ -60,7 +60,10 @@ function loadAliases() {
     return fallback
   }
   const paths = config?.compilerOptions?.paths
-  if (!paths || typeof paths !== 'object') return fallback
+  if (!paths || typeof paths !== 'object') {
+    console.warn('! tsconfig.app.json 没有 compilerOptions.paths，别名退回默认的 @/ → src/')
+    return fallback
+  }
   const out = []
   for (const [key, targets] of Object.entries(paths)) {
     const target = Array.isArray(targets) ? targets[0] : undefined
