@@ -19,7 +19,6 @@ import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
 import type { AuthPersistTarget } from '@/utils/localStorage'
 import { resetSessionId } from '@/utils/tracking'
-import { resetFirstEnterSet } from '@/composables/useTracking'
 
 /**
  * 平台角色
@@ -190,9 +189,8 @@ export const useAuthStore = defineStore('auth', () => {
 
       rememberMe.value = remember
       applyLoginResult(response.data, studentId, studentName, remember)
-      // 新用户登录，切割旧会话（session_id + 首次进入记录同步重置）
+      // 新用户登录，切割旧会话（session_id 与 step 首次进入记录一起重置）
       resetSessionId()
-      resetFirstEnterSet()
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
       // ACCOUNT_PENDING：教师账号待管理员审批，给出专门提示
@@ -247,7 +245,6 @@ export const useAuthStore = defineStore('auth', () => {
   function logout(): void {
     clearAuthDataInternal()
     resetSessionId()
-    resetFirstEnterSet()
     debugLog('[AuthStore] 已登出，session_id 已重置')
   }
 
