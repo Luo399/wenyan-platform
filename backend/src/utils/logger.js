@@ -5,7 +5,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const config = require('../config/app');
+const LOG_CONFIG = require('../config/logSettings');
 
 /**
  * 日志级别枚举
@@ -16,11 +16,6 @@ const LOG_LEVEL = {
   WARN: 'WARN',
   ERROR: 'ERROR',
 };
-
-/**
- * 日志配置（从app配置读取）
- */
-const LOG_CONFIG = config.logger;
 
 /**
  * 确保日志目录存在
