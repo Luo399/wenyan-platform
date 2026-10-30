@@ -12,7 +12,11 @@
       <i class="fas fa-hourglass-half not-ready-icon" aria-hidden="true"></i>
       <p class="not-ready-text">{{ notReadyText }}</p>
     </div>
-    <BackContinue back-text="返回" :show-continue="false" @back="handleGoPrev" />
+    <!--
+      占位页也必须保留「继续」：第一关缺文本数据时，第二、三关可能已经交付，
+      学生要能继续往前走；继续按钮不得被「制作中」降级页替换或遮挡。
+    -->
+    <BackContinue back-text="返回" @back="handleGoPrev" @continue="handleGoNext" />
   </div>
 
   <!-- ========== Step 1: 字词学习 + 多角色朗读（静态，无 PageScaffold） ========== -->
