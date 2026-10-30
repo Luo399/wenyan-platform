@@ -41,7 +41,8 @@ function isValidTimestamp(value) {
 
 const trackingEventSchema = z.object({
   event_type: z.enum(ALLOWED_EVENT_TYPES, {
-    errorMap: () => ({ message: 'event_type 不在允许列表内' }),
+    // zod v4 移除了 errorMap，改用 error
+    error: 'event_type 不在允许列表内',
   }),
   // 登录态下 user_id 由服务端注入；未登录时客户端值会被忽略（记匿名）
   user_id: z.string().max(50).optional(),
