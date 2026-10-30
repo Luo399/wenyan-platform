@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_16",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_16",
+        "question_id": "WEN_16_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "丁氏说“吾穿井得一人”的真实意思是（）",
+        "option_a": "从井里挖出了一个人",
+        "option_b": "在井边捡到了一个孩子",
+        "option_c": "打井后节省了一个人的劳力，等于多得到一个人的劳动力",
+        "option_d": "井里住着一个人，被丁氏发现了",
+        "correct_answer": "C",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "宋君：丁氏说“吾穿井得一人”，寡人听后大为惊讶，这到底是什么意思？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_16",
+        "pre_dialog": "丁氏：答案是C。我家打井后，不必再专门派一个人去远处打水，等于多得到一个劳动力，并不是从井里挖出一个人。传话的人没有问清本意，才把“得一人之力”传成了“得一人”。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_16",
+        "question_id": "WEN_16_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "这则寓言告诉我们（）",
+        "option_a": "听到传闻要调查研究、求证核实，不能以讹传讹",
+        "option_b": "打井一定会有好处，应该多打井",
+        "option_c": "不要打井，以免惹出是非",
+        "option_d": "宋君喜欢听信谣言，不值得信任",
+        "correct_answer": "A",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "闻者：一句话传到国都，竟变成“丁家打井挖出一个人”，问题出在哪里？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_16",
+        "pre_dialog": "闻者：答案是A。丁氏的话本来清楚，传到国都却面目全非，问题就在于听者不求证、传者不加核实。宋君派人问丁氏，才弄清真相。这则寓言提醒我们：对传闻要调查核实，不能以讹传讹。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

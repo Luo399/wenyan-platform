@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_14",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_14",
+        "question_id": "WEN_14_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "“学而不思则罔，思而不学则殆”告诉我们（）",
+        "option_a": "学习只要死记硬背就够了",
+        "option_b": "学习与思考要结合，二者不可偏废",
+        "option_c": "思考比学习更重要，读书不必太多",
+        "option_d": "学习没有用处，思考才有价值",
+        "correct_answer": "B",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "学生：夫子，读书时我只顾背诵，却总觉得没有真正理解，该怎么办？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_14",
+        "pre_dialog": "孔子：答案是B。只学习而不思考，就会迷惑而无所得；只思考而不学习，就会疑惑而不安。学与思如车之两轮，缺一不可。A、C、D都只强调一面，违背了这句话的本意。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_14",
+        "question_id": "WEN_14_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "“三人行，必有我师焉。择其善者而从之，其不善者而改之”强调（）",
+        "option_a": "只向比自己强的人学习，不必理会不如自己的人",
+        "option_b": "不要与不如自己的人交往",
+        "option_c": "虚心向他人学习，取长补短，并反省自己",
+        "option_d": "三个人一起走路，才能学到东西",
+        "correct_answer": "C",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "子贡：夫子常说“三人行，必有我师焉”，其中深意是什么？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_14",
+        "pre_dialog": "孔子：答案是C。几个人同行，其中一定有值得我学习的人：看到别人的长处就学习，看到短处就反省自己有没有同样的问题。这既是虚心，也是自省，并非只挑强者做老师。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

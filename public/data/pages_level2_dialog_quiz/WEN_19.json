@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_19",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_19",
+        "question_id": "WEN_19_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "元方反驳友人的主要依据是（）",
+        "option_a": "友人不是陈太丘真正的朋友",
+        "option_b": "友人没有带礼物上门",
+        "option_c": "友人官职低微，不配与父亲交往",
+        "option_d": "友人迟到是“无信”，对子骂父是“无礼”",
+        "correct_answer": "D",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "友人：我不过晚到一会儿，你父亲却先走了，我骂他两句有何不可？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_19",
+        "pre_dialog": "元方：答案是D。您与家父约定日中，日中不至，就是不讲信用；对着儿子骂他的父亲，就是没有礼貌。失信无礼，错在您先，不在家父。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_19",
+        "question_id": "WEN_19_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "对友人“惭，下车引之”和元方“入门不顾”，理解最准确的是（）",
+        "option_a": "元方失礼，应该原谅友人并请他进门",
+        "option_b": "元方维护父亲尊严，表现正直率真；友人知错能改也值得肯定",
+        "option_c": "元方害怕友人打他，所以赶紧进门",
+        "option_d": "友人根本没有错，错的是陈太丘",
+        "correct_answer": "B",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "陈太丘：友人已惭愧下车拉元方，元方却“入门不顾”，你如何看？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_19",
+        "pre_dialog": "陈太丘：答案是B。元方年仅七岁，却能据理反驳，维护父亲尊严，“入门不顾”见其率真。友人“惭，下车引之”说明他已知错。故事既肯定元方的正直，也写出友人知错能改的一面，并非简单判定谁失礼。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

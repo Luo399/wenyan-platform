@@ -104,6 +104,97 @@ export const CULTURE_CARD_DATA_POEM_IDS: readonly string[] = [
 ]
 
 /**
+ * 三关学习 + 课文详情需要的文本数据 JSON 已存在的编号。
+ *
+ * 判据目录：text_basic_info（详情/字词原文）、word_list（字词注释）、
+ * multi_role_reading（多角色朗读）、level1_quiz（第一关随堂练习）。
+ * 第二、三关的页面数据另有独立清单（LEVEL2_PAGE_DATA_POEM_IDS /
+ * LEVEL3_PAGE_DATA_POEM_IDS），不再和这里绑在一起——2026-10-30 补齐了
+ * WEN_05–19、22–27 的第二/三关页面 JSON，但原文/字词/朗读/第一关仍然只有
+ * 01–04，若继续共用一张表，第二、三关会被第一关的缺失一起挡成「制作中」。
+ *
+ * 2026-10-30 对生产站逐号 HEAD
+ * `https://www.classicalab.cn/data/text_basic_info/WEN_nn.json`：
+ * 只有 01–04 返回 200，05–37 全部 404；仓库 public/data 与 backend/data
+ * 的另外五个目录同样只有 01–04。缺这些 JSON 时，rule 视频后面的三关和详情页
+ * 全都拉不到数据，学生走完整流程必然中断。
+ *
+ * 这张表**不参与首页放行**（用户 2026-10-30 口径：入口只拦截未确认编号的号位），
+ * 只供 StepView/DetailView 在进页后按 hasTextData 判断：缺数据时展示「制作中」占位，
+ * 不再把请求打出去看 HTTP 404。
+ *
+ * ⚠ 这是静态快照：内容组补传 JSON 后要同步改这里并重新发版；
+ * 只传 OSS 不改表，学生侧仍会看到「制作中」。
+ */
+export const TEXT_DATA_POEM_IDS: readonly string[] = ['1', '2', '3', '4']
+
+/**
+ * 第二关（pages_level2_dialog_quiz）页面 JSON 已存在的编号。
+ *
+ * 2026-10-30 产出 05–19、22–27，加上原有 01–04，共 25 篇；
+ * 其余 12 个未确认号位没有对应篇目，也不产出页面内容。
+ */
+export const LEVEL2_PAGE_DATA_POEM_IDS: readonly string[] = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '17',
+  '18',
+  '19',
+  '22',
+  '23',
+  '24',
+  '25',
+  '26',
+  '27',
+]
+
+/**
+ * 第三关（pages_level3_adaptive_quiz）页面 JSON 已存在的编号。
+ * 与第二关同步产出 05–19、22–27，加上原有 01–04，共 25 篇。
+ */
+export const LEVEL3_PAGE_DATA_POEM_IDS: readonly string[] = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '17',
+  '18',
+  '19',
+  '22',
+  '23',
+  '24',
+  '25',
+  '26',
+  '27',
+]
+
+/**
  * OSS 上已交付、但还没被 culture_cards JSON 引用的卡片视频**编号**。
  *
  * 2026-10-28 按命名约定（视频平铺在 /video/，文件名 `WEN_nn_card_<标识>.mp4`，nn 即号位）
@@ -169,11 +260,51 @@ export function isNumberingConfirmed(id: string | undefined | null): boolean {
 }
 
 /**
- * 该编号现在能不能让学生走完整流程。
+ * 该编号的文本数据 JSON 是否存在（三关 + 详情页能否渲染）
+ * @param id - poemId 或 wenId
+ */
+export function hasTextData(id: string | undefined | null): boolean {
+  return TEXT_DATA_POEM_IDS.includes(toPoemId(id))
+}
+
+/**
+ * 该编号的第二关页面数据 JSON 是否存在（pages_level2_dialog_quiz）
+ * @param id - poemId 或 wenId
+ */
+export function hasLevel2PageData(id: string | undefined | null): boolean {
+  return LEVEL2_PAGE_DATA_POEM_IDS.includes(toPoemId(id))
+}
+
+/**
+ * 该编号的第三关页面数据 JSON 是否存在（pages_level3_adaptive_quiz）
+ * @param id - poemId 或 wenId
+ */
+export function hasLevel3PageData(id: string | undefined | null): boolean {
+  return LEVEL3_PAGE_DATA_POEM_IDS.includes(toPoemId(id))
+}
+
+/**
+ * 该编号的首页入口是否放行。
  * 判据两条：rule 视频齐备（缺了直接黑屏）+ 编号对应关系已确认（没确认就不知道
- * 这个号上的素材到底是哪一篇）。缺文化卡片只影响第三关的一个附加环节，不放行条件里。
+ * 这个号上的素材到底是哪一篇）。
+ *
+ * 文本数据缺失**不挡入口**（用户 2026-10-30 明确：制作中只拦截未确定编号的）。
+ * 05–27 这类编号已确认但 JSON 未交付的号位照常可点，进入步骤页/详情页后由
+ * hasTextData 换成「制作中」占位，既不发请求也不暴露 404。
+ * 缺文化卡片只影响第三关的一个附加环节，同样不放行条件里。
  * @param id - poemId 或 wenId
  */
 export function isPoemReady(id: string | undefined | null): boolean {
+  return hasRuleVideo(id) && isNumberingConfirmed(id)
+}
+
+/**
+ * 规则介绍视频现在能不能播：rule 视频齐备 + 编号已确认。
+ *
+ * 单独留一个语义名，是为了让规则页不必跟着首页入口策略走：
+ * 以后入口若再收紧，规则页仍能凭素材本身决定播不播。
+ * @param id - poemId 或 wenId
+ */
+export function canPlayRuleVideo(id: string | undefined | null): boolean {
   return hasRuleVideo(id) && isNumberingConfirmed(id)
 }

@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_18",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_18",
+        "question_id": "WEN_18_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "愚公认为移山一定能成功，理由是（）",
+        "option_a": "天帝会被他的诚心感动",
+        "option_b": "山神会暗中帮助他移山",
+        "option_c": "子子孙孙无穷匮也，而山不加增",
+        "option_d": "他力大无穷，可以一人移山",
+        "correct_answer": "C",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "智叟：你年且九十，连草木都难毁，怎能移走大山？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_18",
+        "pre_dialog": "愚公：答案是C。我虽年老，但子子孙孙没有穷尽，而山不会增高，只要一代代挖下去，何愁挖不平？B、A是后来神话情节中的帮助，D不符合“年且九十”的实际情况。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_18",
+        "question_id": "WEN_18_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "文中“智叟”与“愚公”的命名用意是（）",
+        "option_a": "智叟真聪明，愚公真愚蠢",
+        "option_b": "反讽：智叟目光短浅，愚公看似愚笨却有远见和毅力",
+        "option_c": "只是随随便便取的名字，没有特别含义",
+        "option_d": "说明老人年纪大了，智力会衰退",
+        "correct_answer": "B",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "乡人：一个叫“智叟”，一个叫“愚公”，这两个名字有何深意？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_18",
+        "pre_dialog": "乡人：答案是B。智叟只看到愚公年老力衰，看不到子孙无穷、山不加增，才是真正的目光短浅；愚公看似“愚”，却有长远眼光和坚持不懈的毅力。这是作者用名字构成的反讽。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

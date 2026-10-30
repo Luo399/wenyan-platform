@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_25",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_25",
+        "question_id": "WEN_25_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "诸葛亮在《出师表》中向后主提出的三条建议是（）",
+        "option_a": "休养生息、无为而治、隐居山林",
+        "option_b": "加重赋税、扩充军队、迁都洛阳",
+        "option_c": "闭关锁国、罢免贤臣、重用宦官",
+        "option_d": "广开言路、严明赏罚、亲贤远佞",
+        "correct_answer": "D",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "刘禅：相父出师北伐前，为何反复叮嘱寡人？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_25",
+        "pre_dialog": "诸葛亮：答案是D。我劝陛下“开张圣听”，广开言路；赏罚要“陟罚臧否，不宜异同”；还要“亲贤臣，远小人”。这三条是治国根本。B、C、A都与表中忠告相反。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_25",
+        "question_id": "WEN_25_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "“受任于败军之际，奉命于危难之间”表达了（）",
+        "option_a": "诸葛亮对先帝知遇之恩的感激和忠于蜀汉的责任感",
+        "option_b": "诸葛亮对先帝托孤的抱怨和不满",
+        "option_c": "诸葛亮想辞官归隐，不愿再承担责任",
+        "option_d": "诸葛亮害怕北伐失败，想推卸责任",
+        "correct_answer": "A",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "侍中：先帝托孤以来，丞相为何“夙夜忧叹”？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_25",
+        "pre_dialog": "诸葛亮：答案是A。先帝三顾茅庐、托孤寄命，我“受任于败军之际，奉命于危难之间”，二十一年来夙夜忧叹，唯恐托付不效。这既是感激知遇之恩，也是兴复汉室的责任。B、C、D都曲解了这份忠诚。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}
