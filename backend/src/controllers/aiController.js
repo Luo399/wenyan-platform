@@ -13,7 +13,8 @@ const aiAlerts = require('../services/aiAlerts')
 // ===== Zod 参数校验 Schema =====
 const aiMessageSchema = z.object({
   role: z.enum(['user', 'assistant'], {
-    errorMap: () => ({ message: '仅允许 role 为 user 或 assistant' }),
+    // zod v4 移除了 errorMap，改用 error
+    error: '仅允许 role 为 user 或 assistant',
   }),
   content: z.string().min(1, 'content 不能为空').max(2000, '单条 content 最长 2000 字符'),
 })
@@ -22,7 +23,7 @@ const aiChatSchema = z.object({
   wenId: z.string().min(1, 'wenId 不能为空').max(100, 'wenId 长度异常'),
   // zod 默认 strip: true，自动移除 system role 等多余字段
   messages: z
-    .array(aiMessageSchema, 'messages 必须是数组')
+    .array(aiMessageSchema, { error: 'messages 必须是数组' })
     .min(1, 'messages 至少包含一条')
     .max(20, 'messages 最多 20 条'),
 })

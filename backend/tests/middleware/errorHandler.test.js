@@ -136,6 +136,34 @@ describe('errorHandler middleware', () => {
       expect(res._json.message).toBe('请求体超过大小限制')
     })
 
+    it('MulterError LIMIT_FILE_SIZE：覆盖为 413 / FILE_TOO_LARGE，不回显内部细节', () => {
+      const err = new Error('File too large')
+      err.name = 'MulterError'
+      err.code = 'LIMIT_FILE_SIZE'
+      const req = createMockReq()
+      const res = createMockRes()
+
+      errorHandler(err, req, res, jest.fn())
+
+      expect(res.status).toHaveBeenCalledWith(413)
+      expect(res._json.error).toBe('FILE_TOO_LARGE')
+      expect(res._json.message).toBe('上传文件超过大小限制')
+    })
+
+    it('MulterError 其他 code：覆盖为 400 / INVALID_UPLOAD', () => {
+      const err = new Error('Unexpected field')
+      err.name = 'MulterError'
+      err.code = 'LIMIT_UNEXPECTED_FILE'
+      const req = createMockReq()
+      const res = createMockRes()
+
+      errorHandler(err, req, res, jest.fn())
+
+      expect(res.status).toHaveBeenCalledWith(400)
+      expect(res._json.error).toBe('INVALID_UPLOAD')
+      expect(res._json.message).toBe('上传文件不符合要求')
+    })
+
     it('req.user.userId 存在时：上下文 userId 正确传入 logError', () => {
       const err = new Error('校验失败')
       const req = createMockReq({

@@ -15,5 +15,19 @@ const path = require('path')
 const dotenv = require('dotenv')
 
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env'
+const envPath = path.join(__dirname, '../../', envFile)
+const dotenvOptions = {
+  path: envPath,
+  // dotenv 17+ 默认打印注入 banner；测试/CI 每个进程一行噪音，显式关闭
+  quiet: true,
+  // 显式声明不覆盖 process.env：测试先设置的变量必须优先于 .env（与旧行为一致）
+  override: false,
+}
 
-dotenv.config({ path: path.join(__dirname, '../../', envFile) })
+dotenv.config(dotenvOptions)
+
+module.exports = {
+  envFile,
+  envPath,
+  dotenvOptions,
+}

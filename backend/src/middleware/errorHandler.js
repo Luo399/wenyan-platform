@@ -69,6 +69,15 @@ function errorHandler(err, req, res, next) {
     errorCode = 'PAYLOAD_TOO_LARGE'
   }
 
+  // multer 上传错误：文件超过大小上限 → 413；其余（字段/文件数超限等）→ 400。
+  // 此前 MulterError 没有 statusCode，会被当成 500 内部错误，客户端拿不到可行动的信息。
+  if (err.name === 'MulterError') {
+    const isTooLarge = err.code === 'LIMIT_FILE_SIZE'
+    statusCode = isTooLarge ? 413 : 400
+    message = isTooLarge ? '上传文件超过大小限制' : '上传文件不符合要求'
+    errorCode = isTooLarge ? 'FILE_TOO_LARGE' : 'INVALID_UPLOAD'
+  }
+
   res.status(statusCode).json({
     success: false,
     error: errorCode,
