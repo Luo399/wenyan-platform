@@ -309,7 +309,7 @@ describe('StepView + 真实页面数据', () => {
     expect(card.text()).toContain('唐雎能够“不辱使命”，最根本的原因是（）')
 
     const options = card.findAll('.option-btn')
-    expect(options).toHaveLength(3)
+    expect(options).toHaveLength(4)
     // 题干不能混进可选项（历史错位：options[0] 是题干）
     for (const option of options) {
       expect(option.text()).not.toMatch(/[（(]\s*[)）]\s*$/)
