@@ -229,8 +229,19 @@ describe('StepView', () => {
     expect(h.loaderUrls).toContain('/data/pages_level2_dialog_quiz/WEN_05.json')
   })
 
-  it('第一关仍按完整文本数据放行：WEN_05 缺字词/朗读数据时显示「制作中」', async () => {
+  it('第一关按文本数据放行：WEN_05 已由 Figma 文字资源生成，不再显示「制作中」', async () => {
     h.route = { name: 'stepone', params: { id: '05' } }
+    const wrapper = mountStep()
+    await flushPromises()
+
+    expect(wrapper.find('.step-not-ready').exists()).toBe(false)
+    expect(wrapper.find('.annotated-section').exists()).toBe(true)
+    // 05 的朗读音频已交付，渲染朗读组件而不是音频占位
+    expect(wrapper.find('.audio-pending').exists()).toBe(false)
+  })
+
+  it('第一关缺文本数据的编号（06）仍显示「制作中」，继续按钮必须保留', async () => {
+    h.route = { name: 'stepone', params: { id: '06' } }
     const wrapper = mountStep()
     await flushPromises()
 
@@ -242,6 +253,20 @@ describe('StepView', () => {
     expect(nav.props('showContinue')).toBe(true)
     nav.vm.$emit('continue')
     expect(mockGoNext).toHaveBeenCalledTimes(1)
+  })
+
+  it('文本已交付但音频未交付（13）只降级音频区块，不挡整关', async () => {
+    // 13 的 WEN_13_multi_role.mp3 线上 404；字词/原文已生成
+    h.route = { name: 'stepone', params: { id: '13' } }
+    const wrapper = mountStep()
+    await flushPromises()
+
+    expect(wrapper.find('.step-not-ready').exists()).toBe(false)
+    expect(wrapper.find('.annotated-section').exists()).toBe(true)
+    expect(wrapper.find('.audio-pending').exists()).toBe(true)
+    expect(wrapper.text()).toContain('朗读音频正在制作中')
+    // 整关照常可以继续
+    expect(wrapper.findComponent(BackContinueStub).props('showContinue')).toBe(true)
   })
 
   it('第二关加载失败时仍保留底部导航（可以返回）', async () => {
@@ -260,16 +285,23 @@ describe('StepView', () => {
 
     const blocks = wrapper.findAll('.block-stub')
     expect(blocks).toHaveLength(5)
-    expect(blocks[4].attributes('data-show')).toBe('0')
+    // Bug 1B 修复：dialogue 类型 block 不再被 quiz 解锁控制，直接显示
+    // blocks[0]/[2]/[4] 都是 dialogue → 一直 data-show='1'
+    // blocks[1]/[3] 是 quiz → 跟 currentIndex 走
+    expect(blocks[0].attributes('data-show')).toBe('1')  // dialogue，一直显示
+    expect(blocks[1].attributes('data-show')).toBe('1')  // quiz 1，currentIndex=0 时可见
+    expect(blocks[2].attributes('data-show')).toBe('1')  // dialogue，一直显示
+    expect(blocks[3].attributes('data-show')).toBe('0')  // quiz 2，未解锁
+    expect(blocks[4].attributes('data-show')).toBe('1')  // dialogue，一直显示
 
     await blocks[1].find('.block-answer').trigger('click')
     await flushPromises()
-    expect(blocks[2].attributes('data-show')).toBe('1')
-    expect(blocks[3].attributes('data-show')).toBe('1')
-    expect(blocks[4].attributes('data-show')).toBe('0')
+    expect(blocks[3].attributes('data-show')).toBe('1')  // quiz 2 解锁
 
     await blocks[3].find('.block-answer').trigger('click')
     await flushPromises()
+    // 全显示
+    expect(blocks[0].attributes('data-show')).toBe('1')
     expect(blocks[4].attributes('data-show')).toBe('1')
   })
 

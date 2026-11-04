@@ -290,6 +290,17 @@ async function batchProcessFiles(files, ossConfig) {
         results.skipped.push(result)
       } else {
         results.uploaded.push(result)
+
+        // ===== 新增：对 data/ 目录 JSON 自动触发 figma-transformer =====
+        if (file.type === 'text' && file.ossPath.startsWith('data/')) {
+          try {
+            await triggerFigmaTransform(file.ossPath)
+          } catch (transformErr) {
+            // 转换失败不阻断上传流程，只记录日志
+            logger.error(`[AssetService] figma-transformer 转换失败: ${file.ossPath}`, transformErr.message)
+          }
+        }
+        // ===== 新增结束 =====
       }
     } catch (err) {
       results.errors.push({ ossPath: file.ossPath, error: err.message })
@@ -357,6 +368,44 @@ async function listOssObjects(ossConfig) {
   return objects
 }
 
+/**
+ * 调用 figma-transformer Python 脚本对上传后的 data/ JSON 做格式转换。
+ *
+ * 转换脚本位置：仓库根目录 figma-transformer/transform.py
+ * 运行方式：Python 子进程
+ *
+ * 注意：转换是"上传后覆盖"，会把插件上传的对象格式转成前端期望的数组格式。
+ * 已是正确格式的文件（01-04 Excel 遗留）会被 is_already_correct 跳过。
+ *
+ * @param {string} ossPath - 上传的 OSS 路径，如 data/word_list/WEN_05.json
+ */
+async function triggerFigmaTransform(ossPath) {
+  const { execFile } = require('child_process')
+  const { promisify } = require('util')
+  const execFileAsync = promisify(execFile)
+
+  const repoRoot = path.resolve(__dirname, '..', '..', '..') // backend/src/services → 仓库根
+  const scriptPath = path.join(repoRoot, 'figma-transformer', 'transform.py')
+
+  logger.info(`[AssetService] 触发 figma-transformer: ${ossPath}`)
+
+  try {
+    const pythonCmd = process.env.PYTHON_CMD || 'python3'
+    const { stdout, stderr } = await execFileAsync(pythonCmd, [scriptPath, '--path', ossPath], {
+      cwd: repoRoot,
+      timeout: 30000,
+      env: { ...process.env },
+    })
+    logger.info(`[AssetService] figma-transformer stdout: ${stdout.trim()}`)
+    if (stderr && stderr.trim()) {
+      logger.warn(`[AssetService] figma-transformer stderr: ${stderr.trim()}`)
+    }
+  } catch (err) {
+    logger.error(`[AssetService] figma-transformer 执行异常: ${err.message}`)
+    throw err
+  }
+}
+
 module.exports = {
   computeMd5,
   processFileUpload,
@@ -367,5 +416,6 @@ module.exports = {
   getVersionInfo,
   readVersionFile,
   writeVersionFile,
+  triggerFigmaTransform,
   VERSION_FILE,
 }

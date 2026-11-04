@@ -21,6 +21,8 @@ export interface RawTextBasicInfo {
   title: string
   author: string
   dynasty: string
+  /** 出处（如《战国策》《左传》）。Figma 文稿表把出处填在作者位，生成脚本拆到本字段 */
+  book?: string
   original_text: string
   illustration?: string
   bgm?: string

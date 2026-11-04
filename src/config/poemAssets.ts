@@ -113,11 +113,17 @@ export const CULTURE_CARD_DATA_POEM_IDS: readonly string[] = [
  * WEN_05–19、22–27 的第二/三关页面 JSON，但原文/字词/朗读/第一关仍然只有
  * 01–04，若继续共用一张表，第二、三关会被第一关的缺失一起挡成「制作中」。
  *
- * 2026-10-30 对生产站逐号 HEAD
- * `https://www.classicalab.cn/data/text_basic_info/WEN_nn.json`：
- * 只有 01–04 返回 200，05–37 全部 404；仓库 public/data 与 backend/data
- * 的另外五个目录同样只有 01–04。缺这些 JSON 时，rule 视频后面的三关和详情页
- * 全都拉不到数据，学生走完整流程必然中断。
+ * 2026-10-30 晚：Figma 上传的原始文字资源（`data/texts/文字资源_<篇名>.json`，
+ * 26 份）已经存在，用 `scripts/gen-step1-page-data.cjs` 生成页面层 JSON，
+ * text_basic_info / word_list 补到 20 个号位（01–05、07–19、22、23），
+ * 于是 05、07–19、22、23 的第一关不再显示「制作中」。
+ *
+ * 仍然缺的号位及原因：
+ * - 06（醉翁亭记）：原始文字资源里没有这篇，无源可转；
+ * - 24–27：Figma 资源内嵌编号与内容组确认表冲突（Figma 的 24 是《孟子》三章、
+ *   25 是《虽有佳肴》、26 是《大道之行也》、27 是《鱼我所欲也》），生成脚本
+ *   按篇名校验后拒绝输出，宁可「制作中」也不能在 24 号位放另一篇课文。
+ *   详见 docs/素材对应核查.md。
  *
  * 这张表**不参与首页放行**（用户 2026-10-30 口径：入口只拦截未确认编号的号位），
  * 只供 StepView/DetailView 在进页后按 hasTextData 判断：缺数据时展示「制作中」占位，
@@ -126,7 +132,59 @@ export const CULTURE_CARD_DATA_POEM_IDS: readonly string[] = [
  * ⚠ 这是静态快照：内容组补传 JSON 后要同步改这里并重新发版；
  * 只传 OSS 不改表，学生侧仍会看到「制作中」。
  */
-export const TEXT_DATA_POEM_IDS: readonly string[] = ['1', '2', '3', '4']
+export const TEXT_DATA_POEM_IDS: readonly string[] = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '17',
+  '18',
+  '19',
+  '22',
+  '23',
+]
+
+/**
+ * multi_role_reading 朗读 JSON 已存在的编号（第一关音频区块能否渲染）。
+ *
+ * 比 TEXT_DATA_POEM_IDS 少 13/14/16/17 四篇，原因都在音频文件本身：
+ * - 13、16、17：`WEN_nn_multi_role.mp3` 线上 404，内容组还没交付；
+ * - 14：OSS 上的 `WEN_14_multi_role.mp3` 与 WEN_05 的文件逐字节相同（内容错配），
+ *   挂上去会放《唐雎不辱使命》的录音给《论语》十二章。
+ * 缺音频时第一关仍可读原文/注释，只把朗读区块换成「音频制作中」占位。
+ *
+ * 另注：这 20 篇里 05–23 的朗读 JSON 只有**一个整篇段落**（角色名「课文朗读」），
+ * 因为原始文字资源没有角色和时间轴；01–04 是人工校对的逐句多角色版本。
+ */
+export const MULTI_ROLE_AUDIO_POEM_IDS: readonly string[] = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '15',
+  '18',
+  '19',
+  '22',
+  '23',
+]
 
 /**
  * 第二关（pages_level2_dialog_quiz）页面 JSON 已存在的编号。
@@ -265,6 +323,14 @@ export function isNumberingConfirmed(id: string | undefined | null): boolean {
  */
 export function hasTextData(id: string | undefined | null): boolean {
   return TEXT_DATA_POEM_IDS.includes(toPoemId(id))
+}
+
+/**
+ * 该编号的多角色朗读音频 JSON 是否存在（第一关朗读区块能否渲染）
+ * @param id - poemId 或 wenId
+ */
+export function hasMultiRoleAudio(id: string | undefined | null): boolean {
+  return MULTI_ROLE_AUDIO_POEM_IDS.includes(toPoemId(id))
 }
 
 /**

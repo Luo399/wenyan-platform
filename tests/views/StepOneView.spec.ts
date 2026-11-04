@@ -125,7 +125,8 @@ describe('StepView.vue', () => {
     })
 
     it('路由参数为 WEN_xx 格式时应直接使用', async () => {
-      // 用 04（当前文本数据齐备的最后一篇）；05 起会走「制作中」降级页，子组件不挂载
+      // 用 04（人工校对的逐句多角色版本）；05 起虽已放行，但朗读只有整篇单段落，
+      // 这里继续用 04 锁定「WEN_xx 直接透传」的行为
       await router.push('/stepone/WEN_04')
       await router.isReady()
       const wrapper = mountWith()

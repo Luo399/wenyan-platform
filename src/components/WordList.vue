@@ -23,10 +23,8 @@
       <!-- 文章标题区域 -->
       <div class="article-header">
         <h1 class="article-title">{{ adaptedData.basicInfo.title || '未知标题' }}</h1>
-        <p class="article-meta">
-          <span class="author"
-            >{{ adaptedData.basicInfo.dynasty }} · {{ adaptedData.basicInfo.author }}</span
-          >
+        <p v-if="metaLine" class="article-meta">
+          <span class="author">{{ metaLine }}</span>
         </p>
       </div>
 
@@ -150,6 +148,19 @@ const adaptedData = computed<WordListAdapterResult | null>(() => {
 
   // 调用适配器进行数据转换
   return adaptWordList(basicInfoData.value, wordListData.value)
+})
+
+/**
+ * 标题下的作者行：朝代、作者、出处（如《战国策》）按非空值拼接。
+ * 原先硬编码 `dynasty · author`，Figma 文稿表里没有朝代字段（dynasty 为空），
+ * 会渲染出「 · 左丘明」这种前导分隔符；出处也不能塞进 author，否则作者栏变成书名。
+ */
+const metaLine = computed(() => {
+  const info = adaptedData.value?.basicInfo
+  if (!info) return ''
+  return [info.dynasty, info.author, info.book]
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .join(' · ')
 })
 
 function retry() {
