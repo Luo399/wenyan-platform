@@ -1,0 +1,8 @@
+{
+  "text_id": "WEN_01",
+  "audio_file": "WEN_01_multi_role.mp3",
+  "segments": [
+    {"sentence_index": 1, "time_range": "00:00-00:16", "role_name": "旁白📖", "dialogue": "陈胜者，阳城人也。"},
+    {"sentence_index": 2, "time_range": "00:17-00:35", "role_name": "陈胜", "dialogue": "王侯将相，宁有种乎！"}
+  ]
+}

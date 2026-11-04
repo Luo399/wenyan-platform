@@ -210,3 +210,29 @@ jobs:
             exit 1
           fi
           echo "✅ code.js 与 code.ts 同步"
+
+  figma-transformer-check:
+    name: Figma Transformer Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run transformer tests
+        run: |
+          cd figma-transformer
+          python -m pytest __tests__/ -v --tb=short
+
+      - name: Fail if no tests ran
+        run: |
+          cd figma-transformer
+          count=$(python -m pytest __tests__/ --collect-only -q 2>/dev/null | tail -1 | grep -oP '\d+(?= test)' || echo 0)
+          echo "Collected $count tests"
+          if [ "$count" -eq 0 ]; then echo "ERROR: No tests collected!"; exit 1; fi
