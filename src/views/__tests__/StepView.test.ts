@@ -285,16 +285,23 @@ describe('StepView', () => {
 
     const blocks = wrapper.findAll('.block-stub')
     expect(blocks).toHaveLength(5)
-    expect(blocks[4].attributes('data-show')).toBe('0')
+    // Bug 1B 修复：dialogue 类型 block 不再被 quiz 解锁控制，直接显示
+    // blocks[0]/[2]/[4] 都是 dialogue → 一直 data-show='1'
+    // blocks[1]/[3] 是 quiz → 跟 currentIndex 走
+    expect(blocks[0].attributes('data-show')).toBe('1')  // dialogue，一直显示
+    expect(blocks[1].attributes('data-show')).toBe('1')  // quiz 1，currentIndex=0 时可见
+    expect(blocks[2].attributes('data-show')).toBe('1')  // dialogue，一直显示
+    expect(blocks[3].attributes('data-show')).toBe('0')  // quiz 2，未解锁
+    expect(blocks[4].attributes('data-show')).toBe('1')  // dialogue，一直显示
 
     await blocks[1].find('.block-answer').trigger('click')
     await flushPromises()
-    expect(blocks[2].attributes('data-show')).toBe('1')
-    expect(blocks[3].attributes('data-show')).toBe('1')
-    expect(blocks[4].attributes('data-show')).toBe('0')
+    expect(blocks[3].attributes('data-show')).toBe('1')  // quiz 2 解锁
 
     await blocks[3].find('.block-answer').trigger('click')
     await flushPromises()
+    // 全显示
+    expect(blocks[0].attributes('data-show')).toBe('1')
     expect(blocks[4].attributes('data-show')).toBe('1')
   })
 

@@ -210,8 +210,9 @@ describe('StepView + 真实页面数据', () => {
     expect(quiz.exists()).toBe(true)
     expect(quiz.text()).toContain('唐雎的回应是')
     expect(quiz.findAll('.option-btn')).toHaveLength(4)
-    // 第一题解析对话紧跟题目，提交前不该出现
-    expect(wrapper.findAllComponents(DialogueCard)).toHaveLength(0)
+    // Bug 1B 修复：dialogue block 一直渲染 + quiz1 的 pre_dialog = 3 个 DialogueCard
+    // BlockQuiz 给 quiz1 渲染 pre_dialog + 2 个 dialogue block 一直显示
+    expect(wrapper.findAllComponents(DialogueCard)).toHaveLength(3)
 
     await quiz.findAll('.option-btn')[letterToIndex(answer)].trigger('click')
     await quiz.find('.submit-btn').trigger('click')
@@ -227,10 +228,15 @@ describe('StepView + 真实页面数据', () => {
         correctAnswer: answer,
       }),
     )
-    // 提交后解析对话必须解锁；DialogueCard 有打字机效果，断言传入文案而不是屏幕上逐字结果
+    // 提交后 quiz2 解锁也渲染了 pre_dialog → 总共 4 个 DialogueCard
+    // quiz1 pre_dialog + quiz2 pre_dialog + 2 个 dialogue block 一直显示
     const dialogues = wrapper.findAllComponents(DialogueCard)
-    expect(dialogues).toHaveLength(1)
-    expect(dialogues[0].props('pre_dialog')).toContain('唐雎：答案是B')
+    expect(dialogues).toHaveLength(4)
+    // 用 pre_dialog prop 筛出 dialogue block（排除 BlockQuiz 里用 dialog-text 的 pre_dialog）
+    const parsedDialogue = dialogues.find((d) =>
+      (d.props('pre_dialog') as string | undefined)?.includes('唐雎：答案是B'),
+    )
+    expect(parsedDialogue).toBeTruthy()
   })
 
   it('第二关 WEN_05：内容加载后继续键常驻，答题前后都可前进', async () => {
