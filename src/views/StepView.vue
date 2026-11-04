@@ -125,7 +125,7 @@
           v-for="(block, index) in pageConfig.blocks"
           :key="`${block.type}-${index}`"
           :block="block"
-          :show="isQuizBlockVisible(index)"
+          :show="block.type === 'quiz' ? isQuizBlockVisible(index) : true"
           @quiz-answer="handleQuizAnswer"
         />
       </div>
