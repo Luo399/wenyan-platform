@@ -42,3 +42,27 @@ def is_already_correct(directory: str, data) -> bool:
         return False
 
     return False
+
+
+# figma-transformer/config.py 末尾追加
+
+# 延迟导入避免循环（transformers 内部 import config 时可能触发）
+def _inject_transforms():
+    global TRANSFORM_MAP
+    from transformers import (
+        text_basic_info_transform,
+        word_list_transform,
+        multi_role_reading_transform,
+        level1_quiz_transform,
+    )
+    TRANSFORM_MAP.update({
+        'text_basic_info': text_basic_info_transform,
+        'word_list': word_list_transform,
+        'multi_role_reading': multi_role_reading_transform,
+        'level1_quiz': level1_quiz_transform,
+    })
+    return TRANSFORM_MAP
+
+
+# 模块加载时注入
+_inject_transforms()
