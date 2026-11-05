@@ -70,7 +70,8 @@ export function computeStep2BlockVisibility(
   const sectionOf: number[] = blocks.map((_, i) => {
     let section = -1
     for (let q = 0; q < quizStarts.length; q++) {
-      if (i >= quizStarts[q]) section = q
+      const qStart = quizStarts[q]!
+      if (i >= qStart) section = q
     }
     return section
   })
@@ -86,7 +87,9 @@ export function computeStep2BlockVisibility(
 
   // 4. 解锁规则
   const visible = blocks.map((_, i) => {
-    const sec = sectionOf[i]
+    // 数组索引在 strictNullChecks 下可能 undefined（提前 return 已排除空数组）
+    const sec = sectionOf[i] ?? -1
+    const quizStart = quizStarts[sec]  // sec >= 0 时必有对应值
 
     // 前置 dialogue（第一个 quiz 之前）→ 一直可见
     if (sec === -1) return true
@@ -96,7 +99,7 @@ export function computeStep2BlockVisibility(
 
     // 当前正在答的 section：只有 quiz 本身可见，它后面的解析 dialogue hidden
     if (sec === completedQuizCount) {
-      return quizStarts[sec] === i
+      return quizStart === i
     }
 
     // 后面的 section → 全部 hidden

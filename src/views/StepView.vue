@@ -213,7 +213,6 @@ import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { useQuizFlow } from '@/composables/quiz/useQuizFlow'
-import { computeStep2BlockVisibility } from './step2BlockVisibility'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { getFigmaPageMeta } from '@/config/pageRegistry'
 import {
