@@ -125,7 +125,7 @@
           v-for="(block, index) in pageConfig.blocks"
           :key="`${block.type}-${index}`"
           :block="block"
-          :show="true"
+          :show="step2BlockVisible[index] ?? true"
           @quiz-answer="(event) => handleQuizAnswer(index, block, event)"
         />
       </div>
@@ -241,6 +241,7 @@ import PageScaffold from '@/components/PageScaffold.vue'
 import BlockRenderer from '@/components/BlockRenderer.vue'
 import QuizCard from '@/components/QuizCard.vue'
 import CultureCards from '@/components/CultureCards.vue'
+import { computeStep2BlockVisibility } from './step2BlockVisibility'
 
 // ======== 共用骨架（所有 step case） ========
 const route = useRoute()
@@ -451,6 +452,23 @@ const showNavigation = computed(() => !loading.value)
 const quizBlockIndices = computed(() => {
   if (!pageConfig.value) return []
   return pageConfig.value.blocks.map((b, i) => (b.type === 'quiz' ? i : -1)).filter((i) => i !== -1)
+})
+
+/**
+ * Step 2 block 解锁可见性 —— 和数据渲染解耦
+ *
+ * 核心：所有 block 已经通过 BlockRenderer 的 :class hidden 保证 mount 到 DOM，
+ * 这里只控制 show prop（纯视觉层），解锁算法独立在 step2BlockVisibility.ts。
+ * completedCount 驱动：答完第 N 个 quiz → 它的解析 dialogue + 第 N+1 个 quiz 才显。
+ */
+const step2BlockVisible = computed(() => {
+  if (!pageConfig.value) return []
+  const { visible } = computeStep2BlockVisibility(
+    pageConfig.value.blocks,
+    step2Flow.completedCount.value,
+    step2Flow.isCompleted.value,
+  )
+  return visible
 })
 
 async function handleQuizAnswer(
