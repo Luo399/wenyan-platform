@@ -1,4 +1,4 @@
-﻿/**
+/**
  * StepView 真实页面数据集成测试（WEN_05–19、22–27）
  *
  * 与 StepView.test.ts 的分工：
@@ -13,7 +13,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import StepView from '../StepView.vue'
-import DialogueCard from '@/components/DialogueCard.vue'
 
 const h = vi.hoisted(() => ({
   route: { name: 'steptwo', params: { id: '05' } } as { name: string; params: { id: string } },
