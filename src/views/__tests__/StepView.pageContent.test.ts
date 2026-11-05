@@ -1,4 +1,4 @@
-/**
+﻿/**
  * StepView 真实页面数据集成测试（WEN_05–19、22–27）
  *
  * 与 StepView.test.ts 的分工：
@@ -198,7 +198,7 @@ describe('StepView + 真实页面数据', () => {
     localStorage.clear()
   })
 
-  it('第二关 WEN_05：真实 JSON 渲染全部 quiz+dialogue，点对答案提交 B', async () => {
+  it('第二关 WEN_05：DOM 完整性（4 blocks 全 mount）+ 渐进解锁', async () => {
     const answer = await readAnswer('pages_level2_dialog_quiz', 'WEN_05')
     expect(answer).toBe('B')
 
@@ -207,38 +207,40 @@ describe('StepView + 真实页面数据', () => {
 
     expect(wrapper.find('.step-not-ready').exists()).toBe(false)
 
-    // 关键修复：所有 block 从一开始就渲染 → 2 个 quiz 都在 DOM（之前只有 B1 渲染）
-    const quizzes = wrapper.findAll('.adapt-quiz')
-    expect(quizzes).toHaveLength(2)
-    // B1 是第一个 quiz，题干包含"唐雎的回应是"
-    expect(quizzes[0]!.text()).toContain('唐雎的回应是')
-    expect(quizzes[0]!.findAll('.option-btn')).toHaveLength(4)
-    // B2 也渲染了（之前被 isQuizBlockVisible 干掉 → Figma 资源无落点）
-    expect(quizzes[1]!.text()).toContain('秦王从“怫然怒”')
-    expect(quizzes[1]!.findAll('.option-btn')).toHaveLength(4)
+    // 关键修复：所有 block 全部 mount，解锁独立于渲染
 
-    // 初始 DialogueCard 就 4 个：B1 pre_dialog + dialogue1 + B2 pre_dialog + dialogue2
-    // （之前只有 3 个 —— B2 的 pre_dialog 因为 quiz2 没渲染而丢失）
-    expect(wrapper.findAllComponents(DialogueCard)).toHaveLength(4)
+    // === P0 DOM completeness: 4 blocks all mounted ===
+    const allRenderers = wrapper.findAll('.block-renderer')
+    expect(allRenderers).toHaveLength(4)
+    const quizRenderers = allRenderers.filter((w) => w.classes().includes('block-type-quiz'))
+    expect(quizRenderers).toHaveLength(2)
 
-    // 答 B1
-    await quizzes[0]!.findAll('.option-btn')[letterToIndex(answer)]!.trigger('click')
-    await quizzes[0]!.find('.submit-btn').trigger('click')
+    // === initial state: completedCount=0, only quiz1 visible ===
+    const visibleRenderers = allRenderers.filter((w) => !w.classes().includes('block-hidden'))
+    expect(visibleRenderers).toHaveLength(1)
+    const hiddenRenderers = allRenderers.filter((w) => w.classes().includes('block-hidden'))
+    expect(hiddenRenderers).toHaveLength(3)
+
+    const visibleQuiz = visibleRenderers[0]!.find('.adapt-quiz')
+    expect(visibleQuiz.text()).toContain('唐雎的回应是')
+    expect(visibleQuiz.findAll('.option-btn')).toHaveLength(4)
+
+    // === answer quiz1 -> completedCount=1 ===
+    await visibleQuiz.findAll('.option-btn')[letterToIndex(answer)]!.trigger('click')
+    await visibleQuiz.find('.submit-btn').trigger('click')
     await flushPromises()
 
-    expect(quizzes[0]!.find('.option-btn.correct').exists()).toBe(true)
-    expect(apiMock.submitSingleAnswer).toHaveBeenCalledTimes(1)
+    expect(visibleQuiz.find('.option-btn.correct').exists()).toBe(true)
     expect(apiMock.submitSingleAnswer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        wenId: 'WEN_05',
-        questionId: 'WEN_05_B1',
-        userAnswer: answer,
-        correctAnswer: answer,
-      }),
+      expect.objectContaining({ wenId: 'WEN_05', questionId: 'WEN_05_B1', userAnswer: answer, correctAnswer: answer }),
     )
-    // DialogueCard 仍 4 个（全部 block 一直渲染，不随答题解锁变化）
-    const dialogues = wrapper.findAllComponents(DialogueCard)
-    expect(dialogues).toHaveLength(4)
+
+    // === after unlock: quiz1 + dialogue1 + quiz2 visible ===
+    const visibleAfter = wrapper.findAll('.block-renderer').filter((w) => !w.classes().includes('block-hidden'))
+    expect(visibleAfter).toHaveLength(3)
+
+    const visibleTexts = visibleAfter.map((w) => w.text())
+    expect(visibleTexts.some((t) => t.includes('秦王'))).toBe(true)
   })
 
   it('第二关 WEN_05：内容加载后继续键常驻，答题前后都可前进', async () => {

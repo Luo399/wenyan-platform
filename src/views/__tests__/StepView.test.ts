@@ -279,29 +279,45 @@ describe('StepView', () => {
     expect(scaffold.props('error')).toBe('HTTP 404')
   })
 
-  it('第二关所有 block 从一开始就渲染（Figma 资源必须有前端落点，quiz 交织不允许 v-if 干掉）', async () => {
+  it('第二关解锁矩阵：初始只可见前置 dialogue + quiz1，答完后渐进解锁', async () => {
     const wrapper = mountStep()
     await flushPromises()
 
     const blocks = wrapper.findAll('.block-stub')
     expect(blocks).toHaveLength(5)
-    // 关键修复：BlockRenderer :show="true"，所有 block 无论 quiz/dialogue 都必须渲染到 DOM
-    // 之前 isQuizBlockVisible 会把后续 quiz v-if 干掉 → 丢失 Figma 资源落点
-    expect(blocks[0].attributes('data-show')).toBe('1')  // dialogue
-    expect(blocks[1].attributes('data-show')).toBe('1')  // quiz 1
-    expect(blocks[2].attributes('data-show')).toBe('1')  // dialogue
-    expect(blocks[3].attributes('data-show')).toBe('1')  // quiz 2（之前被 v-if 干掉！）
-    expect(blocks[4].attributes('data-show')).toBe('1')  // dialogue
 
-    // 乱序答题也能正确映射 questionIndex —— quizBlockIndices 把 blockIndex 映射到 quizIndex
-    // 先答 quiz 2 (blockIndex=3 → quizIndex=1)，再答 quiz 1 (blockIndex=1 → quizIndex=0)
-    await blocks[3].find('.block-answer').trigger('click')
-    await flushPromises()
+    // 初始 completedCount=0 → section -1 可见；section 0 的 quiz 可见，其 dialogue hidden；section 1 全 hidden
+    // [dialogue(前置), quiz1, dialogue(quiz1解析), quiz2, dialogue(quiz2解析)]
+    expect(blocks[0].attributes('data-show')).toBe('1')  // i=0, sec=-1 → 前置 dialogue 一直可见
+    expect(blocks[1].attributes('data-show')).toBe('1')  // i=1, sec=0 → quiz1 可见
+    expect(blocks[2].attributes('data-show')).toBe('0')  // i=2, sec=0 → quiz1 解析 dialogue hidden
+    expect(blocks[3].attributes('data-show')).toBe('0')  // i=3, sec=1 → quiz2 hidden
+    expect(blocks[4].attributes('data-show')).toBe('0')  // i=4, sec=1 → quiz2 解析 dialogue hidden
+
+    // 答完 quiz1 (blockIndex=1 → quizIndex=0)
     await blocks[1].find('.block-answer').trigger('click')
     await flushPromises()
 
-    // 提交顺序虽乱，但 answers 里 questionIndex 必须是 1 和 0（按 quizIndex），不是 0 和 1（按提交顺序）
-    // 埋点正常触发
+    // completedCount=1 → section < 1 全显；section 1 的 quiz 显，解析 hidden
+    expect(blocks[0].attributes('data-show')).toBe('1')
+    expect(blocks[1].attributes('data-show')).toBe('1')
+    expect(blocks[2].attributes('data-show')).toBe('1')  // quiz1 答完 → 它的解析 dialogue 解锁
+    expect(blocks[3].attributes('data-show')).toBe('1')  // quiz2 解锁
+    expect(blocks[4].attributes('data-show')).toBe('0')  // quiz2 解析 dialogue 还 hidden
+
+    // 答完 quiz2 (blockIndex=3 → quizIndex=1)
+    await blocks[3].find('.block-answer').trigger('click')
+    await flushPromises()
+
+    // completedCount=2 → 全部可见
+    expect(blocks[0].attributes('data-show')).toBe('1')
+    expect(blocks[1].attributes('data-show')).toBe('1')
+    expect(blocks[2].attributes('data-show')).toBe('1')
+    expect(blocks[3].attributes('data-show')).toBe('1')
+    expect(blocks[4].attributes('data-show')).toBe('1')
+
+    // DOM 完整性：所有 block 永远 mount（不因为 hidden 就销毁）
+    expect(wrapper.findAll('.block-stub')).toHaveLength(5)
   })
 
   it('第一关渲染选择题并按 A 关题号提交', async () => {
