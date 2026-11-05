@@ -8,7 +8,7 @@
  *   - 防御：0 quiz、全部完成 override
  */
 import { describe, it, expect } from 'vitest'
-import { computeStep2BlockVisibility, type VisibilityBlock } from './step2BlockVisibility'
+import { computeStep2BlockVisibility, type VisibilityBlock } from '../step2BlockVisibility'
 
 function mk(types: string[]): VisibilityBlock[] {
   return types.map((t) => ({ type: t }))
