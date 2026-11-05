@@ -447,25 +447,15 @@ const step2Flow = useQuizFlow({
  */
 const showNavigation = computed(() => !loading.value)
 
-// Step 2: 统计 quiz 块索引，实现 Block 可见性控制
+// Step 2: 统计 quiz 块索引（quiz/dialogue 交织时，映射 blockIndex → quizIndex）
 const quizBlockIndices = computed(() => {
   if (!pageConfig.value) return []
   return pageConfig.value.blocks.map((b, i) => (b.type === 'quiz' ? i : -1)).filter((i) => i !== -1)
 })
 
-function isQuizBlockVisible(blockIndex: number): boolean {
-  if (!pageConfig.value) return false
-  if (!quizBlockIndices.value.length) return true
-  // 最后一题提交后 currentIndex 不再前进（useQuizFlow 不会越过 totalQuestions），
-  // 仅按「最后一个已解锁 quiz」截断会把题目后面的解析对话永远藏住 → 全部解锁。
-  if (step2Flow.isCompleted.value) return true
-  const lastUnlockedQuiz = quizBlockIndices.value[step2Flow.currentIndex.value] ?? Infinity
-  return blockIndex <= lastUnlockedQuiz
-}
-
 async function handleQuizAnswer(
   blockIndex: number,
-  block: PageBlock,
+  _block: PageBlock,
   event: {
     answer: string | number
     isCorrect: boolean
