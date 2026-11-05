@@ -149,12 +149,12 @@ describe('computeStep2BlockVisibility', () => {
       expect(visible[2]).toBe(false)
     })
 
-    it('completedCount=3 → quiz1-3 已答，quiz4 可见（4/17）', () => {
+    it('completedCount=3 → quiz1-3 已答，quiz4 可见（共9个显）', () => {
       const { visible } = computeStep2BlockVisibility(blocks, 3)
-      // section -1, 0, 1, 2 全显；section 3 的 quiz (i=8) 显，dialogue hidden
+      // sec -1, 0, 1, 2 全显；sec 3 的 quiz (i=8) 显，dialogue (i=9,10) hidden
       const trueCount = visible.filter((v) => v).length
-      // i=0 (前置) + i=1,2,3 (sec0) + i=4,5,6 (sec1) + i=7 (sec2 quiz) + i=8 (sec3 quiz) = 10
-      expect(trueCount).toBe(10)
+      // i=0 (前置) + i=1,2,3 (sec0) + i=4,5,6 (sec1) + i=7 (sec2 quiz) + i=8 (sec3 quiz) = 9
+      expect(trueCount).toBe(9)
       // sec 3 的 dialogue (i=9,10) 还 hidden
       expect(visible[9]).toBe(false)
       expect(visible[10]).toBe(false)
