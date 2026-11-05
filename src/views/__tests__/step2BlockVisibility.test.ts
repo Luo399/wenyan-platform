@@ -98,4 +98,73 @@ describe('computeStep2BlockVisibility', () => {
       expect(sectionOf).toEqual([0, 0, 1, 1])
     })
   })
+
+  describe('连续 quiz（quiz 之间无 dialogue）', () => {
+    // [dialogue, quiz, quiz, dialogue] —— quiz2 紧跟 quiz1
+    const blocks = mk(['dialogue', 'quiz', 'quiz', 'dialogue'])
+
+    it('completedCount=0 → 前置 + quiz1 可见；quiz2 和它的 dialogue hidden', () => {
+      const { visible } = computeStep2BlockVisibility(blocks, 0)
+      expect(visible).toEqual([true, true, false, false])
+    })
+
+    it('completedCount=1 → 前置 + quiz1 + quiz2 可见；quiz2 的 dialogue hidden', () => {
+      // quiz1 答完 → quiz1 后面没有 dialogue → quiz2 可见（quizStarts[1]=2===2）
+      const { visible } = computeStep2BlockVisibility(blocks, 1)
+      expect(visible).toEqual([true, true, true, false])
+    })
+
+    it('completedCount=2 → 全部可见', () => {
+      const { visible } = computeStep2BlockVisibility(blocks, 2)
+      expect(visible).toEqual([true, true, true, true])
+    })
+
+    it('section 分配：quiz2 虽紧邻 quiz1 但独立成 section 1', () => {
+      const { sectionOf, quizStarts } = computeStep2BlockVisibility(blocks, 0)
+      expect(quizStarts).toEqual([1, 2])
+      // i=0→-1, i=1→0, i=2→1（因为 >= 2=quizStarts[1]）, i=3→1
+      expect(sectionOf).toEqual([-1, 0, 1, 1])
+    })
+  })
+
+  describe('真实 level2_dialog_quiz.json 复杂结构（7 quiz）', () => {
+    // 17 blocks, 7 quiz: [dialogue, quiz, dialogue, dialogue, quiz, dialogue, dialogue, quiz, quiz, dialogue, dialogue, quiz, dialogue, quiz, dialogue, quiz, dialogue]
+    const blocks = mk([
+      'dialogue', 'quiz', 'dialogue', 'dialogue',
+      'quiz', 'dialogue', 'dialogue',
+      'quiz', 'quiz', 'dialogue', 'dialogue',
+      'quiz', 'dialogue',
+      'quiz', 'dialogue',
+      'quiz', 'dialogue',
+    ])
+
+    it('completedCount=0 → 前置 dialogue + quiz1 可见（1/17）', () => {
+      const { visible, quizStarts } = computeStep2BlockVisibility(blocks, 0)
+      expect(quizStarts).toEqual([1, 4, 7, 8, 11, 13, 15])
+      // 只有 i=0 (前置 dialogue) 和 i=1 (quiz1) 可见
+      const trueCount = visible.filter((v) => v).length
+      expect(trueCount).toBe(2)
+      expect(visible[0]).toBe(true)
+      expect(visible[1]).toBe(true)
+      expect(visible[2]).toBe(false)
+    })
+
+    it('completedCount=3 → quiz1-3 已答，quiz4 可见（4/17）', () => {
+      const { visible } = computeStep2BlockVisibility(blocks, 3)
+      // section -1, 0, 1, 2 全显；section 3 的 quiz (i=8) 显，dialogue hidden
+      const trueCount = visible.filter((v) => v).length
+      // i=0 (前置) + i=1,2,3 (sec0) + i=4,5,6 (sec1) + i=7 (sec2 quiz) + i=8 (sec3 quiz) = 10
+      expect(trueCount).toBe(10)
+      // sec 3 的 dialogue (i=9,10) 还 hidden
+      expect(visible[9]).toBe(false)
+      expect(visible[10]).toBe(false)
+      // sec 4 (i=11+) 全 hidden
+      expect(visible[11]).toBe(false)
+    })
+
+    it('completedCount=7 → 全部可见', () => {
+      const { visible } = computeStep2BlockVisibility(blocks, 7)
+      expect(visible.every((v) => v)).toBe(true)
+    })
+  })
 })
