@@ -32,7 +32,7 @@
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-oxlint": "~1.60.0",
+    "eslint-plugin-oxlint": "~1.90.0",
     "eslint-plugin-vue": "~10.8.0",
     "happy-dom": "^15.7.4",
     "jiti": "^2.6.1",
