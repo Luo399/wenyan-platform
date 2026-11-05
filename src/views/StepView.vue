@@ -126,7 +126,7 @@
           :key="`${block.type}-${index}`"
           :block="block"
           :show="true"
-          @quiz-answer="handleQuizAnswer(index, block)"
+          @quiz-answer="(event) => handleQuizAnswer(index, block, event)"
         />
       </div>
     </PageScaffold>
