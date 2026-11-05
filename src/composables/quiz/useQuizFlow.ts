@@ -62,6 +62,12 @@ export interface QuizFlowParams {
 
 /** submit() 参数 */
 export interface QuizFlowSubmitParams {
+  /**
+   * 指定这道题的 questionIndex（0-based）。
+   * 不传时 fallback 到 currentIndex（顺序答题场景，Step 1/3）。
+   * 传入时完全以这个值为准（Step 2 乱序/按 blockIndex 映射答题）。
+   */
+  questionIndex?: number
   answer: number | string
   isCorrect?: boolean
   questionId?: string
@@ -197,11 +203,13 @@ export function useQuizFlow(params: QuizFlowParams): UseQuizFlowReturn {
       return
     }
 
+    // questionIndex 显式传入 → 用它；否则 fallback currentIndex（向后兼容 Step 1/3）
+    const resolvedIndex = submitParams.questionIndex ?? currentIndex.value
     const prevCurrentIndex = currentIndex.value
 
-    const existingIndex = answers.value.findIndex((a) => a.questionIndex === currentIndex.value)
+    const existingIndex = answers.value.findIndex((a) => a.questionIndex === resolvedIndex)
     const answerRecord: QuizFlowAnswer = {
-      questionIndex: currentIndex.value,
+      questionIndex: resolvedIndex,
       questionId: submitParams.questionId,
       module: submitParams.module,
       answer: submitParams.answer,
@@ -215,13 +223,13 @@ export function useQuizFlow(params: QuizFlowParams): UseQuizFlowReturn {
       answers.value.push(answerRecord)
     }
 
-    if (!submittedList.value[currentIndex.value]) {
-      submittedList.value[currentIndex.value] = true
+    if (!submittedList.value[resolvedIndex]) {
+      submittedList.value[resolvedIndex] = true
       completedCount.value++
     }
 
     if (onSubmit) {
-      onSubmit(currentIndex.value, submitParams.answer, submitParams.isCorrect)
+      onSubmit(resolvedIndex, submitParams.answer, submitParams.isCorrect)
     }
 
     await submitSingleToBackend(answerRecord)
@@ -230,13 +238,19 @@ export function useQuizFlow(params: QuizFlowParams): UseQuizFlowReturn {
       saveCompletionRecord()
     }
 
-    if (currentIndex.value < totalQuestions.value - 1) {
+    // currentIndex 只在调用方没传 questionIndex 时才自增（顺序答题模式）
+    // 显式传了 questionIndex（Step 2 乱序答题）→ 不动 currentIndex，让调用方决定
+    if (
+      submitParams.questionIndex === undefined &&
+      currentIndex.value < totalQuestions.value - 1
+    ) {
       currentIndex.value++
     }
 
     debugLog('[useQuizFlow] submit 完成', {
-      prevIndex: prevCurrentIndex,
-      newIndex: currentIndex.value,
+      resolvedIndex,
+      prevCurrentIndex,
+      newCurrentIndex: currentIndex.value,
       isCompleted: isCompleted.value,
     })
   }

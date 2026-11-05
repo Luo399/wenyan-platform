@@ -5,7 +5,8 @@
   使用 v-bind="block.data" 直接将数据传递给子组件
 -->
 <template>
-  <div class="block-renderer" :class="`block-type-${block.type}`" v-if="show">
+  <!-- 核心防线：永远 mount，只靠 CSS 隐藏，保证 Figma 数据有前端落点 -->
+  <div class="block-renderer" :class="[`block-type-${block.type}`, { 'block-hidden': !show }]">
     <!-- 针对 quiz 类型，透传事件 -->
     <BlockQuiz
       v-if="block.type === 'quiz'"
@@ -97,5 +98,9 @@ defineEmits<{
 .block-renderer:last-child {
   margin-bottom: 0;
 }
-/* R68: 移除空的块类型特定样式占位，需要时再添加 */
+
+/* P0 核心防线：不影响 DOM 存在，只隐藏显示 */
+.block-hidden {
+  display: none !important;
+}
 </style>

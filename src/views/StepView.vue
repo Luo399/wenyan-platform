@@ -469,11 +469,9 @@ async function handleQuizAnswer(
   const quizIndex = quizBlockIndices.value.indexOf(blockIndex)
   if (quizIndex === -1) return
 
-  // 先跳到正确的 quizIndex，确保 submit 内部 currentIndex/questionIndex 与
-  // 实际 block 一致（否则所有 quiz 同时可见时，乱序答题会把 questionIndex 错位）
-  step2Flow.goTo(quizIndex)
-
+  // 直接传 questionIndex 给 submit，不用 goTo hack 乱跳 currentIndex
   await step2Flow.submit({
+    questionIndex: quizIndex,
     answer: event.answer,
     isCorrect: event.isCorrect,
     questionId: event.questionId,
