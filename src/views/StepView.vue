@@ -125,8 +125,8 @@
           v-for="(block, index) in pageConfig.blocks"
           :key="`${block.type}-${index}`"
           :block="block"
-          :show="block.type === 'quiz' ? isQuizBlockVisible(index) : true"
-          @quiz-answer="handleQuizAnswer"
+          :show="true"
+          @quiz-answer="(event) => handleQuizAnswer(index, block, event)"
         />
       </div>
     </PageScaffold>
@@ -447,29 +447,32 @@ const step2Flow = useQuizFlow({
  */
 const showNavigation = computed(() => !loading.value)
 
-// Step 2: 统计 quiz 块索引，实现 Block 可见性控制
+// Step 2: 统计 quiz 块索引（quiz/dialogue 交织时，映射 blockIndex → quizIndex）
 const quizBlockIndices = computed(() => {
   if (!pageConfig.value) return []
   return pageConfig.value.blocks.map((b, i) => (b.type === 'quiz' ? i : -1)).filter((i) => i !== -1)
 })
 
-function isQuizBlockVisible(blockIndex: number): boolean {
-  if (!pageConfig.value) return false
-  if (!quizBlockIndices.value.length) return true
-  // 最后一题提交后 currentIndex 不再前进（useQuizFlow 不会越过 totalQuestions），
-  // 仅按「最后一个已解锁 quiz」截断会把题目后面的解析对话永远藏住 → 全部解锁。
-  if (step2Flow.isCompleted.value) return true
-  const lastUnlockedQuiz = quizBlockIndices.value[step2Flow.currentIndex.value] ?? Infinity
-  return blockIndex <= lastUnlockedQuiz
-}
+async function handleQuizAnswer(
+  blockIndex: number,
+  _block: PageBlock,
+  event: {
+    answer: string | number
+    isCorrect: boolean
+    questionId?: string
+    module?: string
+    correctAnswer?: string | number | (string | number)[]
+  },
+) {
+  // 用 quizBlockIndices 把 block 位置映射到 quiz 序号
+  // （block 可能是 quiz/dialogue 交织的，quizIndex 只数 quiz 类型）
+  const quizIndex = quizBlockIndices.value.indexOf(blockIndex)
+  if (quizIndex === -1) return
 
-async function handleQuizAnswer(event: {
-  answer: string | number
-  isCorrect: boolean
-  questionId?: string
-  module?: string
-  correctAnswer?: string | number | (string | number)[]
-}) {
+  // 先跳到正确的 quizIndex，确保 submit 内部 currentIndex/questionIndex 与
+  // 实际 block 一致（否则所有 quiz 同时可见时，乱序答题会把 questionIndex 错位）
+  step2Flow.goTo(quizIndex)
+
   await step2Flow.submit({
     answer: event.answer,
     isCorrect: event.isCorrect,
@@ -477,6 +480,7 @@ async function handleQuizAnswer(event: {
     module: event.module || 'B',
     correctAnswer: event.correctAnswer,
   })
+
   // 埋点
   if (event.isCorrect) {
     trackModule.trackQuizSubmit(100, [])
