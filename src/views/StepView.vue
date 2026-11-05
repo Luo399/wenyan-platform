@@ -125,8 +125,8 @@
           v-for="(block, index) in pageConfig.blocks"
           :key="`${block.type}-${index}`"
           :block="block"
-          :show="block.type === 'quiz' ? isQuizBlockVisible(index) : true"
-          @quiz-answer="handleQuizAnswer"
+          :show="true"
+          @quiz-answer="handleQuizAnswer(index, block)"
         />
       </div>
     </PageScaffold>
@@ -463,13 +463,26 @@ function isQuizBlockVisible(blockIndex: number): boolean {
   return blockIndex <= lastUnlockedQuiz
 }
 
-async function handleQuizAnswer(event: {
-  answer: string | number
-  isCorrect: boolean
-  questionId?: string
-  module?: string
-  correctAnswer?: string | number | (string | number)[]
-}) {
+async function handleQuizAnswer(
+  blockIndex: number,
+  block: PageBlock,
+  event: {
+    answer: string | number
+    isCorrect: boolean
+    questionId?: string
+    module?: string
+    correctAnswer?: string | number | (string | number)[]
+  },
+) {
+  // 用 quizBlockIndices 把 block 位置映射到 quiz 序号
+  // （block 可能是 quiz/dialogue 交织的，quizIndex 只数 quiz 类型）
+  const quizIndex = quizBlockIndices.value.indexOf(blockIndex)
+  if (quizIndex === -1) return
+
+  // 先跳到正确的 quizIndex，确保 submit 内部 currentIndex/questionIndex 与
+  // 实际 block 一致（否则所有 quiz 同时可见时，乱序答题会把 questionIndex 错位）
+  step2Flow.goTo(quizIndex)
+
   await step2Flow.submit({
     answer: event.answer,
     isCorrect: event.isCorrect,
@@ -477,6 +490,7 @@ async function handleQuizAnswer(event: {
     module: event.module || 'B',
     correctAnswer: event.correctAnswer,
   })
+
   // 埋点
   if (event.isCorrect) {
     trackModule.trackQuizSubmit(100, [])

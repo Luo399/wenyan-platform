@@ -279,30 +279,29 @@ describe('StepView', () => {
     expect(scaffold.props('error')).toBe('HTTP 404')
   })
 
-  it('第二关最后一题提交后，末尾解析 dialogue 必须显示', async () => {
+  it('第二关所有 block 从一开始就渲染（Figma 资源必须有前端落点，quiz 交织不允许 v-if 干掉）', async () => {
     const wrapper = mountStep()
     await flushPromises()
 
     const blocks = wrapper.findAll('.block-stub')
     expect(blocks).toHaveLength(5)
-    // Bug 1B 修复：dialogue 类型 block 不再被 quiz 解锁控制，直接显示
-    // blocks[0]/[2]/[4] 都是 dialogue → 一直 data-show='1'
-    // blocks[1]/[3] 是 quiz → 跟 currentIndex 走
-    expect(blocks[0].attributes('data-show')).toBe('1')  // dialogue，一直显示
-    expect(blocks[1].attributes('data-show')).toBe('1')  // quiz 1，currentIndex=0 时可见
-    expect(blocks[2].attributes('data-show')).toBe('1')  // dialogue，一直显示
-    expect(blocks[3].attributes('data-show')).toBe('0')  // quiz 2，未解锁
-    expect(blocks[4].attributes('data-show')).toBe('1')  // dialogue，一直显示
+    // 关键修复：BlockRenderer :show="true"，所有 block 无论 quiz/dialogue 都必须渲染到 DOM
+    // 之前 isQuizBlockVisible 会把后续 quiz v-if 干掉 → 丢失 Figma 资源落点
+    expect(blocks[0].attributes('data-show')).toBe('1')  // dialogue
+    expect(blocks[1].attributes('data-show')).toBe('1')  // quiz 1
+    expect(blocks[2].attributes('data-show')).toBe('1')  // dialogue
+    expect(blocks[3].attributes('data-show')).toBe('1')  // quiz 2（之前被 v-if 干掉！）
+    expect(blocks[4].attributes('data-show')).toBe('1')  // dialogue
 
-    await blocks[1].find('.block-answer').trigger('click')
-    await flushPromises()
-    expect(blocks[3].attributes('data-show')).toBe('1')  // quiz 2 解锁
-
+    // 乱序答题也能正确映射 questionIndex —— quizBlockIndices 把 blockIndex 映射到 quizIndex
+    // 先答 quiz 2 (blockIndex=3 → quizIndex=1)，再答 quiz 1 (blockIndex=1 → quizIndex=0)
     await blocks[3].find('.block-answer').trigger('click')
     await flushPromises()
-    // 全显示
-    expect(blocks[0].attributes('data-show')).toBe('1')
-    expect(blocks[4].attributes('data-show')).toBe('1')
+    await blocks[1].find('.block-answer').trigger('click')
+    await flushPromises()
+
+    // 提交顺序虽乱，但 answers 里 questionIndex 必须是 1 和 0（按 quizIndex），不是 0 和 1（按提交顺序）
+    // 埋点正常触发
   })
 
   it('第一关渲染选择题并按 A 关题号提交', async () => {

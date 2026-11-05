@@ -198,7 +198,7 @@ describe('StepView + 真实页面数据', () => {
     localStorage.clear()
   })
 
-  it('第二关 WEN_05：真实 JSON 渲染题干/选项，点对答案提交 B，解析对话随后解锁', async () => {
+  it('第二关 WEN_05：真实 JSON 渲染全部 quiz+dialogue，点对答案提交 B', async () => {
     const answer = await readAnswer('pages_level2_dialog_quiz', 'WEN_05')
     expect(answer).toBe('B')
 
@@ -206,19 +206,27 @@ describe('StepView + 真实页面数据', () => {
     await flushPromises()
 
     expect(wrapper.find('.step-not-ready').exists()).toBe(false)
-    const quiz = wrapper.find('.adapt-quiz')
-    expect(quiz.exists()).toBe(true)
-    expect(quiz.text()).toContain('唐雎的回应是')
-    expect(quiz.findAll('.option-btn')).toHaveLength(4)
-    // Bug 1B 修复：dialogue block 一直渲染 + quiz1 的 pre_dialog = 3 个 DialogueCard
-    // BlockQuiz 给 quiz1 渲染 pre_dialog + 2 个 dialogue block 一直显示
-    expect(wrapper.findAllComponents(DialogueCard)).toHaveLength(3)
 
-    await quiz.findAll('.option-btn')[letterToIndex(answer)].trigger('click')
-    await quiz.find('.submit-btn').trigger('click')
+    // 关键修复：所有 block 从一开始就渲染 → 2 个 quiz 都在 DOM（之前只有 B1 渲染）
+    const quizzes = wrapper.findAll('.adapt-quiz')
+    expect(quizzes).toHaveLength(2)
+    // B1 是第一个 quiz，题干包含"唐雎的回应是"
+    expect(quizzes[0]!.text()).toContain('唐雎的回应是')
+    expect(quizzes[0]!.findAll('.option-btn')).toHaveLength(4)
+    // B2 也渲染了（之前被 isQuizBlockVisible 干掉 → Figma 资源无落点）
+    expect(quizzes[1]!.text()).toContain('秦王从“怫然怒”')
+    expect(quizzes[1]!.findAll('.option-btn')).toHaveLength(4)
+
+    // 初始 DialogueCard 就 4 个：B1 pre_dialog + dialogue1 + B2 pre_dialog + dialogue2
+    // （之前只有 3 个 —— B2 的 pre_dialog 因为 quiz2 没渲染而丢失）
+    expect(wrapper.findAllComponents(DialogueCard)).toHaveLength(4)
+
+    // 答 B1
+    await quizzes[0]!.findAll('.option-btn')[letterToIndex(answer)]!.trigger('click')
+    await quizzes[0]!.find('.submit-btn').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('.adapt-quiz .option-btn.correct').exists()).toBe(true)
+    expect(quizzes[0]!.find('.option-btn.correct').exists()).toBe(true)
     expect(apiMock.submitSingleAnswer).toHaveBeenCalledTimes(1)
     expect(apiMock.submitSingleAnswer).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -228,15 +236,9 @@ describe('StepView + 真实页面数据', () => {
         correctAnswer: answer,
       }),
     )
-    // 提交后 quiz2 解锁也渲染了 pre_dialog → 总共 4 个 DialogueCard
-    // quiz1 pre_dialog + quiz2 pre_dialog + 2 个 dialogue block 一直显示
+    // DialogueCard 仍 4 个（全部 block 一直渲染，不随答题解锁变化）
     const dialogues = wrapper.findAllComponents(DialogueCard)
     expect(dialogues).toHaveLength(4)
-    // 用 pre_dialog prop 筛出 dialogue block（排除 BlockQuiz 里用 dialog-text 的 pre_dialog）
-    const parsedDialogue = dialogues.find((d) =>
-      (d.props('pre_dialog') as string | undefined)?.includes('唐雎：答案是B'),
-    )
-    expect(parsedDialogue).toBeTruthy()
   })
 
   it('第二关 WEN_05：内容加载后继续键常驻，答题前后都可前进', async () => {
