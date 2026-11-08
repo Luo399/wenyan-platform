@@ -64,7 +64,7 @@
         </button>
         <button v-else class="next-btn" @click="handleNext">
           <i class="fas fa-arrow-right"></i>
-          下一题
+          {{ hasNext ? '下一题' : '完成' }}
         </button>
       </div>
     </div>
@@ -266,6 +266,15 @@ watch(
   (data) => {
     if (data !== null) applyLoadedData()
   },
+)
+
+// 加载失败时向父级广播 error（组件对外契约；父级无需轮询 loader.error）
+watch(
+  () => loader.error.value,
+  (message) => {
+    if (message) emit('error', message)
+  },
+  { immediate: true },
 )
 
 // R01: level/textId 变化触发自动重新加载（若已关闭 autoLoad 则等待手动 loadData）

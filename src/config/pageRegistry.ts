@@ -31,6 +31,8 @@ export interface FigmaPageMeta {
   renderMode: FigmaRenderMode
   /** 页面标题（数据加载前/失败兜底展示） */
   title: string
+  /** 页面副标题（可选，直接传给 PageScaffold） */
+  subtitle?: string
   /** 映射到页面序列的导航 key（useNavigation/pageSequence），非顺序页面可为 home */
   navKey: RouteName
   /** 是否要求登录（对应路由 meta.requiresAuth） */
@@ -65,6 +67,7 @@ export const figmaPageRegistry: Record<string, FigmaPageMeta> = {
     dataDir: 'pages_level3_adaptive_quiz',
     renderMode: 'quiz-list',
     title: '情景测验',
+    subtitle: '完成以下测验，检验你的学习成果',
     navKey: 'stepthree',
     requiresAuth: true,
   },

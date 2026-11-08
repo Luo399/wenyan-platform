@@ -74,12 +74,12 @@ export async function getAllStudents(options?: {
   const response = await get<StudentInfo[]>(url)
   if (!response.data) return []
 
-  if (sortOrder === 'desc') {
-    return response.data.sort((a, b) =>
-      b.student_id.localeCompare(a.student_id, undefined, { numeric: true }),
-    )
-  }
-  return response.data
+  // 复制一份再排序，避免原地修改响应数据（调用方可能复用同一数组）
+  const students = [...response.data]
+  return students.sort((a, b) => {
+    const compared = a.student_id.localeCompare(b.student_id, undefined, { numeric: true })
+    return sortOrder === 'desc' ? -compared : compared
+  })
 }
 
 /**

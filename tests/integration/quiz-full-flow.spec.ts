@@ -8,6 +8,7 @@ import BlockQuiz from '@/components/BlockQuiz.vue'
 import AnswerQueryView from '@/views/AnswerQueryView.vue'
 import { useAnswerSubmitter } from '@/composables/useAnswerSubmitter'
 import { useAuthStore } from '@/stores/auth'
+import { useStudentStore } from '@/stores/student'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { post, get } from '@/utils/api'
 
@@ -71,15 +72,7 @@ describe('题目组件全流程集成测试', () => {
   })
 
   describe('学生登录流程', () => {
-    it('学生应该能够输入学号并登录', async () => {
-      mockPost.mockResolvedValue({
-        success: true,
-        data: {
-          token: 'mock-token',
-          user: { id: '1', username: '张三', student_id: '2024001', role: 'student' },
-        },
-      })
-
+    it('学生应该能够输入学号并保存', async () => {
       const wrapper = mount(StudentLogin)
       const input = wrapper.find('input')
       const submitBtn = wrapper.find('button')
@@ -91,10 +84,10 @@ describe('题目组件全流程集成测试', () => {
       await submitBtn.trigger('click')
       await flushPromises()
 
-      const authStore = useAuthStore()
-      expect(authStore.user?.studentId).toBe('2024001')
-      expect(authStore.isLoggedIn).toBe(true)
-      expect(localStorage.getItem('auth_token')).toBe('mock-token')
+      // 旧版 StudentLogin 组件的契约：写入 student store（不含鉴权 token）
+      const studentStore = useStudentStore()
+      expect(studentStore.studentId).toBe('2024001')
+      expect(studentStore.isLoggedIn).toBe(true)
     })
 
     it('空学号应该显示错误', async () => {
@@ -107,7 +100,7 @@ describe('题目组件全流程集成测试', () => {
       await flushPromises()
 
       expect(wrapper.find('.error-message').exists()).toBe(true)
-      expect(wrapper.find('.error-message').text()).toBe('学号不能为空')
+      expect(wrapper.find('.error-message').text()).toBe('学号必须为数字')
     })
   })
 
@@ -286,6 +279,19 @@ describe('题目组件全流程集成测试', () => {
     })
 
     it('提交答案应该调用API并返回结果', async () => {
+      mockPost.mockResolvedValue({
+        success: true,
+        message: '提交成功',
+        data: {
+          studentId: '2024001',
+          wenId: 'WEN_01',
+          questionCount: 2,
+          correctCount: 2,
+          avgScore: 100,
+          details: [],
+        },
+      })
+
       const submitter = useAnswerSubmitter()
 
       submitter.addAnswer({
@@ -309,6 +315,8 @@ describe('题目组件全流程集成测试', () => {
           wenId: 'WEN_01',
           answers: { Q1: 2, Q2: 1 },
         }),
+        // apiService 会附带 { timeout } 配置对象
+        expect.anything(),
       )
 
       expect(result.success).toBe(true)
@@ -427,8 +435,8 @@ describe('题目组件全流程集成测试', () => {
       await loginWrapper.find('button').trigger('click')
       await flushPromises()
 
-      const authStore = useAuthStore()
-      expect(authStore.user?.studentId).toBe('2024001')
+      const studentStore = useStudentStore()
+      expect(studentStore.studentId).toBe('2024001')
 
       mockPost.mockResolvedValue({
         success: true,

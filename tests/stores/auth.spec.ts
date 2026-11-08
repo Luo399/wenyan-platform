@@ -19,8 +19,14 @@ vi.mock('@/utils/tracking', () => ({
   consumeBackButtonFlag: vi.fn(() => false),
 }))
 
+// mock useTracking 组合式函数：store 的会话切割走这里
+vi.mock('@/composables/useTracking', () => ({
+  resetFirstEnterSet: vi.fn(),
+}))
+
 // 引入 mock 函数用于断言
-import { resetSessionId, resetFirstEnterSet } from '@/utils/tracking'
+import { resetSessionId } from '@/utils/tracking'
+import { resetFirstEnterSet } from '@/composables/useTracking'
 
 describe('useAuthStore', () => {
   const localStorageMock: Record<string, string> = {}

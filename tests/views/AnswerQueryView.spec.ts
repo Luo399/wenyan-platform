@@ -1,24 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import AnswerQueryView from '@/views/AnswerQueryView.vue'
 import { get } from '@/utils/api'
 import {
   createStudent,
   updateStudent,
   deleteStudent,
-  validateStudentId,
-  validateStudentName,
-} from '@/utils/studentApi'
+} from '@/services/studentService'
+import { validateStudentId, validateStudentName } from '@/utils/studentApi'
 import { formatDate, formatAnswer } from '@/utils/format'
 
 vi.mock('@/utils/api', () => ({
   get: vi.fn(),
+  post: vi.fn(),
+  batchPost: vi.fn(),
 }))
 
-vi.mock('@/utils/studentApi', () => ({
+// 组件的学生 CRUD 走 services/studentService（不是 utils/studentApi）
+vi.mock('@/services/studentService', () => ({
   createStudent: vi.fn(),
   updateStudent: vi.fn(),
   deleteStudent: vi.fn(),
+}))
+
+vi.mock('@/utils/studentApi', () => ({
   validateStudentId: vi.fn(() => ({ valid: true })),
   validateStudentName: vi.fn(() => ({ valid: true })),
 }))
@@ -81,6 +87,7 @@ const mockStudentAnswers = [
 
 describe('AnswerQueryView.vue', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
     mockGet.mockResolvedValue({
       success: true,

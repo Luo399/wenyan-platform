@@ -156,13 +156,14 @@ describe('utils/localStorage', () => {
       expect(getQuizRecords<QuizReport>('S001')).toEqual([report])
     })
 
-    it('脏数据（非数组 JSON）下追加时自动重置为干净数组', () => {
+    it('脏数据（无法解析的 JSON）下跳过追加并保留原始数据', () => {
       localStorage.setItem('quiz_records_S001', '{invalid json')
       const record: SingleRecord = { questionId: 'Q1', isCorrect: true, score: 100 }
       const result = appendQuizRecord('S001', record)
 
-      expect(result).toEqual([record])
-      expect(getQuizRecords<SingleRecord>('S001')).toEqual([record])
+      // R98: 损坏数据不覆盖，等待人工处理
+      expect(result).toEqual([])
+      expect(localStorage.getItem('quiz_records_S001')).toBe('{invalid json')
     })
 
     it('连续追加按顺序保留', () => {

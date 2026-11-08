@@ -5,15 +5,19 @@ import { createPinia, setActivePinia } from 'pinia'
 import StepOneView from '@/views/StepOneView.vue'
 
 // Mock useNavigation：验证组件不直接调用 router.push，而是走 goNext/goPrev
-const mockGoNext = vi.fn()
-const mockGoPrev = vi.fn()
+// vi.mock 会被提升到文件顶部，工厂内引用的变量必须用 vi.hoisted 提前初始化
+const { mockGoNext, mockGoPrev, mockDebugLog, mockDebugError } = vi.hoisted(() => ({
+  mockGoNext: vi.fn(),
+  mockGoPrev: vi.fn(),
+  mockDebugLog: vi.fn(),
+  mockDebugError: vi.fn(),
+}))
+
 vi.mock('@/composables/useNavigation', () => ({
   useNavigation: () => ({ goNext: mockGoNext, goPrev: mockGoPrev }),
 }))
 
 // mock debug 工具，隔离日志噪音并便于验证事件处理
-const mockDebugLog = vi.fn()
-const mockDebugError = vi.fn()
 vi.mock('@/utils/debug', () => ({
   debugLog: mockDebugLog,
   debugError: mockDebugError,

@@ -12,33 +12,38 @@ describe('useDataLoader', () => {
     clearDataCache()
     terminateJsonParserWorker()
 
-    const createMockWorker = () => {
-      const messageHandlers: Array<(e: { data: { id: number; success: boolean; data: unknown } }) => void> = []
-      return {
-        postMessage: vi.fn((data: { text: string; id: number }) => {
-          setTimeout(() => {
-            messageHandlers.forEach((handler) => {
-              handler({
-                data: {
-                  id: data.id,
-                  success: true,
-                  data: JSON.parse(data.text),
-                },
-              })
+    // Worker 必须可被 new 构造：用 class 而不是箭头函数实现
+    class MockWorker {
+      private handlers: Array<
+        (e: { data: { id: number; success: boolean; data: unknown } }) => void
+      > = []
+
+      postMessage(data: { text: string; id: number }) {
+        setTimeout(() => {
+          this.handlers.forEach((handler) => {
+            handler({
+              data: {
+                id: data.id,
+                success: true,
+                data: JSON.parse(data.text),
+              },
             })
-          }, 0)
-        }),
-        addEventListener: vi.fn((event: string, handler: any) => {
-          if (event === 'message') {
-            messageHandlers.push(handler)
-          }
-        }),
-        removeEventListener: vi.fn(),
-        terminate: vi.fn(),
+          })
+        }, 0)
       }
+
+      addEventListener(event: string, handler: (e: never) => void) {
+        if (event === 'message') {
+          this.handlers.push(handler as unknown as (typeof this.handlers)[number])
+        }
+      }
+
+      removeEventListener() {}
+
+      terminate() {}
     }
 
-    vi.stubGlobal('Worker', vi.fn().mockImplementation(createMockWorker))
+    vi.stubGlobal('Worker', MockWorker)
   })
 
   afterEach(() => {

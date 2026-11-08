@@ -77,7 +77,9 @@ function safeWriteJson(key: string, value: unknown): void {
  */
 export function getQuizRecords<T>(studentId: string): T[] {
   if (!studentId) return []
-  return safeReadJson<T[]>(buildQuizStorageKey(studentId), [])
+  const parsed = safeReadJson<unknown>(buildQuizStorageKey(studentId), [])
+  // 历史脏数据可能是对象/标量，统一降级为空数组，避免调用方按数组遍历时报错
+  return Array.isArray(parsed) ? (parsed as T[]) : []
 }
 
 /**

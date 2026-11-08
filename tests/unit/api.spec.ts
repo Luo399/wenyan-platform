@@ -65,17 +65,18 @@ describe('api', () => {
   })
 
   describe('ApiError', () => {
-    it('should create error with message and code', () => {
-      const error = new ApiError('测试错误', 404)
+    it('should create error with status, errorCode and message', () => {
+      const error = new ApiError(404, 'NOT_FOUND', '测试错误')
       expect(error.message).toBe('测试错误')
-      expect(error.code).toBe(404)
+      expect(error.status).toBe(404)
+      expect(error.errorCode).toBe('NOT_FOUND')
       expect(error.name).toBe('ApiError')
     })
 
-    it('should create error without code', () => {
-      const error = new ApiError('测试错误')
+    it('should keep message when only status and errorCode provided', () => {
+      const error = new ApiError(500, 'UNKNOWN', '测试错误')
       expect(error.message).toBe('测试错误')
-      expect(error.code).toBeUndefined()
+      expect(error.errorCode).toBe('UNKNOWN')
     })
   })
 

@@ -23,7 +23,7 @@
 import { computed } from 'vue'
 import { useRouter, isNavigationFailure } from 'vue-router'
 import { type RouteName, getNextPage, getPrevPage, pageSequence } from '@/config/navigation'
-import { debugError, debugWarn } from '@/utils/debug'
+import { debugError, debugLog, debugWarn } from '@/utils/debug'
 import { markNextEnterFromBackButton, setPendingExitType } from '@/utils/tracking'
 
 export function useNavigation(currentRouteName?: RouteName, currentId?: string) {
@@ -72,8 +72,8 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
    * 非顺序页面（未传 currentRouteName）调用时仅 warn 不跳转。
    */
   function goNext(targetId?: string) {
-    // 调试日志：生产环境也输出，避免 debugWarn 仅在 dev 模式生效
-    console.log(
+    // 调试日志统一走 debugLog（仅开发环境输出，避免生产 console 残留）
+    debugLog(
       '[useNavigation.goNext] currentRouteName:',
       currentRouteName,
       'currentId:',
@@ -82,38 +82,38 @@ export function useNavigation(currentRouteName?: RouteName, currentId?: string) 
       targetId,
     )
     if (!currentRouteName) {
-      console.warn('useNavigation.goNext：未提供 currentRouteName，非顺序页面不支持 goNext')
+      debugWarn('useNavigation.goNext：未提供 currentRouteName，非顺序页面不支持 goNext')
       return
     }
     const nextPage = getNextPage(currentRouteName)
-    console.log('[useNavigation.goNext] nextPage:', nextPage)
+    debugLog('[useNavigation.goNext] nextPage:', nextPage)
     if (!nextPage) {
-      console.warn('已是最后一页')
+      debugWarn('已是最后一页')
       return
     }
     // 标记退出类型为"前进"
     setPendingExitType('forward')
     const id = targetId ?? getTargetId()
     const path = nextPage.getPath(id)
-    console.log('[useNavigation.goNext] pushing to:', path)
+    debugLog('[useNavigation.goNext] pushing to:', path)
     router
       .push(path)
       .then((result) => {
         // R136: 检查导航结果，如果是失败类型，记录详细日志
         if (result && isNavigationFailure(result)) {
-          console.warn('[useNavigation.goNext] 导航失败:', result)
+          debugWarn('[useNavigation.goNext] 导航失败:', result)
         } else {
-          console.log('[useNavigation.goNext] 导航成功到:', path)
+          debugLog('[useNavigation.goNext] 导航成功到:', path)
         }
       })
       .catch((err: unknown) => {
-        console.error('[useNavigation.goNext] router.push 失败:', err)
+        debugError('[useNavigation.goNext] router.push 失败:', err)
         // R136: router.push 失败时 fallback 到 router.replace
-        console.log('[useNavigation.goNext] 尝试 router.replace 回退到:', path)
+        debugLog('[useNavigation.goNext] 尝试 router.replace 回退到:', path)
         router.replace(path).catch((err2: unknown) => {
-          console.error('[useNavigation.goNext] router.replace 也失败:', err2)
+          debugError('[useNavigation.goNext] router.replace 也失败:', err2)
           // 最后的 fallback：直接修改 window.location
-          console.log('[useNavigation.goNext] 最终 fallback 到 window.location.href:', path)
+          debugLog('[useNavigation.goNext] 最终 fallback 到 window.location.href:', path)
           window.location.href = path
         })
       })

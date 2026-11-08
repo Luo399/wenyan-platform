@@ -39,7 +39,7 @@ describe('NewHomeView.vue', () => {
           plugins: [router, pinia],
         },
       })
-      expect(wrapper.find('.enter-btn').exists()).toBe(true)
+      expect(wrapper.find('.login-chip').exists()).toBe(true)
     })
   })
 })

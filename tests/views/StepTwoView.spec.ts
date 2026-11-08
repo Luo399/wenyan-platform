@@ -5,7 +5,8 @@ import { ref } from 'vue'
 import StepTwoView from '@/views/StepTwoView.vue'
 
 const mockRouter = {
-  push: vi.fn(),
+  // useNavigation 会对 push 结果调用 then/catch，mock 必须返回 Promise
+  push: vi.fn(() => Promise.resolve()),
   back: vi.fn(),
 }
 

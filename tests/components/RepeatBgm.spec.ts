@@ -89,7 +89,8 @@ describe('RepeatBgm.vue', () => {
 
     it('无 currentBgmFile 时不应渲染控制区', () => {
       const store = useBgmStore()
-      // 不设置 wenId，currentBgmFile 为空
+      // 路由也为空，避免 watch(immediate) 把 wenId 重新写回 store
+      mockRoute.params.id = ''
       store.setActiveWenId('')
       const wrapper = mount(RepeatBgm)
 
@@ -241,7 +242,8 @@ describe('RepeatBgm.vue', () => {
       await nextTick()
 
       expect(mockPause).toHaveBeenCalled()
-      expect(audio.src).toBe('')
+      // R26: 卸载时移除 src 属性（jsdom 下 src 属性为 null，而非空字符串）
+      expect(audio.getAttribute('src')).toBeNull()
     })
   })
 })

@@ -273,6 +273,9 @@ export function useDataLoader<T>(
   }
 
   async function load() {
+    // 先进入加载态：urlGetter 可能是异步的（版本戳），避免首帧误判为"无数据"
+    loading.value = true
+    error.value = null
     // R107: 支持异步 urlGetter（如 getDataUrlWithVersion 需要先取版本戳）
     const url = await urlGetter()
     debugLog('[useDataLoader] 开始加载:', url)

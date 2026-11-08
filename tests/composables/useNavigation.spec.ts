@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useNavigation } from '@/composables/useNavigation'
 
-// Mock router
+// Mock router：useNavigation 会对 push 结果调用 then/catch，必须返回 Promise
 const mockRouter = {
-  push: vi.fn(),
+  push: vi.fn(() => Promise.resolve()),
+  replace: vi.fn(() => Promise.resolve()),
   back: vi.fn(),
 }
 
@@ -16,6 +17,7 @@ vi.mock('vue-router', () => ({
 const mockDebugWarn = vi.fn()
 const mockDebugError = vi.fn()
 vi.mock('@/utils/debug', () => ({
+  debugLog: () => undefined,
   debugWarn: (...args: unknown[]) => mockDebugWarn(...args),
   debugError: (...args: unknown[]) => mockDebugError(...args),
 }))
@@ -172,27 +174,26 @@ describe('useNavigation', () => {
 
   describe('顺序页面行为兼容性测试', () => {
     it('顺序页面 goNext 正常跳转到下一页', () => {
-      // rules 是第二项，下一页应为 stepone（新顺序：rules -> stepone -> rule1 -> ...）
+      // 当前顺序：home → rules → rule1 → stepone → rule2 → steptwo → rule3 → stepthree → detail
       const navigation = useNavigation('rules', '1')
-      navigation.goNext()
-      expect(mockRouter.push).toHaveBeenCalledTimes(1)
-      expect(mockRouter.push).toHaveBeenCalledWith('/stepone/1')
-    })
-
-    it('顺序页面 stepone 的 goNext 应跳转到 rule1', () => {
-      // 新顺序：rules -> stepone -> rule1 -> rule2 -> rule3 -> steptwo -> stepthree -> detail
-      const navigation = useNavigation('stepone', '1')
       navigation.goNext()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
       expect(mockRouter.push).toHaveBeenCalledWith('/rule1/1')
     })
 
+    it('顺序页面 stepone 的 goNext 应跳转到 rule2', () => {
+      const navigation = useNavigation('stepone', '1')
+      navigation.goNext()
+      expect(mockRouter.push).toHaveBeenCalledTimes(1)
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule2/1')
+    })
+
     it('顺序页面 goPrev 正常跳转到上一页', () => {
-      // stepone 是第三项，上一页应为 rules
+      // stepone 的上一页是 rule1
       const navigation = useNavigation('stepone', '1')
       navigation.goPrev()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
-      expect(mockRouter.push).toHaveBeenCalledWith('/rules/1')
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule1/1')
     })
 
     it('顺序页面 currentIndex 返回正确索引', () => {

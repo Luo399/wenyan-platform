@@ -54,7 +54,7 @@ describe('wenUtils', () => {
     })
 
     it('should return default for unknown poemId', () => {
-      expect(getPoemTitle('5')).toBe('未知篇目')
+      expect(getPoemTitle('999')).toBe('未知篇目')
       expect(getPoemTitle('0')).toBe('未知篇目')
       expect(getPoemTitle('100')).toBe('未知篇目')
       expect(getPoemTitle('abc')).toBe('未知篇目')
@@ -90,9 +90,9 @@ describe('wenUtils', () => {
   })
 
   describe('getAllPoems', () => {
-    it('should return 4 poems', () => {
+    it('should return all 37 poems', () => {
       const poems = getAllPoems()
-      expect(poems.length).toBe(4)
+      expect(poems.length).toBe(37)
     })
 
     it('should return poems sorted by poemId ascending', () => {

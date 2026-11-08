@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { getAssetUrl, ossBase } from '@/utils/asset'
+import { getAssetUrl } from '@/utils/asset'
 
 describe('utils/asset', () => {
-  const originalEnv = import.meta.env
-
   beforeEach(() => {
     // 重置环境变量快照
     vi.stubEnv('VITE_OSS_BASE_URL', '')
@@ -30,14 +28,18 @@ describe('utils/asset', () => {
       expect(getAssetUrl('video', 'WEN_01.mp4')).toBe('/video/WEN_01.mp4')
     })
 
-    it('配置 OSS 基础路径时拼接完整 URL', () => {
+    it('配置 OSS 基础路径时拼接完整 URL', async () => {
+      // ossBase 是模块级常量，必须在设置环境变量后重新导入模块
+      vi.resetModules()
       vi.stubEnv('VITE_OSS_BASE_URL', 'https://oss.example.com')
-      expect(getAssetUrl('audio', 'WEN_01.mp3')).toBe(
+      const mod = await import('@/utils/asset')
+      expect(mod.getAssetUrl('audio', 'WEN_01.mp3')).toBe(
         'https://oss.example.com/audio/WEN_01.mp3',
       )
-      expect(getAssetUrl('images', 'WEN_01.jpg')).toBe(
+      expect(mod.getAssetUrl('images', 'WEN_01.jpg')).toBe(
         'https://oss.example.com/images/WEN_01.jpg',
       )
+      vi.resetModules()
     })
 
     it('R97: 文件名含空格时进行 URL 编码', () => {

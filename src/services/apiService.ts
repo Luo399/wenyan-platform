@@ -405,11 +405,19 @@ export async function submitAnswers(
     )
   }
 
-  const response = await post<SubmitAnswersResponse>('/api/submit', params, { timeout })
+  const response = await post<NonNullable<SubmitAnswersResponse['data']>>('/api/submit', params, {
+    timeout,
+  })
   if (!response.success || !response.data) {
     throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')
   }
-  return response.data
+  // 返回完整响应信封（success/message/data），与 SubmitAnswersResponse 契约一致；
+  // 调用方（useAnswerSubmitter / Level1Quiz）依赖 success 与 message 字段。
+  return {
+    success: true,
+    message: response.message || '提交成功',
+    data: response.data,
+  }
 }
 
 export interface SubmitSingleAnswerParams {

@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import BaseLoader from './BaseLoader.vue'
 import BaseError from './BaseError.vue'
@@ -206,7 +206,8 @@ onMounted(() => {
   debugLog('[RepeatBgm] 组件挂载')
 })
 
-onUnmounted(() => {
+// 用 onBeforeUnmount：此时模板 ref 仍有效，可安全 pause / 移除 src
+onBeforeUnmount(() => {
   debugLog('[RepeatBgm] 组件卸载')
   if (audioRef.value) {
     audioRef.value.pause()
