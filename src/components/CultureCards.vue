@@ -40,7 +40,6 @@
           :key="card.card_id || index"
           class="card-item"
           :class="{
-            locked: !isUnlocked(card),
             'card-media-image': cardMediaType(card) === 'image',
             'card-media-video': cardMediaType(card) === 'video',
             'card-media-text': cardMediaType(card) === 'text',
@@ -48,12 +47,11 @@
             'has-background': !!card.background_image,
           }"
           :style="{
-            backgroundImage: card.background_image
-              ? `url(${getCardBackgroundUrl(card)})`
-              : undefined,
+            ...cardSizeStyle(),
+            backgroundImage: cssBackgroundUrl(card),
           }"
-          :role="isUnlocked(card) ? 'button' : undefined"
-          :tabindex="isUnlocked(card) ? 0 : -1"
+          role="button"
+          tabindex="0"
           :aria-label="`文化卡片：${card.card_name}`"
           @click="handleCardClick(card)"
           @keydown.enter="handleCardClick(card)"
@@ -77,9 +75,8 @@
           >
             <div class="card-header">
               <span class="card-name">{{ card.card_name }}</span>
-              <span v-if="!isUnlocked(card)" class="lock-icon">🔒</span>
-              <span v-else-if="cardMediaType(card) === 'video'" class="video-badge">
-                <i class="fas fa-play"></i>
+              <span v-if="cardMediaType(card) === 'video'" class="video-badge">
+                <i class="fas fa-play" aria-hidden="true"></i>
               </span>
             </div>
 
@@ -97,10 +94,31 @@
                   loading="lazy"
                   @error="handleImageError"
                 />
+                <p v-if="card.knowledge_text" class="card-caption">{{ card.knowledge_text }}</p>
               </div>
-              <!-- 视频类型 -->
-              <div v-else-if="cardMediaType(card) === 'video'" class="video-container">
-                <div class="video-thumbnail" @click.stop="handleVideoClick(card)">
+              <!-- 视频类型：默认封面，点击后在卡内固定尺寸播放（播放器自带全屏键） -->
+              <div v-else-if="cardMediaType(card) === 'video'" class="video-container" :style="videoSizeStyle()">
+                <VideoPlayer
+                  v-if="playingCards.has(card.card_id)"
+                  class="card-video-player"
+                  :src="getCardVideoUrl(card)"
+                  :poster="card.poster_file ? getCardImageUrl({ ...card, image_file: card.poster_file }) : ''"
+                />
+                <!--
+                  缩略图本身可点：加 role=button + tabindex + Enter/Space，
+                  否则键盘用户只能聚焦到外层卡片，永远进不了卡内播放。
+                  keydown 上的 .stop 防止事件继续冒泡到外层卡片（同一个 Enter 播放两次）。
+                -->
+                <div
+                  v-else
+                  class="video-thumbnail"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="`播放视频：${card.card_name}`"
+                  @click.stop="handleVideoClick(card)"
+                  @keydown.enter.stop="handleVideoClick(card)"
+                  @keydown.space.prevent.stop="handleVideoClick(card)"
+                >
                   <img
                     v-if="card.poster_file"
                     :src="getCardImageUrl({ ...card, image_file: card.poster_file })"
@@ -110,18 +128,14 @@
                     @error="handleImageError"
                   />
                   <div class="video-play-overlay">
-                    <i class="fas fa-play-circle"></i>
+                    <i class="fas fa-play-circle" aria-hidden="true"></i>
                     <span class="video-play-text">点击播放</span>
                   </div>
                 </div>
+                <p v-if="card.knowledge_text" class="card-caption">{{ card.knowledge_text }}</p>
               </div>
             </div>
 
-            <!-- 解锁条件提示 -->
-            <div v-if="card.unlock_condition" class="unlock-tip">
-              <span class="unlock-label">解锁条件：</span>
-              <span class="unlock-text">{{ card.unlock_condition }}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -147,7 +161,9 @@ import { useDataLoader } from '@/composables/useDataLoader'
 import BaseLoader from '@/components/common/BaseLoader.vue'
 import BaseError from '@/components/common/BaseError.vue'
 import BaseEmpty from '@/components/common/BaseEmpty.vue'
+import VideoPlayer from '@/components/VideoPlayer.vue'
 import { ossBase, getDataUrlWithVersion } from '@/utils/asset'
+import { cultureCardSize } from '@/config/cultureCards'
 
 interface CultureCard {
   text_id: string
@@ -164,6 +180,7 @@ interface CultureCard {
   /** 卡片背景图（可选，统一使用，不区分卡片类型） */
   background_image?: string
   knowledge_text: string
+  /** 解锁条件（数据侧字段，暂无判据可用，仅透传，不参与渲染） */
   unlock_condition?: string
 }
 
@@ -225,6 +242,31 @@ const {
 const flippedCards = reactive(new Set<number | string>())
 const flipCardIndex = ref(0)
 
+// 已进入卡内播放的视频卡片：点击封面后切换为内嵌播放器
+const playingCards = reactive(new Set<number>())
+
+/**
+ * 卡片尺寸：来自 Figma 标注的统一配置（src/config/cultureCards.ts）
+ * 未配置（null）时不注入内联尺寸，沿用现有响应式布局
+ */
+const cardSizeStyle = (): Record<string, string> => {
+  const style: Record<string, string> = {}
+  if (cultureCardSize.cardWidth != null) style.width = `${cultureCardSize.cardWidth}px`
+  if (cultureCardSize.cardHeight != null) style.height = `${cultureCardSize.cardHeight}px`
+  return style
+}
+
+/**
+ * 视频播放区尺寸：来自 Figma 标注（cultureCards.ts 的 videoWidth / videoHeight）
+ * 未配置时不注入内联尺寸，沿用 16:9 响应式缩放
+ */
+const videoSizeStyle = (): Record<string, string> => {
+  const style: Record<string, string> = {}
+  if (cultureCardSize.videoWidth != null) style.width = `${cultureCardSize.videoWidth}px`
+  if (cultureCardSize.videoHeight != null) style.height = `${cultureCardSize.videoHeight}px`
+  return style
+}
+
 /**
  * 判断卡片媒体类型
  *  - "文字" → text
@@ -252,14 +294,50 @@ function cardMediaType(card: CultureCard): 'text' | 'image' | 'video' {
   return 'text'
 }
 
+// ============================================================
+// 资源 URL 拼接（协议白名单 + 逐段编码）
+// ============================================================
+
 /**
- * 获取卡片图片/视频 URL
+ * 只放行 https: 绝对地址与站内相对路径（/ 或 ./ 开头）。
+ * 其余协议（javascript:、data:、协议相对 //evil.com）一律拒绝。
+ *
+ * 卡片数据来自 OSS 上的 JSON（外部可写），原样拼进 `background: url(...)` 时，
+ * 形如 `x.png"); background-image:url(javascript:...)` 的值可以跳出样式声明；
+ * 这里先卡协议，再由 buildCardAssetUrl 逐段编码，双层收口。
+ */
+function isAllowedAssetUrl(url: string): boolean {
+  if (!url) return false
+  if (url.startsWith('//')) return false
+  return url.startsWith('https:') || url.startsWith('/') || url.startsWith('./')
+}
+
+/**
+ * 拼接卡片资源 URL：ossBase 原样保留（可能自带 scheme），动态段逐段 encodeURIComponent。
+ *
+ * 逐段编码的理由：文件名里的空格、括号、引号、# 不被 encode 时，
+ * CSS 的 url() 会提前闭合，浏览器也会把 # 之后当成锚点截断，资源直接 404。
+ *
+ * @returns 合法 URL；不合法（含 ossBase 配错）返回空串，由调用方回退占位
+ */
+function buildCardAssetUrl(...segments: string[]): string {
+  const path = segments.map((segment) => encodeURIComponent(segment)).join('/')
+  const url = `${ossBase}/${path}`
+  return isAllowedAssetUrl(url) ? url : ''
+}
+
+/**
+ * 获取卡片图片 URL
  * 资源路径：{ossBase}/images/culture_cards/{wenId}/{image_file}
- * 通过 ossBase（VITE_OSS_BASE_URL）拼接完整 URL，确保 OSS 生产桶读取
+ * 通过 ossBase（VITE_OSS_BASE_URL）拼接完整 URL，确保 OSS 生产桶读取；
+ * 地址不合法（协议不在白名单内）时回退内联占位图，避免 <img src=""> 重新请求当前页面。
  */
 function getCardImageUrl(card: CultureCard): string {
   if (cardMediaType(card) === 'text') return ''
-  return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
+  return (
+    buildCardAssetUrl('images', 'culture_cards', card.text_id, card.image_file) ||
+    getPlaceholderSvg('图片地址无效')
+  )
 }
 
 /**
@@ -268,14 +346,29 @@ function getCardImageUrl(card: CultureCard): string {
  */
 function getCardBackgroundUrl(card: CultureCard): string {
   if (!card.background_image) return ''
-  return `${ossBase}/images/culture_cards/${card.text_id}/${card.background_image}`
+  return buildCardAssetUrl('images', 'culture_cards', card.text_id, card.background_image)
 }
 
 /**
- * 获取卡片视频 URL（与 getCardImageUrl 同路径，语义化区分）
+ * 内联样式 background-image 的值。
+ *
+ * - 合法地址：外层用双引号包住 url()，配合 buildCardAssetUrl 的逐段编码，
+ *   文件名里的空格 / 括号 / 引号不会提前闭合 url()
+ * - 非法地址：回退到内联占位图，卡片不会变成一块没有底图的空白
+ */
+function cssBackgroundUrl(card: CultureCard): string | undefined {
+  if (!card.background_image) return undefined
+  const url = getCardBackgroundUrl(card)
+  return `url("${url || getPlaceholderSvg('图片地址无效')}")`
+}
+
+/**
+ * 获取卡片视频 URL
+ * 视频统一扁平放在 {ossBase}/video/ 根目录（与 rule 视频同级）
+ * 文件名即 card.image_file（如 WEN_01_card_uprising.mp4）
  */
 function getCardVideoUrl(card: CultureCard): string {
-  return `${ossBase}/images/culture_cards/${card.text_id}/${card.image_file}`
+  return buildCardAssetUrl('video', card.image_file)
 }
 
 /**
@@ -304,23 +397,18 @@ function getPlaceholderSvg(text: string): string {
   return 'data:image/svg+xml,' + encodeURIComponent(svg)
 }
 
-// 解锁状态判断
-// 当前恒 true 为占位实现；接入用户进度数据后再按 card.unlock_condition 判断
-function isUnlocked(_card: CultureCard): boolean {
-  return true
-}
+// 卡片解锁：unlock_condition 目前只透传、没有任何可用判据（学生进度数据未接入）。
+// 原 isUnlocked(_card) 恒 return true，既让模板里出现永不生效的 locked 分支，
+// 也让 tabindex 恒为 0 —— 等于死代码。这里直接去掉，接入进度数据时再加判断，
+// 并把 locked 类 / tabindex=-1 / 锁图标一起恢复。
 
 function handleCardClick(card: CultureCard) {
-  if (!isUnlocked(card)) return
   emit('card-click', card)
 }
 
 function handleVideoClick(card: CultureCard) {
-  if (!isUnlocked(card)) return
-  const videoUrl = getCardVideoUrl(card)
-  if (videoUrl) {
-    window.open(videoUrl, '_blank')
-  }
+  // 切换为卡内固定尺寸播放（VideoPlayer 自带全屏键）
+  playingCards.add(card.card_id)
   emit('video-click', card)
 }
 
@@ -439,22 +527,16 @@ function flipNextCard() {
   backdrop-filter: none;
 }
 
-.card-item:hover:not(.locked) {
+.card-item:hover {
   box-shadow: var(--shadow-card);
   border-color: var(--color-primary);
 }
 
-.card-item:focus-visible:not(.locked) {
+.card-item:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   box-shadow: var(--shadow-card);
   border-color: var(--color-primary);
-}
-
-.card-item.locked {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background: var(--color-placeholder);
 }
 
 /* 虚线边框（Figma 设计同步） */
@@ -529,10 +611,6 @@ function flipNextCard() {
   color: var(--color-text);
 }
 
-.lock-icon {
-  font-size: 20px;
-}
-
 .video-badge {
   display: flex;
   align-items: center;
@@ -571,9 +649,39 @@ function flipNextCard() {
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+/* 文字卡片专用：italic + 左竖条底色 */
 .text-container .knowledge-text {
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+/* 图片/视频卡片的说明文字（独立类，与纯文字 .knowledge-text 不混淆） */
+.card-caption {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+  font-style: normal;
+  margin: 0;
+}
+
+.image-container .card-caption,
+.video-container .card-caption {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-highlight);
+  border-radius: 0 0 var(--radius-small) var(--radius-small);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+/* 有背景图时，说明文字全宽贴合 */
+.card-item.has-background .card-caption {
+  margin: calc(-1 * var(--spacing-sm));
+  margin-top: var(--spacing-xs);
+  border-radius: 0;
 }
 
 /* ============================================================
@@ -689,24 +797,22 @@ function flipNextCard() {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* ============================================================
-   解锁条件提示
-   ============================================================ */
-.unlock-tip {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--color-bg-highlight);
-  border-radius: 6px;
-  font-size: 12px;
-  margin-top: var(--spacing-sm);
+/* 卡内播放器：填满视频区固定尺寸（Figma 配置），视频区域拉伸填充、控件固定底部 */
+.card-video-player {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.unlock-label {
-  color: var(--color-primary);
-  font-weight: 500;
+.card-video-player :deep(.video-wrapper) {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: auto;
 }
 
-.unlock-text {
-  color: var(--color-text-secondary);
+.card-video-player :deep(.controls-bar) {
+  flex-shrink: 0;
 }
 
 /* ============================================================

@@ -29,6 +29,7 @@
                 option.label !== getCorrectAnswerLabel(currentQuiz?.correctAnswer),
             }"
             :disabled="submitted"
+            :style="optionArtStyle(option.label)"
             @click="selectOption(option.label)"
           >
             <span class="option-label">{{ option.label }}</span>
@@ -64,7 +65,7 @@
         </button>
         <button v-else class="next-btn" @click="handleNext">
           <i class="fas fa-arrow-right"></i>
-          {{ hasNext ? '下一题' : '完成' }}
+          下一题
         </button>
       </div>
     </div>
@@ -92,7 +93,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useDataLoader } from '@/composables/useDataLoader'
-import { useStudentInfo } from '@/composables/useStudentInfo'
 // P1: 移除组件内后端提交（submitSingleAnswer），答题提交统一由父级经 useQuizSubmitter 处理，
 // 避免与 useQuizProgress 的逐题提交形成"双提交"（同一题在后端插入两条记录）
 import type { QuizItem } from '@/adapters/quizAdapter'
@@ -102,8 +102,10 @@ import type { RawLevel3QuizItem } from '@/adapters/level3QuizAdapter'
 import { adaptLevel1Quiz, getAllLevel1Quizzes } from '@/adapters/level1QuizAdapter'
 import { adaptLevel2Quiz, getAllLevel2Quizzes } from '@/adapters/level2QuizAdapter'
 import { adaptLevel3Quiz, getAllLevel3Quizzes } from '@/adapters/level3QuizAdapter'
-import { debugLog, debugError } from '@/utils/debug'
-import { appendQuizRecord } from '@/utils/localStorage'
+import { debugError } from '@/utils/debug'
+import { getDataUrl } from '@/utils/asset'
+import { getWenScreenOptionUrl } from '@/config/figmaAssets'
+import type { FigmaOptionKey } from '@/config/figmaScreenCatalog'
 
 // ============================================================
 // Props / Emits
@@ -150,8 +152,6 @@ const showResult = ref(false)
 const submitted = ref(false)
 const results = ref<{ quiz: QuizItem; answer: string; isCorrect: boolean }[]>([])
 
-const { studentId, getStudentName } = useStudentInfo()
-
 // ============================================================
 // R01: useDataLoader 必须在 setup 顶层同步调用
 // 旧代码在 async loadData() 内调用 useDataLoader，违反 Composition API 规则，
@@ -160,7 +160,7 @@ const { studentId, getStudentName } = useStudentInfo()
 // props.level/textId 变化时通过 watch 触发 loader 重新加载。
 // ============================================================
 type RawQuizData = RawLevel1QuizItem[] | RawLevel2QuizItem[] | RawLevel3QuizItem[]
-const quizUrl = computed(() => `/data/${props.level}_quiz/${props.textId}.json`)
+const quizUrl = computed(() => getDataUrl(`${props.level}_quiz`, `${props.textId}.json`))
 const loader = useDataLoader<RawQuizData>(() => quizUrl.value, {
   autoLoad: false,
   cacheEnabled: true,
@@ -202,6 +202,18 @@ function getCorrectAnswerLabel(correctAnswer: number | string | null | undefined
   if (typeof correctAnswer === 'string') return correctAnswer
   const labels = ['A', 'B', 'C', 'D']
   return labels[correctAnswer] || ''
+}
+
+const OPTION_KEYS: readonly FigmaOptionKey[] = ['A', 'B', 'C', 'D']
+
+/**
+ * 选项底图：Figma 插件按篇扫描的 option_a/b/c/d_*.png（4–10KB）。
+ * 从 OSS images/screens/ 读取；没有该篇素材时返回空对象，按钮保持纯 CSS。
+ */
+function optionArtStyle(label: string): Record<string, string> {
+  if (!OPTION_KEYS.includes(label as FigmaOptionKey)) return {}
+  const url = getWenScreenOptionUrl(props.textId, label as FigmaOptionKey)
+  return url ? { backgroundImage: `url("${url}")` } : {}
 }
 
 /**
@@ -268,11 +280,13 @@ watch(
   },
 )
 
-// 加载失败时向父级广播 error（组件对外契约；父级无需轮询 loader.error）
+// R01 重构把 loader 提前到 setup 顶层后漏掉了错误透传：
+// emit('error') 声明还在、BlockQuiz 也接了 @error，但组件内从没触发过。
+// 这里以 loader.error 为唯一来源补回（immediate 覆盖挂载前就已失败的情况）
 watch(
   () => loader.error.value,
-  (message) => {
-    if (message) emit('error', message)
+  (err) => {
+    if (err) emit('error', err)
   },
   { immediate: true },
 )
@@ -320,83 +334,8 @@ function submitAnswer() {
     currentQuiz.value.correctAnswer ?? undefined,
   )
   emit('quiz-submitted')
-  // P1: 后端提交由父级（如 StepTwoView 的 useQuizProgress）统一处理，这里只保留本地记录
-  void persistLocalRecord()
-}
-
-function saveToLocal(
-  quiz: QuizItem,
-  userAnswer: string,
-  correctAnswer: string | number | (string | number)[] | null | undefined,
-  sid: string,
-  studentName: string,
-) {
-  const now = new Date()
-  const submittedAt = now.toISOString()
-  const wenId = quiz.textId || props.textId
-  const questionId =
-    quiz.questionId ||
-    `${wenId}_level${props.level === 'level1' ? 1 : props.level === 'level2' ? 2 : 3}_q${quiz.questionNumber || 1}`
-
-  const isCorrect = String(userAnswer) === String(correctAnswer ?? '')
-
-  const record = {
-    studentId: sid,
-    studentName,
-    wenId,
-    questionId,
-    questionNumber: quiz.questionNumber || 1,
-    level: props.level,
-    userAnswer,
-    correctAnswer,
-    isCorrect,
-    score: isCorrect ? 100 : 0,
-    submittedAt,
-  }
-
-  const allRecords = appendQuizRecord(sid, record)
-  debugLog('[AdaptQuiz] 答题数据已保存到本地:', record, '当前共', allRecords.length, '条')
-  downloadSingleReport(record, sid, studentName)
-  return record
-}
-
-/** 本地答题报告的字段约束（仅用于下载文件名与序列化，避免 any） */
-type AnswerValue = string | number | (string | number)[]
-interface LocalReportRecord {
-  studentId: string
-  studentName?: string
-  wenId?: string
-  questionId: string
-  questionNumber?: number
-  level?: string
-  userAnswer?: string
-  correctAnswer: AnswerValue | null | undefined
-  isCorrect?: boolean
-  score?: number
-  submittedAt?: string
-}
-
-function downloadSingleReport(record: LocalReportRecord, sid: string, studentName: string) {
-  const wenId = record.wenId || props.textId
-  const filename = `答题记录_${sid}_${studentName}_${wenId}_${record.questionId}_${new Date().toISOString().slice(0, 10)}.json`
-  const blob = new Blob([JSON.stringify(record, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-  debugLog('[AdaptQuiz] 报告已下载:', filename)
-}
-
-async function persistLocalRecord() {
-  // P1: 仅做本地记录 + 报告下载（离线兜底），不再向后端提交；
-  // 后端提交由父级页面通过 useQuizSubmitter/useQuizProgress 统一处理。
-  const id = studentId.value
-  if (!id) return
-  const name = await getStudentName()
-  if (!currentQuiz.value) return
-  saveToLocal(currentQuiz.value, selectedAnswer.value, currentQuiz.value.correctAnswer, id, name)
+  // P1: 后端提交由父级（如 StepTwoView 的 useQuizProgress）统一处理
+  // R170: 前端 localStorage 本地保存与答题报告下载已停用，组件内不再保留调用点
 }
 
 function handleNext() {
@@ -545,6 +484,9 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: left;
+  /* Figma 选项底图按按钮实际尺寸铺满；无图时不影响 */
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 .option-btn:hover:not(:disabled) {

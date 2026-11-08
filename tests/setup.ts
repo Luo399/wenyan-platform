@@ -1,4 +1,3 @@
-import { config } from '@vue/test-utils'
 import { beforeAll, vi } from 'vitest'
 
 // Mock global objects

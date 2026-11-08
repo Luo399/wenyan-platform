@@ -46,37 +46,73 @@ function getLevel3AdaptiveQuiz(textId) {
   return readJsonFile(filePath);
 }
 
-function getTextList(page = 1, pageSize = 20) {
-  const basicInfoDir = getDataFilePath('text_basic_info', '');
+/** 课文列表内存缓存：首次请求加载，目录 mtime 变化或 TTL 到期后失效 */
+const TEXT_LIST_CACHE_TTL_MS = 60 * 1000
+let textListCache = { signature: null, loadedAt: 0, texts: [] }
 
-  const texts = [];
+/**
+ * 目录签名（mtime）；目录不存在时返回 missing
+ */
+function getDirectorySignature(dir) {
+  try {
+    return String(fs.statSync(dir).mtimeMs)
+  } catch {
+    return 'missing'
+  }
+}
+
+/**
+ * 从磁盘读取 text_basic_info 下全部 JSON（仅首次/缓存失效时调用）
+ */
+function loadTextListFromDisk(basicInfoDir) {
+  const texts = []
 
   if (fs.existsSync(basicInfoDir)) {
-    const files = fs.readdirSync(basicInfoDir);
+    const files = fs.readdirSync(basicInfoDir)
     files.forEach((file) => {
       if (file.endsWith('.json')) {
-        const filePath = `${basicInfoDir}/${file}`;
-        const data = readJsonFile(filePath);
+        const filePath = `${basicInfoDir}/${file}`
+        const data = readJsonFile(filePath)
         if (data && data.text_id) {
           texts.push({
             text_id: data.text_id,
             title: data.title,
             author: data.author,
             dynasty: data.dynasty,
-          });
+          })
         }
       }
-    });
+    })
   }
 
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedTexts = texts.slice(startIndex, endIndex);
+  return texts
+}
+
+function getTextList(page = 1, pageSize = 20) {
+  const basicInfoDir = getDataFilePath('text_basic_info', '')
+  const signature = getDirectorySignature(basicInfoDir)
+  const now = Date.now()
+
+  if (
+    textListCache.signature !== signature ||
+    now - textListCache.loadedAt > TEXT_LIST_CACHE_TTL_MS
+  ) {
+    textListCache = {
+      signature,
+      loadedAt: now,
+      texts: loadTextListFromDisk(basicInfoDir),
+    }
+  }
+
+  const texts = textListCache.texts
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedTexts = texts.slice(startIndex, endIndex)
 
   return {
     total: texts.length,
     texts: paginatedTexts,
-  };
+  }
 }
 
 function getTextsBatch(textIds) {

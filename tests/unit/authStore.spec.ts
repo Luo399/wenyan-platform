@@ -4,6 +4,17 @@ import { useAuthStore } from '@/stores/auth'
 
 const mockStorage: Record<string, string> = {}
 
+/** 生成一个 exp 在未来的合法 JWT（initialize() 会校验 exp） */
+function makeJwt(expSecondsFromNow = 3600): string {
+  const b64url = (obj: unknown) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '')
+  return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ exp: Math.floor(Date.now() / 1000) + expSecondsFromNow })}.sig`
+}
+
 vi.stubGlobal('localStorage', {
   getItem: (key: string) => mockStorage[key] || null,
   setItem: (key: string, value: string) => { mockStorage[key] = value },
@@ -52,14 +63,34 @@ describe('authStore', () => {
   })
 
   it('should restore from storage', () => {
-    mockStorage['auth_token'] = 'stored-token'
-    mockStorage['auth_user'] = JSON.stringify({ id: '1001', name: '张三' })
-    
+    // initialize() 现在会校验 token 的 exp 与 user.role 白名单，
+    // 因此持久化数据必须是「合法 JWT + 合法角色」才允许恢复
+    const token = makeJwt()
+    const user = { id: '1001', username: '张三', studentId: '1001', role: 'student' }
+    mockStorage['auth_token'] = token
+    mockStorage['auth_user'] = JSON.stringify(user)
+
     const store = useAuthStore()
     store.initialize()
-    
-    expect(store.token).toBe('stored-token')
-    expect(store.user).toEqual({ id: '1001', name: '张三' })
+
+    expect(store.token).toBe(token)
+    expect(store.user).toEqual(user)
+  })
+
+  it('should reject expired token from storage', () => {
+    mockStorage['auth_token'] = makeJwt(-60)
+    mockStorage['auth_user'] = JSON.stringify({
+      id: '1001',
+      username: '张三',
+      studentId: '1001',
+      role: 'student',
+    })
+
+    const store = useAuthStore()
+    store.initialize()
+
+    expect(store.token).toBe(null)
+    expect(store.user).toBe(null)
   })
 
   it('should handle invalid JSON in storage', () => {

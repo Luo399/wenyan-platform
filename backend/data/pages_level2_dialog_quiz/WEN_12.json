@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_12",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_12",
+        "question_id": "WEN_12_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "邹忌讽谏齐王，主要采用的方法是（）",
+        "option_a": "直接指责齐王昏庸，要求立刻改过",
+        "option_b": "以自己与妻、妾、客的问答作比，由家事推及国事，委婉讽谏",
+        "option_c": "以死相谏，逼迫齐王纳谏",
+        "option_d": "联合朝中大臣联名上书",
+        "correct_answer": "B",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "齐王：邹忌没有直说寡人受了蒙蔽，寡人却听懂了，他用了什么办法？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_12",
+        "pre_dialog": "邹忌：答案是B。我先讲自己被妻私、妾畏、客求而受蒙蔽的家事，再推到“宫妇左右莫不私王，朝廷之臣莫不畏王，四境之内莫不有求于王”，由家事及国事，齐王自然明白“王之蔽甚矣”。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_12",
+        "question_id": "WEN_12_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "邹忌认为“王之蔽甚矣”，下列不属于其原因的是（）",
+        "option_a": "齐王本人昏庸无能，不理朝政",
+        "option_b": "朝廷之臣莫不畏王",
+        "option_c": "四境之内莫不有求于王",
+        "option_d": "宫妇左右莫不私王",
+        "correct_answer": "A",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "邹忌：臣以为“王之蔽甚矣”，大王可知原因何在？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_12",
+        "pre_dialog": "邹忌：答案是A。宫妇私王、朝臣畏王、四境有求于王，这三条都会让齐王听到的话失真，所以“蔽甚”。原文并未说齐王昏庸不理朝政；相反，齐王能纳谏，正说明他并不昏庸。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

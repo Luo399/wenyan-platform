@@ -140,4 +140,4 @@ Object.entries(dataMap).forEach(([key, data]) => {
   console.log(`${key}.json: OK`)
 })
 
-console.log
+console.log('文化卡片 JSON 生成完成')

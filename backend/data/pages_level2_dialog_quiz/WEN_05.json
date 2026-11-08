@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_05",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_05",
+        "question_id": "WEN_05_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "面对秦王“伏尸百万，流血千里”的威胁，唐雎的回应是（）",
+        "option_a": "立即答应割让安陵的土地，换取一时平安",
+        "option_b": "以“布衣之怒”对“天子之怒”，表示若被逼将“伏尸二人，流血五步，天下缟素”",
+        "option_c": "以“长跪而谢”向秦王请罪，请求宽恕",
+        "option_d": "提出以五百里之地与秦国交换安陵",
+        "correct_answer": "B",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "安陵君：秦王以“伏尸百万，流血千里”相威胁，唐雎先生，您当时是怎样回应的？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_05",
+        "pre_dialog": "唐雎：答案是B。秦王以“天子之怒”相威胁，我便以“布衣之怒”相对：若真被逼到绝境，也不过“伏尸二人，流血五步，天下缟素”。A项是屈服，C项是请罪，D项是以地易地，都与原文中针锋相对的回应相反。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_05",
+        "question_id": "WEN_05_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "秦王从“怫然怒”到“长跪而谢之”的变化，主要说明（）",
+        "option_a": "秦王被唐雎以死相拼的决心震慑，显出欺软怕硬、外强中干",
+        "option_b": "秦王真心认识到割地要求错误，主动归还安陵",
+        "option_c": "唐雎答应以五十里地事秦，秦王因此转怒为喜",
+        "option_d": "秦王害怕安陵国的军队，被迫向唐雎道歉",
+        "correct_answer": "A",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "史官：秦王先是“怫然怒”，后来却“长跪而谢之”，这一变化说明了什么？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_05",
+        "pre_dialog": "史官：答案是A。秦王先前以强凌弱，一旦遇到唐雎“挺剑而起”、不惜同归于尽的强硬，便立刻“长跪而谢之”。这不是真心认错，也不是惧怕安陵军队，而是被唐雎的胆识与决心震慑，暴露出外强中干的本质。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

@@ -7,10 +7,11 @@
  *   - 插件通用：同一个插件可在任意课文/通用文件中使用
  *
  * 功能：
- * 1. 扫描当前文件顶层 Frame：Export Assets（图片）和 文字资源_（文字）
+ * 1. 扫描当前文件顶层 Frame：Export Assets（图片）、文字资源_（文字）、样式_（CSS 样式）
  * 2. 子 Frame 命名决定 OSS 路径，导出 PNG/SVG
  * 3. 读取文字资源 TextNode.characters 生成 JSON
- * 4. 显示变更列表，发送到后端 API
+ * 4. 读取样式 Frame 各图层的圆角/颜色/阴影/自动布局/文字等 CSS 参数，生成 styles/**.json
+ * 5. 显示变更列表，发送到后端 API
  *
  * 逻辑分层：
  *   - 纯逻辑（扫描 / 路径解析 / 超时）位于 ./core.ts，可单测
@@ -18,7 +19,16 @@
  */
 
 // 核心纯逻辑（扫描、路径解析、超时）——与单元测试共享同一实现
-import { ASSET_TYPE, EXPORT_TIMEOUT_MS, withTimeout, scanExportAssetsFrame, scanTextFrame } from './core'
+import {
+  ASSET_TYPE,
+  EXPORT_TIMEOUT_MS,
+  STYLE_FRAME_PREFIX,
+  withTimeout,
+  scanExportAssetsFrame,
+  scanTextFrame,
+  scanStyleFrame,
+  buildSharedStylesAsset,
+} from './core'
 import type { AssetItem } from './core'
 
 // ============ 日志工具 ============
@@ -43,6 +53,23 @@ function logError(...args: any[]) {
 
 // 后端 API 地址（可在插件 UI 中配置）
 const DEFAULT_API_BASE = 'https://api.classicalab.cn'
+
+/**
+ * 读取文件内的本地共享样式与变量（供 buildSharedStylesAsset 使用）
+ * 逐 API 探测存在性：variables 需较新客户端，取不到就当空数组，不阻断其余扫描。
+ */
+function collectLocalStyles(): Record<string, any[]> {
+  const f = figma as any
+  const pick = (fn: any): any[] => (typeof fn === 'function' ? fn.call(f) || [] : [])
+  return {
+    paintStyles: pick(f.getLocalPaintStyles),
+    textStyles: pick(f.getLocalTextStyles),
+    effectStyles: pick(f.getLocalEffectStyles),
+    gridStyles: pick(f.getLocalGridStyles),
+    variables: pick(f.variables && f.variables.getLocalVariables),
+    variableCollections: pick(f.variables && f.variables.getLocalVariableCollections),
+  }
+}
 
 /**
  * 主入口
@@ -92,25 +119,57 @@ async function main() {
     logWarn('未找到文字资源 Frame（如不需要文字资源可忽略）')
   }
 
-  // 3. 如果没有找到任何资源，不自动关闭插件，仅提示用户处理。
+  // 3. 扫描 样式_ Frame
+  // 前缀固定: "样式_" 的顶层 Frame 为样式资源容器（导出为 CSS 参数 JSON）。
+  // Fixed PREFIX: top-level Frames starting with "样式_" are style containers (exported as CSS JSON).
+  logDebug('查找样式 Frame...')
+  const styleFrames = page.findAll(
+    (node) =>
+      node.type === 'FRAME' && node.name.startsWith(STYLE_FRAME_PREFIX) && (node as any).visible !== false,
+  ) as FrameNode[]
+
+  if (styleFrames.length > 0) {
+    logInfo(`找到 ${styleFrames.length} 个样式 Frame: ${styleFrames.map((f) => f.name).join(', ')}`)
+    for (const frame of styleFrames) {
+      logDebug(`扫描样式 Frame: "${frame.name}"`)
+      const styleAssets = scanStyleFrame(frame)
+      allAssets.push(...styleAssets)
+    }
+  } else {
+    logWarn('未找到样式 Frame（如不需要 CSS 参数可忽略）')
+  }
+
+  // 4. 收集文件内的共享样式与变量（与 样式_ Frame 无关，一次成文 → styles/_shared.json）
+  const sharedAssets = buildSharedStylesAsset({ ...collectLocalStyles(), pageName: page.name })
+  if (sharedAssets.length === 0) {
+    logWarn('未找到本地共享样式或变量（Figma 文件未定义，或客户端不支持变量 API）')
+  }
+  allAssets.push(...sharedAssets)
+
+  // 5. 如果没有找到任何资源，不自动关闭插件，仅提示用户处理。
   //    血泪教训：这里若把 onmessage 覆盖为 closePlugin，UI 启动时的 `ui-ready`
   //    消息会触发立即关闭，看起来像"闪退"。保留默认 onmessage，让用户可主动关闭/重扫。
   if (allAssets.length === 0) {
     logWarn('未找到任何资源，等待用户处理')
     figma.ui.postMessage({
       type: 'no-assets',
-      message: '未找到 Export Assets 或 文字资源_ Frame\n请确认：\n1. 当前【选中页面】确实包含这两个 Frame\n2. Export Assets 名称完全一致（区分大小写）\n3. 资源命名符合 docs/naming-convention.md\n\n① Export Assets（图片资源，子 Frame 名即 OSS 路径）\n② 文字资源_{名称}（文字资源，导出为 JSON）',
+      message: '未找到 Export Assets / 文字资源_ / 样式_ Frame，也没有本地共享样式\n请确认：\n1. 当前【选中页面】确实包含这些 Frame\n2. Export Assets 名称完全一致（区分大小写）\n3. 资源命名符合 docs/naming-convention.md\n\n① Export Assets（图片资源，子 Frame 名即 OSS 路径）\n② 文字资源_{名称}（文字资源，导出为 JSON）\n③ 样式_{名称}（CSS 参数，导出为 styles/{名称}.json）',
     })
     return
   }
 
-  // 4. 汇总日志
+  // 6. 汇总日志
   const imageCount = allAssets.filter((a) => a.type === 'image').length
   const textCount = allAssets.filter((a) => a.type === 'text').length
-  logInfo(`===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字） =====`)
-  allAssets.forEach((a) => logDebug(`  ${a.type === 'image' ? '图片' : '文字'} ${a.ossPath}`))
+  const styleCount = allAssets.filter((a) => a.type === 'style').length
+  logInfo(
+    `===== 扫描完成: 共 ${allAssets.length} 个资源（${imageCount} 图片 + ${textCount} 文字 + ${styleCount} 样式） =====`,
+  )
+  allAssets.forEach((a) =>
+    logDebug(`  ${a.type === 'image' ? '图片' : a.type === 'style' ? '样式' : '文字'} ${a.ossPath}`),
+  )
 
-  // 5. 发送到 UI 显示变更列表
+  // 7. 发送到 UI 显示变更列表
   figma.ui.postMessage({
     type: 'scan-result',
     assets: allAssets,
@@ -187,8 +246,8 @@ async function prepareAssetsForUpload(assets: AssetItem[]): Promise<AssetItem[]>
         logError(`  → 跳过空导出（0 字节）: "${asset.ossPath}"`)
       }
     } else {
-      // 文字资源：直接传递文本内容
-      logDebug(`  → 文字资源, JSON 长度: ${asset.content?.length || 0} 字符`)
+      // 文字 / 样式资源：内容已是 JSON 字符串，直接传递
+      logDebug(`  → ${asset.type === ASSET_TYPE.STYLE ? '样式' : '文字'}资源, JSON 长度: ${asset.content?.length || 0} 字符`)
       result.push(asset)
     }
   }

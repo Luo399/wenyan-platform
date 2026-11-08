@@ -78,8 +78,8 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue'
-import type { StudentInfo } from '@/utils/studentApi'
-import { validateStudentId, validateStudentName } from '@/utils/studentApi'
+import type { StudentInfo } from '@/services/studentService'
+import { validateStudentId, validateStudentName } from '@/services/studentService'
 
 const props = withDefaults(
   defineProps<{

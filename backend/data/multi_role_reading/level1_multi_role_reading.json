@@ -151,7 +151,7 @@
   },
   {
     "text_id": "WEN_04",
-    "audio_file": "WEN_04_muti_role.mp4",
+    "audio_file": "WEN_04_multi_role.mp3",
     "segments": [
       {
         "sentence_index": 1,
@@ -193,7 +193,7 @@
   },
   {
     "text_id": "WEN_02",
-    "audio_file": "WEN_02_muti_role.mp3",
+    "audio_file": "WEN_02_multi_role.mp3",
     "segments": [
       {
         "sentence_index": 1,
@@ -235,7 +235,7 @@
   },
   {
     "text_id": "WEN_03",
-    "audio_file": "WEN_03_muti_role.mp3",
+    "audio_file": "WEN_03_multi_role.mp3",
     "segments": [
       {
         "sentence_index": 1,

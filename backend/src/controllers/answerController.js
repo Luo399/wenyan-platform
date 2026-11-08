@@ -1,10 +1,17 @@
 const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
 const {
   submitAnswers: serviceSubmitAnswers,
   submitSingleAnswer: serviceSubmitSingleAnswer,
   getAnswersByWenId: serviceGetByWenId,
   getAnswersByStudentId: serviceGetByStudentId,
 } = require('../services/answerService')
+const { db } = require('../config/database')
+const { dbGet, dbAll } = require('../utils/dbPromise')
+const {
+  teacherCanManageClass,
+  getTeacherClassCodes,
+} = require('../services/authService')
 const logger = require('../utils/logger')
 
 // ===== P0 安全修复：提交请求体 zod 白名单校验 =====
@@ -29,15 +36,18 @@ const submitAnswersSchema = z.object({
   studentId: studentIdSchema,
   wenId: z.string().min(1, '课文ID必填').max(100, '课文ID长度不能超过 100'),
   submittedAt: z.string().min(1, '提交时间必填').max(40, '提交时间长度异常'),
-  answers: z.record(z.string().min(1).max(100), answerValueSchema),
+  answers: z
+    .record(z.string().min(1).max(100), answerValueSchema)
+    .refine((value) => Object.keys(value).length > 0, { message: 'answers 至少包含 1 道题' }),
   questions: z
     .array(
       z.object({
         id: z.string().min(1, '题目ID必填').max(100, '题目ID长度不能超过 100'),
-        // 兼容后端 JSON 数据源回退：允许 correctAnswer 缺失
+        // 兼容前端契约保留该字段，但判分只认服务端 JSON，这里的值会被忽略
         correctAnswer: answerValueSchema.optional(),
       }),
     )
+    .min(1, 'questions 至少包含 1 道题')
     .max(500, '单次提交题目数量不能超过 500'),
 })
 
@@ -47,24 +57,10 @@ const submitSingleAnswerSchema = z.object({
   wenId: z.string().min(1, '课文ID必填').max(100, '课文ID长度不能超过 100'),
   questionId: z.string().min(1, '题目ID必填').max(100, '题目ID长度不能超过 100'),
   userAnswer: answerValueSchema,
+  // 兼容前端契约保留该字段，但判分只认服务端 JSON，这里的值会被忽略
   correctAnswer: answerValueSchema.optional(),
   submittedAt: z.string().min(1, '提交时间必填').max(40, '提交时间长度异常').optional(),
 })
-
-/** 统一解析 zod 校验错误，转换为 400 VALIDATION_ERROR */
-function parseWithZod(schema, body) {
-  try {
-    return schema.parse(body)
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      const message = err.issues?.[0]?.message || '参数校验失败'
-      const error = new Error(message)
-      error.validationFailed = true
-      throw error
-    }
-    throw err
-  }
-}
 
 // R90 已移除 HMAC 签名校验（AUTH_SECRET/AUTH_ENABLED/generateHmacSignature/verifyHmacSignature）
 // P0: 提交鉴权由路由层 requireAuthMiddleware（JWT Bearer token）强制，禁止匿名提交
@@ -74,10 +70,96 @@ function parseWithZod(schema, body) {
 // B05: controller 改为薄层，所有业务逻辑下沉到 answerService
 // B06: submitAnswers 与 submitSingleAnswer 的公共流程已在 service 层统一
 
+/**
+ * 提交归属校验（防 IDOR）
+ * - 学生：只能提交自己的学号
+ * - 教师：可代提交，但必须能管理目标学生所在班级（can_view_all=1 放行）
+ * - 管理员：可代提交
+ * 校验不通过时已写入响应，返回 false
+ */
+async function authorizeSubmit(req, res, studentId) {
+  const user = req.user
+  if (!user || !user.role) {
+    res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '需要登录' })
+    return false
+  }
+
+  if (user.role === 'student') {
+    if (!user.student_id || String(studentId) !== String(user.student_id)) {
+      res.status(403).json({
+        success: false,
+        error: 'FORBIDDEN',
+        message: '无权提交其他学生的答案',
+      })
+      return false
+    }
+    return true
+  }
+
+  if (user.role === 'teacher') {
+    if (!user.phone) {
+      res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号异常' })
+      return false
+    }
+    const teacher = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [user.phone])
+    if (!teacher) {
+      res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
+      return false
+    }
+    const student = await dbGet(db, 'SELECT class_code FROM students WHERE student_id = ?', [
+      studentId,
+    ])
+    if (!student) {
+      res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
+      return false
+    }
+    const canManage = await teacherCanManageClass(teacher.id, student.class_code)
+    if (!canManage) {
+      res.status(403).json({
+        success: false,
+        error: 'FORBIDDEN',
+        message: '无权代该学生提交答案',
+      })
+      return false
+    }
+    return true
+  }
+
+  if (user.role === 'admin' || user.role === 'super_admin') {
+    return true
+  }
+
+  res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权提交答案' })
+  return false
+}
+
+/**
+ * 统一处理提交类接口的业务错误：5xx 只回通用文案，4xx 回业务原因
+ */
+function respondSubmitError(res, err, logMessage) {
+  logger.error(logMessage, { error: err.message, stack: err.stack })
+  const statusCode = Number(err.statusCode) || 500
+  if (statusCode >= 500) {
+    return res.status(500).json({
+      success: false,
+      error: 'INTERNAL_ERROR',
+      message: '服务器内部错误',
+    })
+  }
+  return res.status(statusCode).json({
+    success: false,
+    error: err.error || 'BAD_REQUEST',
+    message: err.message || '请求不合法',
+  })
+}
+
 async function submitAnswers(req, res) {
   try {
-    // P0: zod 白名单校验，多余字段自动丢弃，校验失败抛 validationFailed
-    const body = parseWithZod(submitAnswersSchema, req.body)
+    // P0: zod 白名单校验，多余字段自动丢弃；校验失败直接抛 ZodError → 被 handleZodError 捕获
+    const body = submitAnswersSchema.parse(req.body || {})
+
+    // 防 IDOR：学生只能提交自己的学号，教师需具备目标班级权限
+    if (!(await authorizeSubmit(req, res, body.studentId))) return
 
     const result = await serviceSubmitAnswers({
       studentId: body.studentId,
@@ -94,31 +176,21 @@ async function submitAnswers(req, res) {
       data: result.data,
     })
   } catch (err) {
-    // P0: 校验类错误返回 400，避免被误判为服务端异常
-    if (err.validationFailed) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.message || '参数校验失败',
-      })
+    // zod 校验错误 → 400 VALIDATION_ERROR；其他错误按 statusCode 处理
+    if (err instanceof z.ZodError) {
+      return handleZodError(res, err)
     }
-    logger.error('处理答题批量提交请求失败', {
-      error: err.message,
-      stack: err.stack,
-      body: req.body,
-    })
-    res.status(500).json({
-      success: false,
-      error: 'INTERNAL_ERROR',
-      message: '服务器内部错误',
-    })
+    return respondSubmitError(res, err, '处理答题批量提交请求失败')
   }
 }
 
 async function submitSingleAnswer(req, res) {
   try {
-    // P0: zod 白名单校验，多余字段自动丢弃，校验失败抛 validationFailed
-    const body = parseWithZod(submitSingleAnswerSchema, req.body)
+    // P0: zod 白名单校验，多余字段自动丢弃；校验失败直接抛 ZodError
+    const body = submitSingleAnswerSchema.parse(req.body || {})
+
+    // 防 IDOR：学生只能提交自己的学号，教师需具备目标班级权限
+    if (!(await authorizeSubmit(req, res, body.studentId))) return
 
     const result = await serviceSubmitSingleAnswer({
       studentId: body.studentId,
@@ -126,7 +198,6 @@ async function submitSingleAnswer(req, res) {
       wenId: body.wenId,
       questionId: body.questionId,
       userAnswer: body.userAnswer,
-      correctAnswer: body.correctAnswer,
       submittedAt: body.submittedAt || new Date().toISOString(),
     })
 
@@ -136,31 +207,48 @@ async function submitSingleAnswer(req, res) {
       data: result,
     })
   } catch (err) {
-    // P0: 校验类错误返回 400，避免被误判为服务端异常
-    if (err.validationFailed) {
-      return res.status(400).json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: err.message || '参数校验失败',
-      })
+    if (err instanceof z.ZodError) {
+      return handleZodError(res, err)
     }
-    logger.error('处理单题提交请求失败', {
-      error: err.message,
-      stack: err.stack,
-      body: req.body,
-    })
-    res.status(500).json({
-      success: false,
-      error: 'INTERNAL_ERROR',
-      message: '服务器内部错误',
-    })
+    return respondSubmitError(res, err, '处理单题提交请求失败')
   }
 }
 
 async function getAnswersByWenId(req, res) {
   try {
     const { wenId } = req.params
-    const data = await serviceGetByWenId(wenId)
+    let data = await serviceGetByWenId(wenId)
+
+    // P1: teacher 角色只能看到自己所教班级学生的答题
+    if (req.user?.role === 'teacher') {
+      const t = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [req.user.phone])
+      if (!t) {
+        return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
+      }
+      const classCodes = await getTeacherClassCodes(t.id)
+      // 全权限：can_view_all=1 时 getTeacherClassCodes 返回 ['*']，跳过班级过滤
+      if (classCodes.length === 0) {
+        return res.status(200).json({ success: true, data: { ...data, studentCount: 0, students: [] } })
+      }
+      const isFullAccess = classCodes.includes('*')
+      if (!isFullAccess) {
+        // 把 teacher 无权查看的学生过滤掉
+        const teacherClassSet = new Set(classCodes)
+        const studentIds = (data.students || []).map((s) => s.studentId)
+        const studentClassMap = {}
+        if (studentIds.length > 0) {
+          const rows = await dbAll(
+            db,
+            `SELECT student_id, class_code FROM students WHERE student_id IN (${studentIds.map(() => '?').join(',')})`,
+            studentIds,
+          )
+          for (const r of rows) studentClassMap[r.student_id] = r.class_code
+        }
+        data.students = (data.students || []).filter((s) => teacherClassSet.has(studentClassMap[s.studentId]))
+        data.studentCount = data.students.length
+      }
+    }
+
     res.status(200).json({ success: true, data })
   } catch (err) {
     logger.error('按文言文ID查询答题记录失败', {
@@ -171,7 +259,7 @@ async function getAnswersByWenId(req, res) {
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
+      message: '查询失败，请稍后重试',
     })
   }
 }
@@ -179,6 +267,23 @@ async function getAnswersByWenId(req, res) {
 async function getAnswersByStudentId(req, res) {
   try {
     const { studentId } = req.params
+
+    // P1: teacher 角色先校验该学生属于自己班级
+    if (req.user?.role === 'teacher') {
+      const t = await dbGet(db, 'SELECT id FROM teachers WHERE phone = ?', [req.user.phone])
+      if (!t) {
+        return res.status(401).json({ success: false, error: 'AUTH_REQUIRED', message: '教师账号不存在' })
+      }
+      const student = await dbGet(db, 'SELECT class_code FROM students WHERE student_id = ?', [studentId])
+      if (!student) {
+        return res.status(404).json({ success: false, error: 'NOT_FOUND', message: '学生不存在' })
+      }
+      const ok = await teacherCanManageClass(t.id, student.class_code)
+      if (!ok) {
+        return res.status(403).json({ success: false, error: 'FORBIDDEN', message: '无权查看该学生答题记录' })
+      }
+    }
+
     const data = await serviceGetByStudentId(studentId)
     res.status(200).json({ success: true, data })
   } catch (err) {
@@ -190,7 +295,7 @@ async function getAnswersByStudentId(req, res) {
     res.status(500).json({
       success: false,
       error: 'DATABASE_ERROR',
-      message: '查询失败: ' + err.message,
+      message: '查询失败，请稍后重试',
     })
   }
 }

@@ -1,5 +1,9 @@
 name: CI Checks
 
+# Node 版本单一来源：仓库根 .nvmrc（本文件与两个前端部署工作流都用
+# node-version-file 读取，与 Dockerfile 的 node:22-slim 对齐）。
+# 改版本只改 .nvmrc 一处。
+
 on:
   workflow_dispatch:
   pull_request:
@@ -11,12 +15,22 @@ on:
       - 'trae/agent-*'
       - 'feature/**'
       - 'feature-1'
+      # main 合并后也必须跑 CI，否则主干无门禁
+      - 'main'
     paths:
       - 'src/**'
       - 'backend/**'
       - 'figma-plugin/**'
       - 'package.json'
+      - 'eslint.config.ts'
+      - '.oxlintrc.json'
+      - 'vitest.config.ts'
+      - 'vite.config.ts'
       - '.github/workflows/ci-checks.yml'
+
+# CI 只读仓库内容
+permissions:
+  contents: read
 
 jobs:
   quality-check:
@@ -27,20 +41,40 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Type check
         run: npm run type-check
 
       - name: Lint
-        run: npm run lint
-        continue-on-error: true
+        # 门禁：lint 失败即失败，不再 continue-on-error。
+        # 必须走 package.json 的 lint:ci（= oxlint . && eslint . --cache，都不带 --fix）：
+        # 之前这里内联了一份等价命令，改 lint 参数要同时改两处，必然漂移。
+        run: npm run lint:ci
+
+      - name: Run frontend unit tests with coverage gate (vitest)
+        # 2026-10-29：覆盖率门槛从「只在本机 npm run test:coverage 生效」挪进 CI。
+        # 阈值在 vitest.config.ts 的 coverage.thresholds，不达标这一步直接非零退出；
+        # provider 依赖 devDependencies 里的 @vitest/coverage-v8（vitest 4 已删 c8）。
+        run: npm run test:coverage
+
+  secret-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   backend-check:
     runs-on: ubuntu-latest
@@ -50,9 +84,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -76,6 +110,32 @@ jobs:
           JWT_SECRET: ci-test-secret
           AUTH_SECRET: ''
 
+  circular-check:
+    # 循环依赖检测：防止 barrel 文件导致的模块循环初始化
+    # Vue SFC + TypeScript 均支持；发现循环依赖时 CI 失败
+    #
+    # 2026-10-30 换成仓库内的 scripts/check-circular.mjs，因为实测旧门禁根本不会红：
+    #   1) 它装的 circular-dependency-scanner 没加 `-t`，而该工具默认「发现环也 exit 0」
+    #      （夹具实测：不带 -t 退出码 0，带 -t 退出码 1），`||` 分支永远走不到；
+    #   2) 它只读根 tsconfig.json 的 paths，本仓根 tsconfig.json 是
+    #      `{files: [], references: [...]}`，别名 `@/*` 定义在 tsconfig.app.json，
+    #      所以 src 的 300 条静态边里 262 条（87%）`@/` 引入对它是不透明的边。
+    # 现在前端 src 与后端 backend/src 一起扫，后端此前没有任何环检查。
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Circular dependency scan
+        # 检查器零依赖（只用 node 内置模块），不需要 npm install
+        run: node scripts/check-circular.mjs src backend/src
+
   pipeline-test:
     # 数据管道（data-pipeline/python）Python 单元测试
     # 对应 docs/refactor/07-data-pipeline.md P01
@@ -86,7 +146,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -112,9 +172,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version-file: '.nvmrc'
           cache: 'npm'
           cache-dependency-path: figma-plugin/package-lock.json
 
@@ -127,6 +187,12 @@ jobs:
         run: |
           cd figma-plugin
           npm run type-check
+
+      - name: Run figma-plugin unit tests
+        # 插件单测此前没有进 CI，core.ts 的纯逻辑退化只能在本地发现。
+        run: |
+          cd figma-plugin
+          npm test
 
       - name: Build code.ts → code.js
         run: |
@@ -144,3 +210,29 @@ jobs:
             exit 1
           fi
           echo "✅ code.js 与 code.ts 同步"
+
+  figma-transformer-check:
+    name: Figma Transformer Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run transformer tests
+        run: |
+          cd figma-transformer
+          python -m pytest __tests__/ -v --tb=short
+
+      - name: Fail if no tests ran
+        run: |
+          cd figma-transformer
+          count=$(python -m pytest __tests__/ --collect-only -q 2>/dev/null | tail -1 | grep -oP '\d+(?= test)' || echo 0)
+          echo "Collected $count tests"
+          if [ "$count" -eq 0 ]; then echo "ERROR: No tests collected!"; exit 1; fi

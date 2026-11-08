@@ -5,12 +5,14 @@ const authController = require('../controllers/authController')
 const teacherController = require('../controllers/teacherController')
 const adminController = require('../controllers/adminController')
 const dashboardController = require('../controllers/dashboardController')
+const teacherDashboardController = require('../controllers/teacherDashboardController')
+const adminDashboardController = require('../controllers/adminDashboardController')
 const trackingController = require('../controllers/trackingController')
 const trackingAnalysisController = require('../controllers/trackingAnalysisController')
 const exportController = require('../controllers/exportController')
-const { requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
+const { optionalAuthMiddleware, requireAuthMiddleware, requireRole } = require('../middleware/authMiddleware')
 const { dashboardAuthMiddleware } = require('../middleware/dashboardAuthMiddleware')
-const { submitRateLimit, queryRateLimit, loginRateLimit } = require('../middleware/rateLimitMiddleware')
+const { submitRateLimit, queryRateLimit, loginRateLimit, aiChatRateLimit } = require('../middleware/rateLimitMiddleware')
 
 function registerRoutes(app) {
   app.get('/', (req, res) => {
@@ -25,27 +27,46 @@ function registerRoutes(app) {
         'POST /api/auth/teacher/login': '教师登录',
         'POST /api/auth/admin/login': '管理员登录',
         'POST /api/auth/change-password': '登录态自助修改密码（三角色通用）',
+        'POST /api/auth/refresh': '登录态令牌刷新（需携带有效 token）',
         // 教师侧 - 学生管理
         'GET    /api/teacher/students': '教师查自己班级学生列表',
         'GET    /api/teacher/students/:studentId': '教师查单个学生',
         'POST   /api/teacher/students': '教师添加单个学生（校验前6位班级权限）',
         'POST   /api/teacher/students/batch': '教师批量添加学生（Excel后调用）',
         'PUT    /api/teacher/students/:studentId': '教师更新学生姓名',
-        'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码为123456',
+        'DELETE /api/teacher/students/:studentId': '教师删除本班学生账号',
+        'POST   /api/teacher/students/:studentId/reset-password': '教师重置学生密码（返回一次性口令）',
+        'GET    /api/teacher/completion/students': '教师查看所教班级学生完成情况',
+        // 教师侧 - 数据看板（JWT + 教师角色，班级范围由 token 反查）
+        'GET    /api/teacher/dashboard/overview': '教师看板：概览卡片 + 班级汇总',
+        'GET    /api/teacher/dashboard/texts': '教师看板：篇目 × 班级完成矩阵',
+        'GET    /api/teacher/dashboard/students': '教师看板：学生明细（三关进度/停滞天数）',
+        'GET    /api/teacher/dashboard/weak-questions': '教师看板：薄弱题 Top N',
+        'GET    /api/teacher/dashboard/activity': '教师看板：按日趋势 + 24 小时分布',
         // 管理员侧
         'GET    /api/admin/teachers': '管理员查所有教师列表',
-        'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码',
+        'GET    /api/admin/teachers/:phone': '管理员查单个教师（含所教班级）',
+        'PUT    /api/admin/teachers/:phone': '管理员更新教师（姓名/学校/班级/状态）',
+        'DELETE /api/admin/teachers/:phone': '管理员删除教师账号',
+        'POST   /api/admin/teachers/:phone/reset-password': '管理员重置教师密码（返回一次性口令）',
         'POST   /api/admin/teachers/:phone/status': '管理员启用/禁用教师',
+        'POST   /api/admin/teachers/:phone/approve': '管理员审批待注册教师（pending→active）',
+        'POST   /api/admin/teachers/:phone/reject': '管理员驳回待注册教师（pending→rejected）',
         'GET    /api/admin/students': '管理员查所有学生',
-        'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码为123456',
+        'GET    /api/admin/students/:studentId': '管理员查单个学生',
+        'POST   /api/admin/students': '管理员新增学生账号（返回一次性口令）',
+        'PUT    /api/admin/students/:studentId': '管理员更新学生信息',
+        'DELETE /api/admin/students/:studentId': '管理员删除学生账号',
+        'POST   /api/admin/students/:studentId/reset-password': '管理员重置学生密码（返回一次性口令）',
         'GET    /api/admin/password-resets': '管理员查询密码重置审计日志',
-        // 遗留学生管理（S04：已加 teacher/admin 鉴权，待前端迁移后下线）
-        'POST /api/students': '[鉴权] 学生注册',
+        // 管理员侧 - 数据看板（JWT + admin/super_admin 角色）
+        'GET    /api/admin/dashboard/overview': '管理员看板：运营概览与待办',
+        'GET    /api/admin/dashboard/trends': '管理员看板：增长与使用趋势',
+        'GET    /api/admin/dashboard/distribution': '管理员看板：学校/年级/班级覆盖率分布',
+        // 遗留学生管理路由（已废弃，迁移目标：/api/teacher/students/* 和 /api/admin/students/*）
+        'GET  /api/students/:studentId/name': '按学号查询学生姓名（需登录，登录页回显）',
+        // 已废弃：GET/POST/PUT/DELETE /api/students*（原 teacher/admin 鉴权）— 已物理移除
         'POST /api/submit': '提交答案',
-        'GET /api/students': '[鉴权] 查询所有学生',
-        'GET /api/students/:studentId': '[鉴权] 按学生ID查询',
-        'PUT /api/students/:studentId': '[鉴权] 修改学生信息',
-        'DELETE /api/students/:studentId': '[鉴权] 删除学生',
         'GET /api/answers/wen/:wenId': '按文言文ID查询答题',
         'GET /api/answers/student/:studentId': '按学生ID查询答题',
         'GET /api/texts/:textId/basic-info': '文本基础信息',
@@ -59,6 +80,9 @@ function registerRoutes(app) {
         'GET /api/texts/:textId/level3-adaptive-quiz': '三级自适应测验',
         'GET /api/texts': '文本列表',
         'POST /api/texts/batch': '批量获取文本数据',
+        // AI 对话（学生鉴权）
+        'POST /api/ai/chat': 'AI 对话（学生）',
+        'GET  /api/ai/quota': '查询 AI 配额（学生）',
       },
     })
   })
@@ -74,6 +98,8 @@ function registerRoutes(app) {
     requireAuthMiddleware,
     authController.changePassword,
   )
+  // F-004: 令牌刷新（需携带有效 token），供前端在过期前续期，避免被动登出
+  app.post('/api/auth/refresh', requireAuthMiddleware, authController.refreshToken)
 
   // S04: 遗留免密登录接口已物理下线（前端 R103 已迁移到 /api/auth/student/login）
 
@@ -84,15 +110,29 @@ function registerRoutes(app) {
   app.post('/api/teacher/students', ...teacherAuth, teacherController.createStudent)
   app.post('/api/teacher/students/batch', ...teacherAuth, teacherController.batchCreateStudents)
   app.put('/api/teacher/students/:studentId', ...teacherAuth, teacherController.updateStudent)
+  app.delete('/api/teacher/students/:studentId', ...teacherAuth, teacherController.deleteStudent)
   app.post(
     '/api/teacher/students/:studentId/reset-password',
     ...teacherAuth,
     teacherController.resetStudent,
   )
+  // 教师查看所教班级学生完成情况（框架版，统计逻辑后续接入）
+  app.get('/api/teacher/completion/students', ...teacherAuth, teacherController.getStudentsCompletion)
+
+  // ============ 教师：数据看板（班级范围由 token 反查，前端 class_code 只能收窄） ============
+  // 不挂 queryRateLimit：一次页面加载即并发 5 个请求，30/分钟的上限会让教师刷新两次就被限流
+  app.get('/api/teacher/dashboard/overview', ...teacherAuth, teacherDashboardController.getOverview)
+  app.get('/api/teacher/dashboard/texts', ...teacherAuth, teacherDashboardController.getTextMatrix)
+  app.get('/api/teacher/dashboard/students', ...teacherAuth, teacherDashboardController.listStudentMetrics)
+  app.get('/api/teacher/dashboard/weak-questions', ...teacherAuth, teacherDashboardController.listWeakQuestions)
+  app.get('/api/teacher/dashboard/activity', ...teacherAuth, teacherDashboardController.getActivity)
 
   // ============ 管理员：教师/学生/重置审计 ============
   const adminAuth = [requireAuthMiddleware, requireRole(['admin', 'super_admin'])]
   app.get('/api/admin/teachers', ...adminAuth, adminController.listTeachers)
+  app.get('/api/admin/teachers/:phone', ...adminAuth, adminController.getTeacher)
+  app.put('/api/admin/teachers/:phone', ...adminAuth, adminController.updateTeacher)
+  app.delete('/api/admin/teachers/:phone', ...adminAuth, adminController.deleteTeacher)
   app.post(
     '/api/admin/teachers/:phone/reset-password',
     ...adminAuth,
@@ -100,6 +140,10 @@ function registerRoutes(app) {
   )
   app.post('/api/admin/teachers/:phone/status', ...adminAuth, adminController.setTeacherStatus)
   app.get('/api/admin/students', ...adminAuth, adminController.listStudents)
+  app.get('/api/admin/students/:studentId', ...adminAuth, adminController.getStudent)
+  app.post('/api/admin/students', ...adminAuth, adminController.createStudent)
+  app.put('/api/admin/students/:studentId', ...adminAuth, adminController.updateStudent)
+  app.delete('/api/admin/students/:studentId', ...adminAuth, adminController.deleteStudent)
   app.post(
     '/api/admin/students/:studentId/reset-password',
     ...adminAuth,
@@ -107,16 +151,30 @@ function registerRoutes(app) {
   )
   app.get('/api/admin/password-resets', ...adminAuth, adminController.listPasswordResets)
   app.post('/api/admin/teachers', ...adminAuth, adminController.createTeacher)
+  // 教师审批
+  app.post('/api/admin/teachers/:phone/approve', ...adminAuth, adminController.approveTeacher)
+  // 教师驳回（保留 rejected 状态用于审计）
+  app.post('/api/admin/teachers/:phone/reject', ...adminAuth, adminController.rejectTeacher)
+  // 年级/班级选项（公开给注册/编辑下拉用，不需 adminAuth — 只返回编码集合）
+  app.get('/api/admin/options/grades-classes', adminController.getGradesAndClasses)
+
+  // ============ 管理员：数据看板（全校范围，JWT 鉴权） ============
+  app.get('/api/admin/dashboard/overview', ...adminAuth, adminDashboardController.getOverview)
+  app.get('/api/admin/dashboard/trends', ...adminAuth, adminDashboardController.getTrends)
+  app.get('/api/admin/dashboard/distribution', ...adminAuth, adminDashboardController.getDistribution)
 
   // S04: 遗留免密登录接口已下线（前端已迁移到 /api/auth/student/login，见 R103）
   // 历史无鉴权学生 CRUD 接口：保留路径但强制 teacher/admin 登录，防止匿名操作；
   // 前端 AnswerQueryView 迁移完成后在 Phase 2 物理删除
-  const legacyStudentAuth = [requireAuthMiddleware, requireRole(['teacher', 'admin'])]
-  app.get('/api/students', ...legacyStudentAuth, studentController.getStudentList)
-  app.get('/api/students/:studentId', ...legacyStudentAuth, studentController.getStudent)
-  app.post('/api/students', ...legacyStudentAuth, studentController.createStudent)
-  app.put('/api/students/:studentId', ...legacyStudentAuth, studentController.updateStudent)
-  app.delete('/api/students/:studentId', ...legacyStudentAuth, studentController.deleteStudent)
+  // 登录页回显学生姓名（仅返回学号+姓名；需登录态，防止匿名枚举学号）
+  app.get(
+    '/api/students/:studentId/name',
+    requireAuthMiddleware,
+    queryRateLimit,
+    studentController.getStudentPublicName,
+  )
+  // 已废弃：旧的 teacher/admin 鉴权学生 CRUD 路由（原 /api/students*）
+  // 迁移目标：教师侧用 /api/teacher/students/*，管理员侧用 /api/admin/students/*
 
   // ============ 文本 ============
   app.get('/api/texts', textsController.getTextList)
@@ -153,8 +211,9 @@ function registerRoutes(app) {
   app.get('/api/home/dashboard', dashboardAuthMiddleware, dashboardController.getDashboard)
   app.get('/api/home/dashboard/raw', dashboardAuthMiddleware, dashboardController.getRawData)
 
-  // ============ 用户行为埋点上报（无需登录，学生端上报） ============
-  app.post('/api/track', trackingController.track)
+  // ============ 用户行为埋点上报（可选登录：带 token 时把 user_id 绑定到当前学生） ============
+  // 注意：user_id 一律取 req.user.student_id，不再信任请求体里的 user_id（防投毒）
+  app.post('/api/track', optionalAuthMiddleware, trackingController.track)
 
   // ============ 埋点数据分析（需看板密码验证，含学生学号/成绩/会话路径等敏感数据） ============
   app.get('/api/tracking/funnel', dashboardAuthMiddleware, trackingAnalysisController.getFunnel)
@@ -180,7 +239,36 @@ function registerRoutes(app) {
   const assetController = require('../controllers/assetController')
   const assetAuthMiddleware = require('../middleware/assetAuthMiddleware')
   const multer = require('multer')
-  const uploadMiddleware = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
+
+  // 上传限制：单文件 20MB；白名单仅图片/视频/音频/PDF，明确拒绝 SVG（可携带脚本）与未知类型
+  const UPLOAD_MAX_FILE_SIZE = 20 * 1024 * 1024
+  function createInvalidFileTypeError(message) {
+    const err = new Error(message)
+    err.statusCode = 400
+    err.error = 'INVALID_FILE_TYPE'
+    return err
+  }
+  function uploadFileFilter(_req, file, cb) {
+    const mime = file.mimetype || ''
+    if (mime === 'image/svg+xml') {
+      return cb(createInvalidFileTypeError('不允许上传 SVG 文件'))
+    }
+    const allowed =
+      mime.startsWith('image/') ||
+      mime.startsWith('video/') ||
+      mime.startsWith('audio/') ||
+      mime === 'application/pdf'
+    if (!allowed) {
+      return cb(createInvalidFileTypeError(`不支持的文件类型: ${mime || 'unknown'}`))
+    }
+    cb(null, true)
+  }
+  const uploadOptions = {
+    storage: multer.memoryStorage(),
+    limits: { fileSize: UPLOAD_MAX_FILE_SIZE },
+    fileFilter: uploadFileFilter,
+  }
+  const uploadMiddleware = multer(uploadOptions)
   // 上传与预签名写入必须校验 ASSET_SYNC_TOKEN；版本信息读取无需鉴权（前端读取）
   app.post('/api/assets/upload', assetAuthMiddleware, uploadMiddleware.any(), assetController.upload)
   app.post('/api/assets/pre-signed', assetAuthMiddleware, assetController.generatePreSignedUrl)
@@ -194,8 +282,15 @@ function registerRoutes(app) {
 
   // ============ 资源上传工具（教师/管理员鉴权，用于前端音视频资源上传） ============
   const resourceController = require('../controllers/resourceController')
-  const singleUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } }).single('file')
-  app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin']), singleUpload, resourceController.uploadResource)
+  const singleUpload = multer(uploadOptions).single('file')
+  // super_admin 权限含 admin，前端 /resource-upload 路由也放开了它，后端必须一致
+  app.post('/api/upload/resource', requireAuthMiddleware, requireRole(['teacher', 'admin', 'super_admin']), singleUpload, resourceController.uploadResource)
+
+  // ============ AI 对话（仅学生） ============
+  const aiController = require('../controllers/aiController')
+  const aiAuth = [requireAuthMiddleware, requireRole('student')]
+  app.post('/api/ai/chat', aiAuth, aiChatRateLimit, aiController.chat)
+  app.get('/api/ai/quota', aiAuth, aiController.getQuota)
 }
 
 module.exports = {

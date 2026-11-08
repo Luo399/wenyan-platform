@@ -1,25 +1,29 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import BackContinue from '@/components/BackContinue.vue'
+import AiChatPanel from '@/components/AiChatPanel.vue'
 import { useNavigation } from '@/composables/useNavigation'
 import { useTracking } from '@/composables/useTracking'
 import { markNextEnterFromBackButton } from '@/utils/tracking'
 import { useDataLoader } from '@/composables/useDataLoader'
 import { getDataUrlWithVersion } from '@/utils/asset'
+import { getWenScreenTitleUrl } from '@/config/figmaAssets'
 import type { RawTextBasicInfo } from '@/adapters/wordListAdapter'
 import { getWenId } from '@/utils/wenUtils'
 import { debugWarn } from '@/utils/debug'
 
 const route = useRoute()
-const articleId = route.params.id as string
-const wenId = getWenId(articleId)
+// R140: 用 computed 取路由参数。本组件实例在 /detail/1 → /detail/2 时会被复用，
+// 快照式取值会让正文和 AI 面板停在第一篇。
+const articleId = computed(() => String(route.params.id ?? ''))
+const wenId = computed(() => getWenId(articleId.value))
 
-// 使用导航 composable
-const { goNext, goPrev } = useNavigation('detail', articleId)
+// 使用导航 composable（实时读当前路由；detail 是 pageSequence 末页，没有下一页）
+const { goPrev } = useNavigation()
 
 // 使用埋点 composable
-useTracking('detail', articleId)
+useTracking('detail', articleId.value)
 
 // 包装 goPrev 以标记后退按钮
 function handleGoPrev() {
@@ -30,7 +34,7 @@ function handleGoPrev() {
 // 加载课文基础数据（title / author / original_text 等），走统一 useDataLoader 分层
 // R107: 通过 getDataUrlWithVersion 生成 OSS 地址并携带版本戳，资源更新后自动刷新缓存
 const basicInfoUrl = (): Promise<string> =>
-  getDataUrlWithVersion('text_basic_info', `${wenId}.json`)
+  getDataUrlWithVersion('text_basic_info', `${wenId.value}.json`)
 const {
   loading,
   error,
@@ -68,6 +72,19 @@ const paragraphs = computed(() => {
   return content.split('\n').filter((line) => line.trim() !== '')
 })
 
+// 标题书法图：Figma 插件按篇扫描的 article_title_*.png（11–29KB），
+// 从 OSS images/screens/WEN_xx/... 读取。加载失败就回退到原来的文字标题，
+// 不额外 HEAD 探测——目录本身来自 OSS 清单。
+const titleImageUrl = computed(() => getWenScreenTitleUrl(wenId.value))
+const titleImageError = ref(false)
+const showTitleImage = computed(() => !!titleImageUrl.value && !titleImageError.value)
+watch(wenId, () => {
+  titleImageError.value = false
+})
+function handleTitleImageError() {
+  titleImageError.value = true
+}
+
 // ============================================================
 // R16（顺手修 P3）：answers + handleAnswerChange 是 dead state
 //   - questions 恒为空数组，QuizQuestion 永不渲染
@@ -85,7 +102,16 @@ const paragraphs = computed(() => {
       <button type="button" class="retry-btn" @click="retry">重新加载</button>
     </div>
     <template v-else>
-      <h1>{{ article.title }}</h1>
+      <h1 :class="{ 'sr-only': showTitleImage }">{{ article.title }}</h1>
+      <!-- Figma 扫描的整篇书法标题图（OSS images/screens）；失败时上面的 h1 文字兜底 -->
+      <img
+        v-if="showTitleImage"
+        :src="titleImageUrl ?? ''"
+        class="article-title-art"
+        alt=""
+        aria-hidden="true"
+        @error="handleTitleImageError"
+      />
       <p v-if="article.author || article.dynasty" class="meta">
         {{ article.dynasty }} · {{ article.author }}
       </p>
@@ -95,10 +121,16 @@ const paragraphs = computed(() => {
           {{ para }}
         </p>
       </div>
+
+      <!-- AI 讲解面板 -->
+      <AiChatPanel :wen-id="wenId" :article="article" />
     </template>
 
     <!-- 底部导航按钮 -->
-    <BackContinue back-text="返回" continue-text="继续" @back="handleGoPrev" @continue="goNext" />
+    <!-- R140: detail 是 pageSequence 的最后一页，goNext 只会命中「无下一页」直接 return，
+         生产环境 debugWarn 又是空函数，学生看到的就是「点了继续没反应」。
+         这里不再渲染继续按钮，只留返回。 -->
+    <BackContinue back-text="返回" :show-continue="false" @back="handleGoPrev" />
   </div>
 </template>
 
@@ -107,8 +139,8 @@ const paragraphs = computed(() => {
   padding: var(--spacing-xl);
   max-width: 800px;
   margin: 0 auto;
-  /* R15: 5rem → spacing-2xl (3rem) 过大；取 spacing-xl + spacing-lg 用 padding-bottom 叠加 */
-  padding-bottom: var(--spacing-2xl);
+  /* 底部安全留白：避开固定定位的 BackContinue 按钮 + AI 面板自身底部间距 */
+  padding-bottom: var(--spacing-bottom-safe);
 }
 
 /* R15: loading/error 状态样式全部走 design token */
@@ -137,6 +169,28 @@ const paragraphs = computed(() => {
 .error-state .retry-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+/* Figma 扫描的书法标题图：保持原比例，居中，最大 150px 高 */
+.article-title-art {
+  display: block;
+  max-width: 100%;
+  max-height: 150px;
+  margin: 0 auto var(--spacing-md);
+  object-fit: contain;
+}
+
+/* 有标题图时 h1 只留给读屏，视觉上不重复显示文字 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .meta {

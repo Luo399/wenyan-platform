@@ -77,7 +77,7 @@
 |------------|------|--------|
 | `SSH_HOST` | 服务器 IP | 所有 deploy workflow |
 | `SSH_PRIVATE_KEY` | SSH 私钥 | 所有 deploy workflow |
-| `SERVER_USER` | 服务器用户名 (root) | 所有 deploy workflow |
+| `SERVER_USER` | 服务器用户名（仓库中写为 `<DEPLOY_USER>`） | 所有 deploy workflow |
 | `SERVER_PROJECT_PATH` | 生产项目路径 | deploy-backend.yml |
 | `OSS_ACCESS_KEY_ID` | OSS AccessKey ID | 所有 frontend workflow |
 | `OSS_ACCESS_KEY_SECRET` | OSS AccessKey Secret | 所有 frontend workflow |
@@ -120,7 +120,7 @@
 | [.env.development](file:///workspace/.env.development) | 仓库内 | 前端开发环境参考 |
 | [.env.production](file:///workspace/.env.production) | 仓库内 | 前端生产环境参考 |
 | [env.example](file:///workspace/env.example) | 仓库内 | 前端环境变量模板 |
-| [backend/env.example](file:///workspace/backend/env.example) | 仓库内 | 后端环境变量模板 |
+| [backend/.env.example](file:///workspace/backend/.env.example) | 仓库内 | 后端环境变量模板 |
 | `.env` (后端) | 服务器 `/path/to/backend/.env` | 实际运行配置（不进 git） |
 
 ---

@@ -3,14 +3,16 @@
 .SYNOPSIS
 Trae pre-push hook - 在推送前自动执行数据流水线
 
+.NOTES
+放置位置: .trae/hooks/pre-push
+生效范围: 仅 Trae IDE 内置的 git 集成会读取本 hook；命令行 git push、其他 IDE/客户端不会执行。
+本 hook 只做检查与提示，不暂存任何文件。
+
 .DESCRIPTION
 在每次 git push 前自动执行数据处理流水线，确保：
 1. 如果有人直接改了 Excel 或配置文件，推送会自动完成生成
 2. 前后端代码与最新数据始终一致
 3. 数据生成失败时阻止推送
-
-.NOTES
-放置位置: .trae/hooks/pre-push
 #>
 
 $ErrorActionPreference = "Stop"
@@ -65,15 +67,15 @@ try {
         }
 
         Write-Host "`n✅ 数据流水线执行成功" -ForegroundColor Green
-        
-        # 暂存新生成的 JSON 文件
-        Write-Host "`n📦 暂存新生成的 JSON 文件..." -ForegroundColor Yellow
-        Set-Location $projectRoot
-        git add backend/data/
-        git add public/data/
-        git add data-pipeline/temp/
 
-        Write-Host "✅ 数据文件已更新并暂存" -ForegroundColor Green
+        # 只提示，不暂存任何文件：
+        # 自动 git add backend/data/ 会把 students.json、answer_records.json 等
+        # 真实学生数据（PII）和运行时产物一起提交，因此改为人工确认。
+        Set-Location $projectRoot
+        Write-Host "`n📌 以下目录中的文件不会被自动暂存，请人工检查后自行 git add：" -ForegroundColor Yellow
+        Write-Host "   - backend/data/（注意：students.json、answer_records.json 含 PII，禁止提交）" -ForegroundColor Gray
+        Write-Host "   - public/data/（题库 JSON，确认 diff 后再提交）" -ForegroundColor Gray
+        Write-Host "   - data-pipeline/temp/（运行时产物，已在 .gitignore 中忽略）" -ForegroundColor Gray
     }
     else {
         Write-Host "✅ 未检测到数据文件变更，跳过数据流水线" -ForegroundColor Green

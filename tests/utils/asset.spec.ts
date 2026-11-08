@@ -29,17 +29,18 @@ describe('utils/asset', () => {
     })
 
     it('配置 OSS 基础路径时拼接完整 URL', async () => {
-      // ossBase 是模块级常量，必须在设置环境变量后重新导入模块
-      vi.resetModules()
+      // ossBase 是模块级常量（import.meta.env 在模块加载时求值），
+      // 运行时 stubEnv 不会改变已加载模块里的值，必须 resetModules 后重新 import
       vi.stubEnv('VITE_OSS_BASE_URL', 'https://oss.example.com')
+      vi.resetModules()
       const mod = await import('@/utils/asset')
+
       expect(mod.getAssetUrl('audio', 'WEN_01.mp3')).toBe(
         'https://oss.example.com/audio/WEN_01.mp3',
       )
       expect(mod.getAssetUrl('images', 'WEN_01.jpg')).toBe(
         'https://oss.example.com/images/WEN_01.jpg',
       )
-      vi.resetModules()
     })
 
     it('R97: 文件名含空格时进行 URL 编码', () => {

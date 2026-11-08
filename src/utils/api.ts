@@ -1,4 +1,5 @@
-import { useAuthStore } from '@/stores/auth'
+import { activeAuthBridge } from '@/utils/authBridge'
+import { getAuthData } from '@/utils/localStorage'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL as string
 export { apiBase }
@@ -19,18 +20,22 @@ function getBaseUrl(): string {
 /**
  * 获取鉴权请求头
  * R95: 包裹 try/catch，避免 Pinia 安装前调用抛 getActivePinia 错误
+ *
+ * 解耦说明：这里不再 `import { useAuthStore }`（那会让 utils 反向依赖 store，
+ * 并和 stores/auth.ts → api.ts 构成循环）。改为读取 auth store 实例化时注册的
+ * AuthBridge；没有 active pinia、或该实例还没建过 auth store 时拿到 null，
+ * 与原来 try/catch 捕获 Pinia 未安装异常后走回退是同一分支。
  */
 function getAuthHeaders(): Record<string, string> {
-  try {
-    const authStore = useAuthStore()
-    if (!authStore.token) {
-      return {}
-    }
-    return { Authorization: `Bearer ${authStore.token}` }
-  } catch {
-    // Pinia 未安装时返回空 header，由后端 401 兜底
-    return {}
-  }
+  // store 尚未就绪（Pinia 未安装或 initialize() 未执行）时先取桥，取不到再看持久化
+  const tokenFromStore = activeAuthBridge()?.getToken() ?? null
+
+  // F-005: store 里没有 token 时回退到持久化登录态。
+  // 原实现直接返回空 header，会把"初始化竞态"变成一次匿名请求，
+  // 后端按 AUTH_REQUIRED 拒绝后又被前端显示成"登录已过期"，既误导用户也误导排查。
+  const token = tokenFromStore || getAuthData().token
+
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 export interface RequestConfig {
@@ -115,6 +120,9 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 通用 request 封装（JSON body）
+ */
 export async function request<T = unknown>(
   url: string,
   config: RequestConfig = {},
@@ -135,6 +143,59 @@ export async function request<T = unknown>(
       throw new ApiError(0, 'TIMEOUT', '请求超时')
     }
     throw err
+  }
+}
+
+/**
+ * FormData 文件上传 helper
+ * 绕过 buildFetchConfig 的 JSON.stringify + Content-Type 硬编码，
+ * 让浏览器自动处理 multipart/form-data 边界。
+ *
+ * - 内置 60s 超时（大文件上传也不能无限期挂住串行队列）
+ * - 支持外部传入 signal，调用方可以主动取消
+ */
+export const UPLOAD_TIMEOUT_MS = 60000
+
+export async function upload<T = unknown>(
+  url: string,
+  formData: FormData,
+  extraHeaders: Record<string, string> = {},
+  signal?: AbortSignal,
+): Promise<ApiResponse<T>> {
+  const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS)
+
+  // 外部取消 → 同步取消内部 controller（超时与主动取消共用同一个 signal）
+  const onExternalAbort = () => controller.abort()
+  if (signal) {
+    if (signal.aborted) controller.abort()
+    else signal.addEventListener('abort', onExternalAbort, { once: true })
+  }
+
+  try {
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        ...extraHeaders,
+        // 注意：不设置 Content-Type，让浏览器自动加 boundary
+      },
+      body: formData,
+      signal: controller.signal,
+    })
+    return await handleResponse<T>(response)
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      const message = signal?.aborted
+        ? '上传已取消'
+        : `上传超时（${UPLOAD_TIMEOUT_MS / 1000} 秒），请检查网络后重试`
+      throw new ApiError(0, 'TIMEOUT', message)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+    signal?.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -164,14 +225,34 @@ async function buildFetchConfig(
 
 /**
  * R92: 处理 fetch 响应（从 request 拆分）
+ *
+ * 401 语义区分（R104）：
+ * - 已登录会话收到 401 → 会话失效，登出并抛 AUTH_EXPIRED
+ * - 未登录（如登录页姓名回显、登录失败）收到 401 → 不使用"登录已过期"文案，
+ *   直接透传后端错误码与消息（如 INVALID_CREDENTIALS / AUTH_REQUIRED）
  */
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (response.status === 401) {
-    const authStore = useAuthStore()
-    if (authStore.isLoggedIn) {
-      authStore.logout()
+    // F-002: 后端登录接口同样用 401 表示「凭证错误」(INVALID_CREDENTIALS)，
+    // 原实现把所有 401 一律改写成「登录已过期，请重新登录」，会把
+    // 「学号或密码错误」这类真实原因覆盖掉，既误导用户也误导排查。
+    const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null
+    const errCode = errorData && typeof errorData.error === 'string' ? errorData.error : ''
+    const errMsg = errorData && typeof errorData.message === 'string' ? errorData.message : ''
+
+    // 凭证错误：原样透传后端消息，不做登出（登录场景本就未建立会话）
+    if (errCode === 'INVALID_CREDENTIALS') {
+      throw new ApiError(401, 'INVALID_CREDENTIALS', errMsg || '账号或密码错误')
     }
-    throw new ApiError(401, 'AUTH_EXPIRED', '登录已过期，请重新登录')
+
+    // 其余 401 才是会话问题（R104：Pinia 未就绪时安全读取登录态）
+    const hasSession = isLoggedInSafely()
+    if (hasSession) {
+      logoutSafely()
+    }
+    // AUTH_REQUIRED（完全没带令牌）与令牌无效/过期语义不同（F-005）：提示分开
+    const sessionMessage = errCode === 'AUTH_REQUIRED' ? '需要登录' : errMsg || '登录已过期，请重新登录'
+    throw new ApiError(401, 'AUTH_EXPIRED', sessionMessage)
   }
 
   if (!response.ok) {
@@ -187,6 +268,21 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
 
   const jsonResponse = await response.json()
   return normalizeResponse<T>(jsonResponse)
+}
+
+/**
+ * R104: 安全读取登录态（Pinia 未安装时视为未登录）
+ * 桥为 null（无 active pinia / 该实例未建过 auth store）等价于原来的 try/catch 兜底
+ */
+function isLoggedInSafely(): boolean {
+  return activeAuthBridge()?.isLoggedIn() ?? false
+}
+
+/**
+ * R104: 安全登出（Pinia 未安装时忽略）
+ */
+function logoutSafely(): void {
+  activeAuthBridge()?.logout()
 }
 
 export async function get<T = unknown>(
@@ -249,8 +345,9 @@ export async function batchPost<T = unknown>(
       const res = await post<T>(url, item.body)
       results.push({
         key: item.key,
-        success: true,
-        message: res.message || '操作成功',
+        // 后端可能以 2xx + success:false 返回业务失败，不能一律当成成功
+        success: res.success !== false,
+        message: res.message || (res.success !== false ? '操作成功' : '操作失败'),
         data: res.data,
       })
     } catch (err) {
@@ -264,6 +361,26 @@ export async function batchPost<T = unknown>(
   }
 
   return results
+}
+
+/**
+ * 校验并返回可安全跳转的内部路径
+ *
+ * 只允许站内绝对路径（以 `/` 开头），拒绝协议相对地址（`//evil.com`）、
+ * 带 scheme 的地址（`https://evil.com`）和反斜杠变体（浏览器会把 `/\evil.com`
+ * 当成 `//evil.com`），避免登录后的 redirect 参数被拿来做开放重定向。
+ *
+ * @param raw - 来自 query 的原始值（可能是 string | null | string[]）
+ * @param fallback - 校验不通过时的角色首页
+ */
+export function sanitizeRedirect(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback
+  const target = raw.trim()
+  if (!target) return fallback
+  if (!target.startsWith('/')) return fallback
+  if (target.startsWith('//') || target.startsWith('/\\')) return fallback
+  if (target.includes('://') || target.includes('\\')) return fallback
+  return target
 }
 
 // ============================================================

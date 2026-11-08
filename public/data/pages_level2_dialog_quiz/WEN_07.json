@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_07",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_07",
+        "question_id": "WEN_07_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "文帝劳军至细柳营，军士说“军中闻将军令，不闻天子之诏”，这表现了周亚夫（）",
+        "option_a": "胆小怕事，不敢开门迎驾",
+        "option_b": "拥兵自重，意图谋反",
+        "option_c": "不懂礼数，故意怠慢文帝",
+        "option_d": "治军严明，军令如山，不因天子到来而废弛军纪",
+        "correct_answer": "D",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "使者：天子亲临劳军，细柳营竟不让进，周亚夫将军这是何意？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_07",
+        "pre_dialog": "周亚夫：答案是D。军中只闻将军之令，不闻天子之诏，正说明细柳营军纪严明、令行禁止。这不是谋反，也不是怠慢，而是治军者应有的原则；文帝后来称我为“真将军”，正是对此的肯定。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_07",
+        "question_id": "WEN_07_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "文帝称周亚夫为“真将军”，主要原因是（）",
+        "option_a": "周亚夫治军严整，军纪严明，令行禁止",
+        "option_b": "周亚夫作战勇猛，杀敌数量最多",
+        "option_c": "周亚夫善于逢迎，深得文帝欢心",
+        "option_d": "周亚夫出身名门，在朝中威望很高",
+        "correct_answer": "A",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "汉文帝：朕遍劳三军，为何独称周亚夫为“真将军”？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_07",
+        "pre_dialog": "汉文帝：答案是A。霸上、棘门两军“若儿戏耳”，而细柳军“不可犯”，差别就在治军是否严整。周亚夫不因天子亲临而破例，正显出“真将军”的风范；B、C、D都与文中对比的用意不符。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

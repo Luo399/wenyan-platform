@@ -1,6 +1,6 @@
 /**
  * 添加测试学生脚本
- * 手动插入测试学号 99999999，初始密码 123456
+ * 手动插入测试学号 99999999，初始密码 99999999
  *
  * 使用方法:
  *   node scripts/add-test-student.js
@@ -17,7 +17,7 @@ const dbPath = process.env.DB_PATH || path.join(dbDir, 'answers.db');
 
 // 密码相关常量
 const BCRYPT_ROUNDS = 10;
-const DEFAULT_PASSWORD = '123456';
+const DEFAULT_PASSWORD = '99999999';
 
 console.log('========================================');
 console.log('添加测试学生');

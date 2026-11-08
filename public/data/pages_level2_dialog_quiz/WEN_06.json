@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_06",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_06",
+        "question_id": "WEN_06_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "“醉翁之意不在酒，在乎山水之间也”在文中的含义是（）",
+        "option_a": "作者酒量很小，只能借山水助兴",
+        "option_b": "作者借喝酒逃避被贬谪后的痛苦",
+        "option_c": "作者寄情山水，真正的乐趣在于欣赏山水之美和与民同乐",
+        "option_d": "作者意在赞美滁州酿酒技术高超",
+        "correct_answer": "C",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "滁人：太守常说“醉翁之意不在酒”，您到底因何而醉？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_06",
+        "pre_dialog": "欧阳修：答案是C。“醉翁之意不在酒”并非说自己不会喝酒，而是点明“在乎山水之间”。山水之乐、宴饮之乐都是表象，真正的乐趣在于百姓安乐、与民同乐。B项只看到贬谪背景，忽略了全文“乐”的主旨。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_06",
+        "question_id": "WEN_06_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "“朝而往，暮而归，四时之景不同，而乐亦无穷也”主要表现（）",
+        "option_a": "滁州交通不便，游人只能早出晚归",
+        "option_b": "山中朝暮四季景色各异，太守在欣赏山水中获得无穷乐趣",
+        "option_c": "太守公务繁忙，只能利用早晚出游",
+        "option_d": "百姓生活贫困，早出晚归辛勤劳作",
+        "correct_answer": "B",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "宾客：太守为何“朝而往，暮而归”？山中之景真有如此大的魅力吗？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_06",
+        "pre_dialog": "宾客：答案是B。这句话承接前文朝暮之景与四时之景，落脚在一个“乐”字：景不同，乐亦无穷。A、C、D都把“朝往暮归”误读为交通、公务或劳作，脱离了作者寄情山水的语境。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

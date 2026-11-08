@@ -119,6 +119,10 @@
       background: var(--figma-color-bg-warning-tertiary, #3a2a1a);
       color: var(--figma-color-text-warning, #f5a623);
     }
+    .asset-icon.style {
+      background: var(--figma-color-bg-success-tertiary, #1a3a2a);
+      color: var(--figma-color-text-success, #32c26f);
+    }
     .asset-info {
       flex: 1;
       min-width: 0;
@@ -347,7 +351,7 @@
 <body>
   <div class="header">
     <h1>文言文资源同步</h1>
-    <p>扫描当前文件中的 Export Assets 和 文字资源_ Frame，按 Frame 命名规则同步到 OSS</p>
+    <p>扫描当前文件中的 Export Assets、文字资源_ 和 样式_ Frame，按 Frame 命名规则同步到 OSS</p>
   </div>
 
   <div class="config-row">
@@ -472,6 +476,13 @@
       }
     }
 
+    /** 资源类型 → 列表图标 */
+    function assetIcon(type) {
+      if (type === 'image') return '🖼'
+      if (type === 'style') return '🎨'
+      return '📝'
+    }
+
     /** 转义 HTML 特殊字符，防止 XSS */
     function escapeHtml(str) {
       if (typeof str !== 'string') return String(str)
@@ -497,7 +508,7 @@
       var html = ''
       for (var i = 0; i < assets.length; i++) {
         var asset = assets[i]
-        var icon = asset.type === 'image' ? '🖼' : '📝'
+        var icon = assetIcon(asset.type)
         var statusClass = asset.status
         var statusLabel = asset.status === 'new' ? '新增' : asset.status === 'changed' ? '变更' : '未变'
 
@@ -519,7 +530,7 @@
       var html = ''
       for (var i = 0; i < results.length; i++) {
         var result = results[i]
-        var icon = result.type === 'image' ? '🖼' : '📝'
+        var icon = assetIcon(result.type)
         var statusClass = result.status
         var statusLabel = result.status === 'uploaded' ? '已上传' : result.status === 'skipped' ? '已跳过' : '失败'
         var sizeStr = result.size > 1024 ? (result.size / 1024).toFixed(1) + ' KB' : result.size + ' B'
@@ -635,9 +646,10 @@
         var asset = assets[i]
         updateProgress(((i + 1) / total) * 100)
 
-        if (asset.type === 'text') {
-          // 文字资源：JSON 格式上传
-          // Text asset: uploaded as JSON. Key/field names come from Figma layer names.
+        if (asset.type === 'text' || asset.type === 'style') {
+          // 文字 / 样式资源：JSON 字符串上传（type 原样透传给后端白名单校验）
+          // Text and style assets are uploaded as JSON strings; style JSON lives under styles/.
+          var jsonType = asset.type
           try {
             var response = await fetchWithTimeout(apiBase + '/api/assets/upload', {
               method: 'POST',
@@ -648,7 +660,7 @@
               body: JSON.stringify({
                 files: [{
                   ossPath: asset.ossPath,
-                  type: 'text',
+                  type: jsonType,
                   content: asset.content,
                   encoding: 'utf-8',
                 }],
@@ -658,13 +670,13 @@
             if (result.success) {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'text', size: (asset.content || '').length,
+                type: jsonType, size: (asset.content || '').length,
                 status: 'uploaded',
               })
             } else {
               results.push({
                 ossPath: asset.ossPath, fileName: asset.fileName,
-                type: 'text', size: 0, status: 'error',
+                type: jsonType, size: 0, status: 'error',
                 error: result.message || '上传失败',
               })
             }
@@ -674,7 +686,7 @@
               : String(err)
             results.push({
               ossPath: asset.ossPath, fileName: asset.fileName,
-              type: 'text', size: 0, status: 'error',
+              type: jsonType, size: 0, status: 'error',
               error: errorMsg,
             })
           }

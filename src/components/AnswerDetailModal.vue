@@ -50,12 +50,13 @@
 
 <script setup lang="ts">
 import { formatDate, formatAnswer } from '@/utils/format'
+import type { AnswerDetail } from '@/types/answer'
 
 defineProps<{
   /** 顶部展示的学生信息（学号 - 姓名） */
   studentInfo: string
   /** 答题明细列表，结构由后端返回决定 */
-  answers: Array<Record<string, any>>
+  answers: AnswerDetail[]
 }>()
 
 defineEmits<{

@@ -411,8 +411,8 @@ export async function submitAnswers(
   if (!response.success || !response.data) {
     throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交答题结果失败')
   }
-  // 返回完整响应信封（success/message/data），与 SubmitAnswersResponse 契约一致；
-  // 调用方（useAnswerSubmitter / Level1Quiz）依赖 success 与 message 字段。
+  // 返回完整响应信封：调用方（useAnswerSubmitter）依赖 success / message 字段，
+  // 只返回 data 会被判定为失败并抛出“提交失败”。
   return {
     success: true,
     message: response.message || '提交成功',
@@ -461,4 +461,28 @@ export async function submitSingleAnswer(
     throw new ApiError(500, 'SUBMIT_FAILED', response.message || '提交单题答案失败')
   }
   return response.data
+}
+
+// ============================================================
+// 认证辅助接口（注册 / 刷新等——不涉及 JWT 登录态管理，由 stores/auth.ts 统一处理）
+// ============================================================
+
+/**
+ * 教师自助注册
+ * POST /api/auth/teacher/register
+ * 教师角色的登录流程统一走 stores/auth.ts 的 login()，
+ * 注册是前置步骤，由 apiService 单独封装。
+ */
+export interface TeacherRegisterParams {
+  name: string
+  phone: string
+  password: string
+  class_codes?: string[]
+  can_view_all?: boolean
+}
+
+export async function teacherRegister(
+  params: TeacherRegisterParams,
+): Promise<ApiResponse<{ pending: boolean; teacher_id: number }>> {
+  return post('/api/auth/teacher/register', params)
 }

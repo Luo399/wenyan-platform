@@ -10,3 +10,7 @@ backend/.env.*
 backend/logs/
 backend/tests/
 backend/coverage/
+# 数据库备份/隔离文件绝不能进镜像
+backend/**/*.db
+backend/**/*.db.bak-*
+backend/**/*.db.corrupt-*

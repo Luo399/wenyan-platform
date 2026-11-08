@@ -12,23 +12,24 @@
  * R36: 移除 response.data! 非空断言，改用 ?. + 显式 null 检查
  */
 
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { ref, computed } from 'vue'
-import { post } from '@/utils/api'
+import { post, ApiError } from '@/utils/api'
+import { registerAuthBridge } from '@/utils/authBridge'
+import type { Role, User } from '@/types/auth'
 import { debugLog, debugError } from '@/utils/debug'
 import { getAuthData, setAuthData, clearAuthData } from '@/utils/localStorage'
+import type { AuthPersistTarget } from '@/utils/localStorage'
 import { resetSessionId } from '@/utils/tracking'
-import { resetFirstEnterSet } from '@/composables/useTracking'
 
 /**
- * 用户信息接口
+ * 平台角色 / 用户信息
+ *
+ * 权威定义在 `src/types/auth.ts`：`utils/localStorage.ts` 也按同一份契约读写
+ * 登录态，类型留在本文件会让 utils 反向 import store。这里 re-export 是为了
+ * 已有的 `import type { Role } from '@/stores/auth'` 调用方不受影响。
  */
-export interface User {
-  id: string
-  username: string
-  studentId: string
-  role: 'student' | 'teacher' | 'admin'
-}
+export type { Role, User }
 
 /** R35: 后端返回 user 的原始字段（下划线命名） */
 interface RawBackendUser {
@@ -37,7 +38,7 @@ interface RawBackendUser {
   student_name?: string
   student_id?: string
   studentId?: string
-  role?: 'student' | 'teacher' | 'admin'
+  role?: Role
 }
 
 /** R91: 登录/刷新令牌响应的数据结构（替代 unknown 默认推断，恢复类型安全） */
@@ -46,26 +47,83 @@ interface AuthTokenResponse {
   user?: RawBackendUser
 }
 
+/** 合法角色枚举：持久化数据是外部输入，恢复时必须按白名单校验 */
+const VALID_ROLES: readonly Role[] = ['student', 'teacher', 'admin', 'super_admin']
+
+function isValidRole(value: unknown): value is Role {
+  return typeof value === 'string' && (VALID_ROLES as readonly string[]).includes(value)
+}
+
+/**
+ * 解析 JWT 过期时间（毫秒时间戳）
+ * - 非法 token / payload 无 exp → null（调用方按过期处理）
+ */
+function decodeTokenExpiryMs(rawToken: string | null): number | null {
+  if (!rawToken) return null
+
+  try {
+    const tokenParts = rawToken.split('.')
+    if (tokenParts.length < 2) return null
+
+    let payloadStr = tokenParts[1] || ''
+    // URL-safe base64 → 标准 base64
+    payloadStr = payloadStr.replace(/-/g, '+').replace(/_/g, '/')
+    // base64 padding
+    const padLength = (4 - (payloadStr.length % 4)) % 4
+    payloadStr += '='.repeat(padLength)
+
+    const decoded = atob(payloadStr)
+    const payload = JSON.parse(decoded) as { exp?: unknown }
+    if (typeof payload.exp !== 'number') return null
+
+    return payload.exp * 1000
+  } catch {
+    return null
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  /**
+   * 本次登录态是否写入 localStorage（勾选「记住我」）
+   * 刷新令牌 / setUser 复用同一个持久化目标，避免中途把 session 登录态挪到 local
+   */
+  const rememberMe = ref(true)
 
   const isLoggedIn = computed(() => !!token.value && !!user.value)
 
   /**
    * 初始化认证状态
-   * 从 localStorage 恢复用户信息和 token
+   * 从持久化（localStorage 优先，其次 sessionStorage）恢复用户信息和 token
+   * - token 的 exp 已过期或无法解析 → 清空并置未登录
+   * - user.role 不在白名单 → 清空并置未登录
    */
   function initialize() {
-    // R34: 改用 getAuthData 封装
     const saved = getAuthData()
     if (saved.token && saved.user) {
+      if (!isValidRole(saved.user.role)) {
+        debugError('[AuthStore] 持久化角色非法，已登出:', saved.user.role)
+        error.value = '登录状态异常，请重新登录'
+        clearAuthDataInternal()
+        return
+      }
+
+      const expiry = decodeTokenExpiryMs(saved.token)
+      if (expiry === null || Date.now() >= expiry) {
+        debugLog('[AuthStore] 持久化 token 已过期或无法解析，已清理登录态')
+        error.value = '登录状态已过期，请重新登录'
+        clearAuthDataInternal()
+        return
+      }
+
       token.value = saved.token
       user.value = saved.user
+      rememberMe.value = resolvePersistTarget(saved.persist) === 'local'
       error.value = null
-      debugLog('[AuthStore] 从 localStorage 恢复登录状态')
+      debugLog('[AuthStore] 从持久化存储恢复登录状态，storage:', saved.persist)
       return
     }
 
@@ -76,18 +134,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /** persist 为空时按「记住我」的旧行为处理（历史数据都在 localStorage） */
+  function resolvePersistTarget(persist: AuthPersistTarget | null): AuthPersistTarget {
+    return persist ?? 'local'
+  }
+
   /**
    * 登录
    * @param studentId - 学号/手机号
    * @param password - 密码
    * @param studentName - 学生姓名（可选）
    * @param role - 登录角色：'student' 或 'teacher'，默认 'student'
+   * @param remember - 是否勾选「记住我」：true 写 localStorage，false 写 sessionStorage
    */
   async function login(
     studentId: string,
     password: string,
     studentName?: string,
     role: 'student' | 'teacher' | 'admin' = 'student',
+    remember = true,
   ): Promise<void> {
     isLoading.value = true
     error.value = null
@@ -113,12 +178,19 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error(response.message || '登录失败')
       }
 
-      applyLoginResult(response.data, studentId, studentName)
-      // 新用户登录，切割旧会话（session_id + 首次进入记录同步重置）
+      rememberMe.value = remember
+      applyLoginResult(response.data, studentId, studentName, remember)
+      // 新用户登录，切割旧会话（session_id 与 step 首次进入记录一起重置）
       resetSessionId()
-      resetFirstEnterSet()
       debugLog('[AuthStore] 登录成功:', user.value)
     } catch (err) {
+      // ACCOUNT_PENDING：教师账号待管理员审批，给出专门提示
+      // ApiError 没有 response 字段，后端错误码在 errorCode 上
+      if (err instanceof ApiError && err.errorCode === 'ACCOUNT_PENDING') {
+        error.value = '账号待管理员审批，请联系学校管理员'
+        clearAuthDataInternal()
+        throw err
+      }
       error.value = err instanceof Error ? err.message : '登录失败，请重试'
       clearAuthDataInternal()
       throw err
@@ -134,6 +206,7 @@ export const useAuthStore = defineStore('auth', () => {
     result: AuthTokenResponse | undefined,
     studentId: string,
     studentName?: string,
+    remember = true,
   ): void {
     if (!result?.token) {
       throw new Error('登录响应缺少 token')
@@ -143,15 +216,18 @@ export const useAuthStore = defineStore('auth', () => {
     if (!rawUser) {
       throw new Error('登录成功但未返回用户信息')
     }
+    if (rawUser.role !== undefined && !isValidRole(rawUser.role)) {
+      throw new Error('登录响应中的角色无效')
+    }
 
-    token.value = result.token as string
+    token.value = result.token
     user.value = {
       id: rawUser.id,
       username: rawUser.username || rawUser.student_name || studentName || studentId,
       studentId: rawUser.student_id || rawUser.studentId || studentId,
-      role: rawUser.role || 'student',
+      role: rawUser.role ?? 'student',
     }
-    setAuthData(token.value, user.value)
+    setAuthData(token.value, user.value, remember)
   }
 
   /**
@@ -160,7 +236,6 @@ export const useAuthStore = defineStore('auth', () => {
   function logout(): void {
     clearAuthDataInternal()
     resetSessionId()
-    resetFirstEnterSet()
     debugLog('[AuthStore] 已登出，session_id 已重置')
   }
 
@@ -186,14 +261,23 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       token.value = result.token
-      setAuthData(token.value, user.value)
+      setAuthData(token.value, user.value, rememberMe.value)
 
       debugLog('[AuthStore] 令牌已刷新')
     } catch (err) {
       debugError('[AuthStore] 刷新令牌失败:', err)
-      logout()
+      // F-004: 刷新失败不再直接登出——否则一次网络抖动就会把仍有效的会话踢掉。
+      // 由调用方决定策略；token 真正过期时由 isTokenExpired + 路由守卫兜底登出。
       throw err
     }
+  }
+
+  /**
+   * 解析 token 的过期时间（毫秒时间戳）
+   * R35: 全路径 try/catch，payload.exp 缺失或解码失败返回 null（调用方保守处理）
+   */
+  function getTokenExpiryMs(): number | null {
+    return decodeTokenExpiryMs(token.value)
   }
 
   /**
@@ -201,29 +285,26 @@ export const useAuthStore = defineStore('auth', () => {
    * R35: 全路径 try/catch，payload.exp 缺失时视为已过期
    */
   function isTokenExpired(): boolean {
-    if (!token.value) return true
+    const expiry = getTokenExpiryMs()
+    if (expiry === null) return true
+    return Date.now() > expiry
+  }
 
-    try {
-      const tokenParts = token.value.split('.')
-      if (tokenParts.length < 2) return true
+  /**
+   * 令牌是否即将过期（F-004）
+   *
+   * 供路由守卫在过期前主动续期，避免用户"用着用着突然被登出"。
+   * 已过期或无法解析返回 false（交给 isTokenExpired 兜底），
+   * 只有"仍有效但剩余寿命不足阈值"才返回 true。
+   *
+   * @param thresholdMs 剩余寿命阈值，默认 5 分钟
+   */
+  function isTokenExpiringSoon(thresholdMs = 5 * 60 * 1000): boolean {
+    const expiry = getTokenExpiryMs()
+    if (expiry === null) return false
 
-      let payloadStr = tokenParts[1] || ''
-      // URL-safe base64 → 标准 base64
-      payloadStr = payloadStr.replace(/-/g, '+').replace(/_/g, '/')
-      // base64 padding
-      const padLength = (4 - (payloadStr.length % 4)) % 4
-      payloadStr += '='.repeat(padLength)
-
-      const decoded = atob(payloadStr)
-      const payload = JSON.parse(decoded) as { exp?: number }
-      if (typeof payload.exp !== 'number') return true
-
-      const expiry = payload.exp * 1000
-      return Date.now() > expiry
-    } catch {
-      // 任一环节失败 → 保守认为已过期
-      return true
-    }
+    const remaining = expiry - Date.now()
+    return remaining > 0 && remaining <= thresholdMs
   }
 
   /**
@@ -255,9 +336,28 @@ export const useAuthStore = defineStore('auth', () => {
       studentId: userData.student_id ?? userData.studentId ?? user.value.studentId,
       role: userData.role ?? user.value.role,
     }
-    setAuthData(token.value, user.value)
+    setAuthData(token.value, user.value, rememberMe.value)
     debugLog('[AuthStore] 用户信息已更新:', user.value)
   }
+
+  /**
+   * 把登录态注入 utils 层（api 取 token / 401 登出，tracking 取 user_id）。
+   *
+   * 这一步是方向掰正的关键：那两个 util 原本直接 import 本 store，
+   * 而本 store 又 import 它们（发登录请求、切割会话），构成两条静态循环。
+   * 现在只有 store → util 一个方向，util 认 AuthBridge 接口。
+   *
+   * 按 pinia 实例注册：读到的永远是「当前 active pinia 上的这份登录态」，
+   * 与原先每次调用 useAuthStore() 的取值语义逐字一致（测试里换 pinia 也不会串）。
+   */
+  registerAuthBridge(getActivePinia(), {
+    getToken: () => token.value,
+    isLoggedIn: () => isLoggedIn.value,
+    // 与迁移前的判断保持同一个条件：登录态齐备才带 user_id，取学号优先
+    getUserId: () =>
+      isLoggedIn.value && user.value ? user.value.studentId || user.value.id || '' : '',
+    logout: () => logout(),
+  })
 
   return {
     user,
@@ -270,6 +370,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refreshToken,
     isTokenExpired,
+    isTokenExpiringSoon,
     clearError,
     setUser,
     // 对外暴露：内部实现是同一个，但 export 名字与之前保持兼容（不叫 clearAuthDataInternal）

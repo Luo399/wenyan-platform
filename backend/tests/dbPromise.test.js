@@ -110,5 +110,30 @@ describe('dbPromise 工具函数', () => {
       const rows = await dbAll(db, 'SELECT * FROM test_table')
       expect(rows.length).toBe(0)
     })
+
+    it('并发事务应串行执行且全部成功（回归：曾被模块级 transactionActive 误判为嵌套）', async () => {
+      const runOne = (name) =>
+        dbTransaction(db, async ({ dbRun }) => {
+          // 模拟真实事务内的异步读写
+          await dbRun('INSERT INTO test_table (name, value) VALUES (?, ?)', [name, 1])
+          return name
+        })
+
+      const results = await Promise.all(
+        ['c1', 'c2', 'c3', 'c4', 'c5'].map((name) => runOne(name)),
+      )
+
+      expect(results).toEqual(['c1', 'c2', 'c3', 'c4', 'c5'])
+      const rows = await dbAll(db, 'SELECT * FROM test_table')
+      expect(rows.length).toBe(5)
+    })
+
+    it('同一事务内部再次调用 dbTransaction 应被拒绝（防死锁）', async () => {
+      await expect(
+        dbTransaction(db, async () => {
+          await dbTransaction(db, async () => undefined)
+        }),
+      ).rejects.toThrow('dbTransaction 不支持嵌套调用')
+    })
   })
 })

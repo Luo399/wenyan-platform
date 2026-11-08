@@ -88,7 +88,82 @@ Page 1
 
 ---
 
-## 4. 图层 / 节点属性要求（Node/Attribute Requirements）
+## 4. 样式资源（Style Assets）
+
+### 4.1 Frame 结构
+
+```
+Page 1
+└── 样式_<路径>（顶层 Frame，前缀固定 / fixed prefix）
+    ├── <图层>            （任意可见图层，path = 图层名）
+    └── <子 Frame>
+        └── <图层>         （path 用 / 连接层级，如 card/bg）
+```
+
+### 4.2 命名规则
+
+| 项 | 规则 | 示例 | English note |
+|----|------|------|--------------|
+| 顶层 Frame 前缀 | 固定以 `样式_` 开头，前缀后不能为空 | `样式_Button` | Fixed prefix; empty remainder is skipped |
+| 剩余部分 | 即 OSS 相对路径，`/` 分层，空格自动转 `_` | `样式_components/Button` | Remainder → path |
+| 子图层 | **名称不参与路径以外的语义**，任意可见图层都会被提取样式 | — | Unlike text/image, layer names carry no field meaning |
+| 同名图层 | 路径自动追加 `#nodeId` 去重 | `bg`、`bg#1:5` | Duplicate names get node-id suffix |
+| 隐藏图层 | `visible = false` 自动跳过并计数 | — | Hidden layers skipped |
+| 规模上限 | 单 Frame ≤ 300 节点 / 深度 ≤ 6 层，超限截断并置 `meta.truncated` | — | Capped to stay under the 500KB JSON limit |
+
+### 4.3 路径解析（Path Resolution）
+
+| 命名形态 | 目标 OSS 路径 | 说明 / Note |
+|----------|---------------|-------------|
+| `样式_Button` | `styles/Button.json` | 组件级样式 |
+| `样式_components/Button` | `styles/components/Button.json` | 按模块分目录 |
+| `样式_`（前缀后为空） | —（跳过并告警） | Empty remainder skipped |
+| 文件内的本地共享样式 / 变量 | `styles/_shared.json` | 不由 Frame 命名决定，扫描时自动汇总 |
+
+#### 示例（Examples）
+
+```
+样式_Button                    → styles/Button.json
+样式_components/Button         → styles/components/Button.json
+样式_pages/WEN_01/card         → styles/pages/WEN_01/card.json
+样式_首页 Hero                 → styles/首页_Hero.json（空格转 _；路径仍建议用英文小写）
+```
+
+### 4.4 提取的样式参数（What Gets Extracted）
+
+| 类别 | Figma 来源 | 产出的 CSS |
+|------|-----------|-----------|
+| 圆角 / 直角 | `cornerRadius`、`rectangleCornerRadii`、四角分属性 | `border-radius`；**直角记为 `0px`**，与"没读到"区分 |
+| 颜色 | 纯色填充（0~1 RGB）、图层透明度 | `background-color`（不透明给 `#rrggbb`，半透明给 `rgba()`） |
+| 渐变 | `GRADIENT_LINEAR/RADIAL/ANGULAR` 的 stops 与矩阵 | `background-image`（矩阵近似换算成角度；原矩阵留在 `raw`） |
+| 描边 | `strokes` + `strokeWeight` + `strokeAlign` | `border`；`INSIDE` 追加 `box-sizing: border-box` |
+| 效果 | `DROP_SHADOW` / `INNER_SHADOW` / `LAYER_BLUR` / `BACKGROUND_BLUR` | `box-shadow`（inset 区分）/ `filter` / `backdrop-filter` |
+| 自动布局 | `layoutMode` / `itemSpacing` / `padding*` / 对齐枚举 / `layoutWrap` | `display: flex` + `flex-direction` / `gap` / `padding` / `justify-content` / `align-items` / `flex-wrap` |
+| Grid 布局 | `layoutMode = GRID` + `gridRowGap` / `gridColumnGap` | `display: grid` + `row-gap` / `column-gap` |
+| 文本 | `fontName` / `fontSize` / `fontWeight` / `letterSpacing` / `lineHeight` / 对齐 / `textCase` / `textDecoration` / 文字填充 | `font-family` / `font-size` / `font-weight` / `letter-spacing` / `line-height` / `text-align` / `text-transform` / `text-decoration-line` / `color` |
+| 几何与混合 | `width` / `height` / `rotation` / `opacity` / `blendMode` / `isMask` | `width` / `height` / `transform` / `opacity` / `mix-blend-mode`；`isMask` 只留 `raw` |
+
+**产物结构**（顺序固定，同输入必同字节——后端靠 MD5 做增量跳过）：
+
+```jsonc
+{
+  "kind": "figma-style-tokens",
+  "schema": 1,
+  "source": { "frame": "样式_Button", "nodeId": "1:1", "page": "设计稿" },
+  "meta": { "nodeCount": 3, "truncated": false, "hiddenSkipped": 1, "withRaw": true },
+  "self":   { "path": "@frame", "css": { "border-radius": "0px" } },  // Frame 本体样式
+  "tokens": { "color": [], "radius": [], "spacing": [], "shadow": [], "font": [] }, // 按使用节点数排序
+  "nodes":  { "bg": { "nodeId": "1:2", "nodeType": "RECTANGLE", "css": {}, "raw": {} } }
+}
+```
+
+- `css` = 可直接抄进样式表的声明块；`raw` = Figma 原值（0~1 浮点、枚举名、mixed 标记、渐变矩阵），用于精确复现与排查。
+- 超出 480KB 时先整体去掉 `raw`（`meta.withRaw=false`），再按需要裁剪节点（`meta.truncated=true`）。
+- `tokens` 是写 `design-tokens.css` 的原料：每项含 `value` / `count` / `usedBy`（最多 3 个来源路径）。
+
+---
+
+## 5. 图层 / 节点属性要求（Node/Attribute Requirements）
 
 | 属性 | 要求 | English note |
 |------|------|--------------|
@@ -96,16 +171,18 @@ Page 1
 | 文字图层 | 必须为 `TEXT` 类型 | Must be TextNode |
 | 图片文件命名 | 必须含合法扩展名，否则跳过 | Must include valid extension |
 | JSON 字段顺序 | 按图层顺序输出，子组内递归 | Output order follows layer order |
+| 样式图层 | 任意可见图层；`mixed`（逐字符不一致）只标记不猜值 | Mixed values are flagged, never guessed |
 
 ---
 
-## 5. 前端消费路径对照（Frontend Consumption）
+## 6. 前端消费路径对照（Frontend Consumption）
 
 | 资源类型 | OSS 路径 | 前端取用方式 |
 |----------|----------|--------------|
 | 通用图片 | `images/general/xxx.png` | `getAssetUrl('images', 'xxx.png')` |
 | 课文图片 | `images/screens/WEN_xx/...` | 按 `WEN_xx` + 场景拼地址 |
 | 文字资源 | `data/<module>/WEN_xx.json` | 走 `utils/` / `useDataLoader` 封装加载 |
+| 样式资源 | `styles/**/*.json`、`styles/_shared.json` | 人工/脚本对齐 `src/assets/styles/design-tokens.css`，不进运行时请求 |
 
 > 404 排查提示：插件导出路径必须与前端 `getAssetUrl`/数据加载封装**逐字一致**（含大小写与目录层级）。
 > Troubleshooting: plugin export paths MUST byte-for-byte match the frontend asset/data loader paths (case + hierarchy), otherwise assets 404.

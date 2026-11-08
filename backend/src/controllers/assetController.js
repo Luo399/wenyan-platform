@@ -26,6 +26,29 @@ const ALLOWED_JSON_DIRS = [
 const ALLOWED_MEDIA_DIRS = ['images/', 'audio/', 'video/']
 /** 单个 JSON 文件大小上限（500KB） */
 const MAX_JSON_SIZE = 500 * 1024
+/** 预签名直传的 OSS 目录白名单（与上传白名单保持一致） */
+const ALLOWED_OSS_PREFIXES = [
+  ...ALLOWED_MEDIA_DIRS,
+  ...ALLOWED_JSON_DIRS.map((dir) => `${dir}/`),
+]
+/** 预签名有效期固定 600 秒，不接受调用方传入 */
+const PRE_SIGNED_EXPIRES_SECONDS = 600
+/** 预签名 Content-Type 白名单：仅图片/视频/音频 */
+const ALLOWED_CONTENT_TYPE_PATTERN = /^(image|video|audio)\/[A-Za-z0-9][A-Za-z0-9.+-]*$/
+
+/**
+ * 校验 OSS 路径是否在白名单目录下
+ * 拒绝路径穿越、绝对路径、反斜杠、空字节与 URL 编码绕过
+ */
+function isAllowedOssPath(ossPath) {
+  if (typeof ossPath !== 'string' || ossPath.length === 0 || ossPath.length > 512) return false
+  if (ossPath.includes('..') || ossPath.includes('\\') || ossPath.includes('\0')) return false
+  if (ossPath.startsWith('/') || /^[A-Za-z]:/.test(ossPath)) return false
+  if (/%2e|%2f|%5c/i.test(ossPath)) return false
+  return ALLOWED_OSS_PREFIXES.some(
+    (prefix) => ossPath.startsWith(prefix) && ossPath.length > prefix.length,
+  )
+}
 /** 允许的图片扩展名 */
 const ALLOWED_IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg)$/i
 /** 允许的音频扩展名 */
@@ -251,23 +274,43 @@ async function getVersion(req, res, next) {
  * 生成 OSS 预签名 URL（供 Figma 插件直传）
  *
  * Body:
- *   { ossPath: string, contentType?: string, expiresIn?: number }
+ *   { ossPath: string, contentType?: 'image/png' | 'video/mp4' | 'audio/mpeg' }
  *
  * 响应：
  *   { success: true, data: { url: string, ossPath: string, contentType?: string, expiresIn: number } }
  *
  * 说明：
  *   - 将 contentType 纳入 OSS 签名，否则 PUT 直传携带的 Content-Type 会使签名校验失败
+ *   - ossPath 必须在白名单目录内，expiresIn 固定 600 秒（忽略调用方传值）
  */
 async function generatePreSignedUrl(req, res, next) {
   try {
-    const { ossPath, contentType, expiresIn = 3600 } = req.body
+    const { ossPath, contentType } = req.body || {}
 
     if (!ossPath) {
       return res.status(400).json({
         success: false,
         error: 'MISSING_OSS_PATH',
         message: '缺少 ossPath 参数',
+      })
+    }
+
+    if (!isAllowedOssPath(ossPath)) {
+      return res.status(400).json({
+        success: false,
+        error: 'PATH_NOT_ALLOWED',
+        message: 'ossPath 不在允许的目录白名单内',
+      })
+    }
+
+    const contentTypeValue = contentType === undefined || contentType === null
+      ? null
+      : String(contentType)
+    if (contentTypeValue !== null && !ALLOWED_CONTENT_TYPE_PATTERN.test(contentTypeValue)) {
+      return res.status(400).json({
+        success: false,
+        error: 'CONTENT_TYPE_NOT_ALLOWED',
+        message: 'contentType 仅允许 image/*、video/*、audio/*',
       })
     }
 
@@ -291,17 +334,22 @@ async function generatePreSignedUrl(req, res, next) {
 
     // 生成预签名 PUT URL（把 contentType 一并签名，避免直传时 Content-Type 不符导致 403）
     const signOptions = {
-      expires: expiresIn,
+      expires: PRE_SIGNED_EXPIRES_SECONDS,
       method: 'PUT',
     }
-    if (contentType) {
-      signOptions.contentType = String(contentType)
+    if (contentTypeValue) {
+      signOptions.contentType = contentTypeValue
     }
     const url = store.signatureUrl(ossPath, signOptions)
 
     res.json({
       success: true,
-      data: { url, ossPath, contentType: contentType || null, expiresIn },
+      data: {
+        url,
+        ossPath,
+        contentType: contentTypeValue,
+        expiresIn: PRE_SIGNED_EXPIRES_SECONDS,
+      },
     })
   } catch (err) {
     logger.error('[AssetController] 生成预签名 URL 失败:', err)
@@ -344,7 +392,7 @@ function parseArrayField(body, fieldName) {
  * 由调用方回退到内置标题表（见 buildInventory 内 POEMS）。
  *
  * @param {string} dataBasePath - 后端数据目录（ossConfig.dataBasePath）
- * @returns {Record<string, string>} 形如 { WEN_06: '诫子书', ... }
+ * @returns {Record<string, string>} 形如 { WEN_06: '醉翁亭记', ... }
  */
 function loadWenTitles(dataBasePath) {
   const fs = require('fs')
@@ -361,7 +409,7 @@ function loadWenTitles(dataBasePath) {
           titles[wenId] = parsed.title
         }
       }
-    } catch (e) {
+    } catch {
       // 单篇读取失败不影响整体，回退到内置表
     }
   }
@@ -369,18 +417,28 @@ function loadWenTitles(dataBasePath) {
 }
 
 function buildInventory(entryList, lastSyncAt, dataBasePath) {
-  // 37篇诗文列表
-  const POEMS = {
+  // 编号 ↔ 篇目：只收录内容组**已确认**的号（2026-10-28 对照表，23 由用户 2026-10-29 确认为《活板》）。
+  // 与 src/utils/wenUtils.ts 的 poemMap 同步维护；旧表 05 往后是按教材顺序推测的，
+  // 与美术/内容侧编号从 05 起整体错位，推测值当标题用会张冠李戴，所以删掉。
+  const CONFIRMED_POEM_TITLES = {
     'WEN_01': '陈涉世家', 'WEN_02': '马说', 'WEN_03': '岳阳楼记', 'WEN_04': '庄子与惠子',
-    'WEN_05': '论语十二章', 'WEN_06': '诫子书', 'WEN_07': '陋室铭', 'WEN_08': '爱莲说',
-    'WEN_09': '孟子三章', 'WEN_10': '虽有嘉肴', 'WEN_11': '大道之行', 'WEN_12': '鱼我所欲也',
-    'WEN_13': '送东阳马生序', 'WEN_14': '出师表', 'WEN_15': '三峡', 'WEN_16': '答谢中书书',
-    'WEN_17': '记承天寺夜游', 'WEN_18': '与朱元思书', 'WEN_19': '桃花源记', 'WEN_20': '小石潭记',
-    'WEN_21': '核舟记', 'WEN_22': '醉翁亭记', 'WEN_23': '湖心亭看雪', 'WEN_24': '孙权劝学',
-    'WEN_25': '卖油翁', 'WEN_26': '周亚夫军细柳', 'WEN_27': '唐雎不辱使命', 'WEN_28': '曹刿论战',
-    'WEN_29': '邹忌讽齐王纳谏', 'WEN_30': '穿井得一人', 'WEN_31': '杞人忧天', 'WEN_32': '愚公移山',
-    'WEN_33': '北冥有鱼', 'WEN_34': '咏雪', 'WEN_35': '陈太丘与友期行', 'WEN_36': '狼', 'WEN_37': '活板',
+    'WEN_05': '唐雎不辱使命', 'WEN_06': '醉翁亭记', 'WEN_07': '周亚夫军细柳', 'WEN_08': '咏雪',
+    'WEN_09': '卖油翁', 'WEN_10': '湖心亭看雪', 'WEN_11': '孙权劝学', 'WEN_12': '邹忌讽齐王纳谏',
+    'WEN_13': '曹刿论战', 'WEN_14': '《论语》十二章', 'WEN_15': '诫子书', 'WEN_16': '穿井得一人',
+    'WEN_17': '杞人忧天', 'WEN_18': '愚公移山', 'WEN_19': '陈太丘与友期行', 'WEN_22': '狼',
+    'WEN_23': '活板',
+    'WEN_24': '送东阳马生序', 'WEN_25': '出师表', 'WEN_26': '三峡', 'WEN_27': '答谢中书书',
   }
+
+  // 素材分类要覆盖全部 37 个号（美术按号交付，未确认的号也有文件要归位），
+  // 所以这里按号位补齐，未确认的用占位标题，不要把 POEMS 缩成已确认的 25 条——
+  // 下面按 Object.keys(POEMS) 匹配 ossPath 里的 WEN_xx，缩表会让 20/21/28–37 归不到课文。
+  const POEMS = Object.fromEntries(
+    Array.from({ length: 37 }, (_, i) => `WEN_${String(i + 1).padStart(2, '0')}`).map((wenId) => [
+      wenId,
+      CONFIRMED_POEM_TITLES[wenId] || '编号待确认',
+    ])
+  )
 
   // 动态标题：优先从 data JSON 读取（资源扫描/上传后即可得到），内置表仅作兜底
   const wenTitles = loadWenTitles(dataBasePath)
@@ -673,9 +731,9 @@ async function cleanup(req, res, next) {
 
     for (const rawPath of paths) {
       const ossPath = String(rawPath || '').replace(/^\/+/, '')
-      // 防路径穿越 + 空路径
-      if (!ossPath || ossPath.includes('..')) {
-        errors.push({ ossPath: String(rawPath), error: '非法路径' })
+      // 只允许删除白名单目录下的 key（同时拦截路径穿越/绝对路径）
+      if (!isAllowedOssPath(ossPath)) {
+        errors.push({ ossPath: String(rawPath), error: '路径不在白名单内或包含非法字符' })
         continue
       }
       try {
@@ -683,7 +741,7 @@ async function cleanup(req, res, next) {
         assetService.removeVersionRecord(ossConfig.dataBasePath, ossPath)
         deleted.push(ossPath)
       } catch (err) {
-        errors.push({ ossPath, error: err.message })
+        errors.push({ ossPath, error: '删除失败' })
         logger.error(`[AssetController] 清理失败: ${ossPath}`, err)
       }
     }

@@ -1,5 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+import type { Role } from '@/types/auth'
+import { ADMIN_ROLES, STAFF_ROLES } from '@/utils/roles'
+
 // 首屏组件同步加载
 import NewHomeView from '@/views/NewHomeView.vue'
 
@@ -7,15 +10,23 @@ import NewHomeView from '@/views/NewHomeView.vue'
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
+    /**
+     * 可选：限定访问角色。单个值或数组，数组表示「命中其中任一角色即可」。
+     *
+     * 取值要和后端接口的 requireRole 对齐，否则前端放进去了、
+     * 接口回来 403，页面只剩一片加载失败。
+     * 多角色的组合优先用 utils/roles 的 ADMIN_ROLES / STAFF_ROLES，
+     * 不要在路由表里重打一遍角色名。
+     */
+    role?: Role | readonly Role[]
   }
 }
 
 // 非首屏组件懒加载
 const DetailView = () => import('@/views/DetailView.vue')
 const RuleVideoView = () => import('@/views/RuleVideoView.vue')
-const StepOneView = () => import('@/views/StepOneView.vue')
-const StepTwoView = () => import('@/views/StepTwoView.vue')
-const StepThreeView = () => import('@/views/StepThreeView.vue')
+// R1: 三个步骤路由合并为同一个 StepView 组件，靠 route.name 区分行为
+const StepView = () => import('@/views/StepView.vue')
 const AnswerQueryView = () => import('@/views/AnswerQueryView.vue')
 
 // R114: 标注 RouteRecordRaw 类型，保证 meta 字段有类型检查
@@ -36,6 +47,11 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/TeacherLoginView.vue'),
   },
   {
+    path: '/teacher-register',
+    name: 'teacher-register',
+    component: () => import('@/views/TeacherRegisterView.vue'),
+  },
+  {
     path: '/rules/:id',
     name: 'rules',
     component: RuleVideoView,
@@ -45,7 +61,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/stepone/:id',
     name: 'stepone',
-    component: StepOneView,
+    component: StepView,
     meta: { requiresAuth: true },
   },
   {
@@ -72,13 +88,13 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/stepthree/:id',
     name: 'stepthree',
-    component: StepThreeView,
+    component: StepView,
     meta: { requiresAuth: true },
   },
   {
     path: '/steptwo/:id',
     name: 'steptwo',
-    component: StepTwoView,
+    component: StepView,
     meta: { requiresAuth: true },
   },
   {
@@ -91,7 +107,8 @@ export const routes: RouteRecordRaw[] = [
     path: '/answer-query',
     name: 'answer-query',
     component: AnswerQueryView,
-    meta: { requiresAuth: true },
+    // 后端 /api/answers/* 只放 teacher/admin/super_admin，学生进来只会拿到 403
+    meta: { requiresAuth: true, role: STAFF_ROLES },
   },
   {
     path: '/admin-login',
@@ -99,10 +116,37 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/AdminLoginView.vue'),
   },
   {
+    path: '/admin-console',
+    name: 'admin-console',
+    component: () => import('@/views/AdminConsoleView.vue'),
+    meta: { requiresAuth: true, role: ADMIN_ROLES },
+  },
+  {
+    path: '/admin-dashboard',
+    name: 'admin-dashboard',
+    component: () => import('@/views/AdminDashboardView.vue'),
+    meta: { requiresAuth: true, role: ADMIN_ROLES },
+  },
+  {
+    path: '/teacher-completion',
+    name: 'teacher-completion',
+    component: () => import('@/views/TeacherCompletionView.vue'),
+    // 后端 /api/teacher/completion/* 用 requireRole('teacher')，管理员也不放行
+    meta: { requiresAuth: true, role: 'teacher' },
+  },
+  {
+    path: '/teacher-dashboard',
+    name: 'teacher-dashboard',
+    component: () => import('@/views/TeacherDashboardView.vue'),
+    meta: { requiresAuth: true, role: 'teacher' },
+  },
+  {
     path: '/resource-upload',
     name: 'resource-upload',
     component: () => import('@/views/ResourceUploadTool.vue'),
-    meta: { requiresAuth: true },
+    // 路由层放开 super_admin（其权限含 admin）；后端 /api/upload/resource
+    // 已同步为 requireRole(['teacher', 'admin', 'super_admin'])，两侧口径一致
+    meta: { requiresAuth: true, role: STAFF_ROLES },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -114,6 +158,18 @@ export const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
+  // R140: 显式声明滚动行为。
+  // 之前没有配置，各浏览器自行决定新页面继承还是保留上一个页面的滚动位置：
+  // 步骤页（StepView / DetailView）内容比一屏长，用户滚到底部点固定在屏底的「继续」后，
+  // 部分环境会把新页面也停在同一个滚动位置（看起来像"点了没跳转"），部分环境才回到顶部。
+  scrollBehavior(to, from, savedPosition) {
+    // 浏览器前进/后退：用它自己存的位置，保持原生手感
+    if (savedPosition) return savedPosition
+    // 同一个页面只换篇目（/rules/1 → /rules/2）：留在顶部即可，不必锚点跳转
+    if (to.hash) return { el: to.hash, behavior: 'smooth' }
+    if (to.name !== from.name) return { top: 0 }
+    return false
+  },
 })
 
 export default router

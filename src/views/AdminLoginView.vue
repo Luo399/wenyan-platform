@@ -124,7 +124,7 @@ async function handleSubmit(): Promise<void> {
 
   try {
     await authStore.login(username.value.trim(), password.value, undefined, 'admin')
-    router.push('/answer-query')
+    router.push('/admin-console')
   } catch (err) {
     // authStore.login() 已设置 error 消息，此处仅记录日志
     debugError('管理员登录失败:', err)

@@ -65,18 +65,20 @@ describe('api', () => {
   })
 
   describe('ApiError', () => {
-    it('should create error with status, errorCode and message', () => {
-      const error = new ApiError(404, 'NOT_FOUND', '测试错误')
+    // 新签名：(status, errorCode, message)
+    it('should create error with status and errorCode', () => {
+      const error = new ApiError(404, 'STUDENT_NOT_FOUND', '测试错误')
       expect(error.message).toBe('测试错误')
       expect(error.status).toBe(404)
-      expect(error.errorCode).toBe('NOT_FOUND')
+      expect(error.errorCode).toBe('STUDENT_NOT_FOUND')
       expect(error.name).toBe('ApiError')
+      expect(error).toBeInstanceOf(Error)
     })
 
-    it('should keep message when only status and errorCode provided', () => {
-      const error = new ApiError(500, 'UNKNOWN', '测试错误')
-      expect(error.message).toBe('测试错误')
-      expect(error.errorCode).toBe('UNKNOWN')
+    it('should keep the raw message untouched', () => {
+      const error = new ApiError(403, 'FORBIDDEN', '当前角色无权管理学生')
+      expect(error.message).toBe('当前角色无权管理学生')
+      expect(error.status).toBe(403)
     })
   })
 

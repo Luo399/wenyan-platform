@@ -21,6 +21,8 @@ export interface RawTextBasicInfo {
   title: string
   author: string
   dynasty: string
+  /** 出处（如《战国策》《左传》）。Figma 文稿表把出处填在作者位，生成脚本拆到本字段 */
+  book?: string
   original_text: string
   illustration?: string
   bgm?: string
@@ -52,9 +54,11 @@ export function adaptWordList(
 
   // 字段映射：ProcessedWordItem.word + basic_meaning → {word, meaning}
   // 对 word 做 normalizeQuotes 确保与已规范化原文匹配
+  // followUpQuestions 是追问区的结构预留：透传原始数组，空数组不会写入 DOM（见 adapterUtils）
   const annotations = wordList.map((w) => ({
     word: normalizeQuotes(w.word),
     meaning: w.basic_meaning,
+    followUpQuestions: w.follow_up_questions,
   }))
 
   // 生成带注释的 HTML 内容（移除斜杠 + 段落包裹）

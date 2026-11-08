@@ -5,13 +5,15 @@ const helmet = require('helmet')
 const config = require('./config/app')
 const logger = require('./utils/logger')
 const { initAllTables } = require('./config/database')
+const { migrateAiTables } = require('../scripts/migrate_ai')
 const { registerRoutes } = require('./routes')
 const { errorHandler, notFoundHandler, requestLogger } = require('./middleware/errorHandler')
 const { globalLimiter } = require('./middleware/rateLimitMiddleware')
+const aiAlerts = require('./services/aiAlerts')
 
 // S11: 进程级错误兜底——未捕获的 Promise rejection 记录日志；
 // uncaughtException 记录后退出，由 PM2 自动重启，避免进程处于未知状态
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   logger.error('Unhandled Rejection:', {
     reason: reason instanceof Error ? reason.message : String(reason),
     stack: reason instanceof Error ? reason.stack : undefined,
@@ -28,6 +30,9 @@ process.on('uncaughtException', (err) => {
 
 function createApp() {
   const app = express()
+
+  // 部署链路为 nginx(1 层) → Node，信任一层代理以获取真实客户端 IP（限流/审计依赖）
+  app.set('trust proxy', 1)
 
   // S08: 开启 CSP（后端仅提供 JSON API，默认严格策略禁止加载外部内容）
   app.use(
@@ -47,12 +52,27 @@ function createApp() {
     }),
   )
 
-  // CORS：临时放开所有来源（origin: true），用于 Figma 插件在 data: iframe 内跨域访问接口。
-  // 注意：这是临时方案，存在安全降级风险。安全版本已备份至 backend/src/app.cjs.bak，
-  // 待解决后恢复为显式白名单策略。
+  // CORS：按 CORS_ORIGIN 白名单（逗号分隔）校验来源；
+  // 无 Origin 的请求（curl、服务端调用、同源）放行，白名单外来源直接 403
+  const allowedOrigins = config.cors.origin
+  app.use((req, res, next) => {
+    const origin = req.headers.origin
+    if (!origin || allowedOrigins.includes(origin)) return next()
+    logger.warn('[cors] 拒绝非白名单来源', { origin, path: req.path })
+    return res.status(403).json({
+      success: false,
+      error: 'CORS_ORIGIN_FORBIDDEN',
+      message: '请求来源不在白名单',
+    })
+  })
+
   app.use(
     cors({
-      origin: true,
+      origin(origin, callback) {
+        // 无 Origin（curl / 服务端 / 同源）不参与跨域校验
+        if (!origin) return callback(null, true)
+        return callback(null, allowedOrigins.includes(origin))
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
       exposedHeaders: ['Authorization'],
@@ -76,6 +96,24 @@ function createApp() {
   // 移除 express.static：backend/public 下的 admin.html 无鉴权裸奔（已下线），
   // 后端仅提供 JSON API，静态资源统一由前端 OSS 承载
 
+  // R7: /v1 版本前缀别名 —— 仅给缺失 /api 前缀的路径补齐，
+  // 避免 /v1/api/texts 被改写成 /api/api/texts；/v1/texts 仍等价于 /api/texts
+  //
+  // 注意：不能写成 app.use('/v1', fn)。挂载式中间件返回时 Express 会用保存的
+  // 原始 url 还原 req.url（router 的 restore 逻辑），改写等于没生效——实测
+  // /v1/texts 会 404。必须在 app 级别判断前缀再改写。
+  app.use((req, res, next) => {
+    if (req.url === '/v1' || req.url.startsWith('/v1/') || req.url.startsWith('/v1?')) {
+      // 去掉 /v1：/v1/texts → /texts → /api/texts；/v1/api/texts → /api/texts
+      // （保留已有的 /api，避免出现 /api/api/texts）
+      const rest = req.url.slice('/v1'.length)
+      req.url = rest === '/api' || rest.startsWith('/api/') || rest.startsWith('/api?')
+        ? rest
+        : '/api' + rest
+    }
+    next()
+  })
+
   registerRoutes(app)
 
   app.use('/api/health', (req, res) => {
@@ -96,6 +134,8 @@ function createApp() {
 async function startServer() {
   try {
     await initAllTables()
+    await migrateAiTables()
+    aiAlerts.checkApiKeyStartup()
 
     const app = createApp()
     const { port, host } = config.server

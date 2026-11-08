@@ -1,4 +1,10 @@
 <!--
+  DEPRECATED 2026-10-21
+  此组件已被独立页面 src/views/StudentLoginView.vue 替代。
+  历史实现仅作 git 追溯保留，不再有任何路由或引用使用它。
+  如需登录入口，请使用 /student-login 路由。
+-->
+<!--
   StudentLogin.vue - 学生学号输入组件
 
   功能说明：

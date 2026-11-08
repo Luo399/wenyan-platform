@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_13",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_13",
+        "question_id": "WEN_13_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "曹刿认为“可以一战”的依据是（）",
+        "option_a": "衣食所安，弗敢专也，必以分人",
+        "option_b": "小大之狱，虽不能察，必以情",
+        "option_c": "牺牲玉帛，弗敢加也，必以信",
+        "option_d": "齐军长途跋涉，已经疲惫不堪",
+        "correct_answer": "B",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "鲁庄公：齐军来犯，曹刿先生认为凭什么可以一战？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_13",
+        "pre_dialog": "曹刿：答案是B。衣食分人只是小恩惠，不能遍及百姓；祭祀诚信只是小信，神不会因此保佑。只有“小大之狱，虽不能察，必以情”，才是尽心为民、取信于民的根本，所以可以一战。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_13",
+        "question_id": "WEN_13_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "曹刿在“齐人三鼓”后才下令进攻，原因是（）",
+        "option_a": "鲁军人数太少，需要等待援军到达",
+        "option_b": "曹刿不懂战术，错过了战机",
+        "option_c": "鲁庄公不同意提前进攻，曹刿只能等待",
+        "option_d": "“一鼓作气，再而衰，三而竭”，要等齐军士气衰竭时再进攻",
+        "correct_answer": "D",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "鲁庄公：长勺之战，为何等齐军击鼓三次之后才进攻？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_13",
+        "pre_dialog": "曹刿：答案是D。作战靠的是士气，第一次击鼓士气最盛，第二次衰减，第三次就竭尽了。等齐军“三而竭”时再进攻，才能以逸待劳、一举取胜。这不是等待援军，更不是不懂战术。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

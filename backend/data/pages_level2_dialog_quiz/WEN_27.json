@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_27",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_27",
+        "question_id": "WEN_27_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "文中总写山川之美的句子是（）",
+        "option_a": "夕日欲颓，沉鳞竞跃",
+        "option_b": "高峰入云，清流见底",
+        "option_c": "晓雾将歇，猿鸟乱鸣",
+        "option_d": "山川之美，古来共谈",
+        "correct_answer": "D",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "谢中书：陶弘景来信说“山川之美，古来共谈”，他笔下的山川究竟美在何处？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_27",
+        "pre_dialog": "陶弘景：答案是D。“山川之美，古来共谈”是全文总起，下面“高峰入云，清流见底”等才是分写。B写山高水清，C写晨景，A写晚景，都是具体描绘，不是总写。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_27",
+        "question_id": "WEN_27_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "“自康乐以来，未复有能与其奇者”表达了（）",
+        "option_a": "对谢灵运山水诗的批评和否定",
+        "option_b": "对谢灵运的追慕，以及知音难觅的感慨和自豪",
+        "option_c": "自己从未到过这些山川，只是听人传说",
+        "option_d": "这些山川其实并不美，不值得欣赏",
+        "correct_answer": "B",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "陶弘景：我在信中写“自康乐以来，未复有能与其奇者”，其中有何深意？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_27",
+        "pre_dialog": "陶弘景：答案是B。谢灵运封康乐公，是山水诗大家；自他之后，很少有人能真正领略山川之奇。我写这句话，既有对前贤的追慕，也有知音难觅的感慨，还含着一点能独赏其奇的自得。A、C、D都与此相反。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

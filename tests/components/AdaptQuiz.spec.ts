@@ -238,7 +238,7 @@ describe('BlockQuiz.vue', () => {
       expect(wrapper.text()).toContain('解析')
     })
 
-    it('已提交状态下应该显示完成按钮', async () => {
+    it('已提交状态下应该显示下一题/完成按钮', async () => {
       const wrapper = mount(BlockQuiz, { props: blockProps })
 
       const optionBtns = wrapper.findAll('.option-btn')
@@ -251,7 +251,8 @@ describe('BlockQuiz.vue', () => {
 
       const nextBtn = wrapper.find('.next-btn')
       expect(nextBtn.exists()).toBe(true)
-      expect(nextBtn.text()).toContain('完成')
+      // 按钮文案固定为"下一题"（最后一题点击时才发 complete，见下一条用例）
+      expect(nextBtn.text()).toContain('下一题')
     })
 
     it('点击完成按钮应该发射complete事件', async () => {

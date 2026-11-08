@@ -165,9 +165,8 @@ describe('LoginModal.vue', () => {
 
       const input = wrapper.find('input[type="text"]')
       await input.setValue('2024001')
-      // 登录已改为学号 + 密码，必须同时填写密码才会提交
       const passwordInput = wrapper.find('input[type="password"]')
-      await passwordInput.setValue('12345678')
+      await passwordInput.setValue('99999999')
       await nextTick()
 
       const form = wrapper.find('form')

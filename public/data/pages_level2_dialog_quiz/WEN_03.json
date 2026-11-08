@@ -6,8 +6,8 @@
       "data": {
         "text_id": "WEN_03",
         "pre_dialog": "书生：先生，您请范公写《岳阳楼记》，可我细读文章，几乎没细致写岳阳楼的楼宇模样，这是为何呀？",
-        "audio_file": "WEN_03_muti_dialog1",
-        "icon_dialog": "WEN_03_icon_dialog1.png"
+        "audio_file": "WEN_03_multi_dialog1",
+        "icon_dialog": ""
       }
     },
     {
@@ -26,7 +26,7 @@
         "difficulty": "L2",
         "question_type": "radio",
         "pre_dialog": "滕子京：此言问到了关键之处，你来分辨一下，以下说法哪一项理解有误？",
-        "audio_file": "WEN_03_muti_dialog2"
+        "audio_file": "WEN_03_multi_dialog2"
       }
     },
     {
@@ -34,8 +34,8 @@
       "data": {
         "text_id": "WEN_03",
         "pre_dialog": "滕子京：答案是C。前人对其形貌描写已然用尽笔墨，再重复前人旧调，毫无新意可言，所以希文兄虽未亲临巴陵，但其所写的，是心中的洞庭湖，心中的岳阳楼，是比楼更为高远的胸怀抱负。",
-        "audio_file": "WEN_03_muti_dialog3",
-        "icon_dialog": "WEN_03_icon_dialog3.png"
+        "audio_file": "WEN_03_multi_dialog3",
+        "icon_dialog": ""
       }
     }
   ]

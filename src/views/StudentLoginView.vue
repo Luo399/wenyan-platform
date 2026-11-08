@@ -6,56 +6,90 @@
         ← 返回首页
       </button>
 
-      <!-- 标题 -->
+      <!-- 角色 Tab 切换：教师/管理员跳转独立页面 -->
+      <div class="role-tabs" role="tablist" aria-label="登录角色">
+        <button
+          v-for="r in roles"
+          :key="r.value"
+          type="button"
+          role="tab"
+          :aria-selected="activeRole === r.value"
+          class="role-tab"
+          :class="{ active: activeRole === r.value }"
+          @click="onRoleClick(r.value)"
+        >
+          {{ r.label }}
+        </button>
+      </div>
+
+      <!-- 标题（随角色变化） -->
       <div class="card-header">
-        <h1 class="card-title">学生登录</h1>
-        <p class="card-subtitle">请输入学号和密码进行登录</p>
+        <h1 class="card-title">{{ currentRoleLabel }}登录</h1>
+        <p class="card-subtitle">{{ currentSubtitle }}</p>
       </div>
 
       <!-- 表单 -->
       <form class="login-form" @submit.prevent="handleSubmit" novalidate>
-        <!-- 学号输入 -->
+        <!-- 主字段（根据角色切换） -->
         <div class="form-group">
-          <label for="studentId" class="form-label">学号</label>
+          <label :for="primaryFieldId" class="form-label">{{ primaryLabel }}</label>
           <input
-            ref="studentIdInput"
-            id="studentId"
-            v-model="studentId"
+            ref="primaryInputRef"
+            :id="primaryFieldId"
+            v-model="primaryField"
             type="text"
-            inputmode="numeric"
-            autocomplete="username"
+            :inputmode="primaryInputMode"
+            :autocomplete="primaryAutocomplete"
             class="form-input"
-            :class="{ error: hasError && !studentId }"
-            :aria-invalid="Boolean(hasError && !studentId)"
-            placeholder="请输入学号"
+            :class="{ error: hasError && !primaryField }"
+            :aria-invalid="Boolean(hasError && !primaryField)"
+            :placeholder="primaryPlaceholder"
             :disabled="isLoading"
-            @input="handleStudentIdInput"
-          />
-          <span v-if="hasError && !studentId" role="alert" class="error-message"> 请输入学号 </span>
-        </div>
-
-        <!-- 密码输入 -->
-        <div class="form-group">
-          <label for="password" class="form-label">密码</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            class="form-input"
-            :class="{ error: hasError && !password }"
-            :aria-invalid="Boolean(hasError && !password)"
-            placeholder="请输入密码"
-            :disabled="isLoading"
-            autocomplete="current-password"
             @input="clearValidation"
           />
-          <span v-if="hasError && !password" role="alert" class="error-message"> 请输入密码 </span>
+          <span v-if="hasError && !primaryField" role="alert" class="error-message">
+            请输入{{ primaryLabel }}
+          </span>
         </div>
 
-        <!-- 学生姓名显示 -->
-        <div v-if="studentName" class="student-name-display" role="status">
-          <span class="name-label">学生姓名：</span>
-          <span class="name-value">{{ studentName }}</span>
+        <!-- 密码输入（带眼睛图标） -->
+        <div class="form-group password-group">
+          <label for="password" class="form-label">密码</label>
+          <div class="password-input-wrapper">
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              class="form-input"
+              :class="{ error: hasError && !password }"
+              :aria-invalid="Boolean(hasError && !password)"
+              placeholder="请输入密码（不少于 6 位）"
+              :disabled="isLoading"
+              autocomplete="current-password"
+              @input="clearValidation"
+            />
+            <button
+              type="button"
+              class="toggle-password-btn"
+              :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+              :aria-pressed="showPassword"
+              @click="showPassword = !showPassword"
+            >
+              <span v-if="showPassword" aria-hidden="true">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </span>
+              <span v-else aria-hidden="true">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              </span>
+            </button>
+          </div>
+          <span v-if="hasError && !password" role="alert" class="error-message">请输入密码</span>
         </div>
 
         <!-- 记住登录状态 -->
@@ -78,23 +112,24 @@
         </div>
 
         <!-- 登录按钮 -->
-        <button type="submit" class="login-btn" :disabled="isLoading || !studentId || !password">
+        <button
+          type="submit"
+          class="login-btn"
+          :disabled="isLoading || !primaryField || password.length < 6"
+        >
           <span v-if="isLoading" class="loading-spinner" aria-hidden="true"></span>
-          <span>{{ isLoading ? '登录中...' : '登录' }}</span>
+          <span>{{ isLoading ? '登录中...' : `${currentRoleLabel}登录` }}</span>
         </button>
 
         <!-- 忘记密码 -->
-        <div class="links-row">
-          <button type="button" class="text-link" @click="handleForgotPassword">忘记密码</button>
-        </div>
+        <p class="forgot-hint">忘记密码：请联系教师重置密码</p>
       </form>
 
       <!-- 测试账号提示 -->
       <div v-if="showTestHint" class="test-account-hint">
         <p>测试账号：</p>
         <p class="test-accounts">{{ testAccountsText }}</p>
-        <p class="format-hint">学号格式：数字（如：1、2024001）</p>
-        <p class="format-hint">默认密码：123456</p>
+        <p class="format-hint">学号格式：8 位数字（如：99999999）</p>
       </div>
     </div>
   </div>
@@ -104,15 +139,35 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useStudentQuery } from '@/composables/useStudentQuery'
+import { sanitizeRedirect } from '@/utils/api'
 import { getAssetUrl } from '@/utils/asset'
 import { debugError } from '@/utils/debug'
 import { track } from '@/utils/tracking'
+import type { Role as AuthRole } from '@/types/auth'
+
+/**
+ * 登录页可自助登录的身份，不含 super_admin。
+ *
+ * 原本是本地重打一遍字符串字面量，与 @/types/auth 的 Role 各改各的：
+ * 权威类型加值或改名，这里不会报错，只会静默漏掉一个身份。
+ * 改成 Extract 后，'student'/'teacher'/'admin' 任一从 Role 消失都会编译失败。
+ */
+type Role = Extract<AuthRole, 'student' | 'teacher' | 'admin'>
+
+interface RoleOption {
+  value: Role
+  label: string
+}
+
+const roles: RoleOption[] = [
+  { value: 'student', label: '学生' },
+  { value: 'teacher', label: '教师' },
+  { value: 'admin', label: '管理员' },
+]
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const { queryStudentName } = useStudentQuery()
 
 // 背景图
 const bgUrl = getAssetUrl('images', 'login_bg.png')
@@ -120,11 +175,11 @@ const bgUrl = getAssetUrl('images', 'login_bg.png')
 // 埋点
 const enterTime = Date.now()
 onMounted(() => {
-  track('step_enter', 'student-login', {})
+  track('step_enter', 'login-page', {})
 })
 onUnmounted(() => {
   const duration = Date.now() - enterTime
-  track('step_exit', 'student-login', { duration })
+  track('step_exit', 'login-page', { duration })
 })
 
 // 测试账号
@@ -136,55 +191,69 @@ const parsedTestAccounts =
 const showTestHint = computed(() => import.meta.env.DEV && parsedTestAccounts.length > 0)
 const testAccountsText = computed(() => parsedTestAccounts.join(' | '))
 
-// 表单状态
-const studentId = ref('')
+// ===== 表单状态 =====
+const activeRole = ref<Role>('student')
+const primaryField = ref('')
 const password = ref('')
-const studentName = ref('')
+const showPassword = ref(false)
 const rememberMe = ref(true)
 const hasError = ref(false)
+
+/** 点击角色 tab：教师/管理员跳独立页面，学生留在本页
+ *  注意：auth 流程的 router.push 不走 useNavigation——useNavigation 管学习流程的顺序导航，
+ *  登录页是分支式路由（按角色跳不同目标），属于合法例外。 */
+function onRoleClick(role: Role) {
+  if (role === 'teacher') router.push('/teacher-login')
+  else if (role === 'admin') router.push('/admin-login')
+  else activeRole.value = 'student'
+}
 const isSubmitting = ref(false)
-const studentIdInput = ref<HTMLInputElement | null>(null)
+const primaryInputRef = ref<HTMLInputElement | null>(null)
 
 const isLoading = computed(() => authStore.isLoading)
 
-// 防抖查询学生姓名
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function debounce<T extends (...args: any[]) => void>(fn: T, waitMs: number) {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  const debounced = function (this: unknown, ...args: Parameters<T>) {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => fn.apply(this, args), waitMs)
-  } as T & { cancel: () => void; flush: () => void }
-  debounced.cancel = () => {
-    if (timer) {
-      clearTimeout(timer)
-      timer = null
-    }
-  }
-  debounced.flush = () => {
-    if (timer) {
-      clearTimeout(timer)
-      timer = null
-    }
-  }
-  return debounced
+// ===== 根据角色计算的 UI 字段 =====
+const currentRoleLabel = computed(() => roles.find((r) => r.value === activeRole.value)?.label ?? '学生')
+
+/** 三种角色的输入框文案/属性集中维护，避免 5 个 switch 各写一遍 */
+const ROLE_UI: Record<
+  Role,
+  { subtitle: string; fieldId: string; label: string; inputMode: 'numeric' | 'tel' | 'text'; autocomplete: string }
+> = {
+  student: {
+    subtitle: '请输入学号和密码',
+    fieldId: 'studentId',
+    label: '学号',
+    inputMode: 'numeric',
+    autocomplete: 'username',
+  },
+  teacher: {
+    subtitle: '请输入手机号和密码',
+    fieldId: 'phone',
+    label: '手机号',
+    inputMode: 'tel',
+    autocomplete: 'tel',
+  },
+  admin: {
+    subtitle: '请输入管理员账号和密码',
+    fieldId: 'username',
+    label: '用户名',
+    inputMode: 'text',
+    autocomplete: 'username',
+  },
 }
 
-const QUERY_DEBOUNCE_MS = 300
-let lastQuerySeq = 0
-async function queryNameInternal(id: string) {
-  const trimmed = id.trim()
-  if (trimmed.length < 1) {
-    studentName.value = ''
-    return
-  }
-  const seq = ++lastQuerySeq
-  const name = await queryStudentName(trimmed)
-  if (seq === lastQuerySeq) {
-    studentName.value = name
-  }
-}
-const debouncedQueryName = debounce(queryNameInternal, QUERY_DEBOUNCE_MS)
+const currentSubtitle = computed(() => ROLE_UI[activeRole.value].subtitle)
+
+const primaryFieldId = computed(() => ROLE_UI[activeRole.value].fieldId)
+
+const primaryLabel = computed(() => ROLE_UI[activeRole.value].label)
+
+const primaryPlaceholder = computed(() => `请输入${primaryLabel.value}`)
+
+const primaryInputMode = computed(() => ROLE_UI[activeRole.value].inputMode)
+
+const primaryAutocomplete = computed(() => ROLE_UI[activeRole.value].autocomplete)
 
 watch(
   () => authStore.error,
@@ -193,26 +262,25 @@ watch(
   },
 )
 
-onMounted(() => {
-  studentId.value = ''
-  password.value = ''
-  studentName.value = ''
+// 切换角色时清空字段、重置焦点
+watch(activeRole, () => {
+  primaryField.value = ''
   hasError.value = false
-  lastQuerySeq = 0
   authStore.clearError()
   nextTick(() => {
-    studentIdInput.value?.focus()
+    primaryInputRef.value?.focus()
   })
 })
 
-onUnmounted(() => {
-  debouncedQueryName.cancel()
+onMounted(() => {
+  primaryField.value = ''
+  password.value = ''
+  hasError.value = false
+  authStore.clearError()
+  nextTick(() => {
+    primaryInputRef.value?.focus()
+  })
 })
-
-async function handleStudentIdInput(): Promise<void> {
-  clearValidation()
-  debouncedQueryName(studentId.value)
-}
 
 function clearValidation(): void {
   hasError.value = false
@@ -220,37 +288,40 @@ function clearValidation(): void {
 }
 
 async function handleSubmit(): Promise<void> {
-  if (!studentId.value.trim()) {
+  if (!primaryField.value.trim()) {
     hasError.value = true
     return
   }
-  if (!password.value) {
+  if (password.value.length < 6) {
     hasError.value = true
     return
   }
 
   if (isSubmitting.value) return
   isSubmitting.value = true
-  debouncedQueryName.cancel()
 
   try {
-    await authStore.login(studentId.value.trim(), password.value, studentName.value, 'student')
-    // 登录成功：优先跳转 redirect 参数指向的页面，否则跳转到规则页
-    const redirect = route.query.redirect as string | undefined
-    if (redirect && redirect !== '/') {
-      router.push(redirect)
-    } else {
-      router.push('/rules/1')
+    await authStore.login(
+      primaryField.value.trim(),
+      password.value,
+      undefined,
+      activeRole.value,
+      rememberMe.value,
+    )
+    // 登录成功：按角色跳转
+    // auth 流程的 router.push 不走 useNavigation——按角色分支是例外（见 onRoleClick 注释）
+    const roleHome: Record<Role, string> = {
+      student: '/rules/1',
+      teacher: '/answer-query',
+      admin: '/admin-console',
     }
+    // redirect 来自 URL，必须校验为站内路径，否则回落到角色首页（防开放重定向）
+    router.push(sanitizeRedirect(route.query.redirect, roleHome[activeRole.value]))
   } catch (err) {
     debugError('登录失败:', err)
   } finally {
     isSubmitting.value = false
   }
-}
-
-function handleForgotPassword(): void {
-  alert('请联系管理员重置密码')
 }
 
 function goHome(): void {
@@ -297,6 +368,42 @@ function goHome(): void {
 
 .back-btn:hover {
   color: var(--color-primary-hover);
+}
+
+/* ===== 角色 Tab ===== */
+.role-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.role-tab {
+  flex: 1;
+  padding: var(--spacing-sm) 0;
+  background: none;
+  border: none;
+  font-family: var(--font-family-serif);
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.role-tab:hover {
+  color: var(--color-primary);
+}
+
+.role-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .card-header {
@@ -365,25 +472,61 @@ function goHome(): void {
   cursor: not-allowed;
 }
 
-.student-name-display {
+/* ===== 密码眼睛图标 ===== */
+.password-input-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 2.75rem;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-small);
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+  color: var(--color-primary);
+  background-color: var(--color-placeholder);
+}
+
+.eye-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: block;
+}
+
+.student-name-display {
+  padding: var(--spacing-sm);
   background-color: var(--color-bg-highlight);
   border-radius: var(--radius-small);
-  border: var(--border-width-hairline) solid var(--color-border);
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 .name-label {
-  font-size: 0.875rem;
-  color: var(--color-border);
-  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-right: var(--spacing-xs);
 }
 
 .name-value {
-  font-size: 0.875rem;
-  color: var(--color-border);
   font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
 }
 
 .remember-group {
@@ -465,26 +608,13 @@ function goHome(): void {
   cursor: not-allowed;
 }
 
-.links-row {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--spacing-sm);
-}
-
-.text-link {
-  background: none;
-  border: none;
-  font-family: var(--font-family-serif);
+/* ===== 忘记密码纯文本提示 ===== */
+.forgot-hint {
+  text-align: center;
   font-size: var(--font-size-small);
-  color: var(--color-primary);
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-}
-
-.text-link:hover {
-  color: var(--color-primary-hover);
+  color: var(--color-text-secondary);
+  margin: var(--spacing-sm) 0 0;
+  line-height: 1.5;
 }
 
 .loading-spinner {
@@ -504,26 +634,25 @@ function goHome(): void {
 
 .test-account-hint {
   margin-top: var(--spacing-lg);
-  padding: var(--spacing-md) 0 0;
-  border-top: var(--border-width-hairline) solid var(--color-placeholder);
+  padding: var(--spacing-sm);
+  background-color: var(--color-bg-highlight);
+  border-radius: var(--radius-small);
+  font-size: var(--font-size-small);
   text-align: center;
-}
-
-.test-account-hint p {
-  margin: 0;
-  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
-.test-account-hint .test-accounts {
-  margin-top: 0.25rem;
-  color: var(--color-primary);
-  font-family: monospace;
+.test-account-hint p {
+  margin: 0.125rem 0;
 }
 
-.test-account-hint .format-hint {
-  margin-top: var(--spacing-xs);
-  font-size: var(--font-size-caption);
+.test-accounts {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+}
+
+.format-hint {
+  font-size: 0.75rem;
 }
 
 @media (max-width: 480px) {

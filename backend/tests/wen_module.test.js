@@ -12,6 +12,7 @@
  */
 
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
 
@@ -19,8 +20,35 @@ const fs = require('fs');
 const WEN_MODULES = ['WEN_01', 'WEN_02', 'WEN_03', 'WEN_04'];
 const RESOURCE_DIR = path.join(__dirname, '../../public');
 
+// /api/submit 已强制登录（P0 安全修复）：本套件用超级管理员 token 代提交，
+// 避免为每个用例创建学生账号；token 用与 config.jwt.secret 相同的密钥签发
+process.env.JWT_SECRET = 'ci-test-secret';
+// 提交限流默认 10 次/分钟，本套件提交次数会超过该阈值，测试环境放宽
+process.env.RATE_LIMIT_SUBMIT = '500';
+
+/**
+ * 真实题库数据（判分只认服务端 JSON，客户端 correctAnswer 一律忽略）：
+ *   text-quiz/WEN_01.json                    → WEN_01_Q1 = 1
+ *   pages_level2_dialog_quiz/WEN_01.json     → WEN_01_B1 = 'B'
+ *   text-quiz/WEN_02.json                    → WEN_02_Q1 = 2
+ *   pages_level2_dialog_quiz/WEN_02.json     → WEN_02_B1 = 'C'
+ *   pages_level2_dialog_quiz/WEN_03.json     → WEN_03_B1 = 'C'
+ *   text-quiz/WEN_04.json                    → WEN_04_Q1 = 0
+ */
+const REAL_QUESTIONS = {
+  WEN_01: { correct: { id: 'WEN_01_Q1', answer: 1 }, wrong: { id: 'WEN_01_B1', answer: 'A' } },
+  WEN_02: { correct: { id: 'WEN_02_Q1', answer: 2 }, wrong: { id: 'WEN_02_B1', answer: 'A' } },
+  WEN_03: { correct: { id: 'WEN_03_B1', answer: 'C' }, wrong: { id: 'WEN_03_B1', answer: 'A' } },
+  WEN_04: { correct: { id: 'WEN_04_Q1', answer: 0 }, wrong: { id: 'WEN_04_Q1', answer: 1 } },
+};
+
 // 动态导入server模块
 let app;
+let adminToken;
+
+function asAdmin(agent) {
+  return agent.set('Authorization', `Bearer ${adminToken}`);
+}
 
 beforeAll(async () => {
   process.env.TEST_MODE = 'true';
@@ -33,6 +61,11 @@ beforeAll(async () => {
   // 创建应用实例
   const { createApp } = require('../src/app');
   app = createApp();
+
+  // 提交接口需要登录态：直接签一个 super_admin token（与 config.jwt.secret 一致）
+  adminToken = jwt.sign({ role: 'super_admin', username: 'test-admin' }, process.env.JWT_SECRET, {
+    expiresIn: '1h',
+  });
 });
 
 // ============================================================
@@ -40,12 +73,6 @@ beforeAll(async () => {
 // ============================================================
 describe('📦 资源完整性检查', () => {
   describe('音频文件检查', () => {
-    const audioTypes = {
-      'multi_role': '多角色朗读音频',
-      'multi_dialog': '对话音频',
-      'bgm': '背景音乐'
-    };
-
     WEN_MODULES.forEach(wenId => {
       describe(`${wenId} 音频文件`, () => {
         it(`应存在 ${wenId}_multi_role.mp3`, () => {
@@ -86,17 +113,9 @@ describe('📦 资源完整性检查', () => {
   describe('视频文件检查', () => {
     WEN_MODULES.forEach(wenId => {
       describe(`${wenId} 视频文件`, () => {
-        it(`规则视频文件应存在`, () => {
-          const videoDir = path.join(RESOURCE_DIR, 'video');
-          if (!fs.existsSync(videoDir)) {
-            return;
-          }
-          const ruleVideos = fs.readdirSync(videoDir)
-            .filter(f => f.startsWith(`${wenId}_rule`));
-          
-          expect(ruleVideos.length).toBeGreaterThanOrEqual(1);
-        });
-
+        // 说明：历史用例「规则视频文件应存在」已删除——规则视频（WEN_0x_rule*）
+        // 已迁移到 OSS，仓库 public/video 下只剩卡片视频（WEN_0x_card_*），
+        // 断言对象在仓库中已不存在，保留会导致永久红灯。
         it(`视频文件应非空`, () => {
           const videoDir = path.join(RESOURCE_DIR, 'video');
           if (!fs.existsSync(videoDir)) {
@@ -394,7 +413,7 @@ describe('🔍 边界条件测试', () => {
     });
 
     it('快速连续请求应稳定响应', async () => {
-      const requests = Array(20).fill(null).map((_, i) => 
+      const requests = Array(20).fill(null).map(() => 
         request(app).get('/api/texts')
       );
       
@@ -428,15 +447,15 @@ describe('📝 答题提交接口', () => {
   WEN_MODULES.forEach(wenId => {
     describe(`${wenId} 答题提交`, () => {
       it('应成功提交答题记录', async () => {
-        const timestamp = Date.now();
-        const res = await request(app)
-          .post('/api/submit')
+        const q = REAL_QUESTIONS[wenId].correct;
+        const res = await asAdmin(request(app).post('/api/submit'))
           .send({
             studentId: '90001',
             wenId: wenId,
             submittedAt: new Date().toISOString(),
-            answers: { [`${wenId}_Q1_${timestamp}`]: 1 },
-            questions: [{ id: `${wenId}_Q1_${timestamp}`, correctAnswer: 1 }]
+            answers: { [q.id]: q.answer },
+            // 客户端 correctAnswer 已不可信，这里故意传错值，服务端仍按题库判分
+            questions: [{ id: q.id, correctAnswer: 'client-spoofed' }]
           });
         
         expect(res.status).toBe(200);
@@ -446,15 +465,14 @@ describe('📝 答题提交接口', () => {
       });
 
       it('错误答案应正确计算分数', async () => {
-        const timestamp = Date.now() + 1000;
-        const res = await request(app)
-          .post('/api/submit')
+        const q = REAL_QUESTIONS[wenId].wrong;
+        const res = await asAdmin(request(app).post('/api/submit'))
           .send({
             studentId: '90002',
             wenId: wenId,
             submittedAt: new Date().toISOString(),
-            answers: { [`${wenId}_Q2_${timestamp}`]: 2 },
-            questions: [{ id: `${wenId}_Q2_${timestamp}`, correctAnswer: 1 }]
+            answers: { [q.id]: q.answer },
+            questions: [{ id: q.id, correctAnswer: q.answer }]
           });
         
         expect(res.status).toBe(200);
@@ -466,17 +484,17 @@ describe('📝 答题提交接口', () => {
 
   describe('重复提交处理', () => {
     it('同一学生同一题目重复提交应创建新记录', async () => {
-      const timestamp = Date.now();
+      const q = REAL_QUESTIONS.WEN_01.correct;
       const submission = {
         studentId: '90003',
         wenId: 'WEN_01',
         submittedAt: new Date().toISOString(),
-        answers: { [`WEN_01_Q_REPEAT_${timestamp}`]: 1 },
-        questions: [{ id: `WEN_01_Q_REPEAT_${timestamp}`, correctAnswer: 1 }]
+        answers: { [q.id]: q.answer },
+        questions: [{ id: q.id }]
       };
       
-      const res1 = await request(app).post('/api/submit').send(submission);
-      const res2 = await request(app).post('/api/submit').send(submission);
+      const res1 = await asAdmin(request(app).post('/api/submit')).send(submission);
+      const res2 = await asAdmin(request(app).post('/api/submit')).send(submission);
       
       expect(res1.status).toBe(200);
       expect(res2.status).toBe(200);
@@ -489,13 +507,6 @@ describe('📝 答题提交接口', () => {
 // 测试报告生成
 // ============================================================
 describe('📊 测试报告', () => {
-  let testResults = [];
-  
-  beforeAll(() => {
-    // 收集测试结果
-    testResults = [];
-  });
-
   afterAll(() => {
     // 生成测试报告
     console.log('\n' + '='.repeat(80));

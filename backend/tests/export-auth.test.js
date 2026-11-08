@@ -11,8 +11,6 @@
  */
 
 const request = require('supertest');
-const path = require('path');
-const fs = require('fs');
 
 // 使用内存数据库避免污染工作区
 process.env.DB_PATH = ':memory:';

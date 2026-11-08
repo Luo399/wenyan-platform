@@ -52,9 +52,36 @@ const loginRateLimit = rateLimit({
   }
 });
 
+/* ⚠️ 单进程假设：express-rate-limit 默认 MemoryStore 是进程内的。
+ * 当前宝塔部署用 PM2 单实例（cluster=1），每学生 15 次/分钟 的限流有效。
+ * 如果未来开 PM2 cluster 多实例，每个进程各自计数 15，全局上限会被突破 N 倍，
+ * 必须换为 RedisStore（shared store）。
+ */
+// AI 对话专用限流（每分钟 15 次）
+// keyGenerator 绑定 student_id，而非纯 IP，防同一机器多学生共享限流桶（S5）
+const aiChatRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const sid = req.user?.student_id
+    if (sid) return `ai_student:${sid}`
+    // 兜底：无 student_id（异常链路）时退回 IP
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown'
+    return `ai_ip:${ip}`
+  },
+  message: {
+    success: false,
+    error: 'RATE_LIMIT_EXCEEDED',
+    message: 'AI 对话请求过于频繁（每分钟上限 15 次）'
+  }
+});
+
 module.exports = {
   globalLimiter,
   submitRateLimit,
   queryRateLimit,
   loginRateLimit,
+  aiChatRateLimit,
 };

@@ -206,3 +206,63 @@
 .fa-pulse {
   animation: fa-pulse 1s infinite ease-in-out;
 }
+
+/* ------------------------------------------------------------------
+ * 补齐 src/ 中实际使用、但本子集原先缺失的图标（FA6 Free Solid 码位）。
+ * 缺这些规则时 <i class="fas fa-xxx"></i> 没有 content，会渲染成空白。
+ * ------------------------------------------------------------------ */
+.fa-arrows-alt:before {
+  content: '\f0b2';
+}
+
+.fa-check:before {
+  content: '\f00c';
+}
+
+.fa-clock:before {
+  content: '\f017';
+}
+
+.fa-exclamation-triangle:before {
+  content: '\f071';
+}
+
+.fa-file-code:before {
+  content: '\f1c9';
+}
+
+.fa-hand-pointer:before {
+  content: '\f25a';
+}
+
+.fa-hourglass-half:before {
+  content: '\f252';
+}
+
+.fa-image:before {
+  content: '\f03e';
+}
+
+.fa-inbox:before {
+  content: '\f01c';
+}
+
+.fa-play-circle:before {
+  content: '\f144';
+}
+
+.fa-redo:before {
+  content: '\f01e';
+}
+
+.fa-times:before {
+  content: '\f00d';
+}
+
+.fa-trophy:before {
+  content: '\f091';
+}
+
+.fa-volume-mute:before {
+  content: '\f6a9';
+}

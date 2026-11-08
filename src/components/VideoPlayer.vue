@@ -145,7 +145,7 @@
 
 <script setup lang="ts">
 // 引入 Vue 的响应式 API
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { debugWarn } from '@/utils/debug'
 
 // ============================================================
@@ -231,6 +231,28 @@ const containerRef = ref<HTMLElement | null>(null)
  * true = 已进入全屏，false = 普通窗口
  */
 const isFullscreen = ref(false)
+
+/**
+ * 「切源后自动续播」挂着的 loadedmetadata 监听。
+ *
+ * 必须整体保存 { video, handler }：原实现只在回调里 removeEventListener，
+ * 于是出现两条泄漏路径——
+ * 1. metadata 还没到就又切了一次源：旧监听留在旧元素上，闭包仍引用组件状态；
+ * 2. 组件先卸载：监听永远不会被摘掉，回调还会去 play() 一个已销毁的元素。
+ * 现在的规则是「切源前 + 卸载时统一摘掉上一个」。
+ */
+let pendingMetaListener: { video: HTMLVideoElement; handler: () => void } | null = null
+
+/** 摘掉挂着的 loadedmetadata 监听（幂等） */
+function removePendingMetaListener(): void {
+  if (!pendingMetaListener) return
+  const { video, handler } = pendingMetaListener
+  video.removeEventListener('loadedmetadata', handler)
+  pendingMetaListener = null
+}
+
+/** 「重新加载」按钮的 setTimeout id：卸载后必须清掉，否则回调会摸到已销毁的 video */
+let retryTimer: ReturnType<typeof setTimeout> | null = null
 
 // ============================================================
 // 计算属性
@@ -365,18 +387,20 @@ function handleVideoError() {
  */
 function retryLoad() {
   loadError.value = false
+  if (!videoRef.value) return
+  // 连点「重新加载」时先清掉上一次挂着的定时器，避免两个回调同时改 src
+  if (retryTimer !== null) clearTimeout(retryTimer)
   // 通过重新设置 src 触发重新加载
-  if (videoRef.value) {
-    const currentSrc = videoRef.value.src
-    videoRef.value.src = ''
-    // 强制浏览器重新加载
-    setTimeout(() => {
-      if (videoRef.value) {
-        videoRef.value.src = currentSrc
-        videoRef.value.load()
-      }
-    }, 100)
-  }
+  const currentSrc = videoRef.value.src
+  videoRef.value.src = ''
+  // 强制浏览器重新加载
+  retryTimer = setTimeout(() => {
+    retryTimer = null
+    if (videoRef.value) {
+      videoRef.value.src = currentSrc
+      videoRef.value.load()
+    }
+  }, 100)
 }
 
 /**
@@ -489,14 +513,79 @@ function handleFullscreenChange() {
   isFullscreen.value = document.fullscreenElement != null
 }
 
+/**
+ * 监听 src 变化：路由切换（如 /rules → /rule1）时 Vue Router 复用组件实例，
+ * video 元素不会重建，只会更新 src 属性。
+ * 旧视频会被浏览器 abort，新视频停留在 paused 状态——必须显式处理：
+ * 1. 重置 duration/currentTime/loadError 等状态
+ * 2. 如果旧视频原本在播放，新视频加载完后自动 play() 保持连续体验
+ *
+ * 修复前：切换后视频停住，用户感知"黑屏/延迟大/卡了"
+ * 修复后：切换后视频无缝续播
+ */
+watch(
+  () => props.src,
+  (newSrc, oldSrc) => {
+    if (!newSrc || newSrc === oldSrc) return
+
+    // 切源前先摘掉上一条源挂着的续播监听，避免它在新视频上误触发
+    removePendingMetaListener()
+
+    // 重置状态
+    duration.value = 0
+    currentTime.value = 0
+    loadError.value = false
+
+    // 记住切换前是否在播放（组件复用时 isPlaying 会被旧 handlePause 重置）
+    const wasPlaying = videoRef.value?.paused === false
+
+    // 强制浏览器加载新 src（替换 src 属性 Vue 已自动做，但显式 call load() 更可靠）
+    if (videoRef.value) {
+      videoRef.value.currentTime = 0
+      videoRef.value.load()
+    }
+
+    // 如果之前在播放，loadedmetadata 后自动续播
+    if (wasPlaying && videoRef.value) {
+      const v = videoRef.value
+      const autoPlayAfterMeta = () => {
+        v.play().catch(() => {
+          // autoplay policy 拒绝时静默忽略，用户手动点播放即可
+          isPlaying.value = false
+        })
+      }
+
+      if (v.readyState >= 1) {
+        // 已加载过 metadata（如从缓存）
+        autoPlayAfterMeta()
+      } else {
+        // 等待 loadedmetadata 事件一次性触发：handler 与 video 一起登记，
+        // 由 removePendingMetaListener 在下次切源 / 卸载时统一摘掉
+        const handler = () => {
+          removePendingMetaListener()
+          autoPlayAfterMeta()
+        }
+        v.addEventListener('loadedmetadata', handler)
+        pendingMetaListener = { video: v, handler }
+      }
+    }
+  },
+)
+
 // 组件挂载后注册全屏状态监听
 onMounted(() => {
   document.addEventListener('fullscreenchange', handleFullscreenChange)
 })
 
-// 组件卸载时移除监听，避免内存泄漏
+// 组件卸载时移除监听与未落地的定时器，避免内存泄漏 / 操作已销毁元素
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  removePendingMetaListener()
+  if (retryTimer !== null) {
+    clearTimeout(retryTimer)
+    retryTimer = null
+  }
+  videoRef.value?.pause()
 })
 </script>
 

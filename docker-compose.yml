@@ -1,17 +1,18 @@
 # 文言文预习平台 - 后端服务
 # 使用方式：
-#   生产环境：docker compose up -d
-#   测试环境：HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test docker compose up -d
+#   生产环境：IMAGE_TAG=<版本或 latest> docker compose up -d
+#   测试环境：IMAGE_TAG=latest HOST_PORT=3001 CONTAINER_PORT=3001 CONTAINER_NAME=wenyan-backend-test docker compose up -d
 #
 # 首次部署后需手动创建 backend/.env 文件（参考 backend/.env.example）
+# 端口只绑定 127.0.0.1，对外统一走宝塔 nginx 反代，禁止直接暴露 3000。
 
 services:
   backend:
-    image: crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com/luo-hui-ning/wenyan-platform-backend:latest
+    image: "crpi-jr4tvb4f0ycb6nzt.cn-guangzhou.personal.cr.aliyuncs.com/luo-hui-ning/wenyan-platform-backend:${IMAGE_TAG:?IMAGE_TAG is required (e.g. latest or a release tag)}"
     container_name: "${CONTAINER_NAME:-wenyan-backend}"
     restart: always
     ports:
-      - "${HOST_PORT:-3000}:${CONTAINER_PORT:-3000}"
+      - "127.0.0.1:${HOST_PORT:-3000}:${CONTAINER_PORT:-3000}"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
     env_file:
@@ -23,6 +24,9 @@ services:
       - ./backend/data:/app/data
       # 日志文件
       - ./backend/logs:/app/logs
+    # 根文件系统只读，/tmp 用 tmpfs 提供可写空间
+    tmpfs:
+      - /tmp
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:${CONTAINER_PORT:-3000}/api/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
       interval: 30s

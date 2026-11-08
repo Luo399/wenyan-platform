@@ -7,6 +7,8 @@ import './assets/styles/design-tokens.css'
 // 全局共享组件样式（表单 / 表格 / 模态框 / 操作按钮）
 import './assets/styles/components.css'
 import { setupAuthGuard } from './router/guards'
+import { registerChunkRecovery } from './utils/chunkRecovery'
+import { registerVersionProbe } from './utils/buildVersion'
 import { useStudentStore } from './stores/student'
 import { useAuthStore } from './stores/auth'
 
@@ -18,6 +20,15 @@ app.use(router)
 
 // 注册路由守卫（鉴权依赖 authStore，须在 pinia 注册后调用）
 setupAuthGuard(router)
+
+// 懒加载路由的 chunk 拉不到时（多为旧版本 index.html 引用了已下线的 chunk）整页重载一次。
+// 放在 setupAuthGuard 之后：守卫链按注册顺序执行，这样记录到的 pendingPath 是最终目标地址。
+registerChunkRecovery(router)
+
+// 检测到线上已有新构建时，提示用户「可以刷新了」（发布新鲜度阶段 4）。
+// 这里只负责探测与派发事件，提示条是 App.vue 里的 UpdatePrompt；
+// 全链路没有任何自动刷新路径 —— 学生可能正在答题。
+registerVersionProbe()
 
 // 从 localStorage 恢复学号与登录状态
 const studentStore = useStudentStore(pinia)

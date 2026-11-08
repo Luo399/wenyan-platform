@@ -89,9 +89,10 @@ describe('RepeatBgm.vue', () => {
 
     it('无 currentBgmFile 时不应渲染控制区', () => {
       const store = useBgmStore()
-      // 路由也为空，避免 watch(immediate) 把 wenId 重新写回 store
-      mockRoute.params.id = ''
+      // 不设置 wenId，currentBgmFile 为空
       store.setActiveWenId('')
+      // 组件挂载时 immediate watch 会用 route.params.id 覆盖 store，这里一并清空
+      mockRoute.params.id = ''
       const wrapper = mount(RepeatBgm)
 
       expect(wrapper.find('.bgm-controls').exists()).toBe(false)
@@ -242,8 +243,7 @@ describe('RepeatBgm.vue', () => {
       await nextTick()
 
       expect(mockPause).toHaveBeenCalled()
-      // R26: 卸载时移除 src 属性（jsdom 下 src 属性为 null，而非空字符串）
-      expect(audio.getAttribute('src')).toBeNull()
+      expect(audio.src).toBe('')
     })
   })
 })

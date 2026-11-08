@@ -1,16 +1,17 @@
 /**
  * 数据导出 Controller
  *
- * 提供埋点数据和答题数据的 Excel 导出功能。
- * 使用 xlsx 库生成 .xlsx 文件，通过 Content-Disposition 让浏览器下载。
+ * 提供埋点数据和答题数据的导出功能。
+ * 输出 CSV（UTF-8 带 BOM，Excel 双击可直接打开），不再依赖 xlsx 包：
+ * - xlsx@0.18.5 在 npm 上已无修复版本（原型污染 / ReDoS），而导出内容正是
+ *   学生姓名与答案，继续挂着这个依赖收益为零；
+ * - 导出的用途是「下载后自己看/再加工」，CSV 足够，且没有解析器攻击面。
  */
-const XLSX = require('xlsx')
+
 const { db } = require('../config/database')
 const logger = require('../utils/logger')
 
-/**
- * 执行 SQL 查询并返回 Promise
- */
+/** 执行 SQL 查询并返回 Promise */
 function queryDb(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -20,37 +21,62 @@ function queryDb(sql, params = []) {
   })
 }
 
+/** UTF-8 BOM：不加的话 Excel 打开中文会乱码 */
+const CSV_BOM = '\uFEFF'
+
 /**
- * 将数据数组转换为 Excel 工作簿并写入响应
- * @param {object} res - Express 响应对象
- * @param {Array<{ name: string, rows: object[], headers: string[] }>} sheets - 多个 sheet 配置
- * @param {string} filename - 下载文件名
+ * 转义单个 CSV 单元格
+ * 含逗号/引号/换行的值必须整体加引号，内部引号翻倍（RFC 4180）
  */
-function writeExcelResponse(res, sheets, filename) {
-  const wb = XLSX.utils.book_new()
+function escapeCsvCell(value) {
+  if (value === null || value === undefined) return ''
+  const text = String(value)
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
 
-  for (const sheet of sheets) {
-    // 将数据转为二维数组（含表头）
-    const wsData = [sheet.headers]
-    for (const row of sheet.rows) {
-      wsData.push(sheet.headers.map((h) => row[h] ?? ''))
-    }
-    const ws = XLSX.utils.aoa_to_sheet(wsData)
+/** 把一张表序列化为 CSV 文本（含表头） */
+function toCsv(headers, rows) {
+  const lines = [headers.map(escapeCsvCell).join(',')]
+  for (const row of rows) {
+    lines.push(headers.map((header) => escapeCsvCell(row[header])).join(','))
+  }
+  return lines.join('\r\n')
+}
 
-    // 自动列宽
-    const colWidths = sheet.headers.map((h) => ({
-      wch: Math.max(h.length * 2, 10),
-    }))
-    ws['!cols'] = colWidths
-
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name)
+/**
+ * 将一或多张表写入响应
+ *
+ * CSV 没有多 sheet 概念，多表时追加 sheet 列并用空行分隔，
+ * 保持「一个请求一个文件」的既有下载行为。
+ *
+ * @param {object} res - Express 响应对象
+ * @param {Array<{ name: string, rows: object[], headers: string[] }>} sheets
+ * @param {string} filename - 下载文件名（不含扩展名）
+ */
+function writeCsvResponse(res, sheets, filename) {
+  let csv
+  if (sheets.length === 1) {
+    csv = toCsv(sheets[0].headers, sheets[0].rows)
+  } else {
+    const blocks = sheets.map((sheet) =>
+      toCsv(
+        ['sheet', ...sheet.headers],
+        sheet.rows.map((row) => ({ sheet: sheet.name, ...row })),
+      ),
+    )
+    csv = blocks.join('\r\n\r\n')
   }
 
-  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
-
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}.xlsx"`)
-  res.send(buffer)
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+  // filename* 走 RFC 5987，中文文件名在各浏览器下都能正确落盘
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="export.csv"; filename*=UTF-8''${encodeURIComponent(filename)}.csv`,
+  )
+  res.send(CSV_BOM + csv)
 }
 
 /**
@@ -82,7 +108,7 @@ async function exportTrackingEvents(req, res, next) {
       timestamp: r.timestamp,
     }))
 
-    writeExcelResponse(res, [
+    writeCsvResponse(res, [
       {
         name: '埋点事件',
         headers: ['id', 'user_id', 'session_id', 'event_type', 'step_id', 'properties', 'page_url', 'timestamp'],
@@ -129,7 +155,7 @@ async function exportAnswers(req, res, next) {
       submitted_at: r.submitted_at,
     }))
 
-    writeExcelResponse(res, [
+    writeCsvResponse(res, [
       {
         name: '答题数据',
         headers: ['id', 'student_id', 'student_name', 'wen_id', 'question_id', 'user_answer', 'correct_answer', 'score', 'submitted_at'],
@@ -204,27 +230,11 @@ async function exportDashboardSummary(req, res, next) {
     quizSql += ' GROUP BY step_id, score ORDER BY step_id, score'
     const quizRows = await queryDb(quizSql, quizParams)
 
-    writeExcelResponse(res, [
-      {
-        name: '步骤漏斗',
-        headers: ['step_id', 'enter_count'],
-        rows: funnelRows,
-      },
-      {
-        name: '模块交互',
-        headers: ['module_type', 'action', 'count'],
-        rows: interactionRows,
-      },
-      {
-        name: '字词查询',
-        headers: ['step_id', 'word', 'query_count'],
-        rows: searchRows,
-      },
-      {
-        name: '闯关成绩',
-        headers: ['step_id', 'score', 'count'],
-        rows: quizRows,
-      },
+    writeCsvResponse(res, [
+      { name: '步骤漏斗', headers: ['step_id', 'enter_count'], rows: funnelRows },
+      { name: '模块交互', headers: ['module_type', 'action', 'count'], rows: interactionRows },
+      { name: '字词查询', headers: ['step_id', 'word', 'query_count'], rows: searchRows },
+      { name: '闯关成绩', headers: ['step_id', 'score', 'count'], rows: quizRows },
     ], `看板汇总_${startDate || 'all'}_${endDate || 'all'}`)
   } catch (err) {
     logger.error('导出汇总统计失败:', err)
@@ -236,4 +246,7 @@ module.exports = {
   exportTrackingEvents,
   exportAnswers,
   exportDashboardSummary,
+  // 导出供单测直接验证 CSV 转义
+  escapeCsvCell,
+  toCsv,
 }

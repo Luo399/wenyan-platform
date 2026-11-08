@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { MultiRoleSegment } from './MultiRoleReading.vue'
+import type { MultiRoleSegment } from '@/types/multiRole'
 
 interface Props {
   segment: MultiRoleSegment

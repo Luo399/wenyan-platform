@@ -1,4 +1,23 @@
-const { db } = require('../config/database');
+const { z } = require('zod')
+const { handleZodError } = require('../middleware/validate')
+const { db } = require('../config/database')
+const logger = require('../utils/logger')
+
+// ===== Zod 校验 Schema =====
+const STUDENT_ID_REGEX = /^\d{8}$/
+
+const createStudentSchema = z.object({
+  student_id: z
+    .string()
+    .regex(STUDENT_ID_REGEX, '学号必须为 8 位纯数字（格式 YYYYNNNN）'),
+  student_name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20').nullable().optional(),
+})
+
+const updateStudentSchema = z.object({
+  student_name: z.string().min(1, '姓名必填').max(20, '姓名长度不能超过 20').nullable().optional(),
+})
+
+// handleZodError 已收敛到 ../middleware/validate.js
 
 // 安全：查询学生时不返回 password_hash（哈希也不应暴露给前端）
 const STUDENT_SAFE_COLUMNS =
@@ -7,11 +26,12 @@ const STUDENT_SAFE_COLUMNS =
 function getStudentList(req, res) {
   db.all(`SELECT ${STUDENT_SAFE_COLUMNS} FROM students ORDER BY created_at DESC`, (err, rows) => {
     if (err) {
+      logger.error('[student] 查询学生列表失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '查询失败: ' + err.message,
-      });
+        message: '查询失败',
+      })
     }
 
     res.status(200).json({
@@ -26,11 +46,12 @@ function getStudent(req, res) {
 
   db.get(`SELECT ${STUDENT_SAFE_COLUMNS} FROM students WHERE student_id = ?`, [studentId], (err, row) => {
     if (err) {
+      logger.error('[student] 查询学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '查询失败: ' + err.message,
-      });
+        message: '查询失败',
+      })
     }
 
     if (!row) {
@@ -43,20 +64,60 @@ function getStudent(req, res) {
 
     res.status(200).json({
       success: true,
-      data: row,
+      data: {
+        ...row,
+        // 兼容前端读取 data.name 的写法（历史接口仅返回 student_name）
+        name: row.student_name,
+      },
     });
   });
 }
 
-function createStudent(req, res) {
-  const { student_id, student_name } = req.body;
+/**
+ * 公开接口：按学号查询学生姓名（供登录页回显）
+ * 只返回学号与姓名，不暴露班级/密码等敏感字段，因此不需要登录态
+ */
+function getStudentPublicName(req, res) {
+  const { studentId } = req.params;
 
-  if (!student_id) {
-    return res.status(400).json({
-      success: false,
-      error: 'INVALID_REQUEST',
-      message: 'student_id 是必填字段',
-    });
+  db.get(
+    'SELECT student_id, student_name FROM students WHERE student_id = ?',
+    [studentId],
+    (err, row) => {
+      if (err) {
+        logger.error('[student] 查询学生姓名失败:', err)
+        return res.status(500).json({
+          success: false,
+          error: 'DATABASE_ERROR',
+          message: '查询失败',
+        })
+      }
+
+      if (!row) {
+        return res.status(404).json({
+          success: false,
+          error: 'NOT_FOUND',
+          message: '学生不存在',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          student_id: row.student_id,
+          name: row.student_name,
+        },
+      });
+    },
+  );
+}
+
+function createStudent(req, res) {
+  let body
+  try {
+    body = createStudentSchema.parse(req.body || {})
+  } catch (err) {
+    return handleZodError(res, err, '创建学生参数校验失败')
   }
 
   const stmt = db.prepare(`
@@ -66,14 +127,15 @@ function createStudent(req, res) {
 
   const now = new Date().toISOString();
 
-  stmt.run(student_id, student_name || null, now, now, (err) => {
+  stmt.run(body.student_id, body.student_name || null, now, now, (err) => {
     stmt.finalize();
     if (err) {
+      logger.error('[student] 创建学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '创建失败: ' + err.message,
-      });
+        message: '创建失败',
+      })
     }
 
     res.status(201).json({
@@ -85,20 +147,27 @@ function createStudent(req, res) {
 
 function updateStudent(req, res) {
   const { studentId } = req.params;
-  const { student_name } = req.body;
+
+  let body
+  try {
+    body = updateStudentSchema.parse(req.body || {})
+  } catch (err) {
+    return handleZodError(res, err, '更新学生参数校验失败')
+  }
 
   const stmt = db.prepare(`
     UPDATE students SET student_name = ?, updated_at = ? WHERE student_id = ?
   `);
 
-  stmt.run(student_name || null, new Date().toISOString(), studentId, (err) => {
+  stmt.run(body.student_name || null, new Date().toISOString(), studentId, (err) => {
     stmt.finalize();
     if (err) {
+      logger.error('[student] 更新学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '更新失败: ' + err.message,
-      });
+        message: '更新失败',
+      })
     }
 
     res.status(200).json({
@@ -116,11 +185,12 @@ function deleteStudent(req, res) {
   stmt.run(studentId, (err) => {
     stmt.finalize();
     if (err) {
+      logger.error('[student] 删除学生失败:', err)
       return res.status(500).json({
         success: false,
         error: 'DATABASE_ERROR',
-        message: '删除失败: ' + err.message,
-      });
+        message: '删除失败',
+      })
     }
 
     res.status(200).json({
@@ -133,6 +203,7 @@ function deleteStudent(req, res) {
 module.exports = {
   getStudentList,
   getStudent,
+  getStudentPublicName,
   createStudent,
   updateStudent,
   deleteStudent,

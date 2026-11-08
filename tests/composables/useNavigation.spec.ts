@@ -1,25 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { reactive } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { useNavigation } from '@/composables/useNavigation'
 
-// Mock router：useNavigation 会对 push 结果调用 then/catch，必须返回 Promise
+// Mock router（push/replace 需返回 Promise，否则 .then/.catch 会抛错）
 const mockRouter = {
   push: vi.fn(() => Promise.resolve()),
   replace: vi.fn(() => Promise.resolve()),
   back: vi.fn(),
+  // useNavigation.isAlreadyAt() 会读 router.currentRoute.value.fullPath
+  currentRoute: reactive({ value: { fullPath: '/__none__' } }),
 }
+
+// R140 起 useNavigation 实时读当前路由（useRoute），提示值只是兜底，
+// 因此 mock 必须同时提供 useRoute / NavigationFailureType。
+const mockRoute = reactive({ name: '' as string, params: {} as Record<string, string> })
 
 vi.mock('vue-router', () => ({
   useRouter: () => mockRouter,
+  useRoute: () => mockRoute,
+  isNavigationFailure: () => false,
+  NavigationFailureType: { aborted: 4, cancelled: 8 },
 }))
 
-// Mock debug 模块，便于断言 warn/error
+// Mock debug 模块，便于断言 warn/error/log
 const mockDebugWarn = vi.fn()
 const mockDebugError = vi.fn()
+const mockDebugLog = vi.fn()
 vi.mock('@/utils/debug', () => ({
-  debugLog: () => undefined,
+  debugLog: (...args: unknown[]) => mockDebugLog(...args),
   debugWarn: (...args: unknown[]) => mockDebugWarn(...args),
   debugError: (...args: unknown[]) => mockDebugError(...args),
+}))
+
+// Mock tracking 模块，隔离埋点网络依赖，同时便于断言延迟上报
+const mockTrack = vi.fn()
+vi.mock('@/utils/tracking', () => ({
+  markNextEnterFromBackButton: vi.fn(),
+  setPendingExitType: vi.fn(),
+  track: (...args: unknown[]) => mockTrack(...args),
 }))
 
 describe('useNavigation', () => {
@@ -27,6 +46,10 @@ describe('useNavigation', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     vi.clearAllMocks()
+    // 每个用例从「不在顺序路由上」开始：此时提示值生效
+    mockRoute.name = ''
+    mockRoute.params = {}
+    mockRouter.currentRoute.value = { fullPath: '/__none__' }
   })
 
   describe('composable 初始化', () => {
@@ -174,7 +197,8 @@ describe('useNavigation', () => {
 
   describe('顺序页面行为兼容性测试', () => {
     it('顺序页面 goNext 正常跳转到下一页', () => {
-      // 当前顺序：home → rules → rule1 → stepone → rule2 → steptwo → rule3 → stepthree → detail
+      // pageSequence: home(0) rules(1) rule1(2) stepone(3) rule2(4) steptwo(5)
+      //               rule3(6) stepthree(7) detail(8)
       const navigation = useNavigation('rules', '1')
       navigation.goNext()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
@@ -182,6 +206,7 @@ describe('useNavigation', () => {
     })
 
     it('顺序页面 stepone 的 goNext 应跳转到 rule2', () => {
+      // 顺序：rules -> rule1 -> stepone -> rule2 -> steptwo -> rule3 -> stepthree -> detail
       const navigation = useNavigation('stepone', '1')
       navigation.goNext()
       expect(mockRouter.push).toHaveBeenCalledTimes(1)
@@ -198,7 +223,8 @@ describe('useNavigation', () => {
 
     it('顺序页面 currentIndex 返回正确索引', () => {
       const navigation = useNavigation('rules', '1')
-      // pageSequence: home(0) rules(1) stepone(2) rule1(3) rule2(4) rule3(5) steptwo(6) stepthree(7) detail(8)
+      // pageSequence: home(0) rules(1) rule1(2) stepone(3) rule2(4) steptwo(5)
+      //               rule3(6) stepthree(7) detail(8)
       expect(navigation.currentIndex.value).toBe(1)
     })
 
@@ -215,6 +241,69 @@ describe('useNavigation', () => {
       const navDetail = useNavigation('detail', '1')
       expect(navDetail.hasNext.value).toBe(false)
       expect(navDetail.hasPrev.value).toBe(true)
+    })
+  })
+
+  describe('「继续」按钮延迟统计（跨浏览器）', () => {
+    it('goNext 完成后应上报导航耗时埋点', async () => {
+      const navigation = useNavigation('rules', '1')
+      navigation.goNext()
+      // 等待 router.push 的 then 回调执行
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(mockTrack).toHaveBeenCalledTimes(1)
+      const call = mockTrack.mock.calls[0] as unknown[]
+      expect(call[0]).toBe('interaction')
+      expect(call[1]).toBe('rules')
+
+      const properties = call[2] as Record<string, unknown>
+      expect(properties.action).toBe('go_next')
+      expect(properties.target_path).toBe('/rule1/1')
+      expect(typeof properties.cost_time).toBe('number')
+      expect(typeof properties.sync_cost).toBe('number')
+      expect(typeof properties.user_agent).toBe('string')
+    })
+
+    it('已是最后一页时不上报耗时埋点，仅告警', async () => {
+      const navigation = useNavigation('detail', '1')
+      navigation.goNext()
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(mockTrack).not.toHaveBeenCalled()
+      expect(mockDebugWarn).toHaveBeenCalled()
+    })
+  })
+
+  describe('R140: 实时路由优先于提示值（组件复用场景）', () => {
+    it('实时路由名属于 pageSequence 时忽略过期的提示值', () => {
+      // 模拟 stepone → steptwo 复用同一组件实例：提示值仍是 'stepone'
+      mockRoute.name = 'steptwo'
+      mockRoute.params = { id: '1' }
+      const navigation = useNavigation('stepone', '1')
+
+      expect(navigation.currentIndex.value).toBe(5)
+      navigation.goNext()
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule3/1')
+    })
+
+    it('实时 params.id 优先于 idHint', () => {
+      mockRoute.name = 'steptwo'
+      mockRoute.params = { id: '9' }
+      const navigation = useNavigation('steptwo', '1')
+
+      navigation.goNext()
+      expect(mockRouter.push).toHaveBeenCalledWith('/rule3/9')
+    })
+
+    it('目标与当前地址相同时不应重复 push', () => {
+      mockRouter.currentRoute.value = { fullPath: '/rule1/1' }
+      const navigation = useNavigation('rules', '1')
+
+      navigation.goNext()
+      expect(mockRouter.push).not.toHaveBeenCalled()
+      expect(mockDebugWarn).toHaveBeenCalled()
     })
   })
 })

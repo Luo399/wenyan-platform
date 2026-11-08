@@ -5,14 +5,20 @@
   - 37 篇古文下拉选择
   - Rule 视频固定 1 个槽位，文化卡片可增删
   - 文件拖拽上传
-  - 自动命名预览
+  - 自动命名预览（文化卡片保留交付原名；命名挂不上引用时在上传前拦下）
   - 上传进度反馈
 
   命名规则对齐说明（必须与前端消费路径一致）：
   - Rule 视频：{wenId}_rule_bg.{ext} → OSS: video/{fileName}
     → 前端消费: RuleVideoView.vue 拼接 video/{wenId}_rule_{videoKey}.mp4
-  - 文化卡片：{wenId}_culture_card_{index}.{ext} → OSS: images/culture_cards/{wenId}/{fileName}
-    → 前端消费: CultureCards.vue 从 JSON 中读取 image_file 字段拼接
+  - 文化卡片：不改名，用交付时的原始文件名 {wenId}_card_{标识}.{ext}
+    - 视频(mp4/webm/ogg)   → OSS: video/{fileName}                // 平铺，不分子目录
+    - 图片/封面(png/jpg…) → OSS: images/culture_cards/{wenId}/{fileName}
+    → 前端消费: CultureCards.vue 里 image_file 是视频就拼 video/{image_file}，
+      是图片就拼 images/culture_cards/{text_id}/{image_file}
+    ⚠ JSON 的 image_file 字段存的就是这个文件名，所以工具不能替它重命名。
+      旧版会生成 {wenId}_culture_card_{index}.{ext} 并全部塞进 images/culture_cards/，
+      和 OSS 上真实存在的对象、以及前端拼路径的两条分支都对不上，传上去就是孤儿素材。
   - 朗读音频：{wenId}_reading.{ext} → OSS: audio/{fileName}
     → 前端消费: MultiRoleReading.vue 从 JSON 的 audio_file 字段读取文件名
   - 字词音频：{wenId}_words.{ext} → OSS: audio/{fileName}
@@ -80,15 +86,19 @@
               <span class="slot-badge">仅 1 个</span>
             </div>
             <div class="slot-meta">
-              自动命名: <code>{{ getRuleVideoName(wenId) }}</code>
+              挂载路径: <code>video/{{ getRuleVideoName(wenId) }}</code>
             </div>
             <div
               class="drop-zone"
               :class="{ 'has-file': ruleVideoFile, 'is-dragover': dragOverSlot === 'rule' }"
+              role="button"
+              tabindex="0"
+              aria-label="选择 Rule 视频文件"
               @dragover.prevent="dragOverSlot = 'rule'"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, 'rule')"
               @click="triggerFileInput('rule')"
+              @keydown="onDropZoneKeydown($event, 'rule')"
             >
               <template v-if="ruleVideoFile">
                 <span class="file-name">{{ ruleVideoFile.name }}</span>
@@ -123,21 +133,25 @@
               </div>
             </div>
             <div class="slot-meta">
-              自动命名:
-              <code>{{
-                getCultureCardName(wenId, index + 1, getFileExt(cultureCardFiles[slot.id]))
-              }}</code>
+              挂载路径: <code>{{ getCultureCardPath(cultureCardFiles[slot.id]) }}</code>
             </div>
+            <p v-if="getCultureCardWarning(cultureCardFiles[slot.id])" class="slot-warning">
+              ⚠ {{ getCultureCardWarning(cultureCardFiles[slot.id]) }}（上传会被拦下）
+            </p>
             <div
               class="drop-zone"
               :class="{
                 'has-file': cultureCardFiles[slot.id],
                 'is-dragover': dragOverSlot === `culture-${slot.id}`,
               }"
+              role="button"
+              tabindex="0"
+              :aria-label="`选择文化卡片 ${index + 1} 文件`"
               @dragover.prevent="dragOverSlot = `culture-${slot.id}`"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, `culture-${slot.id}`)"
               @click="triggerFileInput(`culture-${slot.id}`)"
+              @keydown="onDropZoneKeydown($event, `culture-${slot.id}`)"
             >
               <template v-if="cultureCardFiles[slot.id]">
                 <span class="file-name">{{ cultureCardFiles[slot.id]?.name }}</span>
@@ -175,10 +189,14 @@
             <div
               class="drop-zone"
               :class="{ 'has-file': readingFile, 'is-dragover': dragOverSlot === 'reading' }"
+              role="button"
+              tabindex="0"
+              aria-label="选择多角色朗读音频文件"
               @dragover.prevent="dragOverSlot = 'reading'"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, 'reading')"
               @click="triggerFileInput('reading')"
+              @keydown="onDropZoneKeydown($event, 'reading')"
             >
               <template v-if="readingFile">
                 <span class="file-name">{{ readingFile.name }}</span>
@@ -206,10 +224,14 @@
             <div
               class="drop-zone"
               :class="{ 'has-file': wordsFile, 'is-dragover': dragOverSlot === 'words' }"
+              role="button"
+              tabindex="0"
+              aria-label="选择字词注释音频文件"
               @dragover.prevent="dragOverSlot = 'words'"
               @dragleave.prevent="dragOverSlot = ''"
               @drop.prevent="onDrop($event, 'words')"
               @click="triggerFileInput('words')"
+              @keydown="onDropZoneKeydown($event, 'words')"
             >
               <template v-if="wordsFile">
                 <span class="file-name">{{ wordsFile.name }}</span>
@@ -259,10 +281,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { getAllPoems, getWenId } from '@/utils/wenUtils'
-import { getAuthData } from '@/utils/localStorage'
+import { getAllPoemSlots, getWenId } from '@/utils/wenUtils'
+import { upload } from '@/utils/api'
 import { useAuthStore } from '@/stores/auth'
-import { apiBase } from '@/utils/api'
+import { isStaffRole } from '@/utils/roles'
 
 // ============ 类型定义 ============
 interface UploadLog {
@@ -277,9 +299,13 @@ interface CultureSlot {
 // ============ 数据 ============
 const authStore = useAuthStore()
 const userRole = computed(() => authStore.user?.role)
-const isAuthorized = computed(() => userRole.value === 'teacher' || userRole.value === 'admin')
+// 路由 meta.role 用的是 utils/roles 的 STAFF_ROLES，页面内授权判定取同一集合，
+// 避免「能进页面但整页显示未授权」的割裂状态。
+const isAuthorized = computed(() => isStaffRole(userRole.value))
 
-const poemList = getAllPoems()
+// 上传工具要能选到全部号位（含编号未确认的 20/21/23/28–37）：
+// 美术是按号交付的，这里只做「把文件挂到这个号上」，不判断该号对应哪篇课文。
+const poemList = getAllPoemSlots()
 const selectedPoemId = ref('')
 const selectedType = ref<ResourceType>('rule')
 const dragOverSlot = ref('')
@@ -338,20 +364,34 @@ const uploadCount = computed(() => {
 })
 
 // ============ 命名规则 ============
+// 卡片视频平铺在 OSS 的 video/ 下，只有图片和封面进 images/culture_cards/{wenId}/。
+// 两边口径来自 CultureCards.vue 的拼路径分支，改这里前先确认那边没变。
+const CARD_VIDEO_EXTS = ['mp4', 'webm', 'ogg']
+const CARD_IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp']
+const CARD_ALLOWED_EXTS = [...CARD_VIDEO_EXTS, ...CARD_IMAGE_EXTS]
+
 function getFileExt(file: File | null | undefined): string {
   if (!file) return 'mp4' // 默认扩展名
-  const name = file.name
-  const dot = name.lastIndexOf('.')
-  if (dot === -1) return 'mp4'
-  return name.substring(dot + 1).toLowerCase()
+  return extOf(file.name) || 'mp4'
+}
+
+function extOf(fileName: string): string {
+  const dot = fileName.lastIndexOf('.')
+  if (dot === -1) return ''
+  return fileName.substring(dot + 1).toLowerCase()
+}
+
+function isCardVideo(fileName: string): boolean {
+  return CARD_VIDEO_EXTS.includes(extOf(fileName))
 }
 
 function getRuleVideoName(wenId: string): string {
   return `${wenId}_rule_bg.${getFileExt(ruleVideoFile.value) || 'mp4'}`
 }
 
-function getCultureCardName(wenId: string, index: number, ext: string): string {
-  return `${wenId}_culture_card_${index}.${ext || 'mp4'}`
+// 文化卡片不改名：JSON 的 image_file 存的就是交付文件名，改名等于把引用作废。
+function getCultureCardName(wenId: string, file: File | null | undefined): string {
+  return file?.name || `${wenId}_card_标识.mp4`
 }
 
 function getReadingName(wenId: string, ext: string): string {
@@ -367,7 +407,9 @@ function getOssPath(type: string, wenId: string, fileName: string): string {
     case 'rule':
       return `video/${fileName}`
     case 'culture':
-      return `images/culture_cards/${wenId}/${fileName}`
+      return isCardVideo(fileName)
+        ? `video/${fileName}`
+        : `images/culture_cards/${wenId}/${fileName}`
     case 'reading':
       return `audio/${fileName}`
     case 'words':
@@ -375,6 +417,49 @@ function getOssPath(type: string, wenId: string, fileName: string): string {
     default:
       return `video/${fileName}`
   }
+}
+
+// ============ 上传前自检 ============
+// 后端只校验目录白名单，不查名字是否被 JSON 引用、也不查重名覆盖，
+// 所以名字挂不上引用时必须在这里拦下——传错的直接后果是 OSS 里多一个没人引用的文件。
+function validateAssetName(type: ResourceType, wenId: string, fileName: string): string {
+  if (!wenId) return '未选择篇目'
+  if (!fileName) return '文件名为空'
+  if (/\s/.test(fileName)) return '文件名含空格'
+  if (!/^[\x21-\x7E]+$/.test(fileName)) return '文件名含中文或非 ASCII 字符'
+
+  const ext = extOf(fileName)
+  if (!ext) return '文件没有扩展名'
+  if (fileName.indexOf('.') !== fileName.lastIndexOf('.')) {
+    return '文件名有多个点，疑似双扩展名；OSS 对象名必须和 JSON 引用的名字完全一致'
+  }
+
+  // 号位必须落在当前选中的课文上，否则传到 OSS 上也是别的篇目引用不到的孤儿
+  const stem = fileName.substring(0, fileName.lastIndexOf('.'))
+  if (!stem.startsWith(`${wenId}_`)) return `文件名前缀不是 ${wenId}，与所选篇目不符`
+
+  if (type === 'culture') {
+    if (!stem.startsWith(`${wenId}_card_`)) return '文化卡片文件名要形如 {wenId}_card_标识.扩展名'
+    if (!CARD_VIDEO_EXTS.includes(ext) && !CARD_IMAGE_EXTS.includes(ext)) {
+      return `文化卡片扩展名 .${ext} 前端不认，可用：${CARD_ALLOWED_EXTS.join('/')}`
+    }
+  } else if (type === 'rule') {
+    if (!CARD_VIDEO_EXTS.includes(ext)) return `Rule 视频扩展名 .${ext} 前端不认`
+    if (stem !== `${wenId}_rule_bg`) {
+      return `Rule 视频要叫 ${wenId}_rule_bg.{ext}，前端按这个名字拼路径`
+    }
+  }
+
+  return ''
+}
+
+function getCultureCardPath(file: File | null | undefined): string {
+  return getOssPath('culture', wenId.value, getCultureCardName(wenId.value, file))
+}
+
+function getCultureCardWarning(file: File | null | undefined): string {
+  if (!file) return ''
+  return validateAssetName('culture', wenId.value, file.name)
 }
 
 // ============ 文化卡片增删 ============
@@ -395,6 +480,17 @@ function removeCultureCardSlot(id: number) {
 function triggerFileInput(slotKey: string) {
   pendingSlotKey.value = slotKey
   hiddenInput.value?.click()
+}
+
+/**
+ * 拖拽区的键盘等价操作：Enter / Space 等同于点击选择文件。
+ * 只在事件源就是拖拽区本身时响应，避免区内的"移除"按钮按键时又弹出文件选择框。
+ */
+function onDropZoneKeydown(event: KeyboardEvent, slotKey: string) {
+  if (event.target !== event.currentTarget) return
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  triggerFileInput(slotKey)
 }
 
 function onFileInputChange(event: Event) {
@@ -437,12 +533,41 @@ async function uploadAll() {
   uploading.value = true
   uploadLogs.value = []
 
-  const files = collectFiles()
-  for (const { file, ossPath, wenId: wId } of files) {
-    await uploadSingle(file, ossPath, wId)
+  try {
+    const files = collectFiles()
+    let blocked = 0
+    for (const { file, ossPath, wenId: wId } of files) {
+      const fileName = ossPath.split('/').pop() || file.name
+      const error = validateAssetName(selectedType.value, wId, fileName)
+      if (error) {
+        blocked++
+        uploadLogs.value.push({
+          status: 'error',
+          message: `⛔ ${fileName} 已拦下，未上传：${error}`,
+        })
+        continue
+      }
+      // 串行队列：单项失败/超时只影响这一项，后面的文件继续传
+      try {
+        await uploadSingle(file, ossPath, wId)
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : '未知错误'
+        uploadLogs.value.push({
+          status: 'error',
+          message: `✕ ${fileName} 上传异常: ${errorMsg}`,
+        })
+      }
+    }
+    if (blocked > 0) {
+      uploadLogs.value.push({
+        status: 'error',
+        message: `${blocked} 个文件没上传：OSS 对象名要和 JSON 里的引用一模一样，改好文件名再拖进来`,
+      })
+    }
+  } finally {
+    // 无论队列中途出什么错，按钮都不能一直停在"上传中"
+    uploading.value = false
   }
-
-  uploading.value = false
 }
 
 function collectFiles(): Array<{ file: File; ossPath: string; wenId: string }> {
@@ -458,11 +583,10 @@ function collectFiles(): Array<{ file: File; ossPath: string; wenId: string }> {
   }
 
   if (selectedType.value === 'culture') {
-    cultureCardSlots.value.forEach((slot, index) => {
+    cultureCardSlots.value.forEach((slot) => {
       const file = cultureCardFiles.value[slot.id]
       if (!file) return
-      const ext = getFileExt(file)
-      const fileName = getCultureCardName(wId, index + 1, ext)
+      const fileName = getCultureCardName(wId, file)
       result.push({
         file,
         ossPath: getOssPath('culture', wId, fileName),
@@ -492,39 +616,33 @@ function collectFiles(): Array<{ file: File; ossPath: string; wenId: string }> {
 
 async function uploadSingle(file: File, ossPath: string, wenId: string) {
   const fileName = ossPath.split('/').pop() || file.name
+  // 先占位，结束后原地改写状态：一个文件只占一行日志，失败/超时也能看出是哪一项
+  const logIndex = uploadLogs.value.length
   uploadLogs.value.push({ status: 'pending', message: `正在上传: ${fileName}` })
 
   try {
-    // 从 localStorage 获取 token（教师/管理员登录后存储）
-    const authData = getAuthData()
-    const token = authData.token || ''
-
     const formData = new FormData()
     formData.append('file', file)
     formData.append('ossPath', ossPath)
     formData.append('wenId', wenId)
 
-    const response = await fetch(`${apiBase}/api/upload/resource`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    })
-
-    const result = await response.json()
+    // 走 utils/api.upload()，自动注入 Authorization 头（60s 超时）
+    const result = await upload('/api/upload/resource', formData)
 
     if (result.success) {
-      uploadLogs.value.push({ status: 'success', message: `✓ ${fileName} 上传成功` })
+      uploadLogs.value[logIndex] = { status: 'success', message: `✓ ${fileName} 上传成功` }
     } else {
-      uploadLogs.value.push({
+      uploadLogs.value[logIndex] = {
         status: 'error',
         message: `✕ ${fileName} 上传失败: ${result.message || '未知错误'}`,
-      })
+      }
     }
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : '未知错误'
-    uploadLogs.value.push({ status: 'error', message: `✕ ${fileName} 上传异常: ${errorMsg}` })
+    uploadLogs.value[logIndex] = {
+      status: 'error',
+      message: `✕ ${fileName} 上传异常: ${errorMsg}`,
+    }
   }
 }
 
@@ -767,6 +885,12 @@ function onArticleChange() {
   color: #4a90d9;
 }
 
+.slot-warning {
+  margin: -4px 0 8px;
+  font-size: 12px;
+  color: #c0392b;
+}
+
 /* 拖拽区域 */
 .drop-zone {
   border: 2px dashed #ccc;
@@ -787,6 +911,12 @@ function onArticleChange() {
 .drop-zone:hover {
   border-color: #4a90d9;
   background: #f0f7ff;
+}
+
+/* 键盘聚焦时给出可见焦点环（拖拽区已支持 tabindex 操作） */
+.drop-zone:focus-visible {
+  outline: 2px solid #4a90d9;
+  outline-offset: 2px;
 }
 
 .drop-zone.is-dragover {

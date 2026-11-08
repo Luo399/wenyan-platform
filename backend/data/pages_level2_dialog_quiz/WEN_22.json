@@ -1,0 +1,57 @@
+{
+  "pageId": "WEN_22",
+  "blocks": [
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_22",
+        "question_id": "WEN_22_B1",
+        "module": "B",
+        "question_number": 1,
+        "question_text": "屠户最初对狼的态度是（）",
+        "option_a": "立即举刀与狼搏斗",
+        "option_b": "恐惧、妥协，不断投骨喂狼",
+        "option_c": "热情招待两狼，想与它们和平相处",
+        "option_d": "转身逃跑，把担子丢给狼",
+        "correct_answer": "B",
+        "difficulty": "L2",
+        "question_type": "radio",
+        "pre_dialog": "屠户：我晚归遇两狼，起初只想投骨保命，结果如何？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_22",
+        "pre_dialog": "屠户：答案是B。我起初害怕，先把骨头投给狼，希望它们吃饱后离开。可一狼得骨止，一狼仍从；再投，前狼又至，骨头尽了，两狼仍并驱如故。妥协并没有换来安全。",
+        "icon_dialog": ""
+      }
+    },
+    {
+      "type": "quiz",
+      "data": {
+        "text_id": "WEN_22",
+        "question_id": "WEN_22_B2",
+        "module": "B",
+        "question_number": 2,
+        "question_text": "屠户最终能杀死两狼，最重要的原因是（）",
+        "option_a": "两狼自己争抢骨头，互相咬死了",
+        "option_b": "有猎人及时赶到，帮他杀死了狼",
+        "option_c": "屠户由惧到智，占据有利地形，抓住时机果断出手",
+        "option_d": "狼吃饱后睡着了，屠户捡了便宜",
+        "correct_answer": "C",
+        "difficulty": "L3",
+        "question_type": "radio",
+        "pre_dialog": "评书人：两狼狡诈，一狼假寐诱敌、一狼洞其中，屠户为何还能取胜？"
+      }
+    },
+    {
+      "type": "dialogue",
+      "data": {
+        "text_id": "WEN_22",
+        "pre_dialog": "评书人：答案是C。屠户先“奔倚其下，弛担持刀”，占据有利位置；再抓住一狼假寐的时机“暴起，以刀劈狼首”；最后“转视积薪后”，杀死另一只打洞的狼。取胜靠的是由惧转智、果断出击，而非运气或外人帮忙。",
+        "icon_dialog": ""
+      }
+    }
+  ]
+}

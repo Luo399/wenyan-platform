@@ -4,6 +4,7 @@
  * 功能：
  * - 登录状态检测
  * - 答题页面的登录验证
+ * - 角色限制（meta.role 支持单值或数组，命中任一即可）
  * - 未登录时重定向到首页并携带 redirect 参数，登录成功后跳回原目标页
  * - token 过期自动登出
  */
@@ -12,6 +13,7 @@ import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-r
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { isRoleAllowed } from '@/utils/roles'
 import { debugLog } from '@/utils/debug'
 
 /**
@@ -36,10 +38,16 @@ export function setupAuthGuard(router: Router): void {
       const authStore = useAuthStore()
       const { isLoggedIn } = storeToRefs(authStore)
 
-      // token 过期自动登出，避免用过期 token 访问鉴权页
+      // token 过期自动登出；仍有效但临近过期时主动续期（F-004），
+      // 避免用户在正常使用途中被"突然登出"。
       if (authStore.token && authStore.isTokenExpired()) {
         debugLog('[AuthGuard] token 已过期，自动登出')
         authStore.logout()
+      } else if (authStore.token && authStore.isTokenExpiringSoon()) {
+        debugLog('[AuthGuard] token 临近过期，尝试自动续期')
+        void authStore.refreshToken().catch(() => {
+          // 续期失败不主动登出：网络抖动不应踢人，等真正过期再走上面的登出分支
+        })
       }
 
       debugLog(
@@ -51,10 +59,20 @@ export function setupAuthGuard(router: Router): void {
         isLoggedIn.value,
       )
 
-      // 需要登录但未登录：重定向到首页并携带 redirect 参数
+      // 需要登录但未登录：重定向到学生登录页并携带 redirect 参数
+      // 这样登录成功后能直接跳回原目标页，不再浪费 redirect 信息
       if (requiresAuth(to) && !isLoggedIn.value) {
-        debugLog('[AuthGuard] 需要登录，重定向到首页并携带 redirect:', to.fullPath)
-        next({ name: 'home', query: { redirect: to.fullPath } })
+        debugLog('[AuthGuard] 需要登录，重定向到学生登录页并携带 redirect:', to.fullPath)
+        next({ name: 'student-login', query: { redirect: to.fullPath } })
+        return
+      }
+
+      // 角色检查（可选）：路由 meta 上声明 role 时校验 authStore.user.role
+      const requiredRole = to.meta.role
+      const currentRole = authStore.user?.role
+      if (requiresAuth(to) && !isRoleAllowed(requiredRole, currentRole)) {
+        debugLog('[AuthGuard] 角色不匹配：需要', requiredRole, '当前', currentRole)
+        next({ path: '/' })
         return
       }
 

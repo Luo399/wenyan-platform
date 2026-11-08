@@ -11,7 +11,7 @@
   - fa-play: 播放图标
   - fa-pause: 暂停图标
   - fa-volume-up: 音量开启图标
-  - fa-volume-mute: 静音图标
+  - fa-volume-off: 静音图标
 -->
 <template>
   <!-- 音频播放器容器 -->
@@ -29,11 +29,19 @@
 
     <!-- 控制栏 -->
     <div class="controls-bar">
-      <!-- 播放/暂停按钮 -->
-      <button class="control-btn" @click="togglePlay" :title="isPlaying ? '暂停' : '播放'">
-        <!-- 根据播放状态显示不同图标 -->
-        <i v-if="isPlaying" class="fas fa-pause"></i>
-        <i v-else class="fas fa-play"></i>
+      <!-- 播放/暂停按钮：纯图标按钮，必须靠 aria-label 让读屏知道「按了会怎样」，
+           aria-pressed 暴露当前开关态；title 仅作鼠标悬停提示 -->
+      <button
+        type="button"
+        class="control-btn"
+        :aria-label="isPlaying ? '暂停' : '播放'"
+        :aria-pressed="isPlaying"
+        :title="isPlaying ? '暂停' : '播放'"
+        @click="togglePlay"
+      >
+        <!-- 根据播放状态显示不同图标（图标本身 aria-hidden，语义由按钮承担） -->
+        <i v-if="isPlaying" class="fas fa-pause" aria-hidden="true"></i>
+        <i v-else class="fas fa-play" aria-hidden="true"></i>
       </button>
 
       <!-- 进度区域 -->
@@ -64,20 +72,23 @@
 
       <!-- 音量控制按钮 -->
       <button
+        type="button"
         class="control-btn volume-btn"
-        @click="toggleMute"
+        :aria-label="isMuted ? '取消静音' : '静音'"
+        :aria-pressed="isMuted"
         :title="isMuted ? '取消静音' : '静音'"
+        @click="toggleMute"
       >
-        <!-- 根据静音状态显示不同图标 -->
-        <i v-if="isMuted" class="fas fa-volume-mute"></i>
-        <i v-else class="fas fa-volume-up"></i>
+        <!-- 根据静音状态显示不同图标（fa-volume-off 在自托管字体子集里有对应字形） -->
+        <i v-if="isMuted" class="fas fa-volume-off" aria-hidden="true"></i>
+        <i v-else class="fas fa-volume-up" aria-hidden="true"></i>
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { debugWarn } from '@/utils/debug'
 
 // ============================================================
@@ -216,6 +227,41 @@ function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60)
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
+
+// ============================================================
+// 生命周期与副作用清理
+// ============================================================
+
+/**
+ * src 变化（父组件换音源 / 路由复用组件）时先暂停并清零进度。
+ * 不处理的话：旧音频的 timeupdate 会把上一首的 currentTime 带进新音频，
+ * 进度条先跳一下再被新音源复位；duration 也还是上一首的，显示错的总时长。
+ */
+watch(
+  () => props.src,
+  () => {
+    currentTime.value = 0
+    duration.value = 0
+    isPlaying.value = false
+    const audio = audioRef.value
+    if (!audio) return
+    audio.pause()
+    audio.currentTime = 0
+  },
+)
+
+/**
+ * 卸载清理：
+ * - 模板上的 @timeupdate / @loadedmetadata 等监听由 Vue 随节点销毁自动解绑，无需手动 remove
+ * - 但媒体资源必须显式释放：pause + 清空 src，否则正在缓冲的音频会继续占用网络与解码器
+ */
+onUnmounted(() => {
+  const audio = audioRef.value
+  if (!audio) return
+  audio.pause()
+  audio.removeAttribute('src')
+  audio.load()
+})
 </script>
 
 <style scoped>

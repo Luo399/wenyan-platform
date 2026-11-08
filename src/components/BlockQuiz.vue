@@ -1,4 +1,10 @@
 <template>
+  <!-- 题目前置对话：quiz block 自带的 pre_dialog 字段 -->
+  <DialogueCard
+    v-if="pre_dialog"
+    :dialog-text="pre_dialog"
+    class="quiz-pre-dialog"
+  />
   <AdaptQuiz
     :quizzes="adaptedQuizzes"
     :title="title"
@@ -12,6 +18,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AdaptQuiz from './AdaptQuiz.vue'
+import DialogueCard from './DialogueCard.vue'
 import { adaptBlockQuizToQuizItem, isValidQuizItem, type QuizItem } from '@/adapters/quizAdapter'
 
 interface Props {
