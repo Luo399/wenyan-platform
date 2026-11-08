@@ -111,23 +111,20 @@ function loginEnvelope(token = TEST_TOKEN, role = 'student') {
  * apiService.submitAnswers 返回的就是这层内信封。
  */
 function submitEnvelope() {
+  // 与后端 POST /api/submit 真实响应一致：单层信封 { success, message, data }
   return {
     success: true,
     message: '答案提交成功',
     data: {
-      success: true,
-      message: '提交成功',
-      data: {
-        studentId: '2024001',
-        wenId: 'WEN_01',
-        submittedAt: new Date().toISOString(),
-        questionCount: 2,
-        correctCount: 1,
-        wrongCount: 1,
-        totalScore: 50,
-        avgScore: 50,
-        details: [],
-      },
+      studentId: '2024001',
+      wenId: 'WEN_01',
+      submittedAt: new Date().toISOString(),
+      questionCount: 2,
+      correctCount: 1,
+      wrongCount: 1,
+      totalScore: 50,
+      avgScore: 50,
+      details: [],
     },
   }
 }
@@ -369,7 +366,7 @@ describe('题目组件全流程集成测试', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(result.message).toBe('提交成功')
+      expect(result.message).toBe('答案提交成功')
     })
 
     it('网络异常时应该正确处理错误', async () => {
@@ -387,8 +384,18 @@ describe('题目组件全流程集成测试', () => {
   describe('教师端数据展示流程', () => {
     // 后端原始行：学生管理接口返回 snake_case（student_name / class_code）
     const mockStudentRows = [
-      { student_id: '2024001', student_name: '张三', class_code: '240109', created_at: '2024-01-01' },
-      { student_id: '2024002', student_name: '李四', class_code: '240109', created_at: '2024-01-02' },
+      {
+        student_id: '2024001',
+        student_name: '张三',
+        class_code: '240109',
+        created_at: '2024-01-01',
+      },
+      {
+        student_id: '2024002',
+        student_name: '李四',
+        class_code: '240109',
+        created_at: '2024-01-02',
+      },
     ]
 
     const mockWenAnswers = [
@@ -471,7 +478,12 @@ describe('题目组件全流程集成测试', () => {
       })
 
       const mockStudentRows = [
-        { student_id: '2024001', student_name: '张三', class_code: '240109', created_at: '2024-01-01' },
+        {
+          student_id: '2024001',
+          student_name: '张三',
+          class_code: '240109',
+          created_at: '2024-01-01',
+        },
       ]
       const mockWenAnswers = [
         {
