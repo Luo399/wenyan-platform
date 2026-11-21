@@ -1,0 +1,163 @@
+name: E2E Test (Playwright)
+
+# 触发：监听 deploy workflow 完成后自动跑 E2E
+#
+# 设计意图：
+#   1. 前端 deploy 和后端 deploy 是两个独立 yml，没有共同触发条件，
+#      没法互相 needs。workflow_run 让我们在两者都完成后才启动 E2E。
+#   2. PR 阶段不跑 E2E（时序不对——test env 还没部署），PR 跑 Vitest 已足够。
+#   3. E2E 失败不阻塞 deploy（fingerprint 轮询已确保 OSS 正确），
+#      但要传 artifact 便于回溯。
+#
+# 关键设计：
+#   Chromium 下载用官方 Playwright Action（microsoft/playwright-github-action）
+#   它内置 CDN fallback + Microsoft Azure mirror，比裸 npx install 稳定得多。
+#   本机和 CI 都遇到过 playwright.dev CDN 超时问题。
+#
+# 运行模型：
+#   deploy workflow（test 或 prod）→ workflow_run 监听 → E2E 自动跑
+#   手动：Actions → E2E Test (Playwright) → Run workflow
+
+on:
+  # 主触发：监听 deploy workflow 完成后自动跑 E2E
+  #   （前端 deploy 和后端 deploy 是两个独立 yml，没有共同触发条件，
+  #    没法互相 needs。workflow_run 让我们在两者都完成后才启动 E2E。）
+  workflow_run:
+    workflows:
+      - Deploy Frontend to Test OSS
+      - Deploy Backend to Test Server
+      - Deploy Frontend to Aliyun OSS
+      - Deploy Backend to Aliyun Server
+    types:
+      - completed
+  # Fallback：直接 push feature-1/main 也触发
+  #   （deploy workflow 有 paths 过滤，只匹配 src/public 等，
+  #    新增的 playwright/ 文件不会触发 deploy。push fallback
+  #    让 E2E 独立跑 against 当前 test env 状态）
+  push:
+    branches:
+      - feature-1
+      - main
+  workflow_dispatch:  # 允许手动触发调试
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-test:
+    # workflow_run 事件：只在 deploy 成功后跑（deploy fail 了 E2E 没意义）
+    # push 事件：直接跑（push fallback 独立验证当前 test env 状态）
+    if: |
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    # 并发控制：同分支只跑一个 E2E，避免 push + workflow_run 同时触发时重复
+    concurrency:
+      group: e2e-test-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Chromium 策略：手动下载 + 解压，完全绕过 Playwright 内置 CDN
+      #
+      # 历史：
+      #   - npx playwright install chromium：CDN 和 Microsoft Azure mirror 都超时
+      #   - microsoft/playwright-github-action：3s 就挂（可能不再维护）
+      #   - runner 预装 Chrome：Playwright 跑 runner Chrome 失败（版本不匹配）
+      #   - 只下载完整 chromium-linux.zip → Playwright 1.50 默认找 headless shell 失败
+      # 最终方案：同时下载 headless shell（Playwright 默认用）+ 完整 chromium（后备）
+      #   两个 zip 解压到 Playwright 期望的目录名，让它自动识别
+      - name: Manually download Chromium (bypass CDN timeouts)
+        env:
+          PW_BROWSERS_PATH: ${{ runner.temp }}/pw-browsers
+        run: |
+          set -euo pipefail
+          # ---- 1. Headless Shell（Playwright 1.50 默认使用）----
+          mkdir -p "$PW_BROWSERS_PATH/chromium_headless_shell-1155"
+          HEADLESS_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1155/chromium-headless-shell-linux.zip"
+          echo "Downloading headless shell from $HEADLESS_URL ..."
+          curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
+            -o "$RUNNER_TEMP/chromium-headless-shell-linux.zip" "$HEADLESS_URL"
+          echo "Downloaded $(stat -c%s "$RUNNER_TEMP/chromium-headless-shell-linux.zip") bytes"
+          unzip -q "$RUNNER_TEMP/chromium-headless-shell-linux.zip" -d "$PW_BROWSERS_PATH/chromium_headless_shell-1155"
+          echo "Headless shell installed:"
+          ls -la "$PW_BROWSERS_PATH/chromium_headless_shell-1155/chrome-linux/"
+
+          # ---- 2. 完整 Chromium（某些场景需要完整 Chrome）----
+          mkdir -p "$PW_BROWSERS_PATH/chromium-1155"
+          CHROMIUM_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1155/chromium-linux.zip"
+          echo "Downloading full Chromium from $CHROMIUM_URL ..."
+          curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
+            -o "$RUNNER_TEMP/chromium-linux.zip" "$CHROMIUM_URL"
+          echo "Downloaded $(stat -c%s "$RUNNER_TEMP/chromium-linux.zip") bytes"
+          unzip -q "$RUNNER_TEMP/chromium-linux.zip" -d "$PW_BROWSERS_PATH/chromium-1155"
+          echo "Full Chromium installed:"
+          ls -la "$PW_BROWSERS_PATH/chromium-1155/chrome-linux/chrome"
+
+          # ---- 3. FFmpeg（Playwright 1.50 录制 video/screenshot 需要）----
+          mkdir -p "$PW_BROWSERS_PATH/ffmpeg-1011"
+          FFMPEG_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip"
+          echo "Downloading FFmpeg from $FFMPEG_URL ..."
+          curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
+            -o "$RUNNER_TEMP/ffmpeg-linux.zip" "$FFMPEG_URL"
+          echo "Downloaded $(stat -c%s "$RUNNER_TEMP/ffmpeg-linux.zip") bytes"
+          unzip -q "$RUNNER_TEMP/ffmpeg-linux.zip" -d "$PW_BROWSERS_PATH/ffmpeg-1011"
+          echo "FFmpeg installed:"
+          ls -la "$PW_BROWSERS_PATH/ffmpeg-1011/"
+
+          # 补系统依赖（Playwright 需要的 libnss3/libgbm/libasound2 等）
+          npx playwright install-deps chromium || true
+          echo "Browser setup complete!"
+
+      # 根据触发的 workflow 名判断跑测试还是生产环境
+      # push fallback 事件默认跑 test env
+      - name: Determine base URL
+        id: env
+        run: |
+          workflow_name="${{ github.event.workflow_run.name }}"
+          event_name="${{ github.event_name }}"
+          echo "触发事件: $event_name, workflow名: $workflow_name"
+          if [[ "$workflow_name" == *"Test"* ]] || [[ "$event_name" == "push" && "${{ github.ref }}" == "refs/heads/feature-1" ]]; then
+            echo "base_url=https://test.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://test-api.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "E2E target: TEST env"
+          elif [[ "$event_name" == "push" && "${{ github.ref }}" == "refs/heads/main" ]] || [[ "$workflow_name" == *"Aliyun"* ]]; then
+            echo "base_url=https://www.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "E2E target: PROD env"
+          else
+            # 默认 fallback
+            echo "base_url=https://test.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://test-api.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "E2E target: DEFAULT TEST env"
+          fi
+
+      - name: Run E2E tests
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/pw-browsers
+          PLAYWRIGHT_BASE_URL: ${{ steps.env.outputs.base_url }}
+          PLAYWRIGHT_API_URL: ${{ steps.env.outputs.api_url }}
+        run: npx playwright test
+
+      # 失败时抓 trace + screenshot + video，7 天自动删除
+      - name: Upload Playwright artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7

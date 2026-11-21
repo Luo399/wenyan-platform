@@ -40,6 +40,16 @@ test-output*.txt
 /cypress/videos/
 /cypress/screenshots/
 
+# Playwright
+playwright/test-results/
+playwright/playwright-report/
+playwright/.cache/
+playwright/test-results
+playwright/playwright-report/
+test-results/
+playwright-report/
+playwright-browsers/
+
 # Vitest
 __screenshots__/
 

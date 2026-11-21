@@ -21,12 +21,15 @@ on:
       - 'src/**'
       - 'backend/**'
       - 'figma-plugin/**'
+      - 'playwright/**'
       - 'package.json'
       - 'eslint.config.ts'
       - '.oxlintrc.json'
       - 'vitest.config.ts'
       - 'vite.config.ts'
+      - 'playwright.config.ts'
       - '.github/workflows/ci-checks.yml'
+      - '.github/workflows/e2e-test.yml'
 
 # CI 只读仓库内容
 permissions:
