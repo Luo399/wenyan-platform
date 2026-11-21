@@ -30,14 +30,12 @@ on:
       - Deploy Backend to Aliyun Server
     types:
       - completed
-  # Fallback：直接 push feature-1/main 也触发
-  #   （deploy workflow 有 paths 过滤，只匹配 src/public 等，
-  #    新增的 playwright/ 文件不会触发 deploy。push fallback
-  #    让 E2E 独立跑 against 当前 test env 状态）
+  # Fallback：直接 push feature-1 也触发（跑 against test env）
+  #   main 分支不走 push fallback——生产 E2E 必须等 deploy 完成后
+  #   由 workflow_run 触发，否则 CloudFront propagation 期间会误报
   push:
     branches:
       - feature-1
-      - main
   workflow_dispatch:  # 允许手动触发调试
 
 permissions:
