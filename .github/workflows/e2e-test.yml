@@ -106,6 +106,17 @@ jobs:
           echo "Full Chromium installed:"
           ls -la "$PW_BROWSERS_PATH/chromium-1155/chrome-linux/chrome"
 
+          # ---- 3. FFmpeg（Playwright 1.50 录制 video/screenshot 需要）----
+          mkdir -p "$PW_BROWSERS_PATH/ffmpeg-1011"
+          FFMPEG_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip"
+          echo "Downloading FFmpeg from $FFMPEG_URL ..."
+          curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
+            -o "$RUNNER_TEMP/ffmpeg-linux.zip" "$FFMPEG_URL"
+          echo "Downloaded $(stat -c%s "$RUNNER_TEMP/ffmpeg-linux.zip") bytes"
+          unzip -q "$RUNNER_TEMP/ffmpeg-linux.zip" -d "$PW_BROWSERS_PATH/ffmpeg-1011"
+          echo "FFmpeg installed:"
+          ls -la "$PW_BROWSERS_PATH/ffmpeg-1011/"
+
           # 补系统依赖（Playwright 需要的 libnss3/libgbm/libasound2 等）
           npx playwright install-deps chromium || true
           echo "Browser setup complete!"
