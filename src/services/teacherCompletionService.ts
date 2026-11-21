@@ -1,37 +1,20 @@
 // ============================================================
-// 教师查看学生完成情况 Service（框架版）
-// 统一封装 /api/teacher/completion/* 的调用，避免视图层散落 URL。
-// 当前后端返回框架数据（metrics_ready=false 表示统计逻辑尚未接入）。
+// 教师查看学生完成情况 Service
+// 统一封装 /api/teacher/completion/* 的调用，避免视图层散落 URL；
+// 响应先经 adapters/completionAdapter 归一化，视图只消费稳定结构。
 // ============================================================
 
 import { get, ApiError } from '@/utils/api'
+import {
+  adaptTeacherCompletion,
+  type TeacherCompletionResult,
+} from '@/adapters/completionAdapter'
 
-/** 单个学生的完成情况行（框架字段） */
-export interface StudentCompletionRow {
-  student_id: string
-  student_name: string
-  class_code: string
-  school_id: number | null
-  total_questions: number
-  answered_questions: number
-  correct_count: number
-  accuracy: number
-  last_submitted_at: string | null
-}
-
-/** 完成情况汇总 */
-export interface CompletionSummary {
-  student_count: number
-  avg_accuracy: number
-}
-
-/** 教师完成情况响应体 */
-export interface TeacherCompletionResult {
-  metrics_ready: boolean
-  summary: CompletionSummary
-  class_codes?: string[]
-  students: StudentCompletionRow[]
-}
+export type {
+  StudentCompletionRow,
+  CompletionSummary,
+  TeacherCompletionResult,
+} from '@/adapters/completionAdapter'
 
 /**
  * 查询所教班级学生的完成情况
@@ -41,9 +24,9 @@ export async function getStudentsCompletion(
   classCode?: string,
 ): Promise<TeacherCompletionResult> {
   const params = classCode ? { class_code: classCode } : undefined
-  const res = await get<TeacherCompletionResult>('/api/teacher/completion/students', params)
+  const res = await get<unknown>('/api/teacher/completion/students', params)
   if (!res.success || !res.data) {
     throw new ApiError(500, 'COMPLETION_UNAVAILABLE', res.message || '完成情况加载失败，请重试')
   }
-  return res.data
+  return adaptTeacherCompletion(res.data)
 }

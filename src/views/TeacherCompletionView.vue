@@ -3,8 +3,10 @@
 
   功能说明：
   - 按班级筛选，展示所教班级学生的完成情况汇总与明细表
-  - 后端当前返回框架数据（metrics_ready=false），页面据此提示统计逻辑待接入
-  数据统一走 services/teacherCompletionService.ts 封装，组件内不做裸 fetch。
+  - 后端以 metrics_ready 标记统计口径是否已接入；未接入时页面顶部给出提示
+  - 加载 / 空 / 错误三态统一使用 common/BaseLoader、BaseEmpty、BaseError
+  数据统一走 services/teacherCompletionService.ts（内部经 adapters/completionAdapter 归一化），
+  组件内不做裸 fetch。
 -->
 <template>
   <div class="completion-view">
@@ -38,13 +40,12 @@
       </div>
     </div>
 
-    <div v-if="error" class="error-tip">
-      <span>{{ error }}</span>
-      <button type="button" class="plain-btn" @click="loadData">重试</button>
-    </div>
+    <BaseError v-if="error" :error="error" @retry="loadData" />
 
-    <div class="table-wrap">
-      <table class="data-table">
+    <div v-else class="table-wrap">
+      <BaseLoader v-if="loading" loading-text="正在加载学生完成情况..." />
+      <BaseEmpty v-else-if="students.length === 0" empty-text="暂无可展示的学生数据" />
+      <table v-else class="data-table">
         <thead>
           <tr>
             <th>学号</th>
@@ -66,11 +67,6 @@
             <td>{{ row.accuracy }}%</td>
             <td>{{ row.last_submitted_at || '-' }}</td>
           </tr>
-          <tr v-if="students.length === 0">
-            <td colspan="7" class="empty-cell">
-              {{ loading ? '加载中...' : '暂无可展示的学生数据' }}
-            </td>
-          </tr>
         </tbody>
       </table>
     </div>
@@ -81,6 +77,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { debugError } from '@/utils/debug'
+import BaseLoader from '@/components/common/BaseLoader.vue'
+import BaseEmpty from '@/components/common/BaseEmpty.vue'
+import BaseError from '@/components/common/BaseError.vue'
 import {
   getStudentsCompletion,
   type StudentCompletionRow,
@@ -186,15 +185,11 @@ onMounted(loadData)
   font-family: inherit;
 }
 
-.primary-btn,
-.plain-btn {
+.primary-btn {
   font-family: inherit;
   cursor: pointer;
   border-radius: var(--radius-small);
   font-size: 0.85rem;
-}
-
-.primary-btn {
   background: var(--color-primary);
   color: var(--color-white);
   border: none;
@@ -204,13 +199,6 @@ onMounted(loadData)
 .primary-btn:disabled {
   background: var(--color-placeholder);
   cursor: not-allowed;
-}
-
-.plain-btn {
-  background: none;
-  border: var(--border-width-hairline) solid var(--color-border);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  color: var(--color-text);
 }
 
 .pending-tip {
@@ -242,15 +230,6 @@ onMounted(loadData)
   color: var(--color-text-secondary);
 }
 
-.error-tip {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  color: #b23b3b;
-  font-size: 0.85rem;
-  margin-bottom: var(--spacing-sm);
-}
-
 .table-wrap {
   overflow-x: auto;
 }
@@ -271,10 +250,5 @@ onMounted(loadData)
 .data-table th {
   background: var(--color-bg-highlight);
   font-weight: var(--font-weight-semibold);
-}
-
-.empty-cell {
-  text-align: center;
-  color: var(--color-text-secondary);
 }
 </style>
