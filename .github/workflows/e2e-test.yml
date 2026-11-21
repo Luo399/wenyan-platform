@@ -70,12 +70,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 官方 Playwright Action 装浏览器 + system deps
-      # 比裸 npx install 稳得多（内置 CDN fallback）
+      # 装 Playwright Chromium + 系统依赖
+      #
+      # 为什么不用 microsoft/playwright-github-action？
+      #   该 action 3s 就挂（可能不再维护）。这里直接 npx install，
+      #   强制 Microsoft Azure mirror（playwright.download.prss.microsoft.com）
+      #   加 3 次重试——Playwright 官方 CDN (cdn.playwright.dev) 多次超时。
+      #
+      # 为什么不用 ubuntu-latest 自带的 chromium apt 包？
+      #   apt chromium 和 Playwright 内置 Chromium 版本可能不匹配。
       - name: Install Playwright Chromium
-        uses: microsoft/playwright-github-action@v1
-        with:
-          chromium: true
+        env:
+          PLAYWRIGHT_DOWNLOAD_HOST: https://playwright.download.prss.microsoft.com/dbazure/download/playwright
+        run: |
+          for i in 1 2 3; do
+            echo "Attempt $i of 3..."
+            npx playwright install --with-deps chromium && break
+            if [ $i -eq 3 ]; then exit 1; fi
+            echo "Failed, retrying in 15s..."
+            sleep 15
+          done
 
       # 根据触发的 workflow 名判断跑测试还是生产环境
       - name: Determine base URL
