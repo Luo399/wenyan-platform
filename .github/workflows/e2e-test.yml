@@ -76,24 +76,39 @@ jobs:
       #   - npx playwright install chromium：CDN 和 Microsoft Azure mirror 都超时
       #   - microsoft/playwright-github-action：3s 就挂（可能不再维护）
       #   - runner 预装 Chrome：Playwright 跑 runner Chrome 失败（版本不匹配）
-      # 最终方案：用 curl 直接下载 chromium-linux.zip，设 600s 超时 + --retry
-      #   解压到 PLAYWRIGHT_BROWSERS_PATH 后 Playwright 自动识别
+      #   - 只下载完整 chromium-linux.zip → Playwright 1.50 默认找 headless shell 失败
+      # 最终方案：同时下载 headless shell（Playwright 默认用）+ 完整 chromium（后备）
+      #   两个 zip 解压到 Playwright 期望的目录名，让它自动识别
       - name: Manually download Chromium (bypass CDN timeouts)
         env:
           PW_BROWSERS_PATH: ${{ runner.temp }}/pw-browsers
         run: |
           set -euo pipefail
+          # ---- 1. Headless Shell（Playwright 1.50 默认使用）----
+          mkdir -p "$PW_BROWSERS_PATH/chromium_headless_shell-1155"
+          HEADLESS_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1155/chromium-headless-shell-linux.zip"
+          echo "Downloading headless shell from $HEADLESS_URL ..."
+          curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
+            -o "$RUNNER_TEMP/chromium-headless-shell-linux.zip" "$HEADLESS_URL"
+          echo "Downloaded $(stat -c%s "$RUNNER_TEMP/chromium-headless-shell-linux.zip") bytes"
+          unzip -q "$RUNNER_TEMP/chromium-headless-shell-linux.zip" -d "$PW_BROWSERS_PATH/chromium_headless_shell-1155"
+          echo "Headless shell installed:"
+          ls -la "$PW_BROWSERS_PATH/chromium_headless_shell-1155/chrome-linux/"
+
+          # ---- 2. 完整 Chromium（某些场景需要完整 Chrome）----
           mkdir -p "$PW_BROWSERS_PATH/chromium-1155"
           CHROMIUM_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1155/chromium-linux.zip"
-          echo "Downloading Chromium from $CHROMIUM_URL (600s timeout, 3 retries)..."
+          echo "Downloading full Chromium from $CHROMIUM_URL ..."
           curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
             -o "$RUNNER_TEMP/chromium-linux.zip" "$CHROMIUM_URL"
           echo "Downloaded $(stat -c%s "$RUNNER_TEMP/chromium-linux.zip") bytes"
           unzip -q "$RUNNER_TEMP/chromium-linux.zip" -d "$PW_BROWSERS_PATH/chromium-1155"
-          echo "Chromium installed at $PW_BROWSERS_PATH/chromium-1155/chrome-linux/chrome"
+          echo "Full Chromium installed:"
           ls -la "$PW_BROWSERS_PATH/chromium-1155/chrome-linux/chrome"
+
           # 补系统依赖（Playwright 需要的 libnss3/libgbm/libasound2 等）
           npx playwright install-deps chromium || true
+          echo "Browser setup complete!"
 
       # 根据触发的 workflow 名判断跑测试还是生产环境
       # push fallback 事件默认跑 test env
