@@ -276,6 +276,58 @@ describe('useNavigation', () => {
     })
   })
 
+  describe('跳转挂死兜底（NAV_STUCK_FALLBACK_MS）', () => {
+    it('push 一直不落地且未到目标地址时，超时后应整页兜底并上报', () => {
+      vi.useFakeTimers()
+      // jsdom/happy-dom 的 location.replace 不可 redefine，直接替换全局 window 上的引用
+      const replaceMock = vi.fn()
+      vi.stubGlobal('window', { location: { replace: replaceMock } })
+      try {
+        mockRouter.push.mockImplementationOnce(() => new Promise(() => {}))
+
+        const navigation = useNavigation('rules', '1')
+        navigation.goNext()
+
+        // 超时前不应触发兜底
+        vi.advanceTimersByTime(7999)
+        expect(mockTrack).not.toHaveBeenCalled()
+
+        vi.advanceTimersByTime(1)
+        expect(mockTrack).toHaveBeenCalledWith(
+          'interaction',
+          'rules',
+          expect.objectContaining({ action: 'go_next_hard_fallback' }),
+        )
+        expect(replaceMock).toHaveBeenCalledWith('/rule1/1')
+      } finally {
+        vi.unstubAllGlobals()
+        vi.useRealTimers()
+      }
+    })
+
+    it('超时前已经落到目标地址时，不应再做整页跳转', () => {
+      vi.useFakeTimers()
+      const replaceMock = vi.fn()
+      vi.stubGlobal('window', { location: { replace: replaceMock } })
+      try {
+        mockRouter.push.mockImplementationOnce(() => new Promise(() => {}))
+
+        const navigation = useNavigation('rules', '1')
+        navigation.goNext()
+
+        // 模拟 push 已生效、只是 Promise 收尾晚于阈值
+        mockRouter.currentRoute.value = { fullPath: '/rule1/1' }
+        vi.advanceTimersByTime(8000)
+
+        expect(replaceMock).not.toHaveBeenCalled()
+        expect(mockTrack).not.toHaveBeenCalled()
+      } finally {
+        vi.unstubAllGlobals()
+        vi.useRealTimers()
+      }
+    })
+  })
+
   describe('R140: 实时路由优先于提示值（组件复用场景）', () => {
     it('实时路由名属于 pageSequence 时忽略过期的提示值', () => {
       // 模拟 stepone → steptwo 复用同一组件实例：提示值仍是 'stepone'

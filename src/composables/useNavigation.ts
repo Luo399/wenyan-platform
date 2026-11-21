@@ -250,7 +250,11 @@ export function useNavigation(routeNameHint?: RouteName, idHint?: string) {
     // 保证用户不会被困在当前页反复点击。
     const stuckTimer = setTimeout(() => {
       if (settled) return
-      if (isAlreadyAt(path)) {
+      // R141: 只有「还没到目标地址」才说明这次导航确实没落地。
+      // 原实现写成 isAlreadyAt(path)，方向反了：push 挂死时地址并不在目标页，
+      // 条件恒假 → 兜底永远不触发；反倒是 push 已生效、只是 Promise 收尾晚到时，
+      // 会多做一次整页跳转，把 SPA 状态（答题进度等）打掉。
+      if (!isAlreadyAt(path)) {
         debugWarn('[useNavigation.goNext] 跳转超过', NAV_STUCK_FALLBACK_MS, 'ms 仍未落地，整页兜底:', path)
         track('interaction', routeName, {
           module_type: 'navigation',
