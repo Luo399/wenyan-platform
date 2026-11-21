@@ -137,106 +137,124 @@
 
 ---
 
-## [ ] 继续按钮点击延迟优化 (continue-button-latency)
+## [x] 继续按钮点击延迟优化 (continue-button-latency)
 
 - 目标：统计不同浏览器环境下点击「继续」按钮的响应延迟，并把响应时间优化到 0.5 秒以内。
 - 关联文件：`src/components/BackContinue.vue`、`src/composables/useNavigation.ts`、`tests/components/BackContinue.spec.ts`
 - 红线：跳转必须走 `useNavigation`，组件内禁止直接 `router.push`；生产构建禁止 `console.log`。
+- 分支 / commit / CI：`trae/agent-101-nav-latency` @ `e6e1cc6`（`CI Checks` run `36794305111` success）→ `--no-ff` 并入 `feature-1`（合并提交 `a2a2764`）。2026-11-21 复核发现「跳转挂死兜底」判断写反，补 `trae/agent-107-nav-fallback-fix` @ `dcf8738`（run `44913063424` success）→ 合并 `2cb0b23` → `feature-1`（`99eae24`）的 `CI Checks`（run `44913354345`）七 job 全绿、`Deploy Frontend to Test OSS`（run `44913354291`）与 E2E（run `44913427678`）成功。
 
-### [ ] 各浏览器延迟数据统计埋点 (browser-latency-metrics)
+### [x] 各浏览器延迟数据统计埋点 (browser-latency-metrics)
 
 - 目标：在点击「继续」到视图切换之间打点，按浏览器/UA 维度统计耗时，产出可查的延迟数据。
 - 验收：新增埋点不引入 `console.log`；统计逻辑走 `utils/` 或 `composables/` 封装；补 `tests/` 单测。
 - 关联文件：`src/utils/tracking.ts`、`src/composables/useTracking.ts`
+- 分支 / commit：`e6e1cc6`。`useNavigation.reportNextLatency()` 经 `utils/tracking.ts` 的 `track('interaction', ..., { action: 'go_next', sync_cost, cost_time, target_path, user_agent })` 异步上报（500ms 批量缓冲，不阻塞点击回调）；阈值 `NAV_LATENCY_WARN_MS = 500`。单测 `tests/composables/useNavigation.spec.ts` 33 例，含延迟埋点字段断言。
 
-### [ ] 点击响应逻辑优化至0.5秒内 (optimize-continue-response)
+### [x] 点击响应逻辑优化至0.5秒内 (optimize-continue-response)
 
 - 目标：定位并消除点击「继续」时的阻塞（同步重计算、重复请求、非必要重渲染），使响应 < 0.5s。
 - 验收：`tests/components/BackContinue.spec.ts` 覆盖点击路径；不破坏 `useNavigation` 现有行为。
 - 关联文件：`src/components/BackContinue.vue`、`src/composables/useDataLoader.ts`
+- 分支 / commit：`e6e1cc6`（移除 `goNext()` 内 6 处 `console.*` 与整个 `nextPage` 对象序列化，改 `debugLog/debugWarn`）+ `dcf8738`（`stuckTimer` 条件 `isAlreadyAt(path)` → `!isAlreadyAt(path)`，原来方向写反导致兜底永不触发、却在导航已生效时误整页刷新）。`tests/components/BackContinue.spec.ts` 7 例覆盖点击路径。
 
 ---
 
-## [ ] 学生登录失败排查修复 (student-login-failure)
+## [x] 学生登录失败排查修复 (student-login-failure)
 
 - 目标：排查不同浏览器环境下测试账密 `99999999` 学生登录失败的原因并修复。
 - 关联文件：`src/views/StudentLoginView.vue`、`src/components/StudentLogin.vue`、`src/components/LoginModal.vue`、`backend/src/controllers/authController.js`、`backend/src/services/authService.js`、`backend/src/middleware/authMiddleware.js`
 - 红线：学生身份必须走 `useStudentStore` / `useAuthStore`，禁止组件内直接读 `localStorage`。
+- 分支 / commit / CI：`trae/agent-102-student-login-fix` @ `d68986c`（`CI Checks` success）→ `--no-ff` 并入 `feature-1`（合并提交 `c108f03`）。2026-11-21 复核：四处根因均已落地，后端定向测试覆盖。
 
-### [ ] 登录失败统计与复现 (login-failure-diagnostics)
+### [x] 登录失败统计与复现 (login-failure-diagnostics)
 
 - 目标：梳理各浏览器下失败分支（网络、401、账号不存在、大小写/空白、缓存），形成可复现路径与日志。
 - 验收：补 `tests/` 单测覆盖失败分支；不新增 `console.log`。
 - 关联文件：`src/stores/auth.ts`、`tests/stores/auth.spec.ts`
+- 分支 / commit：`d68986c`。`src/utils/api.ts` 的 `handleResponse()` 把 401 分为两支：`INVALID_CREDENTIALS` 原样透传（不登出），其余才按会话问题处理并区分 `AUTH_REQUIRED`（提示「需要登录」）与令牌失效（提示「登录已过期，请重新登录」）。单测 `tests/unit/apiAuth401.spec.ts` 4 例 + `tests/stores/auth.spec.ts` 覆盖登录失败/恢复分支。
 
-### [ ] 修复99999999登录失败 (fix-student-login-99999999)
+### [x] 修复99999999登录失败 (fix-student-login-99999999)
 
 - 目标：按上一子功能定位的根因修复，保证 `99999999` 在 Chrome / Edge / Firefox 均可登录。
 - 验收：后端 `npm test` 通过；新增 controller 方法必须同步加入 `module.exports`（见 Windows 坑规则 B 节）。
 - 关联文件：`backend/src/services/authService.js`、`backend/tests/auth-service.test.js`
+- 分支 / commit：`d68986c`。修复点：①新增 `GET /api/students/:studentId/name`（`requireAuth + queryRateLimit`，只返回学号+姓名）承接登录页姓名回显；②`useStudentQuery` 未登录直接返回空串、不再打必 401 的鉴权接口；③`studentController.getStudent` 追加 `name` 兼容别名（原只返回 `student_name`）；④`seedTestStudent` 在 `NODE_ENV=production` 直接跳过，注释与判断一致。`getStudentPublicName` 已登记 `module.exports`。后端 `student-login.test.js` 6 例、`seed-production.test.js` 2 例。
 
 ---
 
-## [ ] 管理员账密管理界面 (admin-credential-management)
+## [x] 管理员账密管理界面 (admin-credential-management)
 
 - 目标：完成管理员界面的教师/学生账密增删查改功能开发。
 - 关联文件：`src/views/AdminLoginView.vue`、`backend/src/controllers/adminController.js`、`studentController.js`、`teacherController.js`
 - 红线：管理端接口必须登录态 + 角色校验（admin）；提交答案走 `utils/api.ts` 的 `submitAnswers`。
+- 分支 / commit / CI：`trae/agent-103-admin-accounts` @ `dd3ace8`（`CI Checks` success）→ `--no-ff` 并入 `feature-1`（合并提交 `176dc7d`）。2026-11-21 复核：后端 32 例接口测试在，前端服务层补 12 例契约测试（本批 `tests/services/adminService.spec.ts`）。
 
-### [ ] 管理员界面框架与路由 (admin-shell-routing)
+### [x] 管理员界面框架与路由 (admin-shell-routing)
 
 - 目标：管理员登录后的布局、导航与路由骨架，页面组件命名 ≥ 2 个单词 PascalCase。
 - 验收：路由懒加载；跳转走 `useNavigation`。
 - 关联文件：`src/router/index.ts`、`src/components/PageScaffold.vue`
+- 分支 / commit：`dd3ace8`。`/admin-console` 与 `/admin-dashboard` 均为 `component: () => import(...)` 懒加载，路由 `meta.role` 限定 `admin / super_admin`。控制台内唯一的 `router.push('/')` 是退出登录，属 auth 流程例外（与 `StudentLoginView` 注释口径一致）。
 
-### [ ] 学生账密增删查改 (admin-student-credential-crud)
+### [x] 学生账密增删查改 (admin-student-credential-crud)
 
 - 目标：管理员对学生账密的新增、删除、查询、修改（含列表分页/搜索）。
 - 验收：后端接口 + 前端页面 + `tests/` 单测；接口走 `utils/api.ts` 封装。
 - 关联文件：`src/components/StudentTable.vue`、`src/components/StudentFormModal.vue`、`backend/src/services/studentService.js`
+- 分支 / commit：`dd3ace8`。后端 `adminController` 提供 `listStudents / getStudent / createStudent / updateStudent / deleteStudent / resetStudent`，均登记 `module.exports`；前端 `AdminConsoleView` 学生 Tab 支持列表、班级筛选、增删改与重置口令，请求全部经 `services/adminService.ts`。测试：`backend/tests/admin-accounts.test.js` 32 例 + `tests/services/adminService.spec.ts` 12 例。
 
-### [ ] 教师账密增删查改 (admin-teacher-credential-crud)
+### [x] 教师账密增删查改 (admin-teacher-credential-crud)
 
 - 目标：管理员对教师账密的新增、删除、查询、修改。
 - 验收：后端接口 + 前端页面 + `tests/` 单测；批量创建复用 `backend/scripts/batch_create_teachers.js` 的约定。
 - 关联文件：`backend/src/controllers/teacherController.js`
+- 分支 / commit：`dd3ace8`。`adminController` 提供 `listTeachers / getTeacher / createTeacher / updateTeacher / deleteTeacher / resetTeacher / setTeacherStatus / approveTeacher / rejectTeacher`；前端教师 Tab 同套增删改 + 审批 + 重置口令。路由 `adminAuth = [requireAuthMiddleware, requireRole(['admin','super_admin'])]`。
 
 ---
 
-## [ ] 教师班级学生账密管理 (teacher-student-credential)
+## [x] 教师班级学生账密管理 (teacher-student-credential)
 
 - 目标：教师可对自己下属班级的学生账密进行增删查改。
 - 关联文件：`src/views/TeacherLoginView.vue`、`backend/src/controllers/teacherController.js`、`src/components/StudentTable.vue`、`StudentFormModal.vue`
 - 红线：必须做**班级范围鉴权**，教师不得跨班级操作学生（越权即安全缺陷）。
+- 分支 / commit / CI：`trae/agent-104-teacher-student-crud` @ `686aef0`（`CI Checks` success）→ `--no-ff` 并入 `feature-1`（合并提交 `a7b7dba`）。2026-11-21 复核：删除链路与 403 越权用例已覆盖。
 
-### [ ] 班级范围后端接口 (teacher-scope-api)
+### [x] 班级范围后端接口 (teacher-scope-api)
 
 - 目标：按登录教师的班级归属过滤学生集合，所有写操作校验学生属于该教师班级。
 - 验收：越权用例必须有单测覆盖（教师 A 操作班级 B 学生 → 403）。
 - 关联文件：`backend/src/middleware/authMiddleware.js`、`backend/tests/`
+- 分支 / commit：`686aef0`。`teacherController.deleteStudent` 先查学生 `class_code`，再走 `services/authService.teacherCanManageClass(teacherId, classCode)`；新增/批量新增/更新/重置口令同样经 `_enforceClassPermission` 收口。路由 `DELETE /api/teacher/students/:studentId` 挂 `[requireAuthMiddleware, requireRole('teacher')]`。`backend/tests/teacher-students.test.js`：本班删除成功、跨班删除 403、不存在 404、未登录 401 共 4 例。
 
-### [ ] 教师端账密管理页面 (teacher-student-credential-ui)
+### [x] 教师端账密管理页面 (teacher-student-credential-ui)
 
 - 目标：教师端班级选择 + 学生列表 + 增删改查表单。
 - 验收：复用 `StudentTable.vue` / `StudentFormModal.vue`；补 `tests/` 单测。
+- 分支 / commit：`686aef0`。入口在 `AnswerQueryView`，复用 `StudentTable.vue` 与 `StudentFormModal.vue`，请求经 `services/studentService.ts`；删除入口接 `DELETE /api/teacher/students/:studentId`。班级范围由后端按 token 反查，前端班级筛选只能收窄不能越权。该页暂无独立组件单测（复用组件已有测试）。
 
 ---
 
-## [ ] 学生完成情况查看 (student-progress-view)
+## [x] 学生完成情况查看 (student-progress-view)
 
 - 目标：教师可查看学生完成情况。**本期只开发基本框架和前端页面，业务逻辑后续填入。**
 - 关联文件：`src/views/AnswerQueryView.vue`、`src/components/AnswerTable.vue`、`backend/src/controllers/trackingController.js`
 - 注意：本期**不实现真实统计逻辑**，用占位数据/适配层，接口签名先定好。
+- 分支 / commit / CI：框架 `trae/agent-105-teacher-completion` @ `27dc6c7`（CI success）→ 合并 `c510f9a`；收尾 `trae/agent-108-progress-view-base` @ `8f5c9d1`（run `44913928879` success）→ 合并 `62244ad` → `feature-1` 的 `CI Checks`（run `44914094463`）全绿、`Deploy Frontend to Test OSS`（run `44914094456`）与 E2E（run `44914094482` / `44914207972`）成功。
+- 事实修正：后端 `GET /api/teacher/completion/students` 已返回真实统计字段（`metrics_ready=true`），不再是占位数据；页面在 `metrics_ready=false` 时显示「统计口径尚未接入」。
 
-### [ ] 进度页面框架与路由 (progress-view-shell)
+### [x] 进度页面框架与路由 (progress-view-shell)
 
 - 目标：进度查看页面的布局骨架（班级/学生筛选区 + 进度表格区 + 空态/加载态）。
 - 验收：使用 `src/components/common/BaseLoader.vue`、`BaseEmpty.vue`、`BaseError.vue`；组件名 ≥ 2 个单词。
+- 分支 / commit：`27dc6c7` + `8f5c9d1`。`TeacherCompletionView` 现有班级筛选、汇总卡片、明细表；三态统一改为 `BaseLoader / BaseEmpty / BaseError`（错误态可重试），路由 `/teacher-completion` 懒加载。新增 `tests/views/TeacherCompletionView.spec.ts` 6 例（首屏请求、加载态、数据行、空态、待接入提示、错误+重试）。
 
-### [ ] 进度占位适配层 (progress-placeholder-adapter)
+### [x] 进度占位适配层 (progress-placeholder-adapter)
 
 - 目标：定义进度数据结构与适配器签名，返回占位数据，后续替换为真实接口。
 - 验收：数据访问走 `src/adapters/` + `src/utils/` 封装，**组件内禁止直接 `fetch('/data/...')`**；补 `tests/adapters/` 单测。
+- 分支 / commit：`8f5c9d1`。新增 `src/adapters/completionAdapter.ts`：定义 `StudentCompletionRow / CompletionSummary / TeacherCompletionResult` 与 `adaptTeacherCompletion()`，对缺字段、字符串数字、非数组入参统一给安全默认值；`services/teacherCompletionService.ts` 请求后先适配再返回，组件内无裸 fetch。新增 `tests/adapters/completionAdapter.spec.ts` 9 例。
+- 与本期原始口径的差异：「返回占位数据」已不需要——后端统计接口先落地了；适配层保留为真实接口的边界清洗，后续换统计口径只需改适配器。
 
 
 ---
@@ -305,6 +323,7 @@
 本轮落的 #212 / #213 是**看板**（聚合指标 + 明细表 + 薄弱题），与这三节的验收口径（账密增删查改、
 越权单测、占位适配层）不是同一件事，不能拿来勾掉。`ci-quality-baseline` 那节记的是转绿工作，
 覆盖率阈值与 zod 收敛属其「改进建议」，同样不回填勾选。
+（2026-11-21 复核后，上述三节已按各自验收口径单独勾选并补记录，见前文对应小节。）
 
 ### 故意没提交（工作区里留着）
 
@@ -648,12 +667,15 @@
   四个组件的 `baseUrl` 覆盖缝（假想需求）、VideoPlayer 抽取与 toast/`mm:ss` 去重（收益低于协调成本）、
   `src/adapters/level*QuizAdapter`（与陈旧 draft PR #50 碰撞）、`stores/auth` 的 `VALID_ROLES` 并入 roles 模块（语义不同类）。
 
-## [ ] `circular-check` 不解析 `@/` 别名，本轮拆掉的环其实没进门禁 (ci-circular-check-alias-blind)
+## [x] `circular-check` 不解析 `@/` 别名，本轮拆掉的环其实没进门禁 (ci-circular-check-alias-blind)
 
-- 现象：CI 的 `circular-check` job 全绿，但 #255 / #257 拆的是 `@/` 别名引入的环——它看不见，
+- 现象（2026-10-30）：CI 的 `circular-check` job 全绿，但 #255 / #257 拆的是 `@/` 别名引入的环——它看不见，
   所以「CI 绿」不构成「无环」的证据，回归也没有闸口。
-- 本轮的分层与环检查是仓库外脚本（`src/utils` 传递闭包 → `src/stores` 路径数）跑的，不属于门禁。
-- 待做：让检查解析 tsconfig `paths` 后重新启用为真门禁；单独一个 PR，不要混进内容改动。
+- 已闭合（2026-11-21 复核）：`scripts/check-circular.mjs` 的 `loadAliases()` 读 `tsconfig.app.json` 的
+  `compilerOptions.paths`，把 `@/*` 映射到 `src/`；`resolve()` 对别名引入走同一套落点解析，
+  解析不到会累加 `unresolved` 并让 job 失败（不给假绿）。`.github/workflows/ci-checks.yml` 的
+  `circular-check` job 直接执行 `node scripts/check-circular.mjs src backend/src`（run `44913354345` 中该 job success）。
+- 本轮（2026-11-21）新增的 `services → adapters` 边是单向的：适配器不反向引用 service，未引入新环。
 
 ## [ ] 生产 PM2 的 Node 大版本未验证（`.nvmrc` 这条线未闭合） (prod-pm2-node-version-unverified)
 
