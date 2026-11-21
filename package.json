@@ -22,7 +22,7 @@
     "e2e:codegen": "playwright codegen https://test.classicalab.cn"
   },
   "dependencies": {
-    "pinia": "^3.0.4",
+    "pinia": "^4.1.0",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
   },
