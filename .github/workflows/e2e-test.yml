@@ -19,6 +19,9 @@ name: E2E Test (Playwright)
 #   手动：Actions → E2E Test (Playwright) → Run workflow
 
 on:
+  # 主触发：监听 deploy workflow 完成后自动跑 E2E
+  #   （前端 deploy 和后端 deploy 是两个独立 yml，没有共同触发条件，
+  #    没法互相 needs。workflow_run 让我们在两者都完成后才启动 E2E。）
   workflow_run:
     workflows:
       - Deploy Frontend to Test OSS
@@ -27,6 +30,14 @@ on:
       - Deploy Backend to Aliyun Server
     types:
       - completed
+  # Fallback：直接 push feature-1/main 也触发
+  #   （deploy workflow 有 paths 过滤，只匹配 src/public 等，
+  #    新增的 playwright/ 文件不会触发 deploy。push fallback
+  #    让 E2E 独立跑 against 当前 test env 状态）
+  push:
+    branches:
+      - feature-1
+      - main
   workflow_dispatch:  # 允许手动触发调试
 
 permissions:
@@ -34,9 +45,17 @@ permissions:
 
 jobs:
   e2e-test:
-    # 只有被监听的 workflow 成功才跑——deploy fail 了 E2E 没意义
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # workflow_run 事件：只在 deploy 成功后跑（deploy fail 了 E2E 没意义）
+    # push 事件：直接跑（push fallback 独立验证当前 test env 状态）
+    if: |
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+
+    # 并发控制：同分支只跑一个 E2E，避免 push + workflow_run 同时触发时重复
+    concurrency:
+      group: e2e-test-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout code
