@@ -96,6 +96,8 @@
   - `44913928879` 分支 108 `CI Checks` · success
   - `44914094463` `feature-1`@`62244ad` `CI Checks` · success；`44914094456` 测试前端部署 · success；
     `44914094482` / `44914207972` E2E · success
+  - `44915624671` 台账合并 `b4c0e8f` 的 `E2E Test (Playwright)` · success。该提交只改 `tests/**`、`docs/**`、`tasks/**`，
+    `CI Checks` 的 `on.push.paths` 未包含这三类路径，因此未触发（不是跳过失败）；R109 的 12 例以本机运行结果为准。
 
 ## 五、未完成与阻塞项
 
