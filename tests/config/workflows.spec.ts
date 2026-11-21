@@ -35,6 +35,7 @@ const EXPECTED_ACTIONS: Record<string, string> = {
   'actions/checkout': 'v4',
   'actions/setup-node': 'v7',
   'actions/setup-python': 'v7',
+  'actions/upload-artifact': 'v4',
   'gitleaks/gitleaks-action': 'v2',
   'docker/setup-buildx-action': 'v3',
   'docker/login-action': 'v4',
@@ -67,7 +68,7 @@ describe('GitHub Actions 工作流护栏', () => {
   const workflows = loadWorkflows()
 
   it('全部工作流都能解析，且 action 使用版本 tag、版本不低于登记值', () => {
-    expect(Object.keys(workflows)).toHaveLength(6)
+    expect(Object.keys(workflows)).toHaveLength(7)
 
     for (const [file, workflow] of Object.entries(workflows)) {
       expect(workflow.jobs, `${file} 缺少 jobs`).toBeTruthy()

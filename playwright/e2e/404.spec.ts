@@ -32,8 +32,9 @@ test('F2: 404 页面点击「返回首页」→ 跳转 home', async ({ page }) =
   await page.getByRole('button', { name: /返回首页/ }).click()
   await page.waitForURL('/')
 
-  // 404 消失 = 新页面渲染完成
-  await expect(page.locator('h1')).not.toHaveText('404')
+  // URL 真的回到根 + NewHomeView 的根元素真的渲染（说明 Vue Router goHome 成功）
+  expect(page.url()).toMatch(/\/$|\/index\.html$/)
+  await expect(page.locator('.new-home')).toBeVisible()
 })
 
 test('F3: 已登录状态访问不存在路径 → 仍走 404 兜底（不被守卫拦截）', async ({

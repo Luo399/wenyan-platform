@@ -37,8 +37,12 @@ test('A2: 已登录访问 /rules/1 → 正常渲染（video 元素存在）', as
   await loginAsStudent(page)
   await page.goto('/rules/1')
 
-  // RuleVideoView 渲染后有 <video> 元素（10s timeout 等数据加载）
-  await expect(page.locator('video')).toBeVisible({ timeout: 10_000 })
+  // RuleVideoView 渲染：检查 <video> 元素存在且 src 指向正确的 OSS 资源
+  // （video 元素带 hidden 属性但 src 正确 → 说明组件 mount + 数据加载成功，
+  //  不用 toBeVisible()——playwright 会把 hidden 视为不可见）
+  await expect(page.locator('video')).toBeAttached({ timeout: 10_000 })
+  const videoSrc = await page.locator('video').getAttribute('src')
+  expect(videoSrc).toContain('video/WEN_01')
 
   // 地址栏不变——没有被守卫踢走
   expect(page.url()).toMatch(/\/rules\/1/)
@@ -59,14 +63,12 @@ test('A3: token 过期访问 /rules/1 → 自动登出 + 重定向登录页', as
 
 test('A4: 学生访问 /admin-console → 回首页（角色门禁）', async ({ page }) => {
   await loginAsStudent(page)
-  await page.goto('/admin-console')
+  // 守卫角色检查会 next({ path: '/' })，直接等 URL 变化（不等 load 事件，那个要 30s）
+  await Promise.all([
+    page.waitForURL('/'),
+    page.goto('/admin-console', { waitUntil: 'domcontentloaded' }),
+  ])
 
-  // requiresAuth 通过 → role 检查 student 不在 ADMIN_ROLES → beforeEach next({ path: '/' })
-  await page.waitForURL('/')
-
-  // 首页渲染完成的标识（NewHomeView 有篇目列表）
-  const homeIndicators = page.locator(
-    '.article-list, .poem-list, [class*="article"], [class*="home"]',
-  )
-  await expect(homeIndicators.first()).toBeVisible({ timeout: 10_000 })
+  // 首页渲染完成的标识（NewHomeView 的根元素）
+  await expect(page.locator('.new-home')).toBeVisible({ timeout: 10_000 })
 })

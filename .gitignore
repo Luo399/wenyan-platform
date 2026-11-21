@@ -48,6 +48,7 @@ playwright/test-results
 playwright/playwright-report/
 test-results/
 playwright-report/
+playwright-browsers/
 
 # Vitest
 __screenshots__/

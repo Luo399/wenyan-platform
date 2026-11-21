@@ -4,6 +4,9 @@ import { defineConfig, devices } from '@playwright/test'
  * Playwright E2E 测试配置
  *
  * 设计意图：
+ * - 放在项目根目录而非 playwright/ 子目录，因为 Playwright 默认从 cwd 找 config
+ *   （放在子目录会被静默忽略，导致 ignoreHTTPSErrors/baseURL 都不生效）
+ * - testDir 仍指向 playwright/e2e/（spec 文件在子目录里保持整洁）
  * - baseURL 默认指向测试环境 test.classicalab.cn，可通过 PLAYWRIGHT_BASE_URL 环境变量覆盖
  *   （CI workflow 根据触发的是 test 还是 prod deploy 动态设置）
  * - ignoreHTTPSErrors: true 跳过测试环境无效证书（ERR_CERT_COMMON_NAME_INVALID）
