@@ -1,0 +1,83 @@
+name: E2E Test (Playwright)
+
+# 触发：监听 deploy workflow 完成后自动跑 E2E
+#
+# 设计意图：
+#   1. 前端 deploy 和后端 deploy 是两个独立 yml，没有共同触发条件，
+#      没法互相 needs。workflow_run 让我们在两者都完成后才启动 E2E。
+#   2. PR 阶段不跑 E2E（时序不对——test env 还没部署），PR 跑 Vitest 已足够。
+#   3. E2E 失败不阻塞 deploy（fingerprint 轮询已确保 OSS 正确），
+#      但要传 artifact 便于回溯。
+#
+# 运行模型：
+#   deploy workflow（test 或 prod）→ workflow_run 监听 → E2E 自动跑
+#   手动：Actions → E2E Test (Playwright) → Run workflow
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy Frontend to Test OSS
+      - Deploy Backend to Test Server
+      - Deploy Frontend to Aliyun OSS
+      - Deploy Backend to Aliyun Server
+    types:
+      - completed
+  workflow_dispatch:  # 允许手动触发调试
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-test:
+    # 只有被监听的 workflow 成功才跑——deploy fail 了 E2E 没意义
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --with-deps 自动装 Chromium 需要的系统依赖（Ubuntu 上的 libnss3/libxss1 等）
+      - name: Install Playwright Chromium + system deps
+        run: npx playwright install --with-deps chromium
+
+      # 根据触发的 workflow 名判断跑测试还是生产环境
+      - name: Determine base URL
+        id: env
+        run: |
+          workflow_name="${{ github.event.workflow_run.name }}"
+          if [[ "$workflow_name" == *"Test"* ]]; then
+            echo "base_url=https://test.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://test-api.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "E2E target: TEST env"
+          else
+            echo "base_url=https://www.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "E2E target: PROD env"
+          fi
+
+      - name: Run E2E tests
+        run: npx playwright test
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.env.outputs.base_url }}
+          PLAYWRIGHT_API_URL: ${{ steps.env.outputs.api_url }}
+
+      # 失败时抓 trace + screenshot + video，7 天自动删除
+      - name: Upload Playwright artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
