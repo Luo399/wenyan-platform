@@ -9,6 +9,11 @@ name: E2E Test (Playwright)
 #   3. E2E 失败不阻塞 deploy（fingerprint 轮询已确保 OSS 正确），
 #      但要传 artifact 便于回溯。
 #
+# 关键设计：
+#   Chromium 下载用官方 Playwright Action（microsoft/playwright-github-action）
+#   它内置 CDN fallback + Microsoft Azure mirror，比裸 npx install 稳定得多。
+#   本机和 CI 都遇到过 playwright.dev CDN 超时问题。
+#
 # 运行模型：
 #   deploy workflow（test 或 prod）→ workflow_run 监听 → E2E 自动跑
 #   手动：Actions → E2E Test (Playwright) → Run workflow
@@ -46,9 +51,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # --with-deps 自动装 Chromium 需要的系统依赖（Ubuntu 上的 libnss3/libxss1 等）
-      - name: Install Playwright Chromium + system deps
-        run: npx playwright install --with-deps chromium
+      # 官方 Playwright Action 装浏览器 + system deps
+      # 比裸 npx install 稳得多（内置 CDN fallback）
+      - name: Install Playwright Chromium
+        uses: microsoft/playwright-github-action@v1
+        with:
+          chromium: true
 
       # 根据触发的 workflow 名判断跑测试还是生产环境
       - name: Determine base URL
