@@ -70,26 +70,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 装 Playwright Chromium + 系统依赖
+      # Chromium 策略：用 ubuntu-latest runner 自带的 Chrome，完全跳过 Playwright CDN！
       #
-      # 为什么不用 microsoft/playwright-github-action？
-      #   该 action 3s 就挂（可能不再维护）。这里直接 npx install，
-      #   强制 Microsoft Azure mirror（playwright.download.prss.microsoft.com）
-      #   加 3 次重试——Playwright 官方 CDN (cdn.playwright.dev) 多次超时。
-      #
-      # 为什么不用 ubuntu-latest 自带的 chromium apt 包？
-      #   apt chromium 和 Playwright 内置 Chromium 版本可能不匹配。
-      - name: Install Playwright Chromium
-        env:
-          PLAYWRIGHT_DOWNLOAD_HOST: https://playwright.download.prss.microsoft.com/dbazure/download/playwright
+      # 历史：本机和 GitHub runner 上 playwright install chromium 都因 CDN 超时失败
+      #       （cdn.playwright.dev 和 Microsoft Azure mirror 都试过）。
+      # 解决方案：ubuntu-latest runner 预装了 Chrome（/usr/bin/google-chrome-stable），
+      #   让 Playwright 直接用它——只需要 apt 补几个系统依赖库（Playwright 需要的
+      #   libnss3/libxss1/libgbm/libasound2 等），比下载 150MB Chromium 快得多且稳定。
+      - name: Install Playwright system deps + use runner Chrome
         run: |
-          for i in 1 2 3; do
-            echo "Attempt $i of 3..."
-            npx playwright install --with-deps chromium && break
-            if [ $i -eq 3 ]; then exit 1; fi
-            echo "Failed, retrying in 15s..."
-            sleep 15
-          done
+          # 安装 Playwright 需要的系统依赖（Chromium 运行时库）
+          npx playwright install-deps chromium
+          # 确认 runner 预装了 Chrome
+          which google-chrome-stable && google-chrome-stable --version
 
       # 根据触发的 workflow 名判断跑测试还是生产环境
       - name: Determine base URL
@@ -111,6 +104,8 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.env.outputs.base_url }}
           PLAYWRIGHT_API_URL: ${{ steps.env.outputs.api_url }}
+          # 让 Playwright 用 runner 预装的 Chrome（跳过自己的 Chromium）
+          PLAYWRIGHT_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
 
       # 失败时抓 trace + screenshot + video，7 天自动删除
       - name: Upload Playwright artifacts (on failure)
