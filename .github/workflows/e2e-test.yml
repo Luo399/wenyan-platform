@@ -70,42 +70,60 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Chromium 策略：用 ubuntu-latest runner 自带的 Chrome，完全跳过 Playwright CDN！
+      # Chromium 策略：手动下载 + 解压，完全绕过 Playwright 内置 CDN
       #
-      # 历史：本机和 GitHub runner 上 playwright install chromium 都因 CDN 超时失败
-      #       （cdn.playwright.dev 和 Microsoft Azure mirror 都试过）。
-      # 解决方案：ubuntu-latest runner 预装了 Chrome（/usr/bin/google-chrome-stable），
-      #   让 Playwright 直接用它——只需要 apt 补几个系统依赖库（Playwright 需要的
-      #   libnss3/libxss1/libgbm/libasound2 等），比下载 150MB Chromium 快得多且稳定。
-      - name: Install Playwright system deps + use runner Chrome
+      # 历史：
+      #   - npx playwright install chromium：CDN 和 Microsoft Azure mirror 都超时
+      #   - microsoft/playwright-github-action：3s 就挂（可能不再维护）
+      #   - runner 预装 Chrome：Playwright 跑 runner Chrome 失败（版本不匹配）
+      # 最终方案：用 curl 直接下载 chromium-linux.zip，设 600s 超时 + --retry
+      #   解压到 PLAYWRIGHT_BROWSERS_PATH 后 Playwright 自动识别
+      - name: Manually download Chromium (bypass CDN timeouts)
+        env:
+          PW_BROWSERS_PATH: ${{ runner.temp }}/pw-browsers
         run: |
-          # 安装 Playwright 需要的系统依赖（Chromium 运行时库）
-          npx playwright install-deps chromium
-          # 确认 runner 预装了 Chrome
-          which google-chrome-stable && google-chrome-stable --version
+          set -euo pipefail
+          mkdir -p "$PW_BROWSERS_PATH/chromium-1155"
+          CHROMIUM_URL="https://cdn.playwright.dev/dbazure/download/playwright/builds/chromium/1155/chromium-linux.zip"
+          echo "Downloading Chromium from $CHROMIUM_URL (600s timeout, 3 retries)..."
+          curl -fSL --connect-timeout 30 --max-time 600 --retry 3 --retry-delay 10 \
+            -o "$RUNNER_TEMP/chromium-linux.zip" "$CHROMIUM_URL"
+          echo "Downloaded $(stat -c%s "$RUNNER_TEMP/chromium-linux.zip") bytes"
+          unzip -q "$RUNNER_TEMP/chromium-linux.zip" -d "$PW_BROWSERS_PATH/chromium-1155"
+          echo "Chromium installed at $PW_BROWSERS_PATH/chromium-1155/chrome-linux/chrome"
+          ls -la "$PW_BROWSERS_PATH/chromium-1155/chrome-linux/chrome"
+          # 补系统依赖（Playwright 需要的 libnss3/libgbm/libasound2 等）
+          npx playwright install-deps chromium || true
 
       # 根据触发的 workflow 名判断跑测试还是生产环境
+      # push fallback 事件默认跑 test env
       - name: Determine base URL
         id: env
         run: |
           workflow_name="${{ github.event.workflow_run.name }}"
-          if [[ "$workflow_name" == *"Test"* ]]; then
+          event_name="${{ github.event_name }}"
+          echo "触发事件: $event_name, workflow名: $workflow_name"
+          if [[ "$workflow_name" == *"Test"* ]] || [[ "$event_name" == "push" && "${{ github.ref }}" == "refs/heads/feature-1" ]]; then
             echo "base_url=https://test.classicalab.cn" >> "$GITHUB_OUTPUT"
             echo "api_url=https://test-api.classicalab.cn" >> "$GITHUB_OUTPUT"
             echo "E2E target: TEST env"
-          else
+          elif [[ "$event_name" == "push" && "${{ github.ref }}" == "refs/heads/main" ]] || [[ "$workflow_name" == *"Aliyun"* ]]; then
             echo "base_url=https://www.classicalab.cn" >> "$GITHUB_OUTPUT"
             echo "api_url=https://api.classicalab.cn" >> "$GITHUB_OUTPUT"
             echo "E2E target: PROD env"
+          else
+            # 默认 fallback
+            echo "base_url=https://test.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://test-api.classicalab.cn" >> "$GITHUB_OUTPUT"
+            echo "E2E target: DEFAULT TEST env"
           fi
 
       - name: Run E2E tests
-        run: npx playwright test
         env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/pw-browsers
           PLAYWRIGHT_BASE_URL: ${{ steps.env.outputs.base_url }}
           PLAYWRIGHT_API_URL: ${{ steps.env.outputs.api_url }}
-          # 让 Playwright 用 runner 预装的 Chrome（跳过自己的 Chromium）
-          PLAYWRIGHT_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+        run: npx playwright test
 
       # 失败时抓 trace + screenshot + video，7 天自动删除
       - name: Upload Playwright artifacts (on failure)
