@@ -20,12 +20,12 @@ jobs:
 
     steps:
       - name: Checkout wenyan-platform
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: wenyan-platform
 
       - name: Checkout wenyan-asset-sync
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: Luo399/wenyan-asset-sync
           # 操作插件仓库的独立 PAT（repo + PR 权限）。
