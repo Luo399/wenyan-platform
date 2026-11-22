@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -112,6 +112,8 @@ function classPicker(wrapper: VueWrapper) {
 describe('AdminConsoleView.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // happy-dom 不实现 window.confirm（CI 环境为 undefined），统一用可替换的全局桩
+    vi.stubGlobal('confirm', vi.fn(() => true))
     mocks.listTeachers.mockResolvedValue(TEACHERS)
     mocks.listStudents.mockResolvedValue(STUDENTS)
     mocks.createTeacher.mockResolvedValue({ success: true, message: '教师账号创建成功' })
@@ -132,6 +134,10 @@ describe('AdminConsoleView.vue', () => {
       message: '密码已重置，一次性临时口令：TempS-456（仅本次显示）',
       data: { temporary_password: 'TempS-456' },
     })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('挂载时同时加载教师与学生列表，默认停留在教师标签', async () => {
@@ -168,7 +174,7 @@ describe('AdminConsoleView.vue', () => {
 
   it('驳回教师需要二次确认：取消不调用，确认才调用', async () => {
     const wrapper = await mountView()
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirmSpy = vi.mocked(window.confirm).mockReturnValue(false)
 
     await findRow(wrapper, 0, 'a002')?.find('.link-btn.danger').trigger('click')
     await flushPromises()
@@ -257,7 +263,7 @@ describe('AdminConsoleView.vue', () => {
 
   it('删除教师需要确认，确认后调用接口并刷新', async () => {
     const wrapper = await mountView()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(window.confirm).mockReturnValue(true)
     const deleteBtn = findRow(wrapper, 0, 'a001')?.findAll('.link-btn')[2]
 
     await deleteBtn?.trigger('click')
@@ -269,7 +275,7 @@ describe('AdminConsoleView.vue', () => {
 
   it('删除教师取消确认时不调用接口', async () => {
     const wrapper = await mountView()
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.mocked(window.confirm).mockReturnValue(false)
 
     await findRow(wrapper, 0, 'a001')?.findAll('.link-btn')[2].trigger('click')
     await flushPromises()
@@ -331,7 +337,7 @@ describe('AdminConsoleView.vue', () => {
 
   it('删除学生会先确认再调用接口', async () => {
     const wrapper = await mountView()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(window.confirm).mockReturnValue(true)
 
     await findRow(wrapper, 1, '20250102')?.findAll('.link-btn')[2].trigger('click')
     await flushPromises()
