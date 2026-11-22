@@ -19,6 +19,9 @@ on:
       - 'main'
     paths:
       - 'src/**'
+      # 测试目录此前不在 paths 内：只改 tests/** 的分支既不跑 CI 也不跑覆盖率门禁，
+      # 等于「新增测试无人验证」。测试变更必须触发同一套 quality-check。
+      - 'tests/**'
       - 'backend/**'
       - 'figma-plugin/**'
       - 'playwright/**'
